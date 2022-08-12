@@ -3,7 +3,7 @@ var config = {};
 // name your new blockchain currency
 config.name = "ICNCoin";
 // set the mining difficulty by the necessary number of leading Zeros of the block Hash CAUTION difficulty increases exponentially!
-config.miningDifficulty = 5;
+config.miningDifficulty = 4;
 // set the mining reward per block
 config.blockReward = 6.25;
 // set the amount of blocks after which the mining reward will be halvedo

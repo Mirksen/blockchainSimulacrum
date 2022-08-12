@@ -148,12 +148,17 @@ class Block {
       `\n==> #${config.blockCounter} Block sucessfully mined with \nnonce: ${this.nonce} hash: ${this.hash}`
     );
     if (config.miningLog == true) {
+      // count block hashing attempts
       let counter = 1;
       console.log(`Completing nonce is ${this.nonce} passed in ${timeDiff}\n`);
       //console.log(`Block mining times: ${config.miningTimes}`);
       for (timeDiff of miningTimes) {
         console.log(`Block log:`);
-        console.log(`#${counter++} Block mining time: ${timeDiff}`);
+        console.log(
+          `block: ${
+            config.blockCounter
+          } #${counter++} Block mining time: ${timeDiff}`
+        );
       }
     }
   };
