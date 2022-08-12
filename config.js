@@ -1,15 +1,24 @@
 var config = {};
 
 // name your new blockchain currency
-config.name = "ICNCoin";
+config.name = "Simcoin";
 // set the mining difficulty by the necessary number of leading Zeros of the block Hash CAUTION difficulty increases exponentially!
-config.miningDifficulty = 4;
+if (process.argv[2] == null) {
+  config.miningDifficulty = 3;
+} else {
+  config.miningDifficulty = Number(process.argv[2]);
+}
 // set the mining reward per block
 config.blockReward = 6.25;
 // set the amount of blocks after which the mining reward will be halvedo
 config.halvingEvent = 2;
 // Mining log to see hashing details
-config.miningLog = true;
+config.miningLog = false;
+if (process.argv[3] == null) {
+  config.miningLog = false;
+} else {
+  config.miningLog = Boolean(process.argv[3]);
+}
 // for demonstration purposes we can airdrop "starting money" to all participants instead of naturally let it flow from the miners to the users like it would be economically correct for the beginning of a blockchain
 config.startingBalance = 10;
 
@@ -34,8 +43,15 @@ config.transactions = [
   ],
   //THIRD BLOCK you can put n transactions here formated as an array to be included in the third block
   // create Transactions with Signer, Sender, Recipient, Amount & Reference and add them to the mempool as further transactions for the third block
-  [["Kate", "Kate", "Minas", 0.5, 0.00000001, "Antminer S14"]],
+  [
+    ["Kate", "Kate", "Minas", 0.2, 0.00000001, "Antminer S14"],
+    ["Kate", "Kate", "Minas", 0.00498, 0.00000001, "Antminer S14 accessories"],
+    ["Chris", "Chris", "Kate", 0.0000018, 0.00000001, "meal thursday"],
+  ],
 ];
+// list of blockhashes
+config.blockHashes = [];
+
 // list of stringified block times for log purposes
 config.miningTimes = [];
 

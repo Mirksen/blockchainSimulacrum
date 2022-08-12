@@ -131,7 +131,11 @@ class Block {
     ) {
       // against a string of "0s" calculated by an empty array in the size of the diffculty+1 resulting in concatenating those empty values with "0" in zeros resulting in "0000" for diffuculty = 4 (join()method returns array as string). Iterating until the minimal amount of Zeros (mining Difficulty) beeing matched
       if (config.miningLog == true) {
-        console.log(`nonce: ${this.nonce} hash: ${this.hash}`);
+        console.log(
+          `block: ${config.blockCounter + 1} nonce: ${this.nonce} hash: ${
+            this.hash
+          }`
+        );
       }
       this.nonce++; // nonce getting increased by 1 in while loop until the previous condition of minimal amount of starting zeros is beeing met (Bitcoin using a 2nd nonce field already, since the scale is so big, that one nounce field is not sufficient because of overflow)
       this.hash = this.createHash(); // using   hashcalculation until finding the desired X-Zero-Hash according to the loop condition
@@ -144,6 +148,7 @@ class Block {
     config.miningTimes.push(timeDiff);
     // start counting block numbers
     config.blockCounter++;
+    config.blockHashes.push(this.hash);
     console.log(
       `\n==> #${config.blockCounter} Block sucessfully mined with \nnonce: ${this.nonce} hash: ${this.hash}`
     );
@@ -151,15 +156,19 @@ class Block {
       // count block hashing attempts
       let counter = 1;
       console.log(`Completing nonce is ${this.nonce} passed in ${timeDiff}\n`);
-      //console.log(`Block mining times: ${config.miningTimes}`);
+      console.log(
+        `............................................................................`
+      );
+      console.log(
+        `MINING LOG \ndifficulty of - ${config.miningDifficulty} - leading zeros:`
+      );
       for (timeDiff of miningTimes) {
-        console.log(`Block log:`);
-        console.log(
-          `block: ${
-            config.blockCounter
-          } #${counter++} Block mining time: ${timeDiff}`
-        );
+        console.log(`#${counter++} block mining time: ${timeDiff}`);
       }
+      console.log(`\nproof-of-work hashes: \n${config.blockHashes.join(`\n`)}`);
+      console.log(
+        `............................................................................`
+      );
     }
   };
 
@@ -183,6 +192,7 @@ class Blockchain {
     this.memPool = []; // broadcastet transactions going here
     this.blockReward = blockreward; // successfully appending a block to the blockchain rewards the miner with this amount. While Bitcoin started with "50" as initial reward, we take "6.25" as the recent value as start value
     this.halvingEvent = halvingEvent; // every nth Block the mining reward getting halved. While Bitcoin adjusts the blockreward every 210000 blocks, we chose 2 to show the effect immidiately in our short deployment
+    this.transactionCounter = 0;
   }
 
   // get participants, otherwise show error message if there are none
@@ -194,7 +204,9 @@ class Blockchain {
     this.participants.members = [...names];
     for (let i in this.participants) {
       this.participants[i] = new Participant(this.participants[i]);
-      console.log(` participant joined: ${this.participants[i].name}`);
+      // console.log(
+      //   ` participant joined: ${this.participants[i].name}\nprivate key: ${this.participants[i].privateKey}\npublickey: ${this.participants[i].publicKey}`
+      // );
     }
   }
 
@@ -205,11 +217,13 @@ class Blockchain {
 
   // declaring all ledger participants and print the members
   addParticipants = (...names) => {
-    console.log(`\n-=Starting the ${this.name} instance=-`);
+    console.log(`\n-=NEW BLOCKCHAIN: ${this.name}-=-`);
     this.participants.push(...names);
     for (let i in this.participants) {
       this.participants[i] = new Participant(this.participants[i]);
-      console.log(` participant joined: ${this.participants[i].name}`);
+      console.log(
+        `     participant joined: ${this.participants[i].name}\n          private key: ${this.participants[i].privateKey}\n          publickey: ${this.participants[i].publicKey}`
+      );
     }
   };
 
@@ -219,7 +233,7 @@ class Blockchain {
       this.participants.findIndex((x) => x.name === name)
     ].activeMiner = true;
     console.log(
-      `   Miner declared: ${
+      `        Miner declared: ${
         this.participants[
           this.participants.findIndex((x) => x.activeMiner === true)
         ].name
@@ -263,14 +277,20 @@ class Blockchain {
 
   // checking the full ledger to get all participants most recent balance
   calculateBalanceAll = () => {
-    console.log(`\nchecking the network participants' individual balance:`);
+    console.log(
+      `............................................................................`
+    );
+    console.log(`USER BALANCES`);
     for (let i in this.participants) {
       console.log(
-        `   the Balance of ${
-          this.participants[i].name
-        } is: ${this.calculateBalance(this.participants[i].publicKey)}`
+        `     ${this.participants[i].name} : ${this.calculateBalance(
+          this.participants[i].publicKey
+        )}`
       );
     }
+    console.log(
+      `............................................................................`
+    );
   };
 
   // creating a new Transaction with given input parameters and append it to the Blockchain mempool
@@ -282,6 +302,7 @@ class Blockchain {
     transactionFee,
     referenceNumber
   ) => {
+    this.transactionCounter++;
     const tx = new Transaction(
       this.participants[
         this.participants.findIndex((x) => x.name === sender)
@@ -300,11 +321,16 @@ class Blockchain {
     );
     this.appendTx(tx);
     console.log(
-      `--calling Transaction: ${sender} is sending ${amount} ${
+      `NEW TRANSACTION #${
+        this.transactionCounter
+      }:\n     "${sender}" is sending - ${amount} ${
         this.name
-      } to ${recipient} (Reference: ${referenceNumber}, transaction fee: ${transactionFee.toFixed(
+      } - to "${recipient}"\n     Reference: ${referenceNumber}\n     transaction fee: ${transactionFee.toFixed(
         8
-      )}) ==>transaction signature verified`
+      )} ${this.name}\n     ==>transaction signature verified`
+    );
+    console.log(
+      `..................................................................................................................................................................`
     );
   };
 
@@ -332,16 +358,14 @@ class Blockchain {
   // mining function including status printing: creating a new candidate block including the validated transactions from the mempool and start the mining process for the X-Zero-Hash
   miningProcess = (miningRewardAddress) => {
     this.blockArray.length == 1
-      ? console.log(
-          ` Block N°1 as artificial Genesis Block - initializing the beginning of the blockchain with hash: ${this.blockArray[0].hash}`
-        )
+      ? console.log(` Genesis Block: ${this.blockArray[0].hash}`)
       : null;
     const block = new Block(
       Date().toLocaleString(),
       this.memPool,
       this.blockArray[this.blockArray.length - 1].hash
     ); // in real scenario there can be more transactions than a block can cover (arround 2.400 transactions) due to its limited size of 1 Megabyte (4Mb with Segwit) - therefore miners pick their transactions according to the transaction fees amount and prioritize them this way
-    console.log(` initializing Block N°${this.blockArray.length + 1}:`);
+    console.log(` initializing #${this.blockArray.length} Block:`);
     console.log(`   ...appending the hash of the previous block`);
     console.log(
       `   ...appending all pending transactions: ${this.memPool.map(
@@ -376,7 +400,7 @@ class Blockchain {
     this.memPool.push(rewardTx); // push the blockreward to the current block's transactions
     console.log(`   ...appending nonce: ${block.nonce}`);
     console.log(
-      `   ...spamming growing nonces until a block hash matching the difficulty of min. ${this.miningDifficulty} leading zeros has been found`
+      `   ...counting up nonces until a block hash matching the difficulty of min. ${this.miningDifficulty} leading zeros has been found`
     );
     block.searchXZeroHash(this.miningDifficulty); // finding the x-zero hash
     this.blockArray.push(block); // append the new block to the blockchain
@@ -386,11 +410,11 @@ class Blockchain {
   // function to trigger the mining process which grabs all transactions, finds the correct hash and appends it to the blockchain
   mineNextBlock = () => {
     console.log(
-      `\nMiner-${
+      `MINING\nMiner-${
         this.participants[
           this.participants.findIndex((x) => x.activeMiner === true)
         ].name
-      } is starting a mining process...`
+      } is starting a mining process ...`
     );
     this.miningProcess(
       this.participants[
@@ -398,7 +422,7 @@ class Blockchain {
       ].publicKey
     ); //  refers to the public key!
     console.log(
-      `\n***...Broadcasting the new ${this.name} Version to the network***`
+      `\n***...Broadcasting the newest ${this.name} block to the network***`
     );
     console.log(
       `***...network validation: Chain validity is ${

@@ -90,7 +90,7 @@ if (config.audit === true) {
 }
 
 // aggregated security checks on transactions and blocks
-console.log();
+console.log(`AUDIT`);
 console.log(`Are all transactions valid?: ${kryptoCurrency.areTxValid()}`);
 console.log(`Are all block valid?: ${kryptoCurrency.areBlocksValid()}`);
 
