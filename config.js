@@ -1,7 +1,7 @@
 var config = {};
 
 // name your new blockchain currency
-config.name = "Simcoin";
+config.name = "Lukacoin";
 // set the mining difficulty by the necessary number of leading Zeros of the block Hash CAUTION difficulty increases exponentially!
 if (process.argv[2] == null) {
   config.miningDifficulty = 3;
@@ -9,7 +9,7 @@ if (process.argv[2] == null) {
   config.miningDifficulty = Number(process.argv[2]);
 }
 // set the mining reward per block
-config.blockReward = 6.25;
+config.blockReward = 3.125;
 // set the amount of blocks after which the mining reward will be halvedo
 config.halvingEvent = 2;
 // Mining log to see hashing details
