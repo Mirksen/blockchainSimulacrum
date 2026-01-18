@@ -81,27 +81,40 @@ export class Block {
   }
 
   // Async mining with progress callback for UI updates
-  async mineBlock(difficulty, onProgress) {
+  // Returns hash attempts array for visualization
+  async mineBlock(difficulty, onProgress, onAttempt, shouldAbort) {
     const target = Array(difficulty + 1).join('0');
     const startTime = Date.now();
     let iterations = 0;
+    const attempts = [];
 
     while (this.hash.substring(0, difficulty) !== target) {
       this.nonce++;
       this.hash = this.createHash();
       iterations++;
 
-      // Call progress callback every 100 iterations for UI update
-      if (iterations % 100 === 0 && onProgress) {
-        await onProgress({
-          nonce: this.nonce,
-          hash: this.hash,
-          iterations,
-          elapsedMs: Date.now() - startTime
-        });
-        // Yield to UI thread
-        await new Promise(resolve => setTimeout(resolve, 0));
+      // Record every attempt for visualization (limit to last 50 for performance)
+      if (onAttempt) {
+        onAttempt({ nonce: this.nonce, hash: this.hash });
       }
+
+      // Call progress callback every 50 iterations for UI update
+      if (iterations % 50 === 0) {
+        if (shouldAbort && shouldAbort()) {
+          return { aborted: true, nonce: this.nonce, hash: this.hash, iterations, miningTime: (Date.now() - startTime) / 1000 };
+        }
+        if (onProgress) {
+          await onProgress({
+            nonce: this.nonce,
+            hash: this.hash,
+            iterations,
+            elapsedMs: Date.now() - startTime
+          });
+          // Yield to UI thread
+          await new Promise(resolve => setTimeout(resolve, 0));
+        }
+      }
+
     }
 
     const miningTime = (Date.now() - startTime) / 1000;
@@ -115,7 +128,7 @@ export class Block {
 
 // Blockchain class - the main chain management
 export class Blockchain {
-  constructor(name, miningDifficulty = 3, blockReward = 3.125, halvingEvent = 2) {
+  constructor(name, miningDifficulty = 3, blockReward = 3.125, halvingEvent = 210000, startingBalance = 0) {
     this.name = name;
     this.miningDifficulty = miningDifficulty;
     this.blockReward = blockReward;
@@ -123,12 +136,12 @@ export class Blockchain {
     this.participants = [];
     this.blockArray = [this.createGenesisBlock()];
     this.memPool = [];
-    this.startingBalance = 10;
+    this.startingBalance = startingBalance;
     this.miningLog = [];
   }
 
   createGenesisBlock() {
-    return new Block('Genesis Block', [], 'There is no previous Hash.');
+    return new Block(Date.now(), [], '0');
   }
 
   addParticipant(name) {
@@ -155,7 +168,8 @@ export class Blockchain {
 
   calculateBalance(publicKey) {
     let balance = this.startingBalance;
-    
+
+    // Include confirmed transactions in blocks
     for (const block of this.blockArray) {
       for (const tx of block.transactions) {
         if (tx.sender === publicKey) {
@@ -167,7 +181,18 @@ export class Blockchain {
         }
       }
     }
-    
+
+    // Also include pending transactions in mempool
+    for (const tx of this.memPool) {
+      if (tx.sender === publicKey) {
+        balance -= tx.amount;
+        balance -= tx.transactionFee;
+      }
+      if (tx.recipient === publicKey) {
+        balance += tx.amount;
+      }
+    }
+
     return Math.round(balance * 100000000) / 100000000;
   }
 
@@ -183,7 +208,7 @@ export class Blockchain {
   createTransaction(senderName, recipientName, amount, transactionFee, reference) {
     const sender = this.getParticipantByName(senderName);
     const recipient = this.getParticipantByName(recipientName);
-    
+
     if (!sender || !recipient) {
       throw new Error('Sender or recipient not found');
     }
@@ -200,28 +225,29 @@ export class Blockchain {
       transactionFee,
       reference
     );
-    
+
     tx.sign(sender.keyPair);
     this.memPool.push(tx);
-    
+
     return tx;
   }
 
-  // Async mining with progress callbacks
-  async mineNextBlock(onProgress) {
+  // Async mining with progress callbacks and hash attempt logging
+  // allowEmpty enables mining blocks with only the reward transaction
+  async mineNextBlock(onProgress, onAttempt, allowEmpty = false, shouldAbort) {
     const miner = this.getActiveMiner();
     if (!miner) {
       throw new Error('No active miner set');
     }
 
-    if (this.memPool.length === 0) {
+    if (this.memPool.length === 0 && !allowEmpty) {
       throw new Error('No transactions in mempool to mine');
     }
 
     // Calculate rewards
     const currentBlockNumber = this.blockArray.length;
     let reward = this.blockReward;
-    
+
     // Apply halving
     if (currentBlockNumber > 0 && currentBlockNumber % this.halvingEvent === 0) {
       reward = this.blockReward / 2;
@@ -237,14 +263,18 @@ export class Blockchain {
 
     // Create new block
     const previousHash = this.blockArray[this.blockArray.length - 1].hash;
-    const block = new Block(new Date().toISOString(), transactions, previousHash);
+    const block = new Block(Date.now(), transactions, previousHash);
 
-    // Mine the block
-    const result = await block.mineBlock(this.miningDifficulty, onProgress);
+    // Mine the block with attempt logging
+    const result = await block.mineBlock(this.miningDifficulty, onProgress, onAttempt, shouldAbort);
+
+    if (result.aborted) {
+      return { success: false, aborted: true };
+    }
 
     // Add to chain
     this.blockArray.push(block);
-    
+
     // Clear mempool
     this.memPool = [];
 
@@ -259,10 +289,8 @@ export class Blockchain {
 
   // Validation methods
   areBlocksValid() {
-    const genesis = JSON.stringify(this.createGenesisBlock());
-    if (genesis !== JSON.stringify(this.blockArray[0])) {
-      return false;
-    }
+    // Genesis block validity check (timestamp-agnostic)
+    if (!this.blockArray[0].isValid()) return false;
 
     for (let i = 1; i < this.blockArray.length; i++) {
       const currentBlock = this.blockArray[i];
@@ -285,7 +313,31 @@ export class Blockchain {
   }
 
   isChainValid() {
-    return this.areBlocksValid() && this.areTransactionsValid();
+    return this.areBlocksValid() && this.areTransactionsValid() && this.areBalancesValid();
+  }
+
+  areBalancesValid() {
+    const balances = {};
+
+    for (const block of this.blockArray) {
+      // Validate Block Logic (Optional: balances must be consistent)
+      for (const tx of block.transactions) {
+        // Debit Sender
+        if (tx.sender) {
+          const senderBalance = (balances[tx.sender] || 0) + this.startingBalance;
+          if (senderBalance < tx.amount + tx.transactionFee) {
+            return false; // Insufficient funds
+          }
+          balances[tx.sender] = (balances[tx.sender] || 0) - tx.amount - tx.transactionFee;
+        }
+
+        // Credit Recipient
+        if (tx.recipient) {
+          balances[tx.recipient] = (balances[tx.recipient] || 0) + tx.amount;
+        }
+      }
+    }
+    return true;
   }
 
   // Tamper with a transaction (for demo purposes)
@@ -323,18 +375,19 @@ export class Blockchain {
 // Factory function for easy initialization
 export function createBlockchain(config = {}) {
   const {
-    name = 'Lukacoin',
-    miningDifficulty = 3,
+    name = 'powCoin',
+    miningDifficulty = 1,
     blockReward = 3.125,
-    halvingEvent = 2,
+    halvingEvent = 210000,
     participants = ['Mirksen', 'Kate', 'Bill', 'Chris', 'Minas'],
-    miner = 'Minas'
+    miner = 'Minas',
+    startingBalance = 0
   } = config;
 
-  const blockchain = new Blockchain(name, miningDifficulty, blockReward, halvingEvent);
-  
+  const blockchain = new Blockchain(name, miningDifficulty, blockReward, halvingEvent, startingBalance);
+
   participants.forEach(name => blockchain.addParticipant(name));
   blockchain.setMiner(miner);
-  
+
   return blockchain;
 }

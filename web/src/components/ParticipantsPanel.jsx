@@ -1,44 +1,38 @@
 import { useState } from 'react';
 
-export function ParticipantsPanel({ balances, participants }) {
+export function ParticipantsPanel({ balances, participants, coinName = 'powCoin' }) {
     const [expandedKey, setExpandedKey] = useState(null);
 
-    const truncateKey = (key) => {
-        if (!key) return '';
-        return `${key.substring(0, 8)}...${key.substring(key.length - 6)}`;
-    };
-
     return (
-        <div className="glass-card">
-            <div className="glass-card-header">
+        <div className="fiori-card">
+            <div className="fiori-card-header">
                 <h3>👥 Participants</h3>
-                <span className="text-muted text-sm">{balances.length} wallets</span>
+                <span className="text-muted text-small">{balances.length} wallets</span>
             </div>
 
-            <div className="participants-list">
+            <div className="fiori-card-content" style={{ padding: 0 }}>
                 {balances.map((participant, index) => (
                     <div
                         key={participant.publicKey}
-                        className="participant-card animate-slideIn"
-                        style={{ animationDelay: `${index * 50}ms` }}
+                        className="list-item animate-fadeIn"
+                        style={{ animationDelay: `${index * 50}ms`, cursor: 'pointer' }}
                         onClick={() => setExpandedKey(
                             expandedKey === participant.publicKey ? null : participant.publicKey
                         )}
                     >
-                        <div className="participant-avatar">
+                        <div className="list-item-avatar">
                             {participant.name.charAt(0).toUpperCase()}
                         </div>
 
-                        <div className="participant-info">
-                            <div className="participant-name">
+                        <div className="list-item-content">
+                            <div className="list-item-title">
                                 {participant.name}
                                 {participant.isMiner && (
                                     <span className="miner-badge">⛏️ Miner</span>
                                 )}
                             </div>
-                            <div className="participant-balance">
-                                {participant.balance.toFixed(8)} {' '}
-                                <span className="text-bitcoin">LKC</span>
+                            <div className="list-item-subtitle">
+                                {participant.balance.toFixed(8)} {coinName}
                             </div>
                         </div>
                     </div>
@@ -46,9 +40,9 @@ export function ParticipantsPanel({ balances, participants }) {
             </div>
 
             {expandedKey && (
-                <div className="mt-md animate-fadeIn">
+                <div className="fiori-card-content animate-fadeIn" style={{ borderTop: '1px solid var(--sapList_BorderColor)' }}>
                     <div className="form-label">Public Key (Wallet Address)</div>
-                    <div className="mining-hash text-xs" style={{ wordBreak: 'break-all' }}>
+                    <div className="mining-hash">
                         {participants.find(p => p.publicKey === expandedKey)?.publicKey}
                     </div>
                 </div>

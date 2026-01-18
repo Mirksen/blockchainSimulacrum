@@ -1,528 +1,965 @@
-/* Design System - Bitcoin Orange & Dark Theme with Glassmorphism */
+/* SAP Fiori/UI5 Inspired Design System */
 
-/* === CSS Variables === */
+/* SAP Fiori/UI5 Inspired Design System */
+
+/* === CSS Variables - Dark Mode (Default / "Evening Horizon") === */
 :root {
-  /* Colors */
-  --color-bg-primary: #0a0a0f;
-  --color-bg-secondary: #12121a;
-  --color-bg-tertiary: #1a1a25;
-  --color-bg-card: rgba(26, 26, 40, 0.7);
-  
-  --color-bitcoin: #f7931a;
-  --color-bitcoin-light: #ffb347;
-  --color-bitcoin-dark: #c77700;
-  
-  --color-success: #00d26a;
-  --color-warning: #ffcc00;
-  --color-error: #ff4757;
-  --color-info: #3ea6ff;
-  
-  --color-text-primary: #ffffff;
-  --color-text-secondary: #a1a1aa;
-  --color-text-muted: #71717a;
-  
-  --color-border: rgba(255, 255, 255, 0.08);
-  --color-border-hover: rgba(255, 255, 255, 0.15);
-  
-  /* Gradients */
-  --gradient-bitcoin: linear-gradient(135deg, #f7931a 0%, #ffb347 100%);
-  --gradient-dark: linear-gradient(180deg, #12121a 0%, #0a0a0f 100%);
-  --gradient-glow: radial-gradient(ellipse at center, rgba(247, 147, 26, 0.15) 0%, transparent 70%);
-  
-  /* Glass Effect */
-  --glass-bg: rgba(26, 26, 40, 0.6);
-  --glass-border: rgba(255, 255, 255, 0.1);
-  --glass-blur: blur(20px);
-  
+  /* SAP Fiori Color Palette - Dark Shell Theme */
+  --sapBrandColor: #0a6ed1;
+  --sapHighlightColor: #0854a0;
+  --sapBaseColor: #1d232a;
+  /* Card Background */
+  --sapShellColor: #12171c;
+  /* Shell Header Background */
+  --sapBackgroundColor: #12171c;
+  /* App Background */
+
+  /* Semantic Colors */
+  --sapPositiveColor: #107e3e;
+  --sapCriticalColor: #e9730c;
+  --sapNegativeColor: #bb0000;
+  --sapInformativeColor: #0a6ed1;
+  --sapNeutralColor: #868c97;
+
+  /* Text Colors */
+  --sapTextColor: #ffffff;
+  --sapTitleColor: #ffffff;
+  --sapLinkColor: #0a6ed1;
+  --sapContent_LabelColor: #d1d5db;
+  /* Lighters for dark mode */
+  --sapContent_DisabledTextColor: #6a6d70;
+
+  /* Background Colors */
+  --sapGroup_TitleBackground: #1d232a;
+  --sapGroup_ContentBackground: #1d232a;
+  --sapList_Background: #1d232a;
+  --sapList_HeaderBackground: #161c22;
+  --sapTile_Background: #1d232a;
+
+  /* Border Colors */
+  --sapGroup_TitleBorderColor: #3a4552;
+  --sapList_BorderColor: #3a4552;
+  --sapField_BorderColor: #586c85;
+
+  /* Button Colors */
+  --sapButton_Background: #0a6ed1;
+  --sapButton_BorderColor: #0a6ed1;
+  --sapButton_TextColor: #ffffff;
+  --sapButton_Hover_Background: #085caf;
+  --sapButton_Active_Background: #0854a0;
+
+  /* Shell Header - Dark Mode */
+  --sapShell_Background: #12171c;
+  --sapShell_TextColor: #ffffff;
+  --sapShell_SubtitleColor: rgba(255, 255, 255, 0.75);
+
+  /* Shadows - Adjusted for Dark Mode */
+  --sapContent_Shadow0: 0 0 0 1px rgba(255, 255, 255, 0.1);
+  --sapContent_Shadow1: 0 1px 4px 0 rgba(0, 0, 0, 0.5);
+  --sapContent_Shadow2: 0 4px 16px 0 rgba(0, 0, 0, 0.6);
+  --sapContent_Shadow3: 0 8px 32px 0 rgba(0, 0, 0, 0.7);
+
   /* Typography */
-  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --font-mono: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
-  
+  --sapFontFamily: '72', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --sapFontMonoFamily: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
+  --sapFontSize: 14px;
+  --sapFontSmallSize: 12px;
+  --sapFontLargeSize: 16px;
+  --sapFontHeader1Size: 36px;
+  --sapFontHeader2Size: 24px;
+  --sapFontHeader3Size: 20px;
+  --sapFontHeader4Size: 18px;
+  --sapFontHeader5Size: 16px;
+
   /* Spacing */
-  --space-xs: 4px;
-  --space-sm: 8px;
-  --space-md: 16px;
-  --space-lg: 24px;
-  --space-xl: 32px;
-  --space-2xl: 48px;
-  
+  --sapContent_Padding: 16px;
+  --sapElement_Gap: 8px;
+
   /* Border Radius */
-  --radius-sm: 6px;
-  --radius-md: 12px;
-  --radius-lg: 16px;
-  --radius-xl: 24px;
-  --radius-full: 9999px;
-  
-  /* Shadows */
-  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.4);
-  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.5);
-  --shadow-glow: 0 0 40px rgba(247, 147, 26, 0.2);
-  
+  --sapElement_BorderCornerRadius: 8px;
+  --sapButton_BorderCornerRadius: 6px;
+  /* slightly more rounded for Horizon */
+
   /* Transitions */
-  --transition-fast: 0.15s ease;
-  --transition-normal: 0.3s ease;
-  --transition-slow: 0.5s ease;
+  --sapTransition: 0.15s ease-in-out;
+}
+
+/* === Light Mode Theme ("Morning Horizon" / "Quartz") === */
+[data-theme="light"] {
+  /* SAP Fiori Color Palette - Light Theme */
+  --sapBrandColor: #0070f2;
+  /* Brighter blue for light mode */
+  --sapHighlightColor: #005ec4;
+  --sapBaseColor: #ffffff;
+  --sapShellColor: #354a5f;
+  /* Classic Fiori Shell */
+  --sapBackgroundColor: #f5f7fa;
+  /* Fiori Light Background */
+
+  /* Text Colors */
+  --sapTextColor: #32363a;
+  --sapTitleColor: #32363a;
+  --sapLinkColor: #0070f2;
+  --sapContent_LabelColor: #6a6d70;
+  --sapContent_DisabledTextColor: #a9a9a9;
+
+  /* Background Colors */
+  --sapGroup_TitleBackground: #ffffff;
+  --sapGroup_ContentBackground: #ffffff;
+  --sapList_Background: #ffffff;
+  --sapList_HeaderBackground: #f5f7fa;
+  --sapTile_Background: #ffffff;
+
+  /* Border Colors */
+  --sapGroup_TitleBorderColor: #d9d9d9;
+  --sapList_BorderColor: #e5e5e5;
+  --sapField_BorderColor: #89919a;
+
+  /* Shell Header - Light Mode */
+  --sapShell_Background: #ffffff;
+  --sapShell_TextColor: #32363a;
+  --sapShell_SubtitleColor: #6a6d70;
+
+  /* Shadows - Standard Fiori Shadows */
+  --sapContent_Shadow0: 0 0 0 1px rgba(0, 0, 0, 0.05);
+  --sapContent_Shadow1: 0 1px 4px 0 rgba(0, 0, 0, 0.1);
+  --sapContent_Shadow2: 0 4px 16px 0 rgba(0, 0, 0, 0.1);
+  --sapContent_Shadow3: 0 8px 32px 0 rgba(0, 0, 0, 0.1);
 }
 
 /* === Base Styles === */
-* {
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
   margin: 0;
   padding: 0;
-  box-sizing: border-box;
 }
 
-html, body {
-  height: 100%;
-  font-family: var(--font-sans);
-  background: var(--color-bg-primary);
-  color: var(--color-text-primary);
-  line-height: 1.6;
+html {
+  font-size: var(--sapFontSize);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
 body {
-  background-image: var(--gradient-dark);
+  font-family: var(--sapFontFamily);
+  background-color: var(--sapBackgroundColor);
+  color: var(--sapTextColor);
+  line-height: 1.5;
   min-height: 100vh;
-}
-
-#root {
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
 }
 
 /* === Typography === */
-h1, h2, h3, h4, h5, h6 {
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  color: var(--sapTitleColor);
   font-weight: 600;
   line-height: 1.3;
-  letter-spacing: -0.02em;
 }
 
-h1 { font-size: 2rem; }
-h2 { font-size: 1.5rem; }
-h3 { font-size: 1.25rem; }
-h4 { font-size: 1.125rem; }
-
-.text-gradient {
-  background: var(--gradient-bitcoin);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+h1 {
+  font-size: var(--sapFontHeader1Size);
 }
 
-.mono {
-  font-family: var(--font-mono);
-  font-size: 0.875em;
+h2 {
+  font-size: var(--sapFontHeader2Size);
 }
 
-/* === Layout === */
-.app-container {
-  display: grid;
-  grid-template-columns: 280px 1fr 320px;
-  gap: var(--space-lg);
-  padding: var(--space-lg);
-  min-height: 100vh;
-  max-width: 1800px;
-  margin: 0 auto;
+h3 {
+  font-size: var(--sapFontHeader3Size);
 }
 
+h4 {
+  font-size: var(--sapFontHeader4Size);
+}
+
+h5 {
+  font-size: var(--sapFontHeader5Size);
+}
+
+.text-small {
+  font-size: var(--sapFontSmallSize);
+}
+
+.text-large {
+  font-size: var(--sapFontLargeSize);
+}
+
+.text-muted {
+  color: var(--sapContent_LabelColor);
+}
+
+.text-brand {
+  color: var(--sapBrandColor);
+}
+
+.text-success {
+  color: var(--sapPositiveColor);
+}
+
+.text-warning {
+  color: var(--sapCriticalColor);
+}
+
+.text-error {
+  color: var(--sapNegativeColor);
+}
+
+.font-mono {
+  font-family: var(--sapFontMonoFamily);
+}
+
+.font-bold {
+  font-weight: 600;
+}
+
+/* === Shell Header (Fiori Launchpad Style) === */
 .app-header {
+  background: var(--sapShell_Background);
+  color: var(--sapShell_TextColor);
+  padding: 0 24px;
+  height: 48px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: var(--space-md) var(--space-lg);
-  background: var(--glass-bg);
-  backdrop-filter: var(--glass-blur);
-  border-bottom: 1px solid var(--glass-border);
   position: sticky;
   top: 0;
   z-index: 100;
+  box-shadow: var(--sapContent_Shadow1);
+  transition: background var(--sapTransition), color var(--sapTransition);
 }
 
-/* === Glass Cards === */
-.glass-card {
-  background: var(--glass-bg);
-  backdrop-filter: var(--glass-blur);
-  border: 1px solid var(--glass-border);
-  border-radius: var(--radius-lg);
-  padding: var(--space-lg);
-  transition: border-color var(--transition-normal), box-shadow var(--transition-normal);
+/* Light mode header adjustment */
+[data-theme="light"] .app-header {
+  border-bottom: 1px solid var(--sapList_BorderColor);
+  box-shadow: none;
 }
 
-.glass-card:hover {
-  border-color: var(--color-border-hover);
+.app-header h1 {
+  color: var(--sapShell_TextColor);
+  font-size: 16px;
+  font-weight: 500;
 }
 
-.glass-card-header {
+.header-subtitle {
+  color: var(--sapShell_SubtitleColor);
+  font-size: 12px;
+}
+
+/* === Theme Toggle === */
+.theme-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  padding: 4px 8px;
+  border-radius: 20px;
+  font-size: 12px;
+}
+
+[data-theme="light"] .theme-toggle {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.theme-toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 16px;
+  transition: all var(--sapTransition);
+}
+
+.theme-toggle-label:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="light"] .theme-toggle-label:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.theme-toggle-label.active {
+  background: var(--sapBrandColor);
+  color: white;
+}
+
+.theme-toggle input[type="radio"] {
+  display: none;
+}
+
+/* === Page Layout === */
+.app-container {
+  display: grid;
+  grid-template-columns: 280px 1fr 340px;
+  gap: 16px;
+  padding: 16px;
+  max-width: 1600px;
+  margin: 0 auto;
+  min-height: calc(100vh - 48px - 60px);
+}
+
+/* === Fiori Tile/Card === */
+.fiori-card {
+  background: var(--sapGroup_ContentBackground);
+  border-radius: var(--sapElement_BorderCornerRadius);
+  box-shadow: var(--sapContent_Shadow1);
+  overflow: hidden;
+}
+
+.fiori-card-header {
+  padding: 16px;
+  border-bottom: 1px solid var(--sapList_BorderColor);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: var(--space-md);
-  padding-bottom: var(--space-md);
-  border-bottom: 1px solid var(--color-border);
 }
 
-/* === Buttons === */
+.fiori-card-header h3 {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--sapTitleColor);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.fiori-card-content {
+  padding: 16px;
+}
+
+/* === Object Page Header Style === */
+.object-header {
+  background: linear-gradient(135deg, var(--sapShell_Background) 0%, #445a70 100%);
+  color: white;
+  padding: 20px 24px;
+  margin: -16px -16px 16px -16px;
+}
+
+/* === Buttons (Fiori Style) === */
 .btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: var(--space-sm);
-  padding: var(--space-sm) var(--space-md);
-  font-family: var(--font-sans);
-  font-size: 0.875rem;
+  gap: 8px;
+  padding: 8px 16px;
+  font-family: var(--sapFontFamily);
+  font-size: 14px;
   font-weight: 500;
-  border: none;
-  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  border-radius: var(--sapButton_BorderCornerRadius);
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: all var(--sapTransition);
   text-decoration: none;
 }
 
-.btn-primary {
-  background: var(--gradient-bitcoin);
-  color: #000;
-  box-shadow: var(--shadow-sm);
-}
-
-.btn-primary:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-glow);
-}
-
-.btn-primary:active {
-  transform: translateY(0);
-}
-
-.btn-primary:disabled {
+.btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
-  transform: none;
 }
 
-.btn-secondary {
-  background: var(--color-bg-tertiary);
-  color: var(--color-text-primary);
-  border: 1px solid var(--color-border);
+/* Emphasized Button (Primary) */
+.btn-emphasized {
+  background: var(--sapButton_Background);
+  border-color: var(--sapButton_BorderColor);
+  color: var(--sapButton_TextColor);
 }
 
-.btn-secondary:hover {
-  background: var(--color-bg-secondary);
-  border-color: var(--color-border-hover);
+.btn-emphasized:hover:not(:disabled) {
+  background: var(--sapButton_Hover_Background);
+  border-color: var(--sapButton_Hover_Background);
 }
 
-.btn-danger {
-  background: rgba(255, 71, 87, 0.15);
-  color: var(--color-error);
-  border: 1px solid var(--color-error);
+.btn-emphasized:active:not(:disabled) {
+  background: var(--sapButton_Active_Background);
 }
 
-.btn-danger:hover {
-  background: rgba(255, 71, 87, 0.25);
+/* Default Button (Secondary) */
+.btn-default {
+  background: transparent;
+  border-color: var(--sapButton_Background);
+  color: var(--sapButton_Background);
 }
 
-.btn-sm {
-  padding: var(--space-xs) var(--space-sm);
-  font-size: 0.75rem;
+.btn-default:hover:not(:disabled) {
+  background: rgba(10, 110, 209, 0.08);
+}
+
+/* Transparent Button */
+.btn-transparent {
+  background: transparent;
+  border-color: transparent;
+  color: var(--sapLinkColor);
+}
+
+.btn-transparent:hover:not(:disabled) {
+  background: rgba(10, 110, 209, 0.08);
+}
+
+/* Negative Button */
+.btn-negative {
+  background: var(--sapNegativeColor);
+  border-color: var(--sapNegativeColor);
+  color: white;
+}
+
+.btn-negative:hover:not(:disabled) {
+  background: #990000;
+}
+
+/* Positive Button */
+.btn-positive {
+  background: var(--sapPositiveColor);
+  border-color: var(--sapPositiveColor);
+  color: white;
+}
+
+.btn-positive:hover:not(:disabled) {
+  background: #0d6b34;
 }
 
 .btn-lg {
-  padding: var(--space-md) var(--space-xl);
-  font-size: 1rem;
+  padding: 10px 20px;
+  font-size: 15px;
 }
 
-.btn-icon {
-  padding: var(--space-sm);
-  border-radius: var(--radius-sm);
-}
-
-/* === Form Elements === */
+/* === Form Elements (Fiori Style) === */
 .form-group {
-  margin-bottom: var(--space-md);
+  margin-bottom: 16px;
 }
 
 .form-label {
   display: block;
-  font-size: 0.875rem;
+  font-size: 12px;
   font-weight: 500;
-  color: var(--color-text-secondary);
-  margin-bottom: var(--space-xs);
+  color: var(--sapContent_LabelColor);
+  margin-bottom: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
-.form-input, .form-select {
+.form-input,
+.form-select {
   width: 100%;
-  padding: var(--space-sm) var(--space-md);
-  font-family: var(--font-sans);
-  font-size: 0.875rem;
-  color: var(--color-text-primary);
-  background: var(--color-bg-secondary);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  outline: none;
-  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  padding: 8px 12px;
+  font-family: var(--sapFontFamily);
+  font-size: 14px;
+  color: var(--sapTextColor);
+  background: var(--sapBaseColor);
+  border: 1px solid var(--sapList_BorderColor);
+  border-radius: var(--sapButton_BorderCornerRadius);
+  transition: all var(--sapTransition);
 }
 
-.form-input:focus, .form-select:focus {
-  border-color: var(--color-bitcoin);
-  box-shadow: 0 0 0 3px rgba(247, 147, 26, 0.15);
+.form-input:hover,
+.form-select:hover {
+  border-color: var(--sapBrandColor);
+}
+
+.form-input:focus,
+.form-select:focus {
+  outline: none;
+  border-color: var(--sapBrandColor);
+  box-shadow: 0 0 0 2px rgba(10, 110, 209, 0.16);
 }
 
 .form-input::placeholder {
-  color: var(--color-text-muted);
+  color: var(--sapContent_LabelColor);
 }
 
-.form-select {
-  cursor: pointer;
-  appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23a1a1aa' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 12px center;
-  padding-right: 36px;
-}
-
-/* === Participant Card === */
-.participant-card {
+/* === List Items (Fiori Style) === */
+.list-item {
   display: flex;
   align-items: center;
-  gap: var(--space-md);
-  padding: var(--space-md);
-  background: var(--color-bg-secondary);
-  border-radius: var(--radius-md);
-  border: 1px solid var(--color-border);
-  margin-bottom: var(--space-sm);
-  transition: all var(--transition-fast);
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--sapList_BorderColor);
+  transition: background var(--sapTransition);
 }
 
-.participant-card:hover {
-  border-color: var(--color-border-hover);
-  background: var(--color-bg-tertiary);
+.list-item:last-child {
+  border-bottom: none;
 }
 
-.participant-avatar {
+.list-item:hover {
+  background: rgba(10, 110, 209, 0.05);
+}
+
+.list-item-avatar {
   width: 40px;
   height: 40px;
-  border-radius: var(--radius-full);
-  background: var(--gradient-bitcoin);
+  border-radius: 50%;
+  background: var(--sapBrandColor);
+  color: white;
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 600;
-  font-size: 1rem;
-  color: #000;
+  font-size: 16px;
 }
 
-.participant-info {
+.list-item-content {
   flex: 1;
-  min-width: 0;
 }
 
-.participant-name {
+.list-item-title {
+  font-size: 14px;
   font-weight: 500;
+  color: var(--sapTextColor);
   display: flex;
   align-items: center;
-  gap: var(--space-xs);
+  gap: 8px;
 }
 
-.participant-balance {
-  font-family: var(--font-mono);
-  font-size: 0.875rem;
-  color: var(--color-text-secondary);
+.list-item-subtitle {
+  font-size: 13px;
+  color: var(--sapBrandColor);
+  font-family: var(--sapFontMonoFamily);
+}
+
+/* === Object Status / Badge === */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 4px;
+}
+
+.status-positive {
+  background: rgba(16, 126, 62, 0.12);
+  color: var(--sapPositiveColor);
+}
+
+.status-negative {
+  background: rgba(187, 0, 0, 0.12);
+  color: var(--sapNegativeColor);
+}
+
+.status-critical {
+  background: rgba(233, 115, 12, 0.12);
+  color: var(--sapCriticalColor);
+}
+
+.status-informative {
+  background: rgba(10, 110, 209, 0.12);
+  color: var(--sapInformativeColor);
 }
 
 .miner-badge {
-  font-size: 0.75rem;
+  font-size: 11px;
   padding: 2px 6px;
-  background: rgba(247, 147, 26, 0.2);
-  color: var(--color-bitcoin);
-  border-radius: var(--radius-sm);
+  background: rgba(10, 110, 209, 0.12);
+  color: var(--sapInformativeColor);
+  border-radius: 4px;
 }
 
-/* === Block Card === */
+/* === Blockchain Visualization === */
+.blockchain-chain {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  padding: 16px;
+}
+
 .block-card {
-  min-width: 180px;
-  background: var(--glass-bg);
-  backdrop-filter: var(--glass-blur);
-  border: 1px solid var(--glass-border);
-  border-radius: var(--radius-lg);
-  padding: var(--space-md);
-  position: relative;
+  width: 100%;
+  min-width: unset;
+  /* Allow full width */
+  padding: 16px;
+  /* Increased padding */
+  background: var(--sapGroup_ContentBackground);
+  border: 2px solid var(--sapList_BorderColor);
+  border-radius: var(--sapElement_BorderCornerRadius);
   cursor: pointer;
-  transition: all var(--transition-normal);
+  transition: all var(--sapTransition);
 }
 
-.block-card:hover {
-  border-color: var(--color-bitcoin);
-  box-shadow: var(--shadow-glow);
-  transform: translateY(-4px);
+.block-card.latest {
+  border-color: var(--sapBrandColor);
+  box-shadow: 0 0 15px rgba(10, 110, 209, 0.4);
+  position: relative;
 }
 
-.block-card.genesis {
-  background: linear-gradient(135deg, rgba(247, 147, 26, 0.1) 0%, rgba(247, 147, 26, 0.05) 100%);
-  border-color: rgba(247, 147, 26, 0.3);
-}
-
-.block-card.selected {
-  border-color: var(--color-bitcoin);
-  box-shadow: 0 0 20px rgba(247, 147, 26, 0.3);
-}
-
-.block-card.invalid {
-  border-color: var(--color-error);
-  background: rgba(255, 71, 87, 0.1);
-}
-
-.block-number {
-  font-size: 0.75rem;
-  color: var(--color-text-muted);
-  margin-bottom: var(--space-xs);
+.block-card.latest::after {
+  content: 'NEW';
+  position: absolute;
+  top: -10px;
+  right: -10px;
+  background: var(--sapBrandColor);
+  color: #fff;
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: bold;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 .block-hash {
-  font-family: var(--font-mono);
-  font-size: 0.75rem;
-  color: var(--color-text-secondary);
+  font-family: var(--sapFontMonoFamily);
+  font-size: 13px;
+  color: var(--sapTextColor);
+  margin-top: 4px;
   word-break: break-all;
+  /* Ensure full hash wraps if needed */
+  line-height: 1.4;
 }
 
-.block-hash .leading-zeros {
-  color: var(--color-success);
+.block-card:hover {
+  border-color: var(--sapBrandColor);
+  box-shadow: var(--sapContent_Shadow2);
+  transform: translateY(-2px);
+}
+
+.block-card.genesis {
+  border-color: var(--sapInformativeColor);
+  background: linear-gradient(135deg, rgba(10, 110, 209, 0.08) 0%, rgba(10, 110, 209, 0.02) 100%);
+}
+
+.block-card.selected {
+  border-color: var(--sapBrandColor);
+  box-shadow: 0 0 0 3px rgba(10, 110, 209, 0.2);
+}
+
+
+
+.block-card.invalid::after {
+  content: 'REJECTED';
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  background: var(--sapNegativeColor);
+  color: white;
+  font-size: 8px;
+  font-weight: bold;
+  padding: 2px 6px;
+  border-radius: 3px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+@keyframes corruption-pulse {
+
+  0%,
+  100% {
+    box-shadow: 0 0 8px rgba(187, 0, 0, 0.4), 0 0 16px rgba(187, 0, 0, 0.2);
+  }
+
+  50% {
+    box-shadow: 0 0 20px rgba(187, 0, 0, 0.6), 0 0 40px rgba(187, 0, 0, 0.3);
+  }
+}
+
+.block-card.invalid {
+  border-color: var(--sapNegativeColor);
+  border-width: 2px;
+  background: linear-gradient(135deg, rgba(187, 0, 0, 0.12) 0%, rgba(187, 0, 0, 0.06) 100%);
+  position: relative;
+  opacity: 0.9;
+  animation: corruption-pulse 1.5s ease-in-out infinite;
+}
+
+.block-number {
+  font-size: 11px;
+  text-transform: uppercase;
+  color: var(--sapContent_LabelColor);
+  margin-bottom: 4px;
+  display: flex;
+  justify-content: space-between;
+}
+
+.leading-zeros {
+  color: var(--sapPositiveColor);
   font-weight: 600;
 }
 
-.block-tx-count {
-  display: flex;
-  align-items: center;
-  gap: var(--space-xs);
-  font-size: 0.75rem;
-  color: var(--color-text-muted);
-  margin-top: var(--space-sm);
-}
-
-/* === Chain Connector === */
 .chain-connector {
   display: flex;
   align-items: center;
-  color: var(--color-text-muted);
-  min-width: 40px;
+  color: var(--sapBrandColor);
 }
 
-.chain-line {
-  height: 2px;
-  flex: 1;
-  background: linear-gradient(90deg, var(--color-border) 0%, var(--color-bitcoin) 50%, var(--color-border) 100%);
+/* === Mining Animation Overlay === */
+@keyframes cyber-shake {
+  0% {
+    transform: translate(0, 0) scale(1);
+    filter: brightness(1);
+  }
+
+  10% {
+    transform: translate(-5px, -5px) scale(1.02);
+    filter: brightness(1.2);
+  }
+
+  20% {
+    transform: translate(5px, 5px) scale(1.02);
+  }
+
+  30% {
+    transform: translate(-5px, 5px) scale(1.02);
+    filter: brightness(1.5);
+  }
+
+  40% {
+    transform: translate(5px, -5px) scale(1.02);
+  }
+
+  50% {
+    transform: translate(0, 0) scale(1);
+    filter: brightness(1);
+  }
+
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+}
+
+@keyframes hammer-strike {
+  0% {
+    transform: scale(3) rotate(-45deg);
+    opacity: 0;
+  }
+
+  50% {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
+
+  60% {
+    transform: scale(0.9);
+  }
+
+  70% {
+    transform: scale(1);
+  }
+
+  100% {
+    transform: scale(1);
+    opacity: 0;
+  }
+}
+
+.mining-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.15);
+  animation: cyber-shake 0.5s ease-out;
+}
+
+.mining-overlay-icon {
+  font-size: 15rem;
+  animation: hammer-strike 0.8s ease-out forwards;
+  filter: drop-shadow(0 0 30px var(--sapBrandColor)) drop-shadow(0 0 60px rgba(10, 110, 209, 0.5));
+  text-shadow: 0 0 40px rgba(0, 0, 0, 0.8);
 }
 
 /* === Mining Visualizer === */
-.mining-visualizer {
-  background: var(--color-bg-secondary);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  padding: var(--space-lg);
-  margin-top: var(--space-md);
+.mining-panel {
+  background: var(--sapGroup_ContentBackground);
+  border: 2px solid var(--sapBrandColor);
+  border-radius: var(--sapElement_BorderCornerRadius);
+  padding: 16px;
+  margin-top: 16px;
 }
 
 .mining-active {
-  border-color: var(--color-bitcoin);
-  animation: mining-pulse 2s ease-in-out infinite;
+  animation: mining-glow 2s ease-in-out infinite;
 }
 
-@keyframes mining-pulse {
-  0%, 100% { box-shadow: 0 0 10px rgba(247, 147, 26, 0.2); }
-  50% { box-shadow: 0 0 30px rgba(247, 147, 26, 0.4); }
-}
+@keyframes mining-glow {
 
-.mining-hash {
-  font-family: var(--font-mono);
-  font-size: 0.875rem;
-  background: var(--color-bg-primary);
-  padding: var(--space-md);
-  border-radius: var(--radius-md);
-  word-break: break-all;
-  margin: var(--space-md) 0;
+  0%,
+  100% {
+    box-shadow: 0 0 8px rgba(10, 110, 209, 0.2);
+  }
+
+  50% {
+    box-shadow: 0 0 20px rgba(10, 110, 209, 0.4);
+  }
 }
 
 .mining-stats {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: var(--space-md);
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin: 16px 0;
 }
 
 .mining-stat {
   text-align: center;
-  padding: var(--space-md);
-  background: var(--color-bg-tertiary);
-  border-radius: var(--radius-md);
+  padding: 8px;
+  background: var(--sapBackgroundColor);
+  border-radius: var(--sapButton_BorderCornerRadius);
+  overflow: visible;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  cursor: help;
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+  position: relative;
+}
+
+.mining-stat:hover {
+  box-shadow: 0 0 12px rgba(10, 110, 209, 0.4);
+  transform: scale(1.03);
+}
+
+.mining-stat::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--sapShellColor);
+  color: white;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 11px;
+  white-space: normal;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+  z-index: 100;
+  min-width: 140px;
+  max-width: 220px;
+  text-align: center;
+  margin-bottom: 4px;
+}
+
+.mining-stat:hover::after {
+  opacity: 1;
 }
 
 .mining-stat-value {
-  font-family: var(--font-mono);
-  font-size: 1.25rem;
+  font-family: var(--sapFontMonoFamily);
+  font-size: 14px;
   font-weight: 600;
-  color: var(--color-bitcoin);
+  color: var(--sapBrandColor);
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .mining-stat-label {
-  font-size: 0.75rem;
-  color: var(--color-text-muted);
-  margin-top: var(--space-xs);
+  font-size: 10px;
+  color: var(--sapContent_LabelColor);
+  text-transform: uppercase;
+  margin-top: 2px;
 }
 
-/* === Progress Bar === */
+.mining-hash {
+  font-family: var(--sapFontMonoFamily);
+  font-size: 12px;
+  background: var(--sapBackgroundColor);
+  padding: 8px 12px;
+  border-radius: var(--sapButton_BorderCornerRadius);
+  word-break: break-all;
+  border: 1px solid var(--sapList_BorderColor);
+}
+
+/* Progress Bar */
 .progress-bar {
   height: 8px;
-  background: var(--color-bg-primary);
-  border-radius: var(--radius-full);
+  background: var(--sapBackgroundColor);
+  border-radius: 4px;
   overflow: hidden;
-  margin: var(--space-md) 0;
+  margin: 16px 0;
 }
 
 .progress-fill {
   height: 100%;
-  background: var(--gradient-bitcoin);
-  border-radius: var(--radius-full);
-  transition: width var(--transition-fast);
+  background: linear-gradient(90deg, var(--sapBrandColor) 0%, var(--sapHighlightColor) 100%);
+  border-radius: 4px;
+  transition: width var(--sapTransition);
 }
 
-/* === Transaction Item === */
+/* === Hash Attempts Log === */
+.hash-attempts-log {
+  background: var(--sapBackgroundColor);
+  border: 1px solid var(--sapList_BorderColor);
+  border-radius: var(--sapButton_BorderCornerRadius);
+  padding: 12px;
+  margin-top: 16px;
+  max-height: 180px;
+  overflow-y: auto;
+  font-family: var(--sapFontMonoFamily);
+  font-size: 11px;
+}
+
+.hash-attempt {
+  display: flex;
+  gap: 12px;
+  padding: 2px 0;
+  color: var(--sapContent_LabelColor);
+}
+
+.hash-attempt:last-child {
+  color: var(--sapBrandColor);
+  font-weight: 600;
+}
+
+.hash-attempt-nonce {
+  min-width: 70px;
+  color: var(--sapNeutralColor);
+}
+
+.hash-attempt-hash {
+  flex: 1;
+  word-break: break-all;
+}
+
+/* === Transaction Items === */
 .tx-item {
-  padding: var(--space-md);
-  background: var(--color-bg-secondary);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  margin-bottom: var(--space-sm);
+  padding: 12px;
+  border-bottom: 1px solid var(--sapList_BorderColor);
+}
+
+.tx-item:last-child {
+  border-bottom: none;
 }
 
 .tx-header {
   display: flex;
-  align-items: center;
   justify-content: space-between;
-  margin-bottom: var(--space-sm);
-}
-
-.tx-amount {
-  font-family: var(--font-mono);
-  font-weight: 600;
-  color: var(--color-bitcoin);
+  align-items: center;
 }
 
 .tx-parties {
-  font-size: 0.875rem;
-  color: var(--color-text-secondary);
+  font-size: 13px;
+  color: var(--sapTextColor);
+}
+
+.tx-amount {
+  font-family: var(--sapFontMonoFamily);
+  font-weight: 600;
+  color: var(--sapBrandColor);
 }
 
 .tx-reference {
-  font-size: 0.75rem;
-  color: var(--color-text-muted);
-  font-style: italic;
+  font-size: 12px;
+  color: var(--sapContent_LabelColor);
+  margin-top: 4px;
 }
 
 /* === Mempool === */
 .mempool-empty {
   text-align: center;
-  padding: var(--space-xl);
-  color: var(--color-text-muted);
+  padding: 24px;
+  color: var(--sapContent_LabelColor);
   font-style: italic;
 }
 
@@ -533,200 +970,276 @@ h4 { font-size: 1.125rem; }
   min-width: 20px;
   height: 20px;
   padding: 0 6px;
-  font-size: 0.75rem;
+  font-size: 12px;
   font-weight: 600;
-  background: var(--color-bitcoin);
-  color: #000;
-  border-radius: var(--radius-full);
+  background: var(--sapBrandColor);
+  color: white;
+  border-radius: 10px;
 }
 
-/* === Slider === */
+/* === Slider (Fiori Style) === */
 .slider-container {
-  margin: var(--space-md) 0;
+  margin-bottom: 16px;
 }
 
 .slider {
-  width: 100%;
-  height: 6px;
-  background: var(--color-bg-primary);
-  border-radius: var(--radius-full);
-  outline: none;
   -webkit-appearance: none;
   appearance: none;
+  width: 100%;
+  height: 4px;
+  background: var(--sapList_BorderColor);
+  border-radius: 2px;
+  outline: none;
 }
 
 .slider::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 18px;
-  height: 18px;
-  background: var(--color-bitcoin);
-  border-radius: var(--radius-full);
+  width: 16px;
+  height: 16px;
+  background: var(--sapBrandColor);
+  border-radius: 50%;
   cursor: pointer;
-  box-shadow: var(--shadow-sm);
-  transition: transform var(--transition-fast);
+  box-shadow: var(--sapContent_Shadow1);
+  transition: transform var(--sapTransition);
 }
 
 .slider::-webkit-slider-thumb:hover {
-  transform: scale(1.2);
+  transform: scale(1.1);
 }
 
 .slider-labels {
   display: flex;
   justify-content: space-between;
-  font-size: 0.75rem;
-  color: var(--color-text-muted);
-  margin-top: var(--space-xs);
+  font-size: 11px;
+  color: var(--sapContent_LabelColor);
+  margin-top: 4px;
 }
 
 /* === Validation Status === */
 .validation-status {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: var(--space-sm);
-  padding: var(--space-md);
-  border-radius: var(--radius-md);
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 4px;
+  font-size: 13px;
   font-weight: 500;
 }
 
 .validation-valid {
-  background: rgba(0, 210, 106, 0.1);
-  border: 1px solid var(--color-success);
-  color: var(--color-success);
+  background: rgba(16, 126, 62, 0.12);
+  color: var(--sapPositiveColor);
 }
 
 .validation-invalid {
-  background: rgba(255, 71, 87, 0.1);
-  border: 1px solid var(--color-error);
-  color: var(--color-error);
+  background: rgba(187, 0, 0, 0.12);
+  color: var(--sapNegativeColor);
 }
 
-/* === Tooltips === */
-.tooltip {
-  position: relative;
-}
-
-.tooltip-content {
-  position: absolute;
-  bottom: 100%;
-  left: 50%;
-  transform: translateX(-50%);
-  padding: var(--space-sm) var(--space-md);
-  background: var(--color-bg-tertiary);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  font-size: 0.75rem;
-  white-space: nowrap;
-  opacity: 0;
-  visibility: hidden;
-  transition: all var(--transition-fast);
-  z-index: 1000;
-}
-
-.tooltip:hover .tooltip-content {
-  opacity: 1;
-  visibility: visible;
-}
-
-/* === Scrollbar === */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-::-webkit-scrollbar-track {
-  background: var(--color-bg-secondary);
-  border-radius: var(--radius-full);
-}
-
-::-webkit-scrollbar-thumb {
-  background: var(--color-text-muted);
-  border-radius: var(--radius-full);
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: var(--color-text-secondary);
+/* === Footer === */
+.app-footer {
+  text-align: center;
+  padding: 16px;
+  color: var(--sapContent_LabelColor);
+  font-size: 12px;
+  border-top: 1px solid var(--sapList_BorderColor);
+  background: var(--sapGroup_ContentBackground);
 }
 
 /* === Animations === */
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-@keyframes slideIn {
-  from { opacity: 0; transform: translateX(-20px); }
-  to { opacity: 1; transform: translateX(0); }
-}
-
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
-}
-
-@keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-
 .animate-fadeIn {
-  animation: fadeIn 0.3s ease-out;
+  animation: fadeIn 0.3s ease;
 }
 
-.animate-slideIn {
-  animation: slideIn 0.3s ease-out;
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .animate-pulse {
   animation: pulse 1.5s ease-in-out infinite;
 }
 
+@keyframes pulse {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.6;
+  }
+}
+
 .animate-spin {
   animation: spin 1s linear infinite;
+  display: inline-block;
 }
 
-/* === Utilities === */
-.sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  border: 0;
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
 }
 
-.truncate {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+/* === Utility Classes === */
+.mt-sm {
+  margin-top: 8px;
 }
 
-.flex { display: flex; }
-.flex-col { flex-direction: column; }
-.items-center { align-items: center; }
-.justify-between { justify-content: space-between; }
-.gap-sm { gap: var(--space-sm); }
-.gap-md { gap: var(--space-md); }
+.mt-md {
+  margin-top: 16px;
+}
 
-.mt-sm { margin-top: var(--space-sm); }
-.mt-md { margin-top: var(--space-md); }
-.mb-md { margin-bottom: var(--space-md); }
+.mt-lg {
+  margin-top: 24px;
+}
 
-.text-sm { font-size: 0.875rem; }
-.text-xs { font-size: 0.75rem; }
-.text-muted { color: var(--color-text-muted); }
-.text-success { color: var(--color-success); }
-.text-error { color: var(--color-error); }
-.text-bitcoin { color: var(--color-bitcoin); }
-.font-mono { font-family: var(--font-mono); }
-.font-bold { font-weight: 600; }
+.mb-sm {
+  margin-bottom: 8px;
+}
 
-/* === Responsive === */
+.mb-md {
+  margin-bottom: 16px;
+}
+
+.mb-lg {
+  margin-bottom: 24px;
+}
+
+.text-center {
+  text-align: center;
+}
+
+.text-right {
+  text-align: right;
+}
+
+/* === Responsive Design === */
 @media (max-width: 1200px) {
   .app-container {
-    grid-template-columns: 1fr;
-    grid-template-rows: auto auto auto;
+    grid-template-columns: 240px 1fr 300px;
   }
+}
+
+@media (max-width: 992px) {
+  .app-container {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .mining-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 576px) {
+  .app-header {
+    padding: 0 16px;
+  }
+
+  .app-container {
+    padding: 12px;
+  }
+
+  .mining-stats {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* === Statistics Dashboard === */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.stat-item {
+  text-align: center;
+  padding: 8px 4px;
+  background: var(--sapBackgroundColor);
+  border-radius: var(--sapButton_BorderCornerRadius);
+  cursor: help;
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+  position: relative;
+}
+
+.stat-item:hover {
+  box-shadow: 0 0 12px rgba(10, 110, 209, 0.4);
+  transform: scale(1.02);
+}
+
+.stat-item::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--sapShellColor);
+  color: white;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 11px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+  z-index: 100;
+  min-width: 160px;
+  max-width: 280px;
+  white-space: normal;
+  text-align: center;
+  margin-bottom: 6px;
+}
+
+.stat-item:hover::after {
+  opacity: 1;
+}
+
+.stat-item.highlight {
+  background: linear-gradient(135deg, var(--sapBrandColor) 0%, var(--sapHighlightColor) 100%);
+  color: white;
+}
+
+.stat-item.highlight .stat-label {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.stat-value {
+  font-family: var(--sapFontMonoFamily);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--sapBrandColor);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.stat-item.highlight .stat-value {
+  color: white;
+}
+
+.stat-label {
+  font-size: 9px;
+  color: var(--sapContent_LabelColor);
+  text-transform: uppercase;
+  margin-top: 2px;
+}
+
+.stats-divider {
+  height: 1px;
+  background: var(--sapGroup_TitleBorderColor);
+  margin: 12px 0;
 }

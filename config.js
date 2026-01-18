@@ -1,7 +1,7 @@
 var config = {};
 
 // name your new blockchain currency
-config.name = "Lukacoin";
+config.name = "powCoin";
 // set the mining difficulty by the necessary number of leading Zeros of the block Hash CAUTION difficulty increases exponentially!
 if (process.argv[2] == null) {
   config.miningDifficulty = 3;

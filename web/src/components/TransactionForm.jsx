@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-export function TransactionForm({ participants, onCreateTransaction, disabled }) {
+export function TransactionForm({ participants, onCreateTransaction, disabled, coinName = 'powCoin' }) {
     const [sender, setSender] = useState('');
     const [recipient, setRecipient] = useState('');
     const [amount, setAmount] = useState('');
@@ -79,7 +79,7 @@ export function TransactionForm({ participants, onCreateTransaction, disabled })
             </div>
 
             <div className="form-group">
-                <label className="form-label">Amount (LKC)</label>
+                <label className="form-label">Amount ({coinName})</label>
                 <input
                     type="number"
                     className="form-input"
@@ -105,20 +105,20 @@ export function TransactionForm({ participants, onCreateTransaction, disabled })
             </div>
 
             {error && (
-                <div className="validation-status validation-invalid mb-md" style={{ fontSize: '0.75rem' }}>
+                <div className="validation-status validation-invalid mb-md" style={{ fontSize: '12px', width: '100%', justifyContent: 'center' }}>
                     ⚠️ {error}
                 </div>
             )}
 
             {success && (
-                <div className="validation-status validation-valid mb-md" style={{ fontSize: '0.75rem' }}>
+                <div className="validation-status validation-valid mb-md" style={{ fontSize: '12px', width: '100%', justifyContent: 'center' }}>
                     ✓ {success}
                 </div>
             )}
 
             <button
                 type="submit"
-                className="btn btn-secondary"
+                className="btn btn-default"
                 style={{ width: '100%' }}
                 disabled={disabled}
             >
