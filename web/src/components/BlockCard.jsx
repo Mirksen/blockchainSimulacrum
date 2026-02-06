@@ -1,4 +1,4 @@
-export function BlockCard({ block, index, isGenesis, isSelected, isLatest, isValid, onClick, elapsedTime }) {
+export function BlockCard({ block, index, isGenesis, isSelected, isLatest, isValid, onClick, elapsedTime, participants }) {
     const getLeadingZeros = (hash) => {
         const match = hash?.match(/^0*/);
         return match ? match[0] : '';
@@ -14,6 +14,19 @@ export function BlockCard({ block, index, isGenesis, isSelected, isLatest, isVal
         return `${seconds}s`;
     };
 
+    // Find the miner (recipient of mining reward transaction)
+    const getMiner = () => {
+        if (!block.transactions || !participants) return null;
+        const rewardTx = block.transactions.find(tx => tx.sender === null);
+        if (!rewardTx) return null;
+        const miner = participants.find(p => p.publicKey === rewardTx.recipient);
+        return miner;
+    };
+
+    const miner = getMiner();
+    const minerColorClass = miner?.name?.toLowerCase() === 'minas' ? 'minas' :
+        miner?.name?.toLowerCase() === 'lars' ? 'lars' : null;
+
     const className = [
         'block-card',
         isGenesis && 'genesis',
@@ -24,13 +37,20 @@ export function BlockCard({ block, index, isGenesis, isSelected, isLatest, isVal
 
     return (
         <div className={className} onClick={onClick}>
-            <div className="block-number" style={{ display: 'flex', justifyContent: 'space-between' }}>
+            <div className="block-number" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span>{isGenesis ? '🌟 Genesis' : `Block #${index}`}</span>
-                {elapsedTime !== null && elapsedTime !== undefined && (
-                    <span style={{ fontSize: '11px', fontWeight: 'normal', color: 'var(--sapContent_LabelColor)' }}>
-                        ⏱️ {formatTime(elapsedTime)}
-                    </span>
-                )}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    {miner && minerColorClass && (
+                        <span className={`winner-badge ${minerColorClass}`}>
+                            ⛏️ {miner.name}
+                        </span>
+                    )}
+                    {elapsedTime !== null && elapsedTime !== undefined && (
+                        <span style={{ fontSize: '11px', fontWeight: 'normal', color: 'var(--sapContent_LabelColor)' }}>
+                            ⏱️ {formatTime(elapsedTime)}
+                        </span>
+                    )}
+                </div>
             </div>
             <div className="block-hash">
                 <span className="leading-zeros">{leadingZeros}</span>

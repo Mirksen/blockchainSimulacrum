@@ -5,6 +5,7 @@ import { BlockchainViewer } from './components/BlockchainViewer';
 import { ControlPanel } from './components/ControlPanel';
 import { MiningCard } from './components/MiningCard';
 import { StatsDashboard } from './components/StatsDashboard';
+import { BlockchainStatsPanel } from './components/BlockchainStatsPanel';
 import { playMiningSuccessSound } from './lib/sound';
 import './index.css';
 
@@ -45,14 +46,15 @@ function App() {
   // Theme state
   const [theme, setTheme] = useState('light');
   // Sound & Animation state
-  // Sound & Animation state
   const [isMuted, setIsMuted] = useState(false);
   const [showAnimation, setShowAnimation] = useState(false);
+  const [animationWinnerColor, setAnimationWinnerColor] = useState(null);
   const [isAutoMining, setIsAutoMining] = useState(false);
   const [appName, setAppName] = useState('powCoin');
   const [tamperIndex, setTamperIndex] = useState(1);
-  const [halvingInterval, setHalvingInterval] = useState(5);
+  const [halvingInterval, setHalvingInterval] = useState(4);
   const [targetBlockTime, setTargetBlockTime] = useState(10);
+  const [showStatsPanel, setShowStatsPanel] = useState(false);
   const adjustmentPeriod = 10; // Difficulty adjusts every 10 blocks
 
   // Apply theme to document
@@ -66,6 +68,8 @@ function App() {
     isMining,
     isSettingUp,
     miningProgress,
+    minerProgress,
+    raceWinner,
     hashAttempts,
     selectedBlock,
     chainValid,
@@ -73,6 +77,7 @@ function App() {
     blocks,
     participants,
     difficulty,
+    blockReward,
     setSelectedBlock,
     createTransaction,
     mineBlock,
@@ -82,14 +87,16 @@ function App() {
     setDifficulty,
     tamperBlock,
     resetBlockchain,
-    cancelMining
+    cancelMining,
+    toggleMiner,
+    setMinerHashpower
   } = useBlockchain({
     name: 'powCoin',
     miningDifficulty: 3,
     blockReward: 3.125,
     halvingEvent: halvingInterval,
-    participants: ['Alice', 'Bob', 'Bill', 'Chris', 'Minas'],
-    miner: 'Minas',
+    participants: ['Alice', 'Bob', 'Chris', 'Lars', 'Minas'],
+    miners: ['Minas', 'Lars'],
     startingBalance: 0
   });
 
@@ -125,9 +132,34 @@ function App() {
   const handleMine = async () => {
     const result = await mineBlock();
     if (result && result.success) {
-      playMiningSuccessSound(!isMuted);
-      setShowAnimation(true);
-      setTimeout(() => setShowAnimation(false), 1500);
+      triggerMiningAnimation(result.winner);
+    }
+  };
+
+  // Reusable animation trigger
+  const triggerMiningAnimation = (winnerName) => {
+    playMiningSuccessSound(!isMuted);
+    const winnerColor = winnerName?.toLowerCase() === 'minas' ? 'minas' : 'lars';
+    setAnimationWinnerColor(winnerColor);
+    setShowAnimation(true);
+    setTimeout(() => {
+      setShowAnimation(false);
+      setAnimationWinnerColor(null);
+    }, 1500);
+  };
+
+  // Setup with animation/sound for each block
+  const handleSetupWithAnimation = async () => {
+    const result = await setupInitialDistribution();
+    if (result && result.winners && result.winners.length > 0) {
+      // Trigger animation for each winner sequentially
+      let delay = 0;
+      result.winners.forEach((winner, idx) => {
+        setTimeout(() => {
+          triggerMiningAnimation(winner);
+        }, delay);
+        delay += 1600; // 1.5s animation + 100ms gap
+      });
     }
   };
 
@@ -232,7 +264,6 @@ function App() {
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
           {/* Auto-Mine Toggle */}
-          {/* Auto-Mine Toggle */}
           <button
             className={isAutoMining ? "btn btn-positive" : "btn btn-transparent"}
             onClick={() => {
@@ -244,10 +275,21 @@ function App() {
               }
             }}
             title={isAutoMining ? "Stop Auto-Mining" : "Start Auto-Mining Loop"}
-            style={{ marginRight: '8px', fontWeight: 'bold' }}
+            style={{ fontWeight: 'bold' }}
           >
             {isAutoMining ? '⏹ Stop' : '▶ Auto-Mine'}
           </button>
+
+          {/* Block Height Counter - Clickable */}
+          <div
+            className="block-height-clickable"
+            title="Click to view blockchain insights"
+            onClick={() => setShowStatsPanel(true)}
+          >
+            <span className="block-height-icon">📦</span>
+            <span className="block-height-value">{blocks.length}</span>
+            <span className="block-height-label">blocks</span>
+          </div>
 
           {/* Reset Button */}
           <button
@@ -310,12 +352,7 @@ function App() {
             />
           </div>
 
-          <div className={`validation-status ${chainValid ? 'validation-valid' : 'validation-invalid'}`}>
-            {chainValid ? '✓ Valid' : '⚠️ Invalid'}
-          </div>
-          <div style={{ color: 'var(--sapShell_SubtitleColor)', fontSize: '13px' }}>
-            <span style={{ fontFamily: 'var(--sapFontMonoFamily)' }}>{blocks.length}</span> blocks
-          </div>
+
           <ThemeToggle theme={theme} onToggle={setTheme} />
 
           <button
@@ -336,12 +373,18 @@ function App() {
           <ParticipantsPanel
             balances={balances}
             participants={participants}
+            blocks={blocks}
             coinName={appName}
+            toggleMiner={toggleMiner}
+            setMinerHashpower={setMinerHashpower}
+            isMining={isMining}
           />
           <div className="mt-md"></div>
           <MiningCard
             isMining={isMining}
             miningProgress={miningProgress}
+            minerProgress={minerProgress}
+            raceWinner={raceWinner}
             difficulty={difficulty}
             hashAttempts={hashAttempts}
           />
@@ -349,6 +392,7 @@ function App() {
             blocks={blocks}
             blockchain={blockchain}
             difficulty={difficulty}
+            participants={participants}
           />
         </aside>
 
@@ -380,7 +424,7 @@ function App() {
             onCreateTransaction={createTransaction}
             onMine={handleMine}
             onMineEmpty={mineEmptyBlock}
-            onSetup={setupInitialDistribution}
+            onSetup={handleSetupWithAnimation}
             onGenerateRandom={generateRandomTransactions}
             onTamper={handleTamper}
             onReset={handleReset}
@@ -401,9 +445,19 @@ function App() {
         </p>
       </footer>
       {showAnimation && (
-        <div className="mining-overlay">
+        <div className={`mining-overlay ${animationWinnerColor ? `winner-${animationWinnerColor}` : ''}`}>
           <div className="mining-overlay-icon">🔨</div>
         </div>
+      )}
+      {showStatsPanel && (
+        <BlockchainStatsPanel
+          blocks={blocks}
+          participants={participants}
+          difficulty={difficulty}
+          blockReward={blockReward}
+          halvingInterval={halvingInterval}
+          onClose={() => setShowStatsPanel(false)}
+        />
       )}
     </div>
   );

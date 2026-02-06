@@ -1,6 +1,14 @@
 import { useRef, useEffect } from 'react';
 
-export function MiningVisualizer({ isMining, progress, difficulty, hashAttempts = [], showFullHash = false }) {
+export function MiningVisualizer({
+    isMining,
+    progress,
+    minerProgress = {},
+    raceWinner,
+    difficulty,
+    hashAttempts = [],
+    showFullHash = false
+}) {
     const logRef = useRef(null);
 
     // Auto-scroll hash attempts log to bottom
@@ -10,79 +18,126 @@ export function MiningVisualizer({ isMining, progress, difficulty, hashAttempts 
         }
     }, [hashAttempts]);
 
-    if (!progress) return null;
+    if (!progress && Object.keys(minerProgress).length === 0) return null;
 
     const getLeadingZeros = (hash) => {
         const match = hash?.match(/^0*/);
         return match ? match[0].length : 0;
     };
 
-    const currentZeros = getLeadingZeros(progress.hash);
-    const progressPercent = Math.min((currentZeros / difficulty) * 100, 99);
+    // Find the leading miner (most zeros)
+    const miners = Object.entries(minerProgress);
+    const leadingMiner = miners.reduce((max, [name, data]) => {
+        if (!max || (data.zeros || 0) > (max.zeros || 0)) {
+            return { name, zeros: data.zeros || 0 };
+        }
+        return max;
+    }, null);
+
+    const getMinerColorClass = (name) => {
+        return name.toLowerCase() === 'minas' ? 'minas' : 'lars';
+    };
+
+    // Calculate H/s per miner
+    const getMinerHashRate = (data) => {
+        if (!data || !data.elapsedMs || data.elapsedMs === 0) return 0;
+        return Math.round((data.iterations || 0) / (data.elapsedMs / 1000));
+    };
 
     return (
         <div className="mining-panel mining-active animate-fadeIn">
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
                 <h4 style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--sapBrandColor)' }}>
                     <span className={isMining ? "animate-pulse" : ""}>⛏️</span>
-                    {isMining ? "Mining in Progress..." : "Last Mining Result"}
+                    {isMining ? "Mining Race in Progress..." : raceWinner ? `🏆 ${raceWinner} Won!` : "Last Mining Result"}
                 </h4>
                 <span className="text-muted text-small">
-                    Target: {difficulty} leading zeros
+                    Target: {difficulty} zeros
                 </span>
             </div>
 
-            <div className="progress-bar">
-                <div
-                    className="progress-fill"
-                    style={{ width: `${progressPercent}%` }}
-                />
-            </div>
+            {/* Racing Lanes */}
+            {miners.length > 0 && (
+                <div className="miner-race-container">
+                    {miners.map(([minerName, data]) => {
+                        const colorClass = getMinerColorClass(minerName);
+                        const isLeading = leadingMiner?.name === minerName && isMining;
+                        const isWinner = raceWinner === minerName;
+                        const hashRate = getMinerHashRate(data);
 
-            <div className="form-label mt-md">Current Hash Attempt</div>
-            <div className="mining-hash">
-                <span className="leading-zeros">
-                    {progress.hash?.match(/^0*/)?.[0] || ''}
-                </span>
-                <span style={{ opacity: 0.7 }}>
-                    {progress.hash?.replace(/^0*/, '') || ''}
-                </span>
-            </div>
+                        return (
+                            <div
+                                key={minerName}
+                                className={`miner-race-lane ${colorClass} ${isLeading ? 'leading' : ''} ${isWinner ? 'miner-winner' : ''}`}
+                            >
+                                <div className="miner-lane-header">
+                                    <div className="miner-name">
+                                        ⛏️ {minerName}
+                                        {isWinner && <span style={{ marginLeft: '4px' }}>🏆</span>}
+                                    </div>
+                                    <div className="miner-hashrate">
+                                        {hashRate.toLocaleString()} H/s
+                                    </div>
+                                </div>
+                                <div className="miner-race-stats">
+                                    <div className="miner-race-stat-row">
+                                        <span className="miner-stat-label">Nonce</span>
+                                        <span className="miner-race-stat-value">{(data.nonce || 0).toLocaleString()}</span>
+                                    </div>
+                                    <div className="miner-race-stat-row">
+                                        <span className="miner-stat-label">Zeros</span>
+                                        <span className="miner-race-stat-value" style={{
+                                            color: (data.zeros || 0) >= difficulty ? 'var(--sapPositiveColor)' : 'inherit'
+                                        }}>
+                                            {data.zeros || 0}/{difficulty}
+                                        </span>
+                                    </div>
+                                    <div>
+                                        <div className="miner-stat-label">Hash</div>
+                                        <div className="miner-race-stat-value miner-hash-value">
+                                            <span className="leading-zeros">
+                                                {data.hash?.match(/^0*/)?.[0] || ''}
+                                            </span>
+                                            {data.hash?.replace(/^0*/, '').substring(0, 16) || '...'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            )}
 
-            {/* Row 1: Nonce and Elapsed */}
-            <div className="mining-stats" style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}>
-                <div className="mining-stat" data-tooltip="Number of hash attempts tried">
-                    <div className="mining-stat-value animate-pulse">
-                        {progress.nonce?.toLocaleString()}
+            {/* Overall Progress Bar */}
+            {progress && (
+                <>
+                    <div className="progress-bar">
+                        <div
+                            className="progress-fill"
+                            style={{ width: `${Math.min((getLeadingZeros(progress.hash) / difficulty) * 100, 99)}%` }}
+                        />
                     </div>
-                    <div className="mining-stat-label">Nonce</div>
-                </div>
-                <div className="mining-stat" data-tooltip="Time spent mining this block">
-                    <div className="mining-stat-value">
-                        {(progress.elapsedMs / 1000).toFixed(1)}s
-                    </div>
-                    <div className="mining-stat-label">Elapsed</div>
-                </div>
-            </div>
 
-            {/* Row 2: H/s and Zeros */}
-            <div className="mining-stats" style={{ gridTemplateColumns: 'repeat(2, 1fr)', marginTop: '8px' }}>
-                <div className="mining-stat" data-tooltip="Hash computations per second">
-                    <div className="mining-stat-value">
-                        {Math.round(progress.iterations / (progress.elapsedMs / 1000) || 0).toLocaleString()}
+                    {/* Summary Stats Row - Full width below race lanes */}
+                    <div className="mining-summary-row">
+                        <div className="mining-summary-stat">
+                            <span className="mining-summary-label">Total Attempts:</span>
+                            <span className="mining-summary-value">{progress.iterations?.toLocaleString() || 0}</span>
+                        </div>
+                        <div className="mining-summary-stat">
+                            <span className="mining-summary-label">Elapsed:</span>
+                            <span className="mining-summary-value">{((progress.elapsedMs || 0) / 1000).toFixed(1)}s</span>
+                        </div>
+                        <div className="mining-summary-stat">
+                            <span className="mining-summary-label">Combined H/s:</span>
+                            <span className="mining-summary-value">{Math.round((progress.iterations || 0) / ((progress.elapsedMs || 1) / 1000)).toLocaleString()}</span>
+                        </div>
                     </div>
-                    <div className="mining-stat-label">H/s</div>
-                </div>
-                <div className="mining-stat" data-tooltip="Current leading zeros vs target required">
-                    <div className="mining-stat-value" style={{ color: currentZeros >= difficulty ? 'var(--sapPositiveColor)' : 'inherit' }}>
-                        {currentZeros}/{difficulty}
-                    </div>
-                    <div className="mining-stat-label">Zeros</div>
-                </div>
-            </div>
+                </>
+            )}
 
             {/* Hash Attempts Log */}
-            <div>
+            <div style={{ marginTop: '12px' }}>
                 <div className="form-label">Failed Hash Attempts</div>
                 <div className="hash-attempts-log" ref={logRef}>
                     {hashAttempts.length === 0 ? (
@@ -93,12 +148,18 @@ export function MiningVisualizer({ isMining, progress, difficulty, hashAttempts 
                         hashAttempts.map((attempt, index) => {
                             const leadingZeros = attempt.hash.match(/^0*/)?.[0] || '';
                             const restOfHash = attempt.hash.replace(/^0*/, '');
+                            const minerColor = attempt.miner?.toLowerCase() === 'minas'
+                                ? 'var(--miner-minas-color)'
+                                : 'var(--miner-chris-color)';
                             return (
                                 <div key={index} className="hash-attempt">
+                                    <span className="hash-attempt-miner" style={{ color: minerColor }}>
+                                        {attempt.miner?.substring(0, 1) || '?'}
+                                    </span>
                                     <span className="hash-attempt-nonce">#{attempt.nonce}</span>
                                     <span className="hash-attempt-hash">
                                         <span className="leading-zeros">{leadingZeros}</span>
-                                        {showFullHash ? restOfHash : `${restOfHash.substring(0, 24)}...`}
+                                        {showFullHash ? restOfHash : `${restOfHash.substring(0, 16)}...`}
                                     </span>
                                 </div>
                             );

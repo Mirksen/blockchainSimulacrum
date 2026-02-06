@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { MiningVisualizer } from './MiningVisualizer';
 
-export function MiningCard({ isMining, miningProgress, difficulty, hashAttempts }) {
+export function MiningCard({ isMining, miningProgress, minerProgress, raceWinner, difficulty, hashAttempts }) {
     const [isExpanded, setIsExpanded] = useState(false);
 
     const cardStyle = isExpanded ? {
@@ -17,17 +17,11 @@ export function MiningCard({ isMining, miningProgress, difficulty, hashAttempts 
         transition: 'all var(--sapTransition)'
     };
 
-    // When expanded, we might want to pass a prop to Visualizer to show full hash?
-    // The user said "to show more information like the full hash length".
-    // I can pass `showFullHash={isExpanded}` to MiningVisualizer?
-    // I'll need to check if MiningVisualizer supports it or I need to modify it. 
-    // For now I'll create this card.
-
     return (
         <div style={{ position: 'relative', marginBottom: '16px' }}>
             <div className="fiori-card" style={cardStyle}>
                 <div className="fiori-card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <h3>⛏️ Mining</h3>
+                    <h3>⛏️ Mining Race</h3>
                     <button
                         className="btn btn-transparent"
                         onClick={() => setIsExpanded(!isExpanded)}
@@ -40,6 +34,8 @@ export function MiningCard({ isMining, miningProgress, difficulty, hashAttempts 
                     <MiningVisualizer
                         isMining={isMining}
                         progress={miningProgress}
+                        minerProgress={minerProgress}
+                        raceWinner={raceWinner}
                         difficulty={difficulty}
                         hashAttempts={hashAttempts}
                         showFullHash={isExpanded}

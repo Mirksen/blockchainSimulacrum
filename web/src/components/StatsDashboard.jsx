@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 
-export function StatsDashboard({ blocks, blockchain, difficulty }) {
+export function StatsDashboard({ blocks, blockchain, difficulty, participants }) {
     const stats = useMemo(() => {
         if (!blocks || blocks.length <= 1) {
             return null;
@@ -56,6 +56,18 @@ export function StatsDashboard({ blocks, blockchain, difficulty }) {
         const baseReward = 3.125;
         const currentReward = baseReward / Math.pow(2, totalHalvings);
 
+        // Find leading miner (most blocks won)
+        let leadingMiner = null;
+        let maxBlocksWon = 0;
+        if (participants && participants.length > 0) {
+            for (const p of participants) {
+                if (p.isMiner && (p.blocksWon || 0) > maxBlocksWon) {
+                    maxBlocksWon = p.blocksWon || 0;
+                    leadingMiner = p.name;
+                }
+            }
+        }
+
         return {
             totalBlocks,
             avgBlockTime: avgBlockTime.toFixed(1),
@@ -66,15 +78,17 @@ export function StatsDashboard({ blocks, blockchain, difficulty }) {
             blocksUntilHalving,
             currentEpoch,
             totalCoins: totalCoins.toFixed(4),
-            currentReward: currentReward.toFixed(4)
+            currentReward: currentReward.toFixed(4),
+            leadingMiner: leadingMiner || '-',
+            leadingMinerBlocks: maxBlocksWon
         };
-    }, [blocks, blocks?.length, blockchain, blockchain?.halvingEvent]);
+    }, [blocks, blocks?.length, blockchain, blockchain?.halvingEvent, participants]);
 
     if (!stats) {
         return (
             <div className="fiori-card" style={{ marginTop: '16px' }}>
                 <div className="fiori-card-header">
-                    <h3>📊 Statistics</h3>
+                    <h3>📊 Analytics</h3>
                 </div>
                 <div className="fiori-card-content text-muted text-center">
                     Mine some blocks to see statistics
@@ -83,10 +97,16 @@ export function StatsDashboard({ blocks, blockchain, difficulty }) {
         );
     }
 
+    // Determine miner color class
+    const getMinerColorClass = (name) => {
+        return name?.toLowerCase() === 'minas' ? 'minas' : 'lars';
+    };
+    const leadingMinerColorClass = stats.leadingMiner !== '-' ? getMinerColorClass(stats.leadingMiner) : '';
+
     return (
         <div className="fiori-card" style={{ marginTop: '16px' }}>
             <div className="fiori-card-header">
-                <h3>📊 Statistics</h3>
+                <h3>📊 Analytics</h3>
             </div>
             <div className="fiori-card-content">
                 <div className="stats-grid">
@@ -117,6 +137,34 @@ export function StatsDashboard({ blocks, blockchain, difficulty }) {
                 </div>
 
                 <div className="stats-divider"></div>
+
+                {/* Leading Miner Section */}
+                {stats.leadingMiner !== '-' && (
+                    <>
+                        <div
+                            className="stat-item leading-miner-stat"
+                            data-tooltip={`Miner with the most blocks won (${stats.leadingMinerBlocks} blocks)`}
+                            style={{
+                                marginBottom: '12px',
+                                background: `var(--miner-${leadingMinerColorClass}-bg)`,
+                                border: `1px solid var(--miner-${leadingMinerColorClass}-color)`
+                            }}
+                        >
+                            <div className="stat-value" style={{
+                                color: `var(--miner-${leadingMinerColorClass}-color)`,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '6px'
+                            }}>
+                                👑 {stats.leadingMiner}
+                                <span style={{ fontSize: '11px', opacity: 0.8 }}>({stats.leadingMinerBlocks})</span>
+                            </div>
+                            <div className="stat-label">Leading Miner</div>
+                        </div>
+                        <div className="stats-divider"></div>
+                    </>
+                )}
 
                 <div className="stats-grid">
                     <div className="stat-item highlight" data-tooltip="Total coins created from all mining rewards">

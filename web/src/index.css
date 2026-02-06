@@ -21,6 +21,12 @@
   --sapInformativeColor: #0a6ed1;
   --sapNeutralColor: #868c97;
 
+  /* Miner Colors - Dark Mode */
+  --miner-minas-color: #A855F7;
+  --miner-minas-bg: rgba(168, 85, 247, 0.15);
+  --miner-lars-color: #FFB347;
+  --miner-lars-bg: rgba(255, 179, 71, 0.15);
+
   /* Text Colors */
   --sapTextColor: #ffffff;
   --sapTitleColor: #ffffff;
@@ -96,6 +102,12 @@
   --sapBackgroundColor: #f5f7fa;
   /* Fiori Light Background */
 
+  /* Miner Colors - Light Mode */
+  --miner-minas-color: #9333EA;
+  --miner-minas-bg: rgba(147, 51, 234, 0.12);
+  --miner-lars-color: #E18A00;
+  --miner-lars-bg: rgba(225, 138, 0, 0.12);
+
   /* Text Colors */
   --sapTextColor: #32363a;
   --sapTitleColor: #32363a;
@@ -125,6 +137,211 @@
   --sapContent_Shadow1: 0 1px 4px 0 rgba(0, 0, 0, 0.1);
   --sapContent_Shadow2: 0 4px 16px 0 rgba(0, 0, 0, 0.1);
   --sapContent_Shadow3: 0 8px 32px 0 rgba(0, 0, 0, 0.1);
+}
+
+/* === Miner Color Classes === */
+.miner-minas {
+  color: var(--miner-minas-color);
+}
+
+.miner-lars {
+  color: var(--miner-lars-color);
+}
+
+.miner-minas-border {
+  border-left: 4px solid var(--miner-minas-color);
+}
+
+.miner-lars-border {
+  border-left: 4px solid var(--miner-lars-color);
+}
+
+.miner-minas-bg {
+  background: var(--miner-minas-bg);
+}
+
+.miner-lars-bg {
+  background: var(--miner-lars-bg);
+}
+
+/* Racing Lane Styles */
+.miner-race-container {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.miner-race-lane {
+  flex: 1;
+  min-width: 0;
+  /* Allow flex shrinking */
+  padding: 12px;
+  border-radius: 8px;
+  border: 2px solid var(--sapList_BorderColor);
+  background: var(--sapGroup_ContentBackground);
+  transition: all 0.3s ease;
+}
+
+.miner-race-lane.minas {
+  border-color: var(--miner-minas-color);
+  background: var(--miner-minas-bg);
+}
+
+.miner-race-lane.lars {
+  border-color: var(--miner-lars-color);
+  background: var(--miner-lars-bg);
+}
+
+.miner-race-lane.leading {
+  box-shadow: 0 0 12px currentColor;
+  transform: scale(1.02);
+}
+
+/* Miner Lane Header with Name and H/s */
+.miner-lane-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.miner-race-lane .miner-name {
+  font-weight: bold;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.miner-race-lane.minas .miner-name {
+  color: var(--miner-minas-color);
+}
+
+.miner-race-lane.lars .miner-name {
+  color: var(--miner-lars-color);
+}
+
+.miner-hashrate {
+  font-family: var(--sapFontMonoFamily);
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.miner-race-lane.minas .miner-hashrate {
+  background: rgba(168, 85, 247, 0.2);
+  color: var(--miner-minas-color);
+}
+
+.miner-race-lane.lars .miner-hashrate {
+  background: rgba(255, 179, 71, 0.2);
+  color: var(--miner-lars-color);
+}
+
+[data-theme="light"] .miner-race-lane.minas .miner-hashrate {
+  background: rgba(147, 51, 234, 0.15);
+}
+
+[data-theme="light"] .miner-race-lane.lars .miner-hashrate {
+  background: rgba(225, 138, 0, 0.15);
+}
+
+.miner-race-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 11px;
+}
+
+.miner-race-stat-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.miner-stat-label {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  color: var(--sapContent_LabelColor);
+}
+
+.miner-race-stat-value {
+  font-weight: bold;
+  font-family: var(--sapFontMonoFamily);
+  font-size: 12px;
+}
+
+.miner-hash-value {
+  font-size: 9px !important;
+  word-break: break-all;
+  line-height: 1.4;
+  min-height: 26px;
+  /* Consistent 2-line height */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Winner Animation */
+@keyframes winner-glow {
+
+  0%,
+  100% {
+    box-shadow: 0 0 8px currentColor;
+  }
+
+  50% {
+    box-shadow: 0 0 24px currentColor, 0 0 40px currentColor;
+  }
+}
+
+.miner-winner {
+  animation: winner-glow 0.5s ease-in-out 3 forwards;
+}
+
+.winner-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 10px;
+  font-weight: bold;
+  text-transform: uppercase;
+}
+
+.winner-badge.minas {
+  background: var(--miner-minas-bg);
+  color: var(--miner-minas-color);
+  border: 1px solid var(--miner-minas-color);
+}
+
+.winner-badge.lars {
+  background: var(--miner-lars-bg);
+  color: var(--miner-lars-color);
+  border: 1px solid var(--miner-lars-color);
+}
+
+/* Blocks Won Badge */
+.blocks-won-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: bold;
+  background: var(--sapHighlightColor);
+  color: white;
 }
 
 /* === Base Styles === */
@@ -291,6 +508,32 @@ h5 {
 
 .theme-toggle input[type="radio"] {
   display: none;
+}
+
+/* === Block Height Counter === */
+.block-height-counter {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: rgba(10, 110, 209, 0.15);
+  border: 1px solid var(--sapBrandColor);
+  border-radius: 16px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.block-height-icon {
+  font-size: 14px;
+}
+
+.block-height-value {
+  font-family: var(--sapFontMonoFamily);
+  color: var(--sapBrandColor);
+}
+
+[data-theme="light"] .block-height-counter {
+  background: rgba(0, 112, 242, 0.1);
 }
 
 /* === Page Layout === */
@@ -605,7 +848,7 @@ h5 {
 
 .block-hash {
   font-family: var(--sapFontMonoFamily);
-  font-size: 13px;
+  font-size: 16px;
   color: var(--sapTextColor);
   margin-top: 4px;
   word-break: break-all;
@@ -769,6 +1012,24 @@ h5 {
   text-shadow: 0 0 40px rgba(0, 0, 0, 0.8);
 }
 
+/* Miner-specific hammer glow colors */
+.mining-overlay.winner-minas .mining-overlay-icon {
+  filter: drop-shadow(0 0 30px var(--miner-minas-color)) drop-shadow(0 0 60px rgba(168, 85, 247, 0.6));
+}
+
+.mining-overlay.winner-lars .mining-overlay-icon {
+  filter: drop-shadow(0 0 30px var(--miner-lars-color)) drop-shadow(0 0 60px rgba(255, 179, 71, 0.6));
+}
+
+/* Light mode adjustments for hammer glow */
+[data-theme="light"] .mining-overlay.winner-minas .mining-overlay-icon {
+  filter: drop-shadow(0 0 30px var(--miner-minas-color)) drop-shadow(0 0 60px rgba(147, 51, 234, 0.5));
+}
+
+[data-theme="light"] .mining-overlay.winner-lars .mining-overlay-icon {
+  filter: drop-shadow(0 0 30px var(--miner-lars-color)) drop-shadow(0 0 60px rgba(225, 138, 0, 0.5));
+}
+
 /* === Mining Visualizer === */
 .mining-panel {
   background: var(--sapGroup_ContentBackground);
@@ -863,7 +1124,7 @@ h5 {
 
 .mining-hash {
   font-family: var(--sapFontMonoFamily);
-  font-size: 12px;
+  font-size: 14px;
   background: var(--sapBackgroundColor);
   padding: 8px 12px;
   border-radius: var(--sapButton_BorderCornerRadius);
@@ -892,18 +1153,19 @@ h5 {
   background: var(--sapBackgroundColor);
   border: 1px solid var(--sapList_BorderColor);
   border-radius: var(--sapButton_BorderCornerRadius);
-  padding: 12px;
-  margin-top: 16px;
-  max-height: 180px;
+  padding: 8px;
+  margin-top: 12px;
+  max-height: 160px;
   overflow-y: auto;
   font-family: var(--sapFontMonoFamily);
-  font-size: 11px;
+  font-size: 10px;
 }
 
 .hash-attempt {
   display: flex;
-  gap: 12px;
-  padding: 2px 0;
+  align-items: center;
+  gap: 6px;
+  padding: 1px 0;
   color: var(--sapContent_LabelColor);
 }
 
@@ -912,14 +1174,26 @@ h5 {
   font-weight: 600;
 }
 
+.hash-attempt-miner {
+  width: 12px;
+  flex-shrink: 0;
+  font-weight: bold;
+  text-align: center;
+}
+
 .hash-attempt-nonce {
-  min-width: 70px;
+  width: 60px;
+  flex-shrink: 0;
   color: var(--sapNeutralColor);
+  text-align: right;
 }
 
 .hash-attempt-hash {
   flex: 1;
-  word-break: break-all;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* === Transaction Items === */
@@ -1242,4 +1516,1235 @@ h5 {
   height: 1px;
   background: var(--sapGroup_TitleBorderColor);
   margin: 12px 0;
+}
+
+/* === Cyber Coin Gain Animation === */
+@keyframes wallet-glow-pulse {
+  0% {
+    box-shadow: inset 0 0 0 1px rgba(16, 126, 62, 0.3);
+  }
+
+  50% {
+    box-shadow: inset 0 0 20px rgba(16, 126, 62, 0.5), 0 0 15px rgba(16, 126, 62, 0.4);
+  }
+
+  100% {
+    box-shadow: inset 0 0 0 1px rgba(16, 126, 62, 0.3);
+  }
+}
+
+@keyframes coin-float-up {
+  0% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+
+  50% {
+    opacity: 1;
+    transform: translateY(-15px) scale(1.2);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateY(-30px) scale(0.8);
+  }
+}
+
+@keyframes coin-scatter {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) scale(0.5) rotate(0deg);
+  }
+
+  20% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate(var(--tx), var(--ty)) scale(1) rotate(var(--rot));
+  }
+}
+
+@keyframes gain-amount-pop {
+  0% {
+    opacity: 0;
+    transform: translateY(10px) scale(0.5);
+  }
+
+  30% {
+    opacity: 1;
+    transform: translateY(-5px) scale(1.2);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateY(-25px) scale(0.9);
+  }
+}
+
+@keyframes cyber-shimmer {
+  0% {
+    background-position: -200% center;
+  }
+
+  100% {
+    background-position: 200% center;
+  }
+}
+
+.wallet-coin-gain {
+  animation: wallet-glow-pulse 0.5s ease-in-out 3;
+  background: linear-gradient(90deg,
+      transparent 0%,
+      rgba(16, 126, 62, 0.15) 45%,
+      rgba(16, 126, 62, 0.25) 50%,
+      rgba(16, 126, 62, 0.15) 55%,
+      transparent 100%) !important;
+  background-size: 200% 100%;
+  animation: wallet-glow-pulse 0.5s ease-in-out 3, cyber-shimmer 0.8s ease-in-out;
+}
+
+.coin-gain-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.coin-particles {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  gap: 4px;
+}
+
+.coin-particle {
+  font-size: 16px;
+  animation: coin-scatter 1.2s ease-out forwards;
+  filter: drop-shadow(0 0 4px rgba(255, 215, 0, 0.8));
+}
+
+.coin-particle:nth-child(1) {
+  --tx: -30px;
+  --ty: -20px;
+  --rot: -15deg;
+  animation-delay: 0s;
+}
+
+.coin-particle:nth-child(2) {
+  --tx: 25px;
+  --ty: -25px;
+  --rot: 20deg;
+  animation-delay: 0.1s;
+}
+
+.coin-particle:nth-child(3) {
+  --tx: -20px;
+  --ty: 15px;
+  --rot: -10deg;
+  animation-delay: 0.2s;
+}
+
+.coin-particle:nth-child(4) {
+  --tx: 35px;
+  --ty: 10px;
+  --rot: 25deg;
+  animation-delay: 0.15s;
+}
+
+.coin-particle:nth-child(5) {
+  --tx: 0px;
+  --ty: -30px;
+  --rot: 0deg;
+  animation-delay: 0.05s;
+}
+
+.coin-gain-amount {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-family: var(--sapFontMonoFamily);
+  font-size: 14px;
+  font-weight: bold;
+  color: var(--sapPositiveColor);
+  text-shadow:
+    0 0 10px rgba(16, 126, 62, 0.8),
+    0 0 20px rgba(16, 126, 62, 0.5),
+    0 0 30px rgba(16, 126, 62, 0.3);
+  animation: gain-amount-pop 1.5s ease-out forwards;
+  white-space: nowrap;
+}
+
+.balance-updating {
+  color: var(--sapPositiveColor) !important;
+  font-weight: bold;
+  text-shadow: 0 0 8px rgba(16, 126, 62, 0.6);
+  transition: all 0.3s ease;
+}
+
+/* Dark mode coin glow enhancement */
+[data-theme="dark"] .coin-particle {
+  filter: drop-shadow(0 0 8px rgba(255, 215, 0, 1)) drop-shadow(0 0 15px rgba(255, 215, 0, 0.6));
+}
+
+[data-theme="dark"] .coin-gain-amount {
+  text-shadow:
+    0 0 15px rgba(16, 126, 62, 1),
+    0 0 30px rgba(16, 126, 62, 0.7),
+    0 0 45px rgba(16, 126, 62, 0.4);
+}
+
+/* === Block Details Modal === */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: modalFadeIn 0.2s ease-out;
+}
+
+@keyframes modalFadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9) translateY(-20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.block-details-modal {
+  background: var(--sapGroup_ContentBackground);
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3), 0 0 40px rgba(0, 112, 242, 0.15);
+  max-width: 600px;
+  width: 90%;
+  max-height: 85vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  animation: modalSlideIn 0.3s ease-out;
+  border: 1px solid var(--sapList_BorderColor);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  background: linear-gradient(135deg, var(--sapBrandColor), var(--sapHighlightColor));
+  color: white;
+}
+
+.modal-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 18px;
+  font-weight: bold;
+}
+
+.modal-icon {
+  font-size: 24px;
+}
+
+.modal-close-btn {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: white;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.modal-close-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: scale(1.1);
+}
+
+.modal-content {
+  padding: 20px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.block-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: bold;
+  margin-bottom: 16px;
+}
+
+.block-status-badge.status-valid {
+  background: rgba(16, 126, 62, 0.15);
+  color: var(--sapPositiveColor);
+  border: 1px solid var(--sapPositiveColor);
+}
+
+.block-status-badge.status-invalid {
+  background: rgba(187, 0, 0, 0.15);
+  color: var(--sapNegativeColor);
+  border: 1px solid var(--sapNegativeColor);
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+.modal-section {
+  margin-bottom: 16px;
+}
+
+.modal-section-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  color: var(--sapContent_LabelColor);
+  margin-bottom: 6px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.modal-hash {
+  font-family: var(--sapFontMonoFamily);
+  font-size: 12px;
+  background: var(--sapBackgroundColor);
+  padding: 10px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--sapList_BorderColor);
+  word-break: break-all;
+  line-height: 1.5;
+}
+
+.modal-hash.small {
+  font-size: 10px;
+  color: var(--sapContent_LabelColor);
+}
+
+.modal-hash .leading-zeros {
+  color: var(--sapPositiveColor);
+  font-weight: bold;
+}
+
+.modal-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.modal-stat {
+  text-align: center;
+  padding: 12px 8px;
+  background: var(--sapBackgroundColor);
+  border-radius: 8px;
+  border: 1px solid var(--sapList_BorderColor);
+}
+
+.modal-stat-value {
+  font-family: var(--sapFontMonoFamily);
+  font-size: 14px;
+  font-weight: bold;
+  color: var(--sapBrandColor);
+}
+
+.modal-stat-label {
+  font-size: 10px;
+  color: var(--sapContent_LabelColor);
+  text-transform: uppercase;
+  margin-top: 4px;
+}
+
+.tamper-analysis {
+  background: rgba(187, 0, 0, 0.1);
+  border: 1px solid var(--sapNegativeColor);
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 16px;
+}
+
+.tamper-title {
+  font-weight: bold;
+  color: var(--sapNegativeColor);
+  margin-bottom: 8px;
+}
+
+.tamper-item {
+  font-size: 11px;
+  margin-top: 8px;
+  color: #bb0000;
+}
+
+.tamper-detail {
+  font-family: var(--sapFontMonoFamily);
+  font-size: 10px;
+  margin-top: 2px;
+  opacity: 0.8;
+}
+
+.modal-transactions {
+  background: var(--sapBackgroundColor);
+  border-radius: 8px;
+  border: 1px solid var(--sapList_BorderColor);
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.modal-tx-item {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--sapList_BorderColor);
+}
+
+.modal-tx-item:last-child {
+  border-bottom: none;
+}
+
+.modal-tx-parties {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.modal-tx-parties .mining-reward {
+  color: var(--sapPositiveColor);
+  font-style: italic;
+}
+
+.tx-arrow {
+  color: var(--sapContent_LabelColor);
+}
+
+.modal-tx-amount {
+  font-family: var(--sapFontMonoFamily);
+  font-size: 11px;
+  color: var(--sapBrandColor);
+  margin-top: 4px;
+}
+
+.modal-tx-ref {
+  font-size: 10px;
+  color: var(--sapContent_LabelColor);
+  margin-top: 4px;
+}
+
+/* === Mempool New Transaction Animation === */
+@keyframes mempool-new-tx {
+  0% {
+    opacity: 0;
+    transform: translateX(-20px);
+    background: rgba(0, 112, 242, 0.3);
+  }
+
+  30% {
+    opacity: 1;
+    transform: translateX(0);
+    background: rgba(0, 112, 242, 0.25);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+    background: transparent;
+  }
+}
+
+@keyframes mempool-glow {
+
+  0%,
+  100% {
+    box-shadow: none;
+  }
+
+  50% {
+    box-shadow: 0 0 15px rgba(0, 112, 242, 0.4);
+  }
+}
+
+.mempool-tx-new {
+  animation: mempool-new-tx 0.8s ease-out forwards;
+}
+
+.mempool-card-highlight {
+  animation: mempool-glow 0.5s ease-in-out 2;
+}
+
+/* Mempool counter badge pulse */
+@keyframes badge-pulse {
+
+  0%,
+  100% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.15);
+  }
+}
+
+.mempool-badge-pulse {
+  animation: badge-pulse 0.4s ease-in-out;
+}
+
+/* === Participant Details Modal === */
+.participant-details-modal {
+  background: var(--sapGroup_ContentBackground);
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3), 0 0 40px rgba(0, 112, 242, 0.15);
+  max-width: 550px;
+  width: 90%;
+  max-height: 85vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  animation: modalSlideIn 0.3s ease-out;
+  border: 1px solid var(--sapList_BorderColor);
+}
+
+.miner-header-minas {
+  background: linear-gradient(135deg, var(--miner-minas-color), #581c87) !important;
+}
+
+.miner-header-minas .modal-title,
+.miner-header-minas .modal-title span {
+  color: white !important;
+}
+
+.miner-header-lars {
+  background: linear-gradient(135deg, var(--miner-lars-color), #b35c00) !important;
+}
+
+.miner-header-lars .modal-title,
+.miner-header-lars .modal-title span {
+  color: white !important;
+}
+
+.participant-balance-card {
+  text-align: center;
+  padding: 20px;
+  background: linear-gradient(135deg, var(--sapBrandColor), var(--sapHighlightColor));
+  border-radius: 12px;
+  margin-bottom: 16px;
+  color: white;
+}
+
+.balance-amount {
+  font-family: var(--sapFontMonoFamily);
+  font-size: 28px;
+  font-weight: bold;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.balance-label {
+  font-size: 12px;
+  opacity: 0.9;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-top: 4px;
+}
+
+.miner-settings-section {
+  background: var(--sapBackgroundColor);
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 16px;
+  border: 1px solid var(--sapList_BorderColor);
+}
+
+.miner-settings-section.minas {
+  border-color: var(--miner-minas-color);
+  background: var(--miner-minas-bg);
+}
+
+.miner-settings-section.lars {
+  border-color: var(--miner-lars-color);
+  background: var(--miner-lars-bg);
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.section-title {
+  font-weight: bold;
+  font-size: 13px;
+}
+
+.hashpower-control {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.hashpower-label {
+  font-size: 12px;
+  color: var(--sapContent_LabelColor);
+}
+
+.hashpower-slider {
+  flex: 1;
+  cursor: pointer;
+}
+
+.hashpower-value {
+  font-family: var(--sapFontMonoFamily);
+  font-weight: bold;
+  min-width: 40px;
+  text-align: right;
+}
+
+.miner-hint {
+  font-size: 10px;
+  color: var(--sapContent_LabelColor);
+  margin-top: 8px;
+}
+
+.modal-hash.private-key {
+  background: rgba(187, 0, 0, 0.1);
+  border-color: var(--sapNegativeColor);
+  color: var(--sapNegativeColor);
+  font-size: 10px;
+}
+
+.participant-tx-history {
+  background: var(--sapBackgroundColor);
+  border-radius: 8px;
+  border: 1px solid var(--sapList_BorderColor);
+  max-height: 250px;
+  overflow-y: auto;
+}
+
+.participant-tx-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--sapList_BorderColor);
+  transition: background 0.2s ease;
+}
+
+.participant-tx-item:last-child {
+  border-bottom: none;
+}
+
+.participant-tx-item:hover {
+  background: var(--sapList_Hover_Background);
+}
+
+.participant-tx-item.incoming {
+  border-left: 3px solid var(--sapPositiveColor);
+}
+
+.participant-tx-item.outgoing {
+  border-left: 3px solid var(--sapNegativeColor);
+}
+
+.tx-indicator {
+  font-size: 16px;
+  width: 24px;
+  text-align: center;
+}
+
+.tx-details {
+  flex: 1;
+  min-width: 0;
+}
+
+.tx-description {
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mining-reward-label {
+  color: var(--sapPositiveColor);
+  font-weight: 500;
+}
+
+.tx-ref {
+  font-size: 10px;
+  color: var(--sapContent_LabelColor);
+  margin-top: 2px;
+}
+
+.tx-amount {
+  font-family: var(--sapFontMonoFamily);
+  font-size: 12px;
+  font-weight: bold;
+  white-space: nowrap;
+}
+
+.tx-amount.positive {
+  color: var(--sapPositiveColor);
+}
+
+.tx-amount.negative {
+  color: var(--sapNegativeColor);
+}
+
+.no-transactions {
+  padding: 20px;
+  text-align: center;
+  color: var(--sapContent_LabelColor);
+  font-style: italic;
+}
+
+/* Header controls dark mode fix */
+[data-theme="dark"] .app-header input {
+  background: var(--sapField_Background);
+  color: var(--sapTextColor);
+  border-color: var(--sapField_BorderColor);
+}
+
+[data-theme="dark"] .app-header span {
+  color: var(--sapTextColor);
+}
+
+/* Participant balance dark mode fix */
+[data-theme="dark"] .list-item-subtitle {
+  color: var(--sapTextColor);
+}
+
+[data-theme="dark"] .participant-balance-card .balance-amount {
+  color: white;
+}
+
+/* Modal hash dark mode fix */
+[data-theme="dark"] .modal-hash {
+  color: var(--sapTextColor);
+}
+
+/* Mining Summary Row */
+.mining-summary-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding: 10px 12px;
+  background: var(--sapBackgroundColor);
+  border-radius: 6px;
+  border: 1px solid var(--sapList_BorderColor);
+  margin-top: 12px;
+}
+
+.mining-summary-stat {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.mining-summary-label {
+  font-size: 11px;
+  color: var(--sapContent_LabelColor);
+}
+
+.mining-summary-value {
+  font-family: var(--sapFontMonoFamily);
+  font-size: 12px;
+  font-weight: bold;
+  color: var(--sapBrandColor);
+}
+
+/* Seed Phrase Display */
+.seed-phrase-container {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  padding: 12px;
+  background: rgba(187, 0, 0, 0.08);
+  border: 1px solid var(--sapNegativeColor);
+  border-radius: 8px;
+}
+
+.seed-word {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background: var(--sapGroup_ContentBackground);
+  border-radius: 6px;
+  border: 1px solid var(--sapList_BorderColor);
+}
+
+.seed-word-number {
+  font-size: 9px;
+  color: var(--sapContent_LabelColor);
+  min-width: 14px;
+}
+
+.seed-word-text {
+  font-family: var(--sapFontMonoFamily);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--sapNegativeColor);
+}
+
+[data-theme="dark"] .seed-phrase-container {
+  background: rgba(187, 0, 0, 0.15);
+}
+
+[data-theme="dark"] .seed-word-text {
+  color: #ff6b6b;
+}
+
+/* === Transaction Details Modal === */
+.transaction-details-modal {
+  background: var(--sapGroup_ContentBackground);
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3), 0 0 40px rgba(0, 200, 100, 0.1);
+  max-width: 550px;
+  width: 90%;
+  max-height: 85vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  animation: modalSlideIn 0.3s ease-out;
+  border: 1px solid var(--sapList_BorderColor);
+}
+
+.mining-reward-header {
+  background: linear-gradient(135deg, var(--sapPositiveColor), #006644) !important;
+}
+
+.tx-type-badge {
+  display: inline-block;
+  padding: 6px 16px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: bold;
+  letter-spacing: 1px;
+}
+
+.tx-type-badge.mining-reward {
+  background: rgba(0, 150, 100, 0.15);
+  color: var(--sapPositiveColor);
+  border: 1px solid var(--sapPositiveColor);
+}
+
+.tx-type-badge.transfer {
+  background: rgba(0, 112, 242, 0.15);
+  color: var(--sapBrandColor);
+  border: 1px solid var(--sapBrandColor);
+}
+
+.tx-amount-card {
+  text-align: center;
+  padding: 20px;
+  background: linear-gradient(135deg, var(--sapPositiveColor), #00aa66);
+  border-radius: 12px;
+  margin-bottom: 16px;
+  color: white;
+}
+
+.tx-amount-value {
+  font-family: var(--sapFontMonoFamily);
+  font-size: 28px;
+  font-weight: bold;
+}
+
+.tx-amount-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  opacity: 0.9;
+}
+
+.tx-fee-info {
+  font-size: 11px;
+  opacity: 0.8;
+  margin-top: 4px;
+}
+
+.tx-parties-section {
+  display: flex;
+  align-items: stretch;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.tx-party {
+  flex: 1;
+  padding: 12px;
+  background: var(--sapBackgroundColor);
+  border-radius: 8px;
+  border: 1px solid var(--sapList_BorderColor);
+}
+
+.tx-party.sender {
+  border-left: 3px solid var(--sapNegativeColor);
+}
+
+.tx-party.recipient {
+  border-left: 3px solid var(--sapPositiveColor);
+}
+
+.tx-party-label {
+  font-size: 9px;
+  text-transform: uppercase;
+  color: var(--sapContent_LabelColor);
+  margin-bottom: 4px;
+}
+
+.tx-party-name {
+  font-weight: bold;
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+
+.tx-party-key {
+  font-family: var(--sapFontMonoFamily);
+  font-size: 9px;
+  color: var(--sapContent_LabelColor);
+  word-break: break-all;
+  line-height: 1.4;
+}
+
+.tx-arrow-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tx-arrow {
+  font-size: 24px;
+  color: var(--sapBrandColor);
+}
+
+.tx-reference {
+  background: var(--sapBackgroundColor);
+  padding: 12px;
+  border-radius: 6px;
+  border: 1px solid var(--sapList_BorderColor);
+  font-style: italic;
+  color: var(--sapTextColor);
+}
+
+.signature-status {
+  font-weight: bold;
+  font-size: 13px;
+  margin-bottom: 8px;
+}
+
+.signature-display {
+  background: var(--sapBackgroundColor);
+  padding: 10px;
+  border-radius: 6px;
+  border: 1px solid var(--sapList_BorderColor);
+}
+
+.signature-part {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 6px;
+  font-family: var(--sapFontMonoFamily);
+  font-size: 9px;
+}
+
+.signature-part:last-child {
+  margin-bottom: 0;
+}
+
+.sig-label {
+  font-weight: bold;
+  color: var(--sapBrandColor);
+  min-width: 16px;
+}
+
+.sig-value {
+  word-break: break-all;
+  color: var(--sapContent_LabelColor);
+}
+
+.tx-info-box {
+  background: rgba(0, 112, 242, 0.08);
+  border: 1px solid rgba(0, 112, 242, 0.25);
+  border-radius: 8px;
+  padding: 12px;
+  margin-top: 12px;
+}
+
+.tx-info-title {
+  font-weight: bold;
+  font-size: 12px;
+  margin-bottom: 8px;
+  color: var(--sapBrandColor);
+}
+
+.tx-info-list {
+  margin: 0;
+  padding-left: 16px;
+  font-size: 11px;
+  color: var(--sapTextColor);
+  line-height: 1.6;
+}
+
+.tx-info-list li {
+  margin-bottom: 4px;
+}
+
+.tx-info-list strong {
+  color: var(--sapBrandColor);
+}
+
+/* Clickable Transaction Items in Block Modal */
+.modal-tx-item.clickable {
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.modal-tx-item.clickable:hover {
+  background: var(--sapList_Hover_Background);
+  transform: translateX(4px);
+}
+
+.tx-click-hint {
+  font-size: 9px;
+  color: var(--sapContent_LabelColor);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  margin-top: 4px;
+}
+
+.modal-tx-item.clickable:hover .tx-click-hint {
+  opacity: 1;
+}
+
+/* Clickable Mempool Transactions */
+.tx-item.clickable-tx {
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.tx-item.clickable-tx:hover {
+  background: var(--sapList_Hover_Background);
+  transform: translateX(4px);
+  border-color: var(--sapBrandColor);
+}
+
+.mempool-tx-hint {
+  font-size: 9px;
+  color: var(--sapContent_LabelColor);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  margin-top: 4px;
+}
+
+.tx-item.clickable-tx:hover .mempool-tx-hint {
+  opacity: 1;
+}
+
+/* === Blockchain Stats Panel === */
+.blockchain-stats-modal {
+  background: var(--sapGroup_ContentBackground);
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  max-width: 600px;
+  width: 95%;
+  max-height: 85vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  animation: modalSlideIn 0.3s ease-out;
+  border: 1px solid var(--sapList_BorderColor);
+}
+
+.stats-hero {
+  text-align: center;
+  padding: 24px;
+  background: linear-gradient(135deg, rgba(0, 112, 242, 0.1), rgba(0, 74, 159, 0.15));
+  border-radius: 12px;
+  margin-bottom: 16px;
+}
+
+.stats-hero-value {
+  font-size: 48px;
+  font-weight: bold;
+  color: var(--sapBrandColor);
+  font-family: var(--sapFontMonoFamily);
+}
+
+.stats-hero-label {
+  font-size: 12px;
+  text-transform: uppercase;
+  color: var(--sapContent_LabelColor);
+  margin-top: 4px;
+}
+
+.stats-section {
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--sapList_BorderColor);
+}
+
+.stats-section:last-of-type {
+  border-bottom: none;
+}
+
+.stats-section-title {
+  font-weight: bold;
+  font-size: 13px;
+  margin-bottom: 12px;
+  color: var(--sapTitleColor);
+}
+
+.blockchain-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+
+.blockchain-stat-item {
+  text-align: center;
+  padding: 12px 8px;
+  background: var(--sapBackgroundColor);
+  border-radius: 8px;
+  border: 1px solid var(--sapList_BorderColor);
+}
+
+.blockchain-stat-item.highlight {
+  border-color: var(--sapBrandColor);
+  background: rgba(0, 112, 242, 0.08);
+}
+
+.blockchain-stat-value {
+  font-size: 16px;
+  font-weight: bold;
+  font-family: var(--sapFontMonoFamily);
+  color: var(--sapTitleColor);
+}
+
+.blockchain-stat-label {
+  font-size: 9px;
+  text-transform: uppercase;
+  color: var(--sapContent_LabelColor);
+  margin-top: 4px;
+}
+
+.miner-leaderboard {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.leaderboard-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--sapBackgroundColor);
+  border-radius: 6px;
+  border: 1px solid var(--sapList_BorderColor);
+}
+
+.leaderboard-rank {
+  font-size: 16px;
+}
+
+.leaderboard-name {
+  font-weight: bold;
+  flex: 1;
+}
+
+.leaderboard-blocks {
+  font-family: var(--sapFontMonoFamily);
+  font-size: 12px;
+}
+
+.leaderboard-percent {
+  font-size: 11px;
+  color: var(--sapContent_LabelColor);
+}
+
+.stats-info-footer {
+  text-align: center;
+  padding: 12px;
+  font-size: 11px;
+  color: var(--sapContent_LabelColor);
+  border-top: 1px solid var(--sapList_BorderColor);
+  margin-top: 12px;
+}
+
+.stats-info-footer p {
+  margin: 0;
+}
+
+/* Clickable block height in header */
+.block-height-clickable {
+  cursor: pointer;
+  padding: 4px 12px;
+  border-radius: 6px;
+  background: rgba(0, 112, 242, 0.1);
+  border: 1px solid rgba(0, 112, 242, 0.3);
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.block-height-clickable:hover {
+  background: rgba(0, 112, 242, 0.2);
+  border-color: var(--sapBrandColor);
+  transform: translateY(-1px);
+}
+
+.block-height-value {
+  font-family: var(--sapFontMonoFamily);
+  font-weight: bold;
+  font-size: 14px;
+}
+
+.block-height-label {
+  font-size: 10px;
+  opacity: 0.8;
+}
+
+@media (max-width: 600px) {
+  .blockchain-stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.participant-tx-item:hover {
+  background: var(--sapList_Hover_Background);
+  transform: translateX(4px);
 }

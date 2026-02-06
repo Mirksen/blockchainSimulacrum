@@ -9,14 +9,81 @@ import { ec as EC } from 'elliptic';
 
 const ec = new EC('secp256k1');
 
+// BIP39 word list subset (160 words covering A-Z for variety)
+const SEED_WORDS = [
+  // A words
+  'abandon', 'abstract', 'acoustic', 'airport', 'ancient', 'animal', 'approve', 'arrow',
+  // B words
+  'balance', 'banana', 'battle', 'beauty', 'believe', 'bitter', 'blanket', 'brother',
+  // C words
+  'cabin', 'camera', 'canvas', 'captain', 'castle', 'ceiling', 'change', 'crystal',
+  // D words
+  'damage', 'danger', 'decade', 'define', 'diamond', 'digital', 'dolphin', 'dragon',
+  // E words
+  'eagle', 'earth', 'eclipse', 'electric', 'embrace', 'endless', 'escape', 'evolve',
+  // F words
+  'fabric', 'famous', 'fantasy', 'fashion', 'federal', 'fiction', 'fortune', 'future',
+  // G words
+  'galaxy', 'garden', 'general', 'genius', 'glance', 'golden', 'gravity', 'guitar',
+  // H words
+  'habit', 'harbor', 'harvest', 'hidden', 'history', 'hollow', 'horizon', 'hundred',
+  // I words
+  'identity', 'ignore', 'illness', 'immune', 'impulse', 'income', 'initial', 'island',
+  // J words
+  'jacket', 'jaguar', 'jealous', 'jewel', 'journey', 'judge', 'jungle', 'junior',
+  // K words
+  'kangaroo', 'keen', 'kernel', 'kingdom', 'kitchen', 'kiwi', 'knight', 'knock',
+  // L words
+  'ladder', 'language', 'laptop', 'lateral', 'legend', 'liberty', 'lizard', 'lunar',
+  // M words
+  'machine', 'magnet', 'mansion', 'marine', 'master', 'meadow', 'million', 'mystery',
+  // N words
+  'narrow', 'nature', 'network', 'neutral', 'noble', 'normal', 'nuclear', 'number',
+  // O words
+  'object', 'obscure', 'ocean', 'obvious', 'october', 'olympic', 'opinion', 'orange',
+  // P words
+  'palace', 'panther', 'pattern', 'perfect', 'phoenix', 'pioneer', 'planet', 'python',
+  // Q words
+  'quality', 'quantum', 'quarter', 'question', 'quick', 'quiet', 'quiz', 'quote',
+  // R words
+  'rabbit', 'radar', 'random', 'realm', 'recipe', 'rescue', 'rhythm', 'rocket',
+  // S words
+  'saddle', 'salmon', 'sample', 'science', 'shadow', 'silver', 'spirit', 'strong',
+  // T words
+  'talent', 'target', 'temple', 'theory', 'thunder', 'tiger', 'tunnel', 'twelve',
+  // U words
+  'umbrella', 'uncle', 'unique', 'universe', 'unlock', 'upper', 'urban', 'useful',
+  // V words
+  'vacuum', 'various', 'velvet', 'venture', 'village', 'vintage', 'virtual', 'volcano',
+  // W words
+  'wagon', 'wander', 'warrior', 'weather', 'wedding', 'whisper', 'winter', 'wonder',
+  // X-Z words
+  'yellow', 'zebra', 'zero', 'zombie', 'window', 'witness', 'wizard', 'youth'
+];
+
+function generateSeedPhrase() {
+  const words = [];
+  for (let i = 0; i < 12; i++) {
+    const randomIndex = Math.floor(Math.random() * SEED_WORDS.length);
+    words.push(SEED_WORDS[randomIndex]);
+  }
+  return words.join(' ');
+}
+
 // Participant class - wallet owners with cryptographic key pairs
 export class Participant {
-  constructor(name) {
+  constructor(name, isMiner = false) {
     this.name = name;
     this.keyPair = ec.genKeyPair();
     this.publicKey = this.keyPair.getPublic('hex');
     this.privateKey = this.keyPair.getPrivate('hex');
-    this.activeMiner = false;
+    this.seedPhrase = generateSeedPhrase(); // BIP39-style 12-word seed phrase
+    // Miner properties
+    this.isMiner = isMiner;
+    this.hashpower = 5; // 1-10 scale, affects mining speed
+    this.minerEnabled = true; // Can toggle miner on/off
+    this.blocksWon = 0; // Counter for blocks mined
+    this.activeMiner = false; // Legacy compatibility
   }
 }
 
@@ -144,8 +211,8 @@ export class Blockchain {
     return new Block(Date.now(), [], '0');
   }
 
-  addParticipant(name) {
-    const participant = new Participant(name);
+  addParticipant(name, isMiner = false) {
+    const participant = new Participant(name, isMiner);
     this.participants.push(participant);
     return participant;
   }
@@ -157,15 +224,47 @@ export class Blockchain {
   setMiner(name) {
     const participant = this.getParticipantByName(name);
     if (participant) {
+      participant.isMiner = true;
       participant.activeMiner = true;
     }
     return participant;
   }
 
   getActiveMiner() {
-    return this.participants.find(p => p.activeMiner);
+    // Legacy: return first active miner
+    return this.participants.find(p => p.activeMiner || (p.isMiner && p.minerEnabled));
   }
 
+  getActiveMiners() {
+    // Return all enabled miners
+    return this.participants.filter(p => p.isMiner && p.minerEnabled);
+  }
+
+  toggleMiner(name) {
+    const participant = this.getParticipantByName(name);
+    if (participant && participant.isMiner) {
+      participant.minerEnabled = !participant.minerEnabled;
+    }
+    return participant;
+  }
+
+  setMinerHashpower(name, hashpower) {
+    const participant = this.getParticipantByName(name);
+    if (participant && participant.isMiner) {
+      participant.hashpower = Math.max(1, Math.min(10, hashpower));
+    }
+    return participant;
+  }
+
+  incrementBlocksWon(minerPublicKey) {
+    const participant = this.participants.find(p => p.publicKey === minerPublicKey);
+    if (participant) {
+      participant.blocksWon++;
+    }
+    return participant;
+  }
+
+  // Calculate balance including pending mempool transactions (for validation)
   calculateBalance(publicKey) {
     let balance = this.startingBalance;
 
@@ -182,7 +281,7 @@ export class Blockchain {
       }
     }
 
-    // Also include pending transactions in mempool
+    // Also include pending transactions in mempool (for validation only)
     for (const tx of this.memPool) {
       if (tx.sender === publicKey) {
         balance -= tx.amount;
@@ -196,11 +295,31 @@ export class Blockchain {
     return Math.round(balance * 100000000) / 100000000;
   }
 
+  // Calculate confirmed balance only (for display - excludes mempool)
+  calculateConfirmedBalance(publicKey) {
+    let balance = this.startingBalance;
+
+    // Only include confirmed transactions in blocks
+    for (const block of this.blockArray) {
+      for (const tx of block.transactions) {
+        if (tx.sender === publicKey) {
+          balance -= tx.amount;
+          balance -= tx.transactionFee;
+        }
+        if (tx.recipient === publicKey) {
+          balance += tx.amount;
+        }
+      }
+    }
+
+    return Math.round(balance * 100000000) / 100000000;
+  }
+
   getAllBalances() {
     return this.participants.map(p => ({
       name: p.name,
       publicKey: p.publicKey,
-      balance: this.calculateBalance(p.publicKey),
+      balance: this.calculateConfirmedBalance(p.publicKey), // Use confirmed only for display
       isMiner: p.activeMiner
     }));
   }
@@ -379,15 +498,23 @@ export function createBlockchain(config = {}) {
     miningDifficulty = 1,
     blockReward = 3.125,
     halvingEvent = 210000,
-    participants = ['Mirksen', 'Kate', 'Bill', 'Chris', 'Minas'],
-    miner = 'Minas',
+    participants = ['Alice', 'Bob', 'Chris', 'Lars', 'Minas'],
+    miners = ['Minas', 'Lars'],
     startingBalance = 0
   } = config;
 
   const blockchain = new Blockchain(name, miningDifficulty, blockReward, halvingEvent, startingBalance);
 
-  participants.forEach(name => blockchain.addParticipant(name));
-  blockchain.setMiner(miner);
+  // Add participants, marking miners accordingly
+  participants.forEach(pName => {
+    const isMiner = miners.includes(pName);
+    blockchain.addParticipant(pName, isMiner);
+  });
+
+  // Set first miner as legacy activeMiner for compatibility
+  if (miners.length > 0) {
+    blockchain.setMiner(miners[0]);
+  }
 
   return blockchain;
 }
