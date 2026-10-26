@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "proofofwork-fyi",
+  "name": "proofofwork-fyi-preview",
   "account_id": "02da3303e6fa816ed815f4b0bafb12fc",
   "compatibility_date": "2026-10-26",
   "assets": { "directory": "./dist" },

@@ -34,7 +34,7 @@ The deployment check builds the public files and runs a Cloudflare dry run; it d
 
 [Workers Static Assets](https://developers.cloudflare.com/workers/static-assets/) serves only `web/dist`. No database, application server, API keys or visitor accounts are needed. The pinned project Wrangler configuration is in `web/wrangler.jsonc`; use the project scripts rather than a global Wrangler installation. `_headers` supplies a same-origin content policy and basic response headers. The app loads no remote fonts or analytics.
 
-The default environment has no custom domain. The explicitly selected `production` environment binds **proofofwork.fyi** to the Worker **proofofwork-fyi** in the configured account.
+The default environment uses the separate Worker **proofofwork-fyi-preview** and has no custom domain. The explicitly selected `production` environment binds **proofofwork.fyi** to the Worker **proofofwork-fyi** in the configured account.
 
 Before a production deployment, verify the authenticated account, existing Worker and domain/DNS bindings, and obtain the release authorization required by your workflow. A browser login and Wrangler authentication are separate. Authenticate through a local OAuth flow or a locally supplied scoped token; never put a token in Git or chat.
 
