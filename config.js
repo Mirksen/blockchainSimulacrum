@@ -3,22 +3,21 @@ var config = {};
 // name your new blockchain currency
 config.name = "powCoin";
 // set the mining difficulty by the necessary number of leading Zeros of the block Hash CAUTION difficulty increases exponentially!
-if (process.argv[2] == null) {
-  config.miningDifficulty = 3;
-} else {
-  config.miningDifficulty = Number(process.argv[2]);
+config.miningDifficulty = process.argv[2] == null ? 3 : Number(process.argv[2]);
+if (process.argv[2]?.trim() === "" || !Number.isInteger(config.miningDifficulty) ||
+    config.miningDifficulty < 0 || config.miningDifficulty > 64) {
+  throw new Error("Mining difficulty must be an integer between 0 and 64.");
 }
 // set the mining reward per block
 config.blockReward = 3.125;
 // set the amount of blocks after which the mining reward will be halvedo
 config.halvingEvent = 2;
 // Mining log to see hashing details
-config.miningLog = false;
-if (process.argv[3] == null) {
-  config.miningLog = false;
-} else {
-  config.miningLog = Boolean(process.argv[3]);
+const logging = process.argv[3] ?? "false";
+if (!["true", "false", "1", "0"].includes(logging)) {
+  throw new Error("Mining log must be true, false, 1 or 0.");
 }
+config.miningLog = logging === "true" || logging === "1";
 // for demonstration purposes we can airdrop "starting money" to all participants instead of naturally let it flow from the miners to the users like it would be economically correct for the beginning of a blockchain
 config.startingBalance = 10;
 

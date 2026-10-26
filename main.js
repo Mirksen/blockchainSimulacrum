@@ -1,3 +1,5 @@
+"use strict";
+
 /*
 // * Created by  :    Valentic, Mirko
 // * on          :    2021, CS50
@@ -19,7 +21,7 @@ const { Blockchain } = require("./blockchain");
 const config = require("./config");
 
 // initialazing a new Blockchain instance
-kryptoCurrency = new Blockchain(
+const kryptoCurrency = new Blockchain(
   config.name,
   config.miningDifficulty,
   config.blockReward,
@@ -30,16 +32,16 @@ kryptoCurrency = new Blockchain(
 kryptoCurrency.addParticipants(...config.participants);
 
 // declaring which participants are mining
-miners = config.miners;
+const miners = config.miners;
 kryptoCurrency.setMiner(...miners);
 
 // iterate through the blockchain to get the balance for the participants
 kryptoCurrency.calculateBalanceAll();
 
 // iterate through all different phases of calculation enrichment of the blockchain: every defined array in config.js creates a new block which is a simple representation of aggregated transactions at a time
-for (transactionArray of config.transactions) {
+for (const transactionArray of config.transactions) {
   // create Transactions with Signer, Sender, Recipient, Amount & Reference and add them to the mempool as first transactions
-  for (transaction in transactionArray) {
+  for (const transaction in transactionArray) {
     kryptoCurrency.createTx(...transactionArray[transaction]);
   }
   // trigger the mining process which grabs all  sent transactions from the mempool, finds the next valid block hash (aka mining) and appends it to the existing blockchain after the last valid block
@@ -57,8 +59,8 @@ if (config.tamperTry === true) {
 }
 
 if (config.audit === true) {
-  for (block in kryptoCurrency.blockArray) {
-    for (transaction in kryptoCurrency.blockArray[block].transactions) {
+  for (const block in kryptoCurrency.blockArray) {
+    for (const transaction in kryptoCurrency.blockArray[block].transactions) {
       console.log(
         JSON.stringify(
           kryptoCurrency.blockArray[block].transactions[transaction],
@@ -76,8 +78,8 @@ if (config.audit === true) {
     }
   }
   // single check all transactions
-  for (block in kryptoCurrency.blockArray) {
-    for (transactions in kryptoCurrency.blockArray[block].transactions) {
+  for (const block in kryptoCurrency.blockArray) {
+    for (const transactions in kryptoCurrency.blockArray[block].transactions) {
       console.log(
         `Block ${block}; Transaction; ${transactions}; ${JSON.stringify(
           kryptoCurrency.blockArray[block].transactions[transactions].isValid(),
