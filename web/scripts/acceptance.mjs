@@ -2,6 +2,7 @@ import { chromium } from 'playwright';
 import { spawn } from 'node:child_process';
 import { mkdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
+import { stripVTControlCharacters } from 'node:util';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import assert from 'node:assert/strict';
@@ -20,7 +21,7 @@ try {
   let ready = false;
   for (let i=0; i<100; i++) {
    if (server.exitCode !== null) throw new Error(`Preview exited: ${serverLog}`);
-   try { if (serverLog.includes(baseURL) && (await fetch(baseURL)).ok) { ready=true; break; } } catch { /* Startup only. */ }
+   try { if (stripVTControlCharacters(serverLog).includes(baseURL) && (await fetch(baseURL)).ok) { ready=true; break; } } catch { /* Startup only. */ }
    await new Promise(resolve => setTimeout(resolve,100));
   }
   assert.ok(ready, `Preview did not start: ${serverLog}`);
