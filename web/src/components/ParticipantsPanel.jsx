@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState } from 'react';
 import { ParticipantDetailsModal } from './ParticipantDetailsModal';
 
 export function ParticipantsPanel({
@@ -11,45 +11,6 @@ export function ParticipantsPanel({
     isMining
 }) {
     const [selectedParticipantKey, setSelectedParticipantKey] = useState(null);
-    const [animatingWallets, setAnimatingWallets] = useState(new Set());
-    const [gainAmounts, setGainAmounts] = useState({});
-    const prevBalancesRef = useRef({});
-
-    // Track balance changes and trigger animations
-    useEffect(() => {
-        const newAnimating = new Set();
-        const newGains = {};
-
-        balances.forEach(balance => {
-            const prevBalance = prevBalancesRef.current[balance.publicKey];
-            const currentBalance = balance.balance;
-
-            // If balance increased, trigger animation (including first-time receives)
-            if (prevBalance !== undefined && currentBalance > prevBalance) {
-                newAnimating.add(balance.publicKey);
-                newGains[balance.publicKey] = (currentBalance - prevBalance).toFixed(4);
-            }
-        });
-
-        if (newAnimating.size > 0) {
-            setAnimatingWallets(newAnimating);
-            setGainAmounts(newGains);
-
-            // Clear animation after completion
-            setTimeout(() => {
-                setAnimatingWallets(new Set());
-                setGainAmounts({});
-            }, 1500);
-        }
-
-        // Update previous balances
-        const newPrev = {};
-        balances.forEach(b => {
-            newPrev[b.publicKey] = b.balance;
-        });
-        prevBalancesRef.current = newPrev;
-    }, [balances]);
-
     const getMinerColorClass = (name) => {
         return name.toLowerCase() === 'minas' ? 'minas' : 'lars';
     };
@@ -79,13 +40,11 @@ export function ParticipantsPanel({
                     const minerEnabled = participant?.minerEnabled ?? true;
                     const blocksWon = participant?.blocksWon || 0;
                     const colorClass = isMiner ? getMinerColorClass(balance.name) : '';
-                    const isAnimating = animatingWallets.has(balance.publicKey);
-                    const gainAmount = gainAmounts[balance.publicKey];
 
                     return (
                         <div
                             key={balance.publicKey}
-                            className={`list-item animate-fadeIn ${isMiner ? `miner-${colorClass}-border` : ''} ${isAnimating ? 'wallet-coin-gain' : ''}`}
+                            className={`list-item animate-fadeIn ${isMiner ? `miner-${colorClass}-border` : ''}`}
                             style={{
                                 animationDelay: `${index * 50}ms`,
                                 cursor: 'pointer',
@@ -93,22 +52,8 @@ export function ParticipantsPanel({
                                 position: 'relative',
                                 overflow: 'hidden'
                             }}
-                            onClick={() => setSelectedParticipantKey(balance.publicKey)}
+                            onClick={() => setSelectedParticipantKey(balance.publicKey)} role="button" tabIndex={0} aria-label={`Open ${balance.name} details`} onKeyDown={event => { if (event.target === event.currentTarget && ['Enter', ' '].includes(event.key)) { event.preventDefault(); event.currentTarget.click(); } }}
                         >
-                            {/* Coin Gain Animation Overlay */}
-                            {isAnimating && (
-                                <div className="coin-gain-overlay">
-                                    <div className="coin-particles">
-                                        <span className="coin-particle">💰</span>
-                                        <span className="coin-particle">💰</span>
-                                        <span className="coin-particle">💰</span>
-                                        <span className="coin-particle">🪙</span>
-                                        <span className="coin-particle">🪙</span>
-                                    </div>
-                                    <div className="coin-gain-amount">+{gainAmount}</div>
-                                </div>
-                            )}
-
                             <div className="list-item-avatar" style={{
                                 background: isMiner ? `var(--miner-${colorClass}-color)` : undefined,
                                 color: isMiner ? 'white' : undefined
@@ -134,7 +79,7 @@ export function ParticipantsPanel({
                                         </>
                                     )}
                                 </div>
-                                <div className={`list-item-subtitle ${isAnimating ? 'balance-updating' : ''}`}>
+                                <div className="list-item-subtitle">
                                     {balance.balance.toFixed(8)} {coinName}
                                 </div>
                             </div>

@@ -6,7 +6,7 @@ export function MiningCard({ isMining, miningProgress, minerProgress, raceWinner
 
     const cardStyle = isExpanded ? {
         position: 'absolute',
-        width: '300%',
+        width: 'min(900px, calc(100vw - 48px))',
         zIndex: 100,
         boxShadow: 'var(--sapContent_Shadow3)',
         left: 0,
@@ -25,12 +25,15 @@ export function MiningCard({ isMining, miningProgress, minerProgress, raceWinner
                     <button
                         className="btn btn-transparent"
                         onClick={() => setIsExpanded(!isExpanded)}
-                        title={isExpanded ? "Collapse" : "Expand View"}
+                        title={isExpanded ? "Collapse mining race" : "Expand mining race"}
+                        aria-label={isExpanded ? "Collapse mining race" : "Expand mining race"}
+                        aria-expanded={isExpanded}
                     >
                         {isExpanded ? '⤢' : '⤢'}
                     </button>
                 </div>
                 <div className="fiori-card-content">
+                    {!miningProgress && Object.keys(minerProgress).length === 0 && <p className="text-muted">Mine a block to watch the miners race.</p>}
                     <MiningVisualizer
                         isMining={isMining}
                         progress={miningProgress}

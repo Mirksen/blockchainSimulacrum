@@ -1,3 +1,4 @@
+import { Modal } from './Modal';
 export function BlockchainStatsPanel({
     blocks = [],
     participants = [],
@@ -17,7 +18,7 @@ export function BlockchainStatsPanel({
     const miningRewards = allTransactions.filter(tx => tx.sender === null);
 
     // Total coins mined (sum of all mining rewards)
-    const totalCoinsMined = miningRewards.reduce((sum, tx) => sum + (tx.amount || 0), 0);
+    const totalCoinsMined = miningRewards.reduce((sum, tx) => sum + (tx.amount || 0), 0) - userTransactions.reduce((sum, tx) => sum + tx.transactionFee, 0);
 
     // Total transaction volume (excluding mining rewards)
     const totalTxVolume = userTransactions.reduce((sum, tx) => sum + (tx.amount || 0), 0);
@@ -26,13 +27,10 @@ export function BlockchainStatsPanel({
     const totalFees = userTransactions.reduce((sum, tx) => sum + (tx.transactionFee || 0), 0);
 
     // Mining epoch (how many halvings have occurred)
-    const currentEpoch = Math.floor(blockHeight / halvingInterval);
+    const currentEpoch = blocks.filter(b => b.halved).length;
 
     // Blocks until next halving
     const blocksUntilHalving = halvingInterval - (blockHeight % halvingInterval);
-
-    // Initial reward before halvings
-    const initialReward = blockReward * Math.pow(2, currentEpoch);
 
     // Average block time (if more than 1 block)
     let avgBlockTime = 0;
@@ -71,7 +69,7 @@ export function BlockchainStatsPanel({
         : 0;
 
     return (
-        <div className="modal-overlay" onClick={onClose}>
+        <Modal onClose={onClose} label="Blockchain insights">
             <div className="blockchain-stats-modal" onClick={e => e.stopPropagation()}>
                 {/* Header */}
                 <div className="modal-header" style={{ background: 'linear-gradient(135deg, #0070f2, #004a9f)' }}>
@@ -79,7 +77,7 @@ export function BlockchainStatsPanel({
                         <span className="modal-icon">📊</span>
                         <span>Blockchain Insights</span>
                     </div>
-                    <button className="modal-close-btn" onClick={onClose}>✕</button>
+                    <button className="modal-close-btn" aria-label="Close details" onClick={onClose}>✕</button>
                 </div>
 
                 {/* Content */}
@@ -192,6 +190,6 @@ export function BlockchainStatsPanel({
                     </div>
                 </div>
             </div>
-        </div>
+        </Modal>
     );
 }

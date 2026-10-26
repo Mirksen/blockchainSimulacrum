@@ -1,40 +1,57 @@
-# blockchain simulacrum
-#### Video Demo:  https://youtu.be/sYBxClODaJw
-#### Description:
-The software is imitating specific aspects of the Bitcoin blockchain, therefore making specific concepts more transparent:
-- creating a cryptographic keypair for each participant, usable as wallet (asymmetric encryption)
-- hashing the transactions to gain a unique "fingerprint" (hash)
-- grouping the transactions into "blocks" with its own untamperable unique "fingerprint" (hash) including the hash of the previous block
-- appending the blocks to a chain of blocks (blockchain) which are connected through their own hash including the hash of the predecessor block
-- the blockhash is demanding "Proof of Work", consisting of the amount of leading Zeros in the block hash (X-Zero-Hash)
-- audit functionality is checking if the integrity of transactions, blocks and blockchain is given and it have not been tampered with
-- participant balance can be checked, for ease of demonstration purposes we work with a starting balance
+# proofofwork.fyi
 
+An interactive, browser-only blockchain learning experiment, originally built for CS50 in 2021. Mine blocks, race two miners, send simulated coins, change the difficulty or halving interval, and tamper with a transaction to see integrity checks fail.
 
-we have 3 files:
-- main.js which has the actual function calls in order to mine 3 (or more) blocks in a row
-- blockchain.js which has the classes and methods definitions, used in main.js
-- config.js where you can alter and edit all the parameters (blockchain name, mining difficulty, mining reward, halving event definition, participants, miner declaration, starting balance, transaction content, audit functionality trigger)
+This is a simplified model, not a Bitcoin wallet or network client. Coins have no monetary value. Keys and decorative demo seed words must never be used for real funds. All simulation state lives in memory; refreshing or resetting starts a new chain.
 
-to start the program, type in the terminal while beeing in the "project" folder:
-"node main.js"
+## Run locally
 
-to alter the settings and blockchain behaviour:
-edit config.js file
+Use Node.js 22.22.2+, 24.15+ or 26+ and npm. The web app is React and Vite.
 
-to mine additional blocks:
-add additional array in the transaction section in config.js
+```sh
+npm --prefix web ci
+npm --prefix web run dev
+```
 
-to increase the mining difficulty:
-adjust the the parameter in config.js
+Choose **Start demo** to mine the initial coins and distribute them. Create a transfer in **New Transaction**, then choose **Mine Next Block**. **Auto-mine** repeats the experiment; **Stop mining** cancels the active attempt. **Reset** creates fresh wallets and a new genesis block while retaining experiment settings.
 
-Design decisions:
-terminal style program has been sufficient and been more fitable to check the code vs the outcome in the terminal,
-since this program is for educational pruposes to understand blockchain concepts better.
-node.js has been chosen for its non-compiling nature to iterate faster been code editing and outcome cross checks
+Open **Experiment settings** to change difficulty, the coin's display name, target block time or the halving interval. Changes affect future blocks. Difficulty adapts every ten mined blocks. Difficulty is measured in leading hexadecimal zeros, so each additional zero makes a successful hash about sixteen times less likely.
 
-Roadmap:
-What is actually not implemented is an automatical mining difficulty adjustment by mining time to get a consistent block mining average time , like Bitcoin does.
-Competetion is also not included between several miners to compete for the next block hash, right now, the first miner declared will always mine the blocks
+## Verify
 
-detailed description of concepts and code can be found as comments in the code itself.
+```sh
+npm --prefix web run check
+npm --prefix web run deploy:check
+npm --prefix web run test:browser
+npm --prefix web run preview
+```
+
+The tests cover invalid transaction values and pending balances, tampering, wallet initialization, concurrent starts, stopped halving attempts, reset, setting changes and demo distribution. `test:browser` needs Google Chrome. It starts and stops a local preview, exercises the complete demo/transfer/tamper/reset flow and checks five viewport widths. Set `BASE_URL` to check an already running site instead; screenshots go to the OS temporary directory (override with `SCREENSHOT_DIR`).
+
+The deployment check builds the public files and runs a Cloudflare dry run; it does not publish anything or establish live-domain acceptance.
+
+## Hosting on Cloudflare
+
+[Workers Static Assets](https://developers.cloudflare.com/workers/static-assets/) serves only `web/dist`. No database, application server, API keys or visitor accounts are needed. The pinned project Wrangler configuration is in `web/wrangler.jsonc`; use the project scripts rather than a global Wrangler installation. `_headers` supplies a same-origin content policy and basic response headers. The app loads no remote fonts or analytics.
+
+The default environment has no custom domain. The explicitly selected `production` environment binds **proofofwork.fyi** to the Worker **proofofwork-fyi** in the configured account.
+
+Before a production deployment, verify the authenticated account, existing Worker and domain/DNS bindings, and obtain the release authorization required by your workflow. A browser login and Wrangler authentication are separate. Authenticate through a local OAuth flow or a locally supplied scoped token; never put a token in Git or chat.
+
+```sh
+# Authenticated account read, then explicit production release:
+npm --prefix web exec -- wrangler whoami
+npm --prefix web run deploy:production
+```
+
+After publication, verify HTTPS, response headers, asset loading and the Start demo → transfer → mine → tamper → reset flow on the actual domain. A successful upload or local dry run alone does not verify the live site.
+
+## Source layout
+
+- `web/src/lib/blockchain.js`: participants, signed transactions, blocks and integrity checks.
+- `web/src/hooks/useBlockchain.js`: simulation state, miner race, cancellation and demo setup.
+- `web/src/components/`: wallets, chain explorer, controls and detail dialogs.
+- `web/src/__tests__/`: deterministic lifecycle and model regression tests.
+- Root `main.js`, `blockchain.js`, `config.js`: historical terminal implementation.
+
+[Original video demonstration](https://youtu.be/sYBxClODaJw)

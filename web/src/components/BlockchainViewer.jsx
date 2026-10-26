@@ -32,8 +32,8 @@ export function BlockchainViewer({
             for (const tx of transactions) {
                 if (tx.sender) {
                     const senderBalance = balances[tx.sender] || 0;
-                    const required = tx.amount + (tx.transactionFee || 0);
-                    if (senderBalance < required) {
+                    const required = (Math.round(tx.amount * 1e8) + Math.round((tx.transactionFee || 0) * 1e8)) / 1e8;
+                    if (Math.round(senderBalance * 1e8) < Math.round(required * 1e8)) {
                         invalidIndices.add(blockIdx);
                         console.log(`❌ Block ${blockIdx} invalid: ${tx.sender.substring(0, 8)}... has ${senderBalance.toFixed(4)} but needs ${required.toFixed(4)}`);
                     }
