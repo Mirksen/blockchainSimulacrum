@@ -25,3 +25,6 @@ jobs:
         working-directory: deploy/lab/proofofwork
         # The real .env only exists on the host; an empty one satisfies env_file.
         run: touch .env && docker compose -f compose.yaml config --quiet
+      - name: Deploy script applies, rolls back and skips correctly
+        working-directory: .
+        run: bash deploy/lab/proofofwork/test/apply.test.sh

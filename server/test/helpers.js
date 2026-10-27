@@ -18,6 +18,7 @@ export async function startServer(options = {}) {
     // Low difficulty keeps in-test mining to a few hundred hashes, so the event loop
     // shared with the server is never blocked for long. Production default stays 4.
     shareZeros: options.shareZeros ?? 1,
+    nameLists: options.nameLists,
     log: (line) => lines.push(line),
   });
   const server = http.createServer(handler);

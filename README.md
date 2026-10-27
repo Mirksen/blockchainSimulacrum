@@ -31,7 +31,9 @@ Every hash attempt, in the simulator and in all labs, goes through one search mo
 
 Choose **Mining pool**, pick a public name and join. The pool server hands out a short-lived, signed challenge; your browser searches for a nonce whose hash meets the pool's target; the server re-hashes every submitted share before it counts. Changed browser code cannot fake work, and a share cannot be reused or credited to another name. Each share earns the expected work of its target (16 to the power of the required zeros); a luckier hash only improves your best hash. Faster hardware counts too: that is proof of work. Only the chosen name and accepted shares are stored; there are no accounts. Blocks of the local simulator never count, because they exist only in one browser. If the server is unavailable, the simulator keeps working.
 
-The server lives in `server/` (Node 24, no runtime dependencies, SQLite). `deploy/lab/` runs it as a self-contained Compose stack with its own Cloudflare tunnel; see `deploy/lab/README.md`.
+Public names pass a moderation check: the server folds a name (case, accents, ß, digit look-alikes, separators) and refuses it if it contains a blocked term or equals a reserved one; an operator can hide a name later. The blocked terms in `server/data/blocked-names.txt` come from the English and German lists of [List of Dirty, Naughty, Obscene, and Otherwise Bad Words](https://github.com/LDNOOBW/List-of-Dirty-Naughty-Obscene-and-Otherwise-Bad-Words) by the LDNOOBW contributors, licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/); this project adds German umlaut spellings when it loads them.
+
+The server lives in `server/` (Node 24, no runtime dependencies, SQLite). `deploy/lab/` runs it as a self-contained Compose stack with its own Cloudflare tunnel; a merge to `master` goes live within minutes after the server tests pass on the host; see `deploy/lab/README.md`.
 
 ## Verify
 

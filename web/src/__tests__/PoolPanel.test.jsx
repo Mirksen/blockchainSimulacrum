@@ -168,6 +168,30 @@ describe('PoolPanel', () => {
     expect(screen.queryByRole('alert')).toBeNull();
   });
 
+  it('shows a refused name next to the name field and stops without retrying', async () => {
+    const refused = Object.assign(new Error('This name is not available. Please choose another.'),
+      { status: 400, code: 'name-unavailable' });
+    vi.mocked(getChallenge).mockRejectedValueOnce(refused).mockImplementation(parked);
+    render(<PoolPanel onClose={() => {}} />);
+    join('refused-name');
+    const alert = await screen.findByRole('alert');
+    expect(alert.textContent).toBe('This name is not available. Please choose another.');
+    const input = screen.getByLabelText('Name on the leaderboard');
+    expect(input.getAttribute('aria-invalid')).toBe('true');
+    expect(input.getAttribute('aria-describedby')).toBe('pool-panel-name-error');
+    expect(status()).toBe('Choose a name, then join to search for shares.');
+    expect(screen.getByRole('button', { name: 'Join' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Join' }));
+    await settle(50);
+    expect(getChallenge).toHaveBeenCalledTimes(1);
+    expect(submitShare).not.toHaveBeenCalled();
+    fireEvent.change(input, { target: { value: 'other-name' } });
+    expect(screen.queryByRole('alert')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Join' }));
+    await waitFor(() => expect(getChallenge).toHaveBeenCalledTimes(2));
+    expect(vi.mocked(getChallenge).mock.calls[1][0]).toBe('other-name');
+  });
+
   it('remembers a valid name and survives blocked storage', () => {
     localStorage.setItem('proofofwork-pool-name', 'stored-miner');
     const view = render(<PoolPanel onClose={() => {}} />);
