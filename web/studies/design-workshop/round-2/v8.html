@@ -1,0 +1,513 @@
+<!--
+  Variant: v8 — "Tampered state + mission coach"
+  Race: a calm, compact "Last round" card in the workbench grid (two rows, nonce, hash, zeros); it only
+        grows into a live race while a block is being mined, so it never competes with the chain state.
+  Missions: launched from the ⌘K command palette ("Start mission…") in the top bar; the active mission
+        speaks through a dismissible coach card bottom-right and numbered markers on the exact tiles it needs.
+  Density: one screen, no tabs — block band with validity states and an edit summary on top, a toolbar,
+        then Chain check · Last round + Wallets · Mempool side by side; the coach floats over a reserved corner.
+  Rationale: Tampering is the moment proof of work clicks, so validity must be readable at a glance: red
+        only for the block whose hash no longer meets the target, amber with text for blocks that sit on
+        top of it, and every state paired with words. The coach turns the abstract rule "redo all later
+        blocks" into a numbered path on the tiles plus exactly one action, while everything else stays
+        visible and quiet. While the chain is invalid, "Mine next block" steps back, so "Re-mine block #2"
+        is the only primary action.
+-->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Workbench · Mission 3 — proofofwork.fyi</title>
+<style>
+  :root{
+    --bg:#0b1220;
+    --bg-2:#0e1628;
+    --panel:#111a2e;
+    --panel-2:#16213a;
+    --line:#1f2b45;
+    --line-2:#192440;
+    --text:#e7edf8;
+    --text-2:#a3b2cf;
+    --text-3:#6c7d9e;
+    --blue:#4d8dff;
+    --blue-2:#9cc0ff;
+    --violet:#8a63f5;
+    --violet-2:#c9b8ff;
+    --violet-bg:rgba(138,99,245,.16);
+    --green:#3fd69a;
+    --green-bg:rgba(63,214,154,.12);
+    --amber:#f5c04e;
+    --amber-bg:rgba(245,192,78,.12);
+    --red:#ff7a7a;
+    --red-bg:rgba(255,122,122,.13);
+    --lars:#f5a524;
+    --minas:#a78bfa;
+    --ui:-apple-system,"SF Pro Text","Helvetica Neue",Arial,sans-serif;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    background:var(--bg);color:var(--text);
+    font:14px/20px var(--ui);
+    font-variant-numeric:tabular-nums;
+    -webkit-font-smoothing:antialiased;
+  }
+  button{font:inherit;color:inherit}
+  a{color:inherit}
+  .mono{font-family:var(--mono);font-size:12px}
+  .t2{color:var(--text-2)}
+  .t3{color:var(--text-3)}
+  .z{color:var(--green)}
+  .bad{color:var(--red)}
+  s{text-decoration-thickness:1px}
+  kbd{font:11px/16px var(--ui);color:var(--text-3);border:1px solid var(--line);border-radius:4px;padding:0 5px}
+
+  /* ---------- header ---------- */
+  .top{height:56px;display:flex;align-items:center;gap:32px;padding:0 40px;border-bottom:1px solid var(--line);background:var(--bg-2)}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:600;font-size:15px}
+  .tabs{display:flex;gap:4px}
+  .tabs a{padding:6px 12px;border-radius:6px;color:var(--text-2);text-decoration:none}
+  .tabs a:hover{background:var(--panel);color:var(--text)}
+  .tabs a.on{color:var(--text);background:var(--panel-2)}
+  .cmd{
+    display:flex;align-items:center;gap:8px;width:400px;height:34px;padding:0 8px 0 12px;
+    border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--text-3);font-size:13px;cursor:text;
+  }
+  .cmd:hover{border-color:#2c3b5f}
+  .cmd .try{color:var(--text-2)}
+  .cmd .ent{display:inline-flex;align-items:center;gap:6px;color:var(--violet-2)}
+  .cmd kbd{margin-left:auto}
+  .top .right{margin-left:auto;display:flex;align-items:center;gap:12px}
+  .pill{display:inline-flex;align-items:center;gap:8px;height:28px;padding:0 12px;border-radius:14px;font-size:13px;border:1px solid var(--line);color:var(--text-2);white-space:nowrap}
+  .pill i{width:8px;height:8px;border-radius:50%;background:currentColor}
+  .pill.bad{color:var(--red);background:var(--red-bg);border-color:transparent;font-weight:600}
+  .pill.mis{color:var(--violet-2);background:var(--violet-bg);border-color:transparent;font-weight:500}
+  .icon-btn{width:32px;height:32px;display:grid;place-items:center;border-radius:6px;border:1px solid var(--line);background:transparent;color:var(--text-2);cursor:pointer}
+  .icon-btn:hover{background:var(--panel);color:var(--text)}
+
+  /* ---------- block band ---------- */
+  .strip{
+    padding:16px 40px 16px;
+    background:radial-gradient(560px 200px at 30% 0%,rgba(77,141,255,.08),transparent 70%),var(--bg);
+    border-bottom:1px solid var(--line-2);
+    display:grid;grid-template-columns:auto minmax(0,1fr);column-gap:40px;
+  }
+  .strip-inner{display:flex;align-items:flex-start}
+  .lane{display:flex;gap:28px;align-items:flex-start}
+  .divider{width:1px;align-self:stretch;margin:0 36px 0 32px;background:repeating-linear-gradient(to bottom,var(--text-3) 0 6px,transparent 6px 12px);position:relative}
+  .divider span{position:absolute;top:0;left:50%;transform:translateX(-50%);font-size:11px;line-height:18px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-3);background:var(--bg);padding:0 8px;white-space:nowrap}
+  .col{display:flex;flex-direction:column;align-items:center;position:relative;width:120px}
+  .h{font-size:13px;line-height:18px;font-weight:600;margin:0 0 16px;color:var(--blue)}
+  .h.pend{color:var(--text-2)}
+  .h.bad{color:var(--red)}
+  .cube{
+    position:relative;width:120px;height:108px;padding:10px;display:flex;flex-direction:column;justify-content:space-between;
+    text-align:center;color:#fff;cursor:pointer;background:linear-gradient(160deg,#5a7cff 0%,#7a52ee 100%);
+  }
+  .cube::before{content:"";position:absolute;left:0;top:-12px;width:100%;height:12px;background:linear-gradient(90deg,#7d97ff,#9a7bf6);transform:skewX(-45deg);transform-origin:bottom left}
+  .cube::after{content:"";position:absolute;right:-12px;top:0;width:12px;height:100%;background:linear-gradient(180deg,#3d50c8,#4a2fa8);transform:skewY(-45deg);transform-origin:top left}
+  .cube.c1{background:linear-gradient(160deg,#3d56c8 0%,#5034b0 100%)}
+  .cube.c0{background:linear-gradient(160deg,#2f3f86 0%,#3a2a78 100%)}
+  .cube.c0::before{background:#44539c}
+  .cube.c0::after{background:#232c63}
+  .cube .tx{font-size:12px;line-height:16px;opacity:.85}
+  .cube .hash{font-family:var(--mono);font-size:15px;line-height:20px;font-weight:600;letter-spacing:-.01em}
+  .cube .who{font-size:12px;line-height:16px;font-weight:500}
+  .cube .who span{opacity:.75;font-weight:400}
+  .cube:not(.pend):hover{filter:brightness(1.12)}
+  .cube.pend{cursor:default;background:repeating-linear-gradient(135deg,#1c2742 0 8px,#19233c 8px 16px);outline:1px dashed #44557c;outline-offset:-1px;color:var(--text-2)}
+  .cube.pend::before{background:#25314f}
+  .cube.pend::after{background:#141c31}
+  .cube.pend .big{font-size:20px;line-height:24px;font-weight:600;color:var(--text)}
+  .cube.pend .big small{display:block;font-size:11px;line-height:14px;font-weight:400;color:var(--text-2)}
+  /* validity states */
+  .cube.dep{background:linear-gradient(160deg,#36467e 0%,#3d3270 100%);outline:1px dashed rgba(245,192,78,.7);outline-offset:-1px;color:#dfe5f3}
+  .cube.dep::before{background:#46558e}
+  .cube.dep::after{background:#262e5c}
+  .cube.broken{background:linear-gradient(160deg,#5b2240 0%,#3f1d44 100%);outline:2px solid var(--red);outline-offset:-2px}
+  .cube.broken::before{background:#7a2d4c}
+  .cube.broken::after{background:#33163a}
+  .cube.broken .hash{color:#fff}
+  .cube.broken .old{font-family:var(--mono);font-size:11px;line-height:14px;color:#c7a3b4}
+  .order{
+    position:absolute;z-index:3;top:-22px;right:-20px;width:24px;height:24px;border-radius:50%;
+    display:grid;place-items:center;font-size:12px;font-weight:700;color:#fff;
+    background:var(--violet);box-shadow:0 0 0 3px var(--bg);
+  }
+  .order.next{box-shadow:0 0 0 3px var(--bg),0 0 0 6px rgba(138,99,245,.35)}
+  .cap{margin-top:8px;min-height:32px;display:flex;justify-content:center;align-items:flex-start}
+  .st{display:inline-flex;align-items:center;gap:6px;font-size:12px;line-height:16px;font-weight:500;padding:2px 8px;border-radius:10px;white-space:nowrap}
+  .st i{width:6px;height:6px;border-radius:50%;background:currentColor;flex:none}
+  .st svg{flex:none}
+  .st.ok{color:var(--green);background:var(--green-bg)}
+  .st.pe{color:var(--amber);background:var(--amber-bg)}
+  .st.warn{color:var(--amber);background:var(--amber-bg);white-space:normal;text-align:left;border-radius:8px;padding:4px 8px;font-size:12px;line-height:14px;align-items:flex-start}
+  .st.warn svg{margin-top:1px}
+  .st.err{color:var(--red);background:var(--red-bg);font-weight:600}
+  .ago{font-size:12px;line-height:16px;color:var(--text-3);white-space:nowrap}
+
+  /* tooltip */
+  .tip{
+    position:absolute;z-index:20;display:none;top:calc(100% + 8px);left:50%;transform:translateX(-50%);
+    width:300px;padding:12px;border-radius:8px;background:#1a2642;border:1px solid #2c3b5f;
+    box-shadow:0 16px 40px -8px rgba(0,0,0,.6);text-align:left;color:var(--text);cursor:default;
+  }
+  .cube:hover > .tip,.cube:focus-within > .tip{display:block}
+  .tip-h{display:flex;align-items:center;justify-content:space-between;font-size:12px;line-height:16px;color:var(--text-2);margin-bottom:8px}
+  .tip-hash{font-family:var(--mono);font-size:12px;line-height:18px;word-break:break-all;color:var(--text)}
+  .copy{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 8px;border-radius:5px;border:1px solid #33446b;background:var(--panel-2);font-size:12px;color:var(--text);cursor:pointer}
+  .copy:hover{border-color:var(--blue)}
+  /* the statically opened one, anchored under #2 in the band's bottom row */
+  .bandrow{grid-column:1;grid-row:2;display:grid;grid-template-columns:minmax(0,1fr) 580px;gap:24px;margin-top:12px;align-items:stretch}
+  .tip.static{position:relative;display:block;top:auto;left:auto;transform:none;width:auto}
+  .tip.static::before{
+    content:"";position:absolute;top:-6px;left:219px;width:10px;height:10px;
+    background:#1a2642;border-left:1px solid #2c3b5f;border-top:1px solid #2c3b5f;transform:rotate(45deg);
+  }
+  .hrow{display:grid;grid-template-columns:72px minmax(0,1fr);align-items:baseline;gap:8px}
+  .hrow + .hrow{margin-top:4px}
+  .hrow .k{font-size:12px;color:var(--text-3)}
+  .hrow .tip-hash{white-space:nowrap;word-break:normal}
+  .hrow s{color:var(--text-3)}
+  .tip-f{display:flex;justify-content:space-between;margin-top:8px;font-size:12px;line-height:16px;color:var(--text-3)}
+
+  .edit{border:1px solid var(--line);border-radius:8px;background:var(--panel);padding:12px}
+  .edit-h{display:flex;align-items:center;justify-content:space-between;font-size:12px;line-height:16px;color:var(--text-3);margin-bottom:8px}
+  .edit .what{font-size:13px;line-height:20px}
+  .edit .what s{color:var(--text-3)}
+  .edit .what b{font-weight:600}
+  .edit p{margin:8px 0 0;font-size:12px;line-height:16px;color:var(--text-2)}
+
+  .verdict{grid-column:2;grid-row:1 / span 2;align-self:stretch;display:flex;flex-direction:column;border-left:1px solid var(--line);padding:0 0 0 24px;margin-top:2px}
+  .vstats{margin-top:auto;display:grid;grid-template-columns:repeat(4,auto);gap:4px 0;border:1px solid var(--line);border-radius:8px;background:var(--panel)}
+  .vstats div{padding:8px 12px}
+  .vstats div + div{border-left:1px solid var(--line-2)}
+  .vstats .k{display:block;font-size:11px;line-height:14px;color:var(--text-3)}
+  .vstats .v{font-size:13px;line-height:18px;font-weight:600}
+  .verdict h2{margin:0 0 4px;font-size:15px;line-height:20px;font-weight:600;display:flex;align-items:center;gap:8px}
+  .verdict p{margin:0 0 12px;font-size:13px;line-height:20px;color:var(--text-2)}
+  .vl{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:8px}
+  .vl li{display:grid;grid-template-columns:24px minmax(0,1fr);gap:8px;align-items:center;font-size:13px;line-height:18px;color:var(--text-2)}
+  .vl .n{font-weight:600;color:var(--text)}
+
+  /* ---------- toolbar ---------- */
+  .toolbar{display:flex;align-items:center;gap:8px;height:52px;flex-wrap:nowrap;padding:0 40px;border-bottom:1px solid var(--line-2);background:var(--bg-2)}
+  .btn{display:inline-flex;align-items:center;gap:8px;height:32px;padding:0 12px;border-radius:6px;border:1px solid var(--line);background:var(--panel-2);font-size:13px;color:var(--text);cursor:pointer;text-decoration:none;white-space:nowrap}
+  .btn:hover{border-color:#33446b;background:#1b2846}
+  .btn.ghost{background:transparent;color:var(--text-2)}
+  .btn.ghost:hover{color:var(--text)}
+  .btn[aria-disabled="true"]{color:var(--text-3);background:transparent;cursor:not-allowed}
+  .btn.on{border-color:#33446b;color:var(--text)}
+  .btn.on .dot{font-size:11px;color:var(--text-3)}
+  .tb-note{font-size:12px;color:var(--text-3);margin:0 8px 0 4px;white-space:nowrap}
+  .vsep{width:1px;height:24px;background:var(--line);margin:0 8px}
+  .toggle{display:inline-flex;align-items:center;gap:8px;font-size:13px;color:var(--text-2);cursor:pointer;padding:0 4px;white-space:nowrap}
+  .sw{width:32px;height:18px;border-radius:9px;background:#25314f;position:relative;border:1px solid #2c3b5f}
+  .sw::after{content:"";position:absolute;top:2px;left:2px;width:12px;height:12px;border-radius:50%;background:var(--text-3)}
+  .stepper{display:inline-flex;align-items:center;height:32px;border:1px solid var(--line);border-radius:6px;overflow:hidden;font-size:13px;flex:none}
+  .stepper .l{padding:0 10px;color:var(--text-2)}
+  .stepper button{width:28px;height:30px;border:0;border-left:1px solid var(--line);background:transparent;color:var(--text-2);cursor:pointer}
+  .stepper b{font-weight:600;padding:0 10px;border-left:1px solid var(--line);line-height:30px}
+  .toolbar .stats{margin-left:auto;display:flex;gap:16px;font-size:12px;color:var(--text-3);white-space:nowrap}
+  .toolbar .stats b{color:var(--text-2);font-weight:500}
+
+  /* ---------- workbench grid ---------- */
+  .wrap{display:grid;grid-template-columns:minmax(0,1fr) 400px 368px;gap:16px;padding:16px 40px 24px;align-items:start}
+  .stack{display:flex;flex-direction:column;gap:16px;min-width:0}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+  .card-h{display:flex;align-items:center;gap:10px;height:44px;padding:0 16px;border-bottom:1px solid var(--line)}
+  .card-h h2{margin:0;font-size:14px;line-height:20px;font-weight:600}
+  .card-h .sub{font-size:12px;color:var(--text-3)}
+  .card-h .more{margin-left:auto;font-size:13px;color:var(--blue);text-decoration:none}
+  .card-h .more:hover{text-decoration:underline}
+  table{width:100%;border-collapse:collapse}
+  th{font-size:12px;font-weight:500;color:var(--text-3);text-align:left;padding:0 12px;height:30px;border-bottom:1px solid var(--line-2)}
+  td{padding:0 12px;height:48px;border-bottom:1px solid var(--line-2);white-space:nowrap;font-size:13px}
+  tr:last-child td{border-bottom:0}
+  tbody tr:hover td{background:var(--panel-2)}
+  th:first-child,td:first-child{padding-left:16px}
+  th:last-child,td:last-child{padding-right:16px}
+  .r{text-align:right}
+  .lnk{color:var(--blue);text-decoration:none}
+  .lnk:hover{text-decoration:underline}
+  tr.is-bad td{background:rgba(255,122,122,.05)}
+  .why{display:block;font-size:12px;line-height:16px;color:var(--text-3);margin-top:2px}
+  .stack2{display:flex;flex-direction:column;justify-content:center}
+  .zeros{font-size:12px;font-weight:500}
+
+  .race td{height:52px}
+  .wal td{height:32px}
+  .wl{display:flex;align-items:center;gap:10px}
+  .wl .n2{display:block;font-size:12px;line-height:16px;color:var(--text-3)}
+  .av{width:22px;height:22px;border-radius:6px;display:grid;place-items:center;font-size:11px;font-weight:700;color:#0b1220;flex:none}
+  .role{font-size:12px;color:var(--text-3)}
+  .race-f{display:flex;justify-content:space-between;padding:0 16px;height:36px;align-items:center;font-size:12px;color:var(--text-3);border-top:1px solid var(--line-2)}
+  .race-f b{color:var(--text-2);font-weight:500}
+  .wal td{height:34px}
+  .memo{color:var(--text-3);font-size:12px;margin-left:6px}
+
+  /* ---------- coach card (floating, dismissible) ---------- */
+  .coach{
+    position:fixed;right:40px;bottom:24px;z-index:30;width:368px;padding:16px;border-radius:12px;
+    background:linear-gradient(180deg,#1b2347 0%,#161f3d 100%);border:1px solid rgba(138,99,245,.45);
+    box-shadow:0 24px 56px -12px rgba(0,0,0,.7),0 0 0 1px rgba(0,0,0,.2);
+  }
+  .coach-h{display:flex;align-items:flex-start;gap:10px}
+  .badge{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;background:var(--violet-bg);color:var(--violet-2);flex:none}
+  .coach-h .k{font-size:12px;line-height:16px;color:var(--violet-2)}
+  .coach-h .t{font-size:14px;line-height:20px;font-weight:600}
+  .x{margin-left:auto;width:28px;height:28px;border:0;border-radius:6px;background:transparent;color:var(--text-3);display:grid;place-items:center;cursor:pointer;flex:none}
+  .x:hover{background:rgba(255,255,255,.06);color:var(--text)}
+  .prog{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin:12px 0 12px}
+  .prog span{height:4px;border-radius:2px;background:#2a3460}
+  .prog .done{background:var(--violet)}
+  .prog .cur{background:linear-gradient(90deg,var(--violet) 0 30%,#2a3460 30%)}
+  .step-k{font-size:12px;line-height:16px;color:var(--text-3)}
+  .step{margin:4px 0 12px;font-size:15px;line-height:22px;font-weight:600}
+  .path{display:flex;align-items:center;gap:6px;margin-bottom:16px}
+  .pb{display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 8px 0 4px;border-radius:13px;border:1px solid #33407a;font-size:12px;color:var(--text-2)}
+  .pb i{width:18px;height:18px;border-radius:50%;display:grid;place-items:center;font-style:normal;font-size:11px;font-weight:700;color:#fff;background:#3a447a}
+  .pb.next{border-color:var(--violet);color:var(--text)}
+  .pb.next i{background:var(--violet)}
+  .path .ar{color:var(--text-3)}
+  .path .cnt{margin-left:auto;font-size:12px;color:var(--text-3)}
+  .primary{
+    width:100%;display:inline-flex;align-items:center;justify-content:center;gap:8px;height:40px;border-radius:8px;border:0;
+    background:var(--blue);color:#fff;font-weight:600;font-size:14px;cursor:pointer;
+    box-shadow:0 8px 24px -8px rgba(77,141,255,.7),inset 0 1px 0 rgba(255,255,255,.18);
+  }
+  .primary:hover{background:#3a7af0}
+  .primary:focus-visible{outline:2px solid var(--blue-2);outline-offset:3px}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="brand">
+    <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5a7cff"/><stop offset="1" stop-color="#8a63f5"/></linearGradient></defs><rect x="2" y="5" width="12" height="12" rx="2" fill="url(#g)"/><path d="M14 7.5l4-3v12l-4 3z" fill="#3d50c8"/></svg>
+    proofofwork.fyi
+  </div>
+  <nav class="tabs" aria-label="Main">
+    <a href="#" class="on" aria-current="page">Workbench</a>
+    <a href="#">Hash lab</a>
+    <a href="#">Chain lab</a>
+  </nav>
+  <div class="cmd" role="button" aria-label="Open command palette">
+    <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M10.8 10.8l3.7 3.7" stroke="currentColor" stroke-width="1.5"/></svg>
+    <span class="try">Try</span>
+    <span class="ent"><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 11V1.5M2.5 2h7l-1.5 2.5L9.5 7h-7" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>Start mission…</span>
+    <span>or search blocks, wallets</span>
+    <kbd>⌘K</kbd>
+  </div>
+  <div class="right">
+    <span class="pill mis">Mission 3 · step 2 of 3</span>
+    <span class="pill bad"><i></i>Chain invalid</span>
+    <button class="icon-btn" aria-label="More: sound, theme"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><circle cx="3.5" cy="8" r="1.3" fill="currentColor"/><circle cx="8" cy="8" r="1.3" fill="currentColor"/><circle cx="12.5" cy="8" r="1.3" fill="currentColor"/></svg></button>
+  </div>
+</header>
+
+<!-- BLOCK BAND with validity states -->
+<section class="strip" aria-label="Blocks">
+  <div class="strip-inner">
+    <div class="lane">
+      <div class="col">
+        <div class="h pend">Next block #5</div>
+        <div class="cube pend" aria-label="Candidate block from mempool">
+          <div class="tx">2 tx waiting</div>
+          <div class="big">0.35<small>powCoin moved</small></div>
+          <div class="who"><span>reward</span> 1.5625</div>
+        </div>
+        <div class="cap"><span class="ago">waits for a valid chain</span></div>
+      </div>
+    </div>
+
+    <div class="divider"><span>mined</span></div>
+
+    <div class="lane">
+      <div class="col">
+        <div class="h">#4</div>
+        <div class="cube dep" tabindex="0" aria-label="Block 4, built on a broken block, hash 0080a3…4d">
+          <span class="order" aria-label="Re-mine third">3</span>
+          <div class="tx">1 tx</div>
+          <div class="hash">0080a3…4d</div>
+          <div class="who"><span>Lars ·</span> 7.1 s</div>
+          <div class="tip"><div class="tip-h"><span>Block #4 · full hash</span><button class="copy" data-h="0080a3e897fb1e3839f43f95b033620ff7fb2f9739c8e415e5ce6e7df0726c4d">Copy</button></div><div class="tip-hash">0080a3e897fb1e3839f43f95b033620ff7fb2f9739c8e415e5ce6e7df0726c4d</div></div>
+        </div>
+        <div class="cap"><span class="st warn"><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M6 1.5l5 9H1z" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M6 5v2.5" stroke="currentColor" stroke-width="1.3"/></svg>Built on a broken block</span></div>
+      </div>
+      <div class="col">
+        <div class="h">#3</div>
+        <div class="cube dep" tabindex="0" aria-label="Block 3, built on a broken block, hash 00e613…f8">
+          <span class="order" aria-label="Re-mine second">2</span>
+          <div class="tx">1 tx</div>
+          <div class="hash">00e613…f8</div>
+          <div class="who"><span>Lars ·</span> 8.0 s</div>
+          <div class="tip"><div class="tip-h"><span>Block #3 · full hash</span><button class="copy" data-h="00e61301ea0b9765106bd0eaa4ed68c1a108de9f700451072c4b75f5830011f8">Copy</button></div><div class="tip-hash">00e61301ea0b9765106bd0eaa4ed68c1a108de9f700451072c4b75f5830011f8</div></div>
+        </div>
+        <div class="cap"><span class="st warn"><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M6 1.5l5 9H1z" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M6 5v2.5" stroke="currentColor" stroke-width="1.3"/></svg>Built on a broken block</span></div>
+      </div>
+      <div class="col">
+        <div class="h bad">#2 · edited</div>
+        <div class="cube broken" tabindex="0" aria-label="Block 2, hash mismatch, new hash 7c41e2…b0, was 009a6e…94">
+          <span class="order next" aria-label="Re-mine first">1</span>
+          <div class="tx">5 tx · 1 changed</div>
+          <div class="hash">7c41e2…b0</div>
+          <div class="old">was <s>009a6e…94</s></div>
+          <div class="who"><span>Lars ·</span> 0/2 zeros</div>
+        </div>
+        <div class="cap"><span class="st err"><svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 2l6 6M8 2l-6 6" stroke="currentColor" stroke-width="1.6"/></svg>Hash mismatch</span></div>
+      </div>
+      <div class="col">
+        <div class="h">#1</div>
+        <div class="cube c1" tabindex="0" aria-label="Block 1, valid, hash 00d166…48">
+          <div class="tx">1 tx</div>
+          <div class="hash">00d166…48</div>
+          <div class="who"><span>Minas ·</span> 0.3 s</div>
+          <div class="tip"><div class="tip-h"><span>Block #1 · full hash</span><button class="copy" data-h="00d1664c1246a070cebdc05febb822d3b66af97bf43bb6fd7ad9835f2ceaaf48">Copy</button></div><div class="tip-hash">00d1664c1246a070cebdc05febb822d3b66af97bf43bb6fd7ad9835f2ceaaf48</div></div>
+        </div>
+        <div class="cap"><span class="st ok"><i></i>Valid</span></div>
+      </div>
+      <div class="col">
+        <div class="h" style="color:var(--text-2)">#0</div>
+        <div class="cube c0" tabindex="0" aria-label="Genesis block, valid, hash 0000a1…71">
+          <div class="tx">0 tx</div>
+          <div class="hash">0000a1…71</div>
+          <div class="who">Genesis</div>
+          <div class="tip"><div class="tip-h"><span>Block #0 · full hash</span><button class="copy" data-h="0000a1f3c9e2b7d4e81c5f0a9b27d36c41e0f8a29d7b53c6e1048f2a9c3d5b71">Copy</button></div><div class="tip-hash">0000a1f3c9e2b7d4e81c5f0a9b27d36c41e0f8a29d7b53c6e1048f2a9c3d5b71</div></div>
+        </div>
+        <div class="cap"><span class="st ok"><i></i>Valid</span></div>
+      </div>
+    </div>
+  </div>
+
+  <aside class="verdict" aria-label="Chain check summary">
+    <h2><span class="st err"><svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 2l6 6M8 2l-6 6" stroke="currentColor" stroke-width="1.6"/></svg>Chain invalid</span></h2>
+    <p>Checked 5 blocks just now. One block was changed after mining; everything mined on top of it can no longer be trusted.</p>
+    <ul class="vl">
+      <li><span class="st ok" style="padding:2px 6px"><i></i></span><span><span class="n">2 valid</span> · #0, #1</span></li>
+      <li><span class="st err" style="padding:2px 6px"><i></i></span><span><span class="n">1 hash mismatch</span> · #2 no longer starts with 00</span></li>
+      <li><span class="st pe" style="padding:2px 6px"><i></i></span><span><span class="n">2 built on it</span> · #3, #4 unchanged themselves</span></li>
+    </ul>
+    <div class="vstats" aria-label="Stats">
+      <div><span class="k">Avg block time</span><span class="v">3.9 s</span></div>
+      <div><span class="k">Fastest</span><span class="v">0.1 s</span></div>
+      <div><span class="k">Slowest</span><span class="v">8.0 s</span></div>
+      <div><span class="k">Total mined</span><span class="v">10.9375</span></div>
+    </div>
+  </aside>
+
+  <div class="bandrow">
+    <div class="edit" aria-label="Your edit">
+      <div class="edit-h"><span>Your edit · #2, tx 3 of 5</span><a class="lnk" href="#">Undo edit</a></div>
+      <div class="what">Bob → Chris <s>0.20</s> <b>2.00</b> powCoin</div>
+      <p>So #2 gets a new hash without 00.</p>
+    </div>
+    <div class="tip static" role="tooltip" aria-label="Full hash of block 2">
+      <div class="tip-h"><span>Block #2 · full hash</span><button class="copy" data-h="7c41e235e2f72f5e4541c5f66eec0ce5e06e28d53ef19595758471564a74a5b0"><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5" fill="none" stroke="currentColor"/><path d="M8.5 2V1.5H1.5v7H2" fill="none" stroke="currentColor"/></svg>Copy</button></div>
+      <div class="hrow"><span class="k">Now</span><span class="tip-hash"><span class="bad">7c</span>41e235e2f72f5e4541c5f66eec0ce5e06e28d53ef19595758471564a74a5b0</span></div>
+      <div class="hrow"><span class="k">As mined</span><span class="tip-hash"><s>009a6e73cac3934378dbc6e1f385239bc4ef87a5bc351687156c97341f438394</s></span></div>
+    </div>
+  </div>
+</section>
+
+<!-- TOOLBAR -->
+<div class="toolbar" role="toolbar" aria-label="Workbench controls">
+  <button class="btn" aria-disabled="true" title="Fix the chain first"><svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><path d="M9.5 1.5L3 9h4.5l-1 5.5L13 7H8.5z" fill="currentColor"/></svg>Mine next block</button>
+  <span class="tb-note">Paused while the chain is invalid</span>
+  <span class="vsep"></span>
+  <label class="toggle"><span class="sw" role="switch" aria-checked="false" aria-label="Auto-mine"></span>Auto-mine</label>
+  <div class="stepper" aria-label="Difficulty"><span class="l">Difficulty</span><b>2</b><button aria-label="Lower difficulty">−</button><button aria-label="Raise difficulty">+</button></div>
+  <span class="vsep"></span>
+  <button class="btn ghost"><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M7 2v10M2 7h10" stroke="currentColor" stroke-width="1.6"/></svg>New transaction</button>
+  <button class="btn on" aria-pressed="true"><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M9.5 2.5l2 2L5 11H3V9z" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>Tamper with a block <span class="dot">#2 · on</span></button>
+  <button class="btn ghost"><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M2.5 7a4.5 4.5 0 1 0 1.4-3.3M2.5 1.8v2.4h2.4" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>Reset</button>
+</div>
+
+<!-- WORKBENCH GRID -->
+<main class="wrap">
+  <section class="card" aria-label="Chain check">
+    <div class="card-h"><h2>Chain check</h2><span class="sub">each block against its hash and its parent</span><a class="more" href="#">Open in Chain lab</a></div>
+    <table>
+      <thead><tr><th>Block</th><th>Hash</th><th>Starts with 00</th><th>State</th></tr></thead>
+      <tbody>
+        <tr><td><a class="lnk" href="#">#4</a></td><td class="mono">0080a3…4d</td><td><span class="zeros z">2/2</span></td><td><div class="stack2"><span><span class="st pe"><i></i>Built on a broken block</span></span><span class="why">its link to #3 is intact</span></div></td></tr>
+        <tr><td><a class="lnk" href="#">#3</a></td><td class="mono">00e613…f8</td><td><span class="zeros z">2/2</span></td><td><div class="stack2"><span><span class="st pe"><i></i>Built on a broken block</span></span><span class="why">still points to #2 as mined, <span class="mono">009a6e…94</span></span></div></td></tr>
+        <tr class="is-bad"><td><a class="lnk" href="#">#2</a></td><td class="mono"><span class="t2">7c41e2…b0</span><span class="why">was <s>009a6e…94</s></span></td><td><span class="zeros bad">0/2</span></td><td><div class="stack2"><span><span class="st err"><i></i>Hash mismatch</span></span><span class="why">transaction 3 changed after mining</span></div></td></tr>
+        <tr><td><a class="lnk" href="#">#1</a></td><td class="mono">00d166…48</td><td><span class="zeros z">2/2</span></td><td><span class="st ok"><i></i>Valid</span></td></tr>
+        <tr><td><a class="lnk" href="#">#0</a></td><td class="mono">0000a1…71</td><td><span class="zeros z">2/2</span></td><td><span class="st ok"><i></i>Valid · genesis</span></td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <div class="stack">
+    <section class="card" aria-label="Last round">
+      <div class="card-h"><h2>Last round</h2><span class="sub">block #4 · race goes live when you mine</span></div>
+      <table class="race">
+        <tbody>
+          <tr><td><div class="wl"><span class="av" style="background:var(--lars)">L</span><span>Lars<span class="n2">11,133 H/s · nonce 5,775</span></span></div></td><td class="mono"><span class="z">00</span>80a3…4d</td><td class="r"><span class="st ok"><i></i>Won · 2/2</span></td></tr>
+          <tr><td><div class="wl"><span class="av" style="background:var(--minas)">M</span><span>Minas<span class="n2">11,000 H/s · nonce 905</span></span></div></td><td class="mono t3">dc80146e…</td><td class="r t3" style="font-size:12px">0/2 zeros</td></tr>
+        </tbody>
+      </table>
+      <div class="race-f"><span><b>332</b> attempts · <b>7.1 s</b></span><span>target 10 s</span></div>
+    </section>
+
+    <section class="card" aria-label="Wallets">
+      <div class="card-h"><h2>Wallets</h2><span class="sub">powCoin</span></div>
+      <table class="wal">
+        <tbody>
+          <tr><td><div class="wl"><span class="av" style="background:var(--lars)">L</span><span>Lars <span class="role">miner · 3 blocks</span></span></div></td><td class="r mono">8.41250004</td></tr>
+          <tr><td><div class="wl"><span class="av" style="background:var(--minas)">M</span><span>Minas <span class="role">miner · 1 block</span></span></div></td><td class="r mono">0.72499996</td></tr>
+          <tr><td><div class="wl"><span class="av" style="background:#93c5fd">A</span>Alice</div></td><td class="r mono">0.60000000</td></tr>
+          <tr><td><div class="wl"><span class="av" style="background:#86efac">B</span>Bob</div></td><td class="r mono">0.60000000</td></tr>
+          <tr><td><div class="wl"><span class="av" style="background:#fcd34d">C</span>Chris</div></td><td class="r mono">0.60000000</td></tr>
+        </tbody>
+      </table>
+    </section>
+  </div>
+
+  <div class="stack">
+    <section class="card" aria-label="Mempool">
+      <div class="card-h"><h2>Mempool</h2><span class="sub">2 pending → block #5</span></div>
+      <table>
+        <tbody>
+          <tr><td>Alice → Bob<span class="why">“Coffee”</span></td><td class="r">0.25</td><td class="r"><span class="st pe"><i></i>Pending</span></td></tr>
+          <tr><td>Chris → Alice<span class="why">“Rent split”</span></td><td class="r">0.10</td><td class="r"><span class="st pe"><i></i>Pending</span></td></tr>
+        </tbody>
+      </table>
+    </section>
+  </div>
+</main>
+
+<!-- MISSION COACH (floating, dismissible) -->
+<aside class="coach" role="dialog" aria-label="Mission coach">
+  <div class="coach-h">
+    <span class="badge"><svg width="14" height="14" viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 11V1.5M2.5 2h7l-1.5 2.5L9.5 7h-7" fill="none" stroke="currentColor" stroke-width="1.3"/></svg></span>
+    <div><div class="k">Mission 3 of 5</div><div class="t">Forge a block without getting caught</div></div>
+    <button class="x" aria-label="Dismiss coach"><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 2.5l7 7M9.5 2.5l-7 7" stroke="currentColor" stroke-width="1.5"/></svg></button>
+  </div>
+  <div class="prog" aria-label="Step 2 of 3"><span class="done"></span><span class="cur"></span><span></span></div>
+  <div class="step-k">Step 2 of 3 · you changed #2</div>
+  <div class="step">Re-mine #2, then #3 and #4 in order — 3 blocks to redo</div>
+  <div class="path">
+    <span class="pb next"><i>1</i>#2</span><span class="ar">→</span>
+    <span class="pb"><i>2</i>#3</span><span class="ar">→</span>
+    <span class="pb"><i>3</i>#4</span>
+    <span class="cnt">0 of 3 done</span>
+  </div>
+  <button class="primary"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M9.5 1.5L3 9h4.5l-1 5.5L13 7H8.5z" fill="currentColor"/></svg>Re-mine block #2</button>
+</aside>
+
+<script>
+  document.querySelectorAll('.copy').forEach(function (b) {
+    b.addEventListener('click', function (e) {
+      e.stopPropagation();
+      if (navigator.clipboard) navigator.clipboard.writeText(b.dataset.h).catch(function () {});
+      var t = b.lastChild; var old = t.textContent; t.textContent = 'Copied';
+      setTimeout(function () { t.textContent = old; }, 1200);
+    });
+  });
+</script>
+</body>
+</html>

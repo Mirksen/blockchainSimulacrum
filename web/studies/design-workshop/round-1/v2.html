@@ -1,0 +1,286 @@
+<!--
+  Variante: v2 — "The chain is the stage"
+  UX-Fokus: Eine horizontale Blockkette füllt die Mitte; jeder Block zeigt prev-hash → hash, die Verknüpfung ist sichtbar. Block #2 ist ausgewählt, ein Inspector rechts zeigt Header-Felder, Transaktionen und "Edit transaction to tamper". Ein kompakter Dock darunter bündelt Mempool, Kandidaten-Block #5 und "Mine block".
+  UI-Geschmack: Swiss / Blueprint — hell, strenges Raster, viel Mono, Haarlinien, technische Versal-Beschriftungen, Schwarz/Weiß plus ein Signal-Orange, keine Schatten, Radien maximal 4px.
+  Begründung: Das eigentliche Lernobjekt ist die Verkettung; im Original verschwindet sie in einer vertikalen Liste aus gleich lauten Hash-Zeilen. Wenn die Kette horizontal die Bühne ist und prev-hash und hash nebeneinander stehen, versteht man ohne Text, warum eine Änderung alle Folgeblöcke bricht. Die Blueprint-Optik macht Hashes zu beschrifteten Messwerten statt zu Rauschen und gibt dem Inspector die Präzision eines technischen Datenblatts.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>proofofwork.fyi — Chain</title>
+<style>
+  :root{
+    --bg:#FFFFFF; --ink:#0B0B0B; --ink-2:#3A3A3A; --muted:#767676; --line:#0B0B0B; --hair:#DCDCDC; --grid:#F1F1F1;
+    --sig:#FF4F00; --sig-wash:#FFF1EA;
+    --mono:ui-monospace,"SF Mono",Menlo,monospace;
+    --sans:"Helvetica Neue",-apple-system,"SF Pro Text",Arial,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background:var(--bg);color:var(--ink)}
+  body{font:13px/20px var(--sans);-webkit-font-smoothing:antialiased}
+  a{color:inherit;text-decoration:none}
+  button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+  .m{font-family:var(--mono)}
+  .lbl{font:500 10px/16px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+  .z{color:var(--sig)}
+
+  /* header */
+  .hdr{height:48px;display:grid;grid-template-columns:240px 1fr auto;border-bottom:1px solid var(--line)}
+  .logo{display:flex;align-items:center;gap:10px;padding:0 24px;border-right:1px solid var(--line);font:700 14px/1 var(--sans);letter-spacing:-.01em}
+  .logo i{width:16px;height:16px;background:var(--ink);display:block;position:relative}
+  .logo i::after{content:"";position:absolute;right:-4px;bottom:-4px;width:8px;height:8px;background:var(--sig)}
+  .tabs{display:flex}
+  .tabs a{display:flex;align-items:center;padding:0 20px;font:500 11px/1 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);border-right:1px solid var(--hair)}
+  .tabs a.on{color:var(--ink);box-shadow:inset 0 -2px 0 var(--ink)}
+  .tabs a:hover{color:var(--ink)}
+  .hdr .meta{display:flex}
+  .hdr .meta div{display:flex;flex-direction:column;justify-content:center;padding:0 20px;border-left:1px solid var(--hair)}
+  .hdr .meta b{font:500 13px/16px var(--mono)}
+  .hdr .meta .ok b{display:flex;align-items:center;gap:6px}
+  .hdr .meta .ok b::before{content:"";width:8px;height:8px;background:var(--ink)}
+
+  /* body grid */
+  .main{display:grid;grid-template-columns:1fr 400px;min-height:852px}
+  .stage{padding:24px 32px 32px;background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);background-size:16px 16px;background-position:-1px -1px}
+  .sec{display:flex;align-items:baseline;gap:16px;border-bottom:1px solid var(--line);padding-bottom:8px;background:var(--bg)}
+  .sec h2{font:700 20px/24px var(--sans);letter-spacing:-.01em}
+  .sec .lbl{margin-left:auto}
+  .sec .num{font:500 11px/1 var(--mono);color:var(--sig)}
+
+  .chain{display:grid;grid-template-columns:168px 34px 168px 34px 168px 34px 168px 34px 168px;margin-top:32px;align-items:start}
+  .blk{border:1px solid var(--line);background:var(--bg);border-radius:2px;display:block}
+  .blk:hover{outline:1px solid var(--ink)}
+  .blk .bh{display:flex;justify-content:space-between;align-items:baseline;padding:8px 10px;border-bottom:1px solid var(--line)}
+  .blk .bh b{font:500 26px/28px var(--mono);letter-spacing:-.02em}
+  .blk .row{padding:8px 10px;border-bottom:1px solid var(--hair)}
+  .blk .row:last-child{border-bottom:0}
+  .blk .v{font:13px/20px var(--mono);word-break:break-all}
+  .blk .hash{font:13px/20px var(--mono);word-break:break-all;letter-spacing:.02em}
+  .blk .kv{display:grid;grid-template-columns:1fr 1fr}
+  .blk.sel{border:2px solid var(--ink)}
+  .blk.sel .bh{background:var(--ink);color:#fff;border-color:var(--ink)}
+  .blk.sel .bh .lbl{color:#bbb}
+  .blk.gen .hash{color:var(--ink-2)}
+  .link{position:relative;height:100%}
+  .link::before{content:"";position:absolute;left:0;right:6px;top:79px;border-top:1px solid var(--line)}
+  .link::after{content:"";position:absolute;right:0;top:75px;border:4.5px solid transparent;border-left:7px solid var(--line);border-right:0}
+  .link.sel::before{border-top:2px solid var(--sig);top:78px}
+  .link.sel::after{border-left-color:var(--sig)}
+  .link.sel2::before{border-top:1px dashed var(--sig)}
+  .link.sel2::after{border-left-color:var(--sig)}
+
+  .note{display:grid;grid-template-columns:auto 1fr;gap:12px;margin-top:24px;padding:10px 12px;border:1px solid var(--line);background:var(--bg);align-items:start}
+  .note .tag{font:500 10px/16px var(--mono);letter-spacing:.1em;background:var(--sig);color:#fff;padding:2px 6px;border-radius:2px}
+  .note p{font:13px/20px var(--sans);color:var(--ink-2)}
+
+  /* dock */
+  .dock{margin-top:32px;border:1px solid var(--line);display:grid;grid-template-columns:1fr 1fr 296px;background:var(--bg)}
+  .dock > section{border-right:1px solid var(--line)}
+  .dock > section:last-child{border-right:0}
+  .dh{display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-bottom:1px solid var(--line)}
+  .dh b{font:700 12px/16px var(--sans);letter-spacing:.02em;text-transform:uppercase}
+  table{width:100%;border-collapse:collapse}
+  th{font:500 10px/16px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);text-align:left;padding:6px 12px;border-bottom:1px solid var(--hair)}
+  td{padding:10px 12px;border-bottom:1px solid var(--hair);font:12px/18px var(--mono)}
+  tr:last-child td{border-bottom:0}
+  td.r,th.r{text-align:right}
+  td .ref{color:var(--muted)}
+  .kvl{display:grid;grid-template-columns:96px 1fr}
+  .kvl > *{padding:9px 12px;border-bottom:1px solid var(--hair)}
+  .kvl > .lbl{line-height:18px}
+  .kvl > .v{font:12px/18px var(--mono)}
+  .race{padding:8px 12px}
+  .rl{display:grid;grid-template-columns:56px 1fr auto;gap:8px;align-items:center;padding:6px 0}
+  .rl b{font:700 12px/16px var(--sans)}
+  .rl .bar{height:6px;border:1px solid var(--ink);position:relative}
+  .rl .bar i{position:absolute;inset:0 auto 0 0;background:var(--ink)}
+  .rl span{font:11px/16px var(--mono);color:var(--ink-2)}
+  .mine{display:flex;align-items:center;justify-content:space-between;margin:8px 12px 12px;padding:0 16px;height:48px;background:var(--sig);color:#fff;border-radius:2px;font:600 13px/1 var(--mono);letter-spacing:.08em;text-transform:uppercase;width:calc(100% - 24px)}
+  .mine:hover{background:var(--ink)}
+  .mine:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+  .sub{padding:0 12px 10px;font:11px/16px var(--mono);color:var(--muted)}
+
+  /* inspector */
+  .insp{border-left:1px solid var(--line);display:flex;flex-direction:column}
+  .ih{padding:16px 24px 12px;border-bottom:1px solid var(--line)}
+  .ih .top{display:flex;justify-content:space-between}
+  .ih h3{font:500 40px/44px var(--mono);letter-spacing:-.03em;margin-top:4px}
+  .ih h3 span{color:var(--muted)}
+  .ih .close{width:24px;height:24px;border:1px solid var(--hair);display:grid;place-items:center;border-radius:2px}
+  .fl{display:grid;grid-template-columns:104px 1fr}
+  .fl > *{padding:7px 0 7px 24px;border-bottom:1px solid var(--hair)}
+  .fl > .v{padding:7px 24px 7px 0;font:12px/18px var(--mono);word-break:break-all}
+  .fl > .lbl{line-height:18px}
+  .ins-sec{padding:14px 24px 6px;display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px solid var(--line)}
+  .ins-sec b{font:700 12px/16px var(--sans);text-transform:uppercase;letter-spacing:.02em}
+  .insp table td{padding:6px 8px 6px 0}
+  .insp table td:first-child,.insp table th:first-child{padding-left:24px;width:44px;color:var(--muted)}
+  .insp table td:last-child,.insp table th:last-child{padding-right:24px}
+  .insp table th{padding:6px 8px 6px 0}
+  .insp tr.cb td{color:var(--muted)}
+  .insp tr.hov td{background:var(--sig-wash)}
+  .tamper{margin:16px 24px 8px;border:1px solid var(--sig);border-radius:2px}
+  .tamper button{width:100%;display:flex;align-items:center;gap:10px;padding:12px 14px;font:600 12px/16px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--sig)}
+  .tamper button:hover{background:var(--sig-wash)}
+  .tamper p{padding:0 14px 12px 40px;font:12px/18px var(--sans);color:var(--ink-2)}
+
+  .chk{margin:16px 24px 0;border-top:1px solid var(--line)}
+  .chk div{display:grid;grid-template-columns:20px 1fr auto;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid var(--hair);font:12px/18px var(--mono)}
+  .chk em{font-style:normal;font:500 10px/16px var(--mono);letter-spacing:.1em;color:var(--ink)}
+  .chk svg{display:block}
+  /* below fold */
+  .below{border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(5,1fr) repeat(4,1fr)}
+  .below > div{padding:16px 20px;border-right:1px solid var(--hair)}
+  .below b{display:block;font:500 15px/20px var(--mono);margin-top:4px}
+  .below small{font:11px/16px var(--mono);color:var(--muted)}
+</style>
+</head>
+<body>
+
+<header class="hdr">
+  <a class="logo" href="#"><i></i>proofofwork.fyi</a>
+  <nav class="tabs" aria-label="Main">
+    <a class="on" href="#">Simulator</a>
+    <a href="#">Hash lab</a>
+    <a href="#">Chain lab</a>
+  </nav>
+  <div class="meta">
+    <div class="ok"><span class="lbl">Status</span><b>CHAIN VALID</b></div>
+    <div><span class="lbl">Difficulty</span><b>2 / 00</b></div>
+    <div><span class="lbl">Reward</span><b>1.5625</b></div>
+    <div><span class="lbl">Epoch</span><b>02</b></div>
+    <div><span class="lbl">Target time</span><b>10 S</b></div>
+  </div>
+</header>
+
+<div class="main">
+  <div class="stage">
+    <div class="sec"><span class="num">01</span><h2>Chain</h2><span class="lbl">5 blocks · height 4 · each block stores the hash of the one before</span></div>
+
+    <div class="chain" role="list" aria-label="Blocks">
+      <a href="#" class="blk gen" role="listitem">
+        <div class="bh"><span class="lbl">Block</span><b>000</b></div>
+        <div class="row"><div class="lbl">Prev</div><div class="v" style="color:var(--muted)">— none —</div></div>
+        <div class="row"><div class="lbl">Hash</div><div class="hash"><span class="z">0000</span>a1f3c9e2b7d4 …<br>&nbsp;<br>&nbsp;<br>&nbsp;</div></div>
+        <div class="row kv"><div><div class="lbl">Miner</div><div class="v">GENESIS</div></div><div><div class="lbl">Tx</div><div class="v">0</div></div></div>
+      </a>
+      <div class="link"></div>
+      <a href="#" class="blk" role="listitem">
+        <div class="bh"><span class="lbl">Block</span><b>001</b></div>
+        <div class="row"><div class="lbl">Prev</div><div class="v"><span class="z">0000</span>a1f3c9e2…</div></div>
+        <div class="row"><div class="lbl">Hash</div><div class="hash"><span class="z">00</span>d1664c1246a070<br>cebdc05febb822d3<br>b66af97bf43bb6fd<br>7ad9835f2ceaaf48</div></div>
+        <div class="row kv"><div><div class="lbl">Miner</div><div class="v">MINAS</div></div><div><div class="lbl">Tx / Time</div><div class="v">1 / 0.3s</div></div></div>
+      </a>
+      <div class="link sel"></div>
+      <a href="#" class="blk sel" role="listitem" aria-current="true">
+        <div class="bh"><span class="lbl">Selected</span><b>002</b></div>
+        <div class="row"><div class="lbl">Prev</div><div class="v"><span class="z">00</span>d1664c12…</div></div>
+        <div class="row"><div class="lbl">Hash</div><div class="hash"><span class="z">00</span>9a6e73cac39343<br>78dbc6e1f385239b<br>c4ef87a5bc351687<br>156c97341f438394</div></div>
+        <div class="row kv"><div><div class="lbl">Miner</div><div class="v">LARS</div></div><div><div class="lbl">Tx / Time</div><div class="v">5 / 0.1s</div></div></div>
+      </a>
+      <div class="link sel2"></div>
+      <a href="#" class="blk" role="listitem">
+        <div class="bh"><span class="lbl">Block</span><b>003</b></div>
+        <div class="row"><div class="lbl">Prev</div><div class="v"><span class="z">00</span>9a6e73ca…</div></div>
+        <div class="row"><div class="lbl">Hash</div><div class="hash"><span class="z">00</span>e61301ea0b9765<br>106bd0eaa4ed68c1<br>a108de9f70045107<br>2c4b75f5830011f8</div></div>
+        <div class="row kv"><div><div class="lbl">Miner</div><div class="v">LARS</div></div><div><div class="lbl">Tx / Time</div><div class="v">1 / 8.0s</div></div></div>
+      </a>
+      <div class="link"></div>
+      <a href="#" class="blk" role="listitem">
+        <div class="bh"><span class="lbl">New</span><b>004</b></div>
+        <div class="row"><div class="lbl">Prev</div><div class="v"><span class="z">00</span>e61301ea…</div></div>
+        <div class="row"><div class="lbl">Hash</div><div class="hash"><span class="z">00</span>80a3e897fb1e38<br>39f43f95b033620f<br>f7fb2f9739c8e415<br>e5ce6e7df0726c4d</div></div>
+        <div class="row kv"><div><div class="lbl">Miner</div><div class="v">LARS</div></div><div><div class="lbl">Tx / Time</div><div class="v">1 / 7.1s</div></div></div>
+      </a>
+    </div>
+
+    <div class="note"><span class="tag">LINK</span><p>Block 003 stores <span class="m">009a6e73…</span> as its PREV. Edit anything inside block 002 and its hash changes — the orange link breaks, and so does every block after it.</p></div>
+
+    <div class="dock">
+      <section aria-label="Mempool">
+        <div class="dh"><b>02 · Mempool</b><span class="lbl">2 pending</span></div>
+        <table>
+          <thead><tr><th>From → To</th><th>Ref</th><th class="r">Amount</th></tr></thead>
+          <tbody>
+            <tr><td>ALICE → BOB</td><td class="ref">Coffee</td><td class="r">0.25000000</td></tr>
+            <tr><td>CHRIS → ALICE</td><td class="ref">Rent split</td><td class="r">0.10000000</td></tr>
+          </tbody>
+        </table>
+        <div class="sub" style="padding-top:10px">+ New transaction</div>
+      </section>
+      <section aria-label="Next block">
+        <div class="dh"><b>03 · Candidate 005</b><span class="lbl">unmined</span></div>
+        <div class="kvl">
+          <span class="lbl">Prev</span><span class="v"><span class="z">00</span>80a3e897fb1e3839…</span>
+          <span class="lbl">Tx</span><span class="v">2 + coinbase</span>
+          <span class="lbl">Target</span><span class="v"><span class="z">00</span>xxxxxxxx…</span>
+          <span class="lbl">Reward</span><span class="v">1.5625 → winner</span>
+        </div>
+      </section>
+      <section aria-label="Mine">
+        <div class="dh"><b>04 · Miners</b><span class="lbl">22,133 H/s total</span></div>
+        <div class="race">
+          <div class="rl"><b>LARS</b><span class="bar"><i style="width:50.3%"></i></span><span>11,133 H/s</span></div>
+          <div class="rl"><b>MINAS</b><span class="bar"><i style="width:49.7%"></i></span><span>11,000 H/s</span></div>
+        </div>
+        <button class="mine" type="button">Mine block 005
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M2 8h11M9 4l4 4-4 4"/></svg>
+        </button>
+      </section>
+    </div>
+  </div>
+
+  <aside class="insp" aria-label="Inspector">
+    <div class="ih">
+      <div class="top"><span class="lbl">Inspector</span><span class="close" aria-label="Close"><svg width="10" height="10" viewBox="0 0 10 10" stroke="currentColor" stroke-width="1.3"><path d="M1 1l8 8M9 1L1 9"/></svg></span></div>
+      <h3><span>#</span>002</h3>
+    </div>
+    <div class="fl">
+      <span class="lbl">Hash</span><span class="v"><span class="z">00</span>9a6e73cac3934378dbc6e1f385239bc4ef87a5bc351687156c97341f438394</span>
+      <span class="lbl">Prev hash</span><span class="v"><span class="z">00</span>d1664c1246a070cebdc05febb822d3b66af97bf43bb6fd7ad9835f2ceaaf48</span>
+      <span class="lbl">Mined by</span><span class="v">LARS</span>
+      <span class="lbl">Mine time</span><span class="v">0.1 S</span>
+      <span class="lbl">Difficulty</span><span class="v">2 → 2/2 ZEROS MET</span>
+    </div>
+    <div class="ins-sec"><b>Transactions</b><span class="lbl">5</span></div>
+    <table>
+      <thead><tr><th>#</th><th>From → To</th><th class="r">Amount</th></tr></thead>
+      <tbody>
+        <tr class="cb"><td>0</td><td>COINBASE → LARS</td><td class="r">3.12500000</td></tr>
+        <tr class="hov"><td>1</td><td>MINAS → ALICE</td><td class="r">0.60000000</td></tr>
+        <tr><td>2</td><td>MINAS → BOB</td><td class="r">0.60000000</td></tr>
+        <tr><td>3</td><td>MINAS → CHRIS</td><td class="r">0.60000000</td></tr>
+        <tr><td>4</td><td>MINAS → LARS</td><td class="r">0.60000000</td></tr>
+      </tbody>
+    </table>
+    <div class="tamper">
+      <button type="button">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M10.5 2.5l3 3L6 13H3v-3z"/></svg>
+        Edit transaction to tamper
+      </button>
+      <p>Try changing tx 1 to 6.0. You will see block 002 lose its zeros and blocks 003–004 turn invalid.</p>
+    </div>
+    <div class="ins-sec" style="margin-top:8px"><b>Integrity checks</b><span class="lbl">live</span></div>
+    <div class="chk" style="border-top:0;margin-top:0">
+      <div><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="1" width="12" height="12"/><path d="M4 7.2l2 2 4-4.4"/></svg><span>SHA-256(header) starts with <span class="z">00</span></span><em>PASS</em></div>
+      <div><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="1" width="12" height="12"/><path d="M4 7.2l2 2 4-4.4"/></svg><span>PREV = hash of 001</span><em>PASS</em></div>
+      <div><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="1" width="12" height="12"/><path d="M4 7.2l2 2 4-4.4"/></svg><span>003 PREV = this hash</span><em>PASS</em></div>
+    </div>
+  </aside>
+</div>
+
+<section class="below" aria-label="Wallets and stats">
+  <div><small>ALICE</small><b>0.60000000</b></div>
+  <div><small>BOB</small><b>0.60000000</b></div>
+  <div><small>CHRIS</small><b>0.60000000</b></div>
+  <div><small>LARS · 3 BLOCKS</small><b>8.41250004</b></div>
+  <div><small>MINAS · 1 BLOCK</small><b>0.72499996</b></div>
+  <div><small>AVG BLOCK TIME</small><b>3.9 S</b></div>
+  <div><small>FASTEST / SLOWEST</small><b>0.1 / 8.0 S</b></div>
+  <div><small>TOTAL MINED</small><b>10.9375</b></div>
+  <div><small>LAST RACE</small><b>332 TRIES</b></div>
+</section>
+</body>
+</html>
