@@ -77,7 +77,7 @@ export class Participant {
     this.keyPair = ec.genKeyPair();
     this.publicKey = this.keyPair.getPublic('hex');
     this.privateKey = this.keyPair.getPrivate('hex');
-    this.seedPhrase = generateSeedPhrase(); // BIP39-style 12-word seed phrase
+    this.seedPhrase = generateSeedPhrase(); // Decorative demo words; cannot recover this wallet
     // Miner properties
     this.isMiner = isMiner;
     this.hashpower = 5; // 1-10 scale, affects mining speed
@@ -153,7 +153,6 @@ export class Block {
     const target = Array(difficulty + 1).join('0');
     const startTime = Date.now();
     let iterations = 0;
-    const attempts = [];
 
     while (this.hash.substring(0, difficulty) !== target) {
       this.nonce++;
@@ -232,7 +231,7 @@ export class Blockchain {
 
   getActiveMiner() {
     // Legacy: return first active miner
-    return this.participants.find(p => p.activeMiner || (p.isMiner && p.minerEnabled));
+    return this.participants.find(p => p.isMiner && p.minerEnabled);
   }
 
   getActiveMiners() {
@@ -292,7 +291,8 @@ export class Blockchain {
       }
     }
 
-    return Math.round(balance * 100000000) / 100000000;
+    const rounded = Math.round(balance * 100000000) / 100000000;
+    return rounded === 0 ? 0 : rounded;
   }
 
   // Calculate confirmed balance only (for display - excludes mempool)
@@ -312,7 +312,8 @@ export class Blockchain {
       }
     }
 
-    return Math.round(balance * 100000000) / 100000000;
+    const rounded = Math.round(balance * 100000000) / 100000000;
+    return rounded === 0 ? 0 : rounded;
   }
 
   getAllBalances() {
@@ -320,11 +321,18 @@ export class Blockchain {
       name: p.name,
       publicKey: p.publicKey,
       balance: this.calculateConfirmedBalance(p.publicKey), // Use confirmed only for display
-      isMiner: p.activeMiner
+      isMiner: p.isMiner && p.minerEnabled
     }));
   }
 
   createTransaction(senderName, recipientName, amount, transactionFee, reference) {
+    if (!Number.isFinite(amount) || amount <= 0 || Number(amount.toFixed(8)) !== amount) {
+      throw new Error('Amount must be positive with at most 8 decimal places');
+    }
+    if (!Number.isFinite(transactionFee) || transactionFee < 0 || Number(transactionFee.toFixed(8)) !== transactionFee) {
+      throw new Error('Fee must be non-negative with at most 8 decimal places');
+    }
+    if (senderName === recipientName) throw new Error('Sender and recipient must be different');
     const sender = this.getParticipantByName(senderName);
     const recipient = this.getParticipantByName(recipientName);
 
@@ -333,8 +341,9 @@ export class Blockchain {
     }
 
     const balance = this.calculateBalance(sender.publicKey);
-    if (balance < amount + transactionFee) {
-      throw new Error(`Insufficient funds. Balance: ${balance}, Required: ${amount + transactionFee}`);
+    const required = Math.round(amount * 1e8) + Math.round(transactionFee * 1e8);
+    if (Math.round(balance * 1e8) < required) {
+      throw new Error(`Insufficient funds. Balance: ${balance}, Required: ${required / 1e8}`);
     }
 
     const tx = new Transaction(
@@ -370,7 +379,6 @@ export class Blockchain {
     // Apply halving
     if (currentBlockNumber > 0 && currentBlockNumber % this.halvingEvent === 0) {
       reward = this.blockReward / 2;
-      this.blockReward = reward;
     }
 
     const transactionFees = this.memPool.reduce((sum, tx) => sum + tx.transactionFee, 0);
@@ -387,12 +395,14 @@ export class Blockchain {
     // Mine the block with attempt logging
     const result = await block.mineBlock(this.miningDifficulty, onProgress, onAttempt, shouldAbort);
 
-    if (result.aborted) {
+    if (result.aborted || shouldAbort?.()) {
       return { success: false, aborted: true };
     }
 
     // Add to chain
+    block.halved = reward !== this.blockReward;
     this.blockArray.push(block);
+    this.blockReward = reward;
 
     // Clear mempool
     this.memPool = [];
@@ -444,15 +454,16 @@ export class Blockchain {
         // Debit Sender
         if (tx.sender) {
           const senderBalance = (balances[tx.sender] || 0) + this.startingBalance;
-          if (senderBalance < tx.amount + tx.transactionFee) {
+          const required = Math.round(tx.amount * 1e8) + Math.round(tx.transactionFee * 1e8);
+          if (Math.round(senderBalance * 1e8) < required) {
             return false; // Insufficient funds
           }
-          balances[tx.sender] = (balances[tx.sender] || 0) - tx.amount - tx.transactionFee;
+          balances[tx.sender] = (Math.round((balances[tx.sender] || 0) * 1e8) - required) / 1e8;
         }
 
         // Credit Recipient
         if (tx.recipient) {
-          balances[tx.recipient] = (balances[tx.recipient] || 0) + tx.amount;
+          balances[tx.recipient] = (Math.round((balances[tx.recipient] || 0) * 1e8) + Math.round(tx.amount * 1e8)) / 1e8;
         }
       }
     }

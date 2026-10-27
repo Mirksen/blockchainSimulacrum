@@ -1,3 +1,4 @@
+import { Modal } from './Modal';
 import { useState } from 'react';
 import { TransactionDetailsModal } from './TransactionDetailsModal';
 
@@ -39,7 +40,7 @@ export function BlockDetailsModal({
     };
 
     return (
-        <div className="modal-overlay" onClick={onClose}>
+        <Modal onClose={onClose} label="Block details">
             <div className="block-details-modal" onClick={e => e.stopPropagation()}>
                 {/* Header */}
                 <div className="modal-header">
@@ -56,7 +57,7 @@ export function BlockDetailsModal({
                             </span>
                         )}
                     </div>
-                    <button className="modal-close-btn" onClick={onClose}>
+                    <button className="modal-close-btn" aria-label="Close details" onClick={onClose}>
                         ✕
                     </button>
                 </div>
@@ -160,7 +161,7 @@ export function BlockDetailsModal({
                                     <div
                                         key={txIndex}
                                         className="modal-tx-item clickable"
-                                        onClick={() => handleTxClick(tx)}
+                                        onClick={() => handleTxClick(tx)} role="button" tabIndex={0} aria-label={`Transfer to ${getParticipantName(tx.recipient)}: ${tx.amount}`} onKeyDown={event => { if (event.target === event.currentTarget && ['Enter', ' '].includes(event.key)) { event.preventDefault(); event.currentTarget.click(); } }}
                                     >
                                         <div className="modal-tx-parties">
                                             <span className={tx.sender === null ? 'mining-reward' : ''}>
@@ -195,6 +196,6 @@ export function BlockDetailsModal({
                     onClose={() => setSelectedTx(null)}
                 />
             )}
-        </div>
+        </Modal>
     );
 }

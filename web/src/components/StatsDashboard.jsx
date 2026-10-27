@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 
-export function StatsDashboard({ blocks, blockchain, difficulty, participants }) {
+export function StatsDashboard({ blocks, blockchain, participants }) {
     const stats = useMemo(() => {
         if (!blocks || blocks.length <= 1) {
             return null;
@@ -11,7 +11,6 @@ export function StatsDashboard({ blocks, blockchain, difficulty, participants })
 
         // Calculate block times
         const blockTimes = [];
-        let highestHashRate = 0;
         let highestZeros = 0;
         let fastestBlock = Infinity;
         let slowestBlock = 0;
@@ -28,6 +27,8 @@ export function StatsDashboard({ blocks, blockchain, difficulty, participants })
                 if (blockTime < fastestBlock) fastestBlock = blockTime;
                 if (blockTime > slowestBlock) slowestBlock = blockTime;
             }
+
+            totalCoins -= block.transactions.reduce((sum, tx) => sum + (tx.sender ? tx.transactionFee : 0), 0);
 
             // Leading zeros calculation
             const leadingZeros = block.hash?.match(/^0*/)?.[0]?.length || 0;
@@ -48,13 +49,12 @@ export function StatsDashboard({ blocks, blockchain, difficulty, participants })
 
         // Halving calculations
         const halvingInterval = blockchain?.halvingEvent || 5;
-        const totalHalvings = Math.floor(totalBlocks / halvingInterval);
+        const totalHalvings = blocks.filter(b => b.halved).length;
         const blocksUntilHalving = halvingInterval - (totalBlocks % halvingInterval);
         const currentEpoch = totalHalvings + 1;
 
         // Current block reward
-        const baseReward = 3.125;
-        const currentReward = baseReward / Math.pow(2, totalHalvings);
+        const currentReward = blockchain.blockReward;
 
         // Find leading miner (most blocks won)
         let leadingMiner = null;
@@ -82,7 +82,7 @@ export function StatsDashboard({ blocks, blockchain, difficulty, participants })
             leadingMiner: leadingMiner || '-',
             leadingMinerBlocks: maxBlocksWon
         };
-    }, [blocks, blocks?.length, blockchain, blockchain?.halvingEvent, participants]);
+    }, [blocks, blockchain, participants]);
 
     if (!stats) {
         return (

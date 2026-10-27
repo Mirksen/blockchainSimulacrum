@@ -2748,3 +2748,89 @@ h5 {
   background: var(--sapList_Hover_Background);
   transform: translateX(4px);
 }
+/* Public simulator entry: the experiment remains the main screen. */
+.app-header { height: auto; min-height: 72px; padding: 12px 24px; gap: 16px; flex-wrap: wrap; }
+.app-brand, .header-actions { display: flex; align-items: center; gap: 10px; }
+.app-brand { flex-shrink: 0; }
+.header-actions { flex-wrap: wrap; }
+.header-actions .btn { min-height: 40px; }
+.simulation-intro, .simulation-settings, .simulation-error { max-width: 1568px; margin: 20px auto 0; }
+.simulation-intro { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 12px 16px; }
+.simulation-intro h2 { font-size: 26px; line-height: 1.25; margin: 0 0 10px; }
+.simulation-intro p { max-width: 76ch; line-height: 1.6; margin: 4px 0; }
+.simulation-intro > .btn { flex-shrink: 0; min-width: 144px; text-decoration: none; text-align: center; }
+.simulation-note { color: var(--sapContent_LabelColor); font-size: 12px; }
+.simulation-settings { padding: 12px 16px; border-top: 1px solid var(--sapList_BorderColor); border-bottom: 1px solid var(--sapList_BorderColor); }
+.simulation-settings summary { cursor: pointer; font-weight: 600; }
+.simulation-settings summary span { margin-left: 12px; color: var(--sapContent_LabelColor); font-weight: 400; font-size: 12px; }
+.settings-fields { display: flex; flex-wrap: wrap; gap: 20px; padding: 18px 0 12px; }
+.settings-fields label { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; font-size: 13px; }
+.settings-fields input { min-width: 0; border: 1px solid var(--sapField_BorderColor); border-radius: 4px; padding: 6px; background: var(--sapField_Background); color: var(--sapTextColor); font: inherit; }
+.settings-fields input[type="number"] { width: 68px; }
+.settings-fields input[type="range"] { width: 92px; }
+.settings-fields input:not([type]) { width: 130px; }
+.simulation-error { padding: 12px 16px; border-left: 4px solid var(--sapNegativeColor); color: var(--sapNegativeColor); }
+.app-container { grid-template-columns: 280px minmax(0, 1fr) 320px; min-height: 0; padding-top: 24px; }
+.app-container > * { min-width: 0; }
+.block-card { width: 100%; max-width: 100%; }
+.block-hash, .modal-hash, .sig-value, .tx-party-key { overflow-wrap: anywhere; word-break: break-word; min-width: 0; }
+.mining-announcement { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); z-index: 100; padding: 12px 20px; border-radius: 8px; background: var(--sapBrandColor); color: white; box-shadow: var(--sapContent_Shadow2); }
+:focus-visible { outline: 3px solid var(--sapBrandColor); outline-offset: 3px; }
+.skip-link { position: fixed; left: 12px; top: -80px; z-index: 1000; background: var(--sapGroup_ContentBackground); padding: 12px; }
+.skip-link:focus { top: 12px; }
+dialog.modal-overlay { margin: 0; border: 0; padding: 16px; width: 100%; height: 100%; max-width: none; max-height: none; color: var(--sapTextColor); }
+dialog.modal-overlay:not([open]) { display: none; }
+dialog.modal-overlay > div { max-width: 100%; }
+.modal-header { gap: 12px; }
+.modal-title { min-width: 0; flex-wrap: wrap; }
+.modal-close-btn { flex-shrink: 0; min-height: 40px; min-width: 40px; }
+.app-footer { line-height: 1.7; padding: 24px 16px; }
+@media (max-width: 1200px) { .app-container { grid-template-columns: 230px minmax(0, 1fr) 280px; } }
+@media (max-width: 992px) {
+  .app-container { grid-template-columns: minmax(0, 1fr); }
+  .controls-column { scroll-margin-top: 140px; }
+  .simulation-intro { align-items: flex-start; }
+  .simulation-intro h2 { font-size: 24px; }
+}
+@media (max-width: 600px) {
+  .app-header { position: static; padding: 14px 12px; gap: 12px; }
+  .header-actions { gap: 4px; }
+  .header-actions .btn { font-size: 12px; padding: 8px 10px; }
+  .simulation-intro { flex-direction: column; gap: 16px; margin-top: 8px; padding: 16px 12px; }
+  .simulation-intro > .btn { width: 100%; }
+  .simulation-settings { margin-top: 8px; padding: 12px; }
+  .simulation-settings summary span { display: block; margin: 6px 0 0 16px; }
+  .settings-fields { gap: 16px; flex-direction: column; }
+  .settings-fields label { justify-content: space-between; }
+  .app-container { padding: 16px 12px; }
+  .seed-phrase-container, .modal-stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .tx-parties-section { flex-direction: column; }
+  .tx-arrow { transform: rotate(90deg); }
+  .modal-content { padding: 16px; }
+  .modal-stat, .modal-stat-value, .tx-amount-value { min-width: 0; overflow-wrap: anywhere; }
+  .seed-word { min-width: 0; padding: 8px; }
+  .seed-word-text { overflow-wrap: anywhere; }
+  .mining-announcement { bottom: 12px; width: calc(100% - 24px); text-align: center; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}
+
+@media (min-width: 993px) {
+  .participants-column { grid-column: 1; grid-row: 1; }
+  .blockchain-column { grid-column: 2; grid-row: 1; }
+  .controls-column { grid-column: 3; grid-row: 1; }
+}
+[data-theme="dark"] {
+  --sapPositiveColor: #57c98b;
+  --sapNegativeColor: #ff8d8d;
+  --sapBrandColor: #62b0ff;
+  --sapLinkColor: #80bdff;
+}
+.header-actions .btn-negative { background: #b42318; border-color: #b42318; color: #fff; }
+.analytics-control { max-width: 1568px; margin: 12px auto 0; text-align: left; border: 1px solid var(--sapList_BorderColor); border-radius: 6px; }
+.analytics-control summary { cursor: pointer; padding: 10px 12px; color: var(--sapTextColor); font-size: 13px; }
+.analytics-control > div { padding: 0 12px 12px; }
+.analytics-control p { margin: 0 0 8px; line-height: 1.6; }
+.analytics-control label { display: flex; align-items: center; gap: 8px; color: var(--sapTextColor); min-height: 40px; font-size: 13px; }
+.analytics-control input { width: 18px; height: 18px; flex-shrink: 0; }

@@ -1,4 +1,4 @@
-import SHA256 from 'crypto-js/sha256';
+import { Modal } from './Modal';
 
 export function TransactionDetailsModal({
     transaction,
@@ -19,14 +19,7 @@ export function TransactionDetailsModal({
     const recipientName = getParticipantName(transaction.recipient);
     const isMiningReward = transaction.sender === null;
 
-    // Compute transaction hash
-    const txHash = SHA256(
-        (transaction.sender || '') +
-        transaction.recipient +
-        transaction.amount +
-        (transaction.transactionFee || 0) +
-        (transaction.referenceNumber || '')
-    ).toString();
+    const txHash = transaction.createHash();
 
     // Format timestamp
     const formatTimestamp = (ts) => {
@@ -42,13 +35,13 @@ export function TransactionDetailsModal({
     const getSignatureStatus = () => {
         if (isMiningReward) return { status: 'system', text: 'System Generated', color: 'var(--sapBrandColor)' };
         if (!transaction.signature) return { status: 'unsigned', text: 'Not Signed', color: 'var(--sapNegativeColor)' };
-        return { status: 'signed', text: 'Cryptographically Signed', color: 'var(--sapPositiveColor)' };
+        return { status: 'signed', text: 'Signature present', color: 'var(--sapPositiveColor)' };
     };
 
     const sigStatus = getSignatureStatus();
 
     return (
-        <div className="modal-overlay" onClick={onClose}>
+        <Modal onClose={onClose} label="Transaction details">
             <div className="transaction-details-modal" onClick={e => e.stopPropagation()}>
                 {/* Header */}
                 <div className={`modal-header ${isMiningReward ? 'mining-reward-header' : ''}`}>
@@ -60,7 +53,7 @@ export function TransactionDetailsModal({
                             {isMiningReward ? 'Mining Reward' : 'Transaction Details'}
                         </span>
                     </div>
-                    <button className="modal-close-btn" onClick={onClose}>
+                    <button className="modal-close-btn" aria-label="Close details" onClick={onClose}>
                         ✕
                     </button>
                 </div>
@@ -134,18 +127,7 @@ export function TransactionDetailsModal({
                         <div className="signature-status" style={{ color: sigStatus.color }}>
                             {sigStatus.text}
                         </div>
-                        {transaction.signature && (
-                            <div className="signature-display">
-                                <div className="signature-part">
-                                    <span className="sig-label">r:</span>
-                                    <span className="sig-value">{transaction.signature.r || transaction.signature.slice(0, 64)}</span>
-                                </div>
-                                <div className="signature-part">
-                                    <span className="sig-label">s:</span>
-                                    <span className="sig-value">{transaction.signature.s || transaction.signature.slice(64)}</span>
-                                </div>
-                            </div>
-                        )}
+                        {transaction.signature && <div className="signature-display"><code className="sig-value">{transaction.signature}</code></div>}
                     </div>
 
                     {/* Metadata */}
@@ -170,7 +152,7 @@ export function TransactionDetailsModal({
                             <div className="modal-stat-value" style={{ color: sigStatus.color }}>
                                 {sigStatus.status === 'signed' ? '✓' : sigStatus.status === 'system' ? '⚡' : '✗'}
                             </div>
-                            <div className="modal-stat-label">Verified</div>
+                            <div className="modal-stat-label">Signature</div>
                         </div>
                     </div>
 
@@ -180,12 +162,12 @@ export function TransactionDetailsModal({
                         <ul className="tx-info-list">
                             <li>The <strong>sender</strong> signs the transaction with their private key</li>
                             <li>The <strong>signature</strong> proves ownership without revealing the private key</li>
-                            <li>The <strong>TXID</strong> is a unique hash of all transaction data</li>
-                            <li>Once mined into a block, the transaction is <strong>immutable</strong></li>
+                            <li>The <strong>TXID</strong> identifies the transfer details in this demo</li>
+                            <li>Changing a mined transaction breaks the chain’s <strong>integrity checks</strong></li>
                         </ul>
                     </div>
                 </div>
             </div>
-        </div>
+        </Modal>
     );
 }

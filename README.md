@@ -1,40 +1,86 @@
-# blockchain simulacrum
-#### Video Demo:  https://youtu.be/sYBxClODaJw
-#### Description:
-The software is imitating specific aspects of the Bitcoin blockchain, therefore making specific concepts more transparent:
-- creating a cryptographic keypair for each participant, usable as wallet (asymmetric encryption)
-- hashing the transactions to gain a unique "fingerprint" (hash)
-- grouping the transactions into "blocks" with its own untamperable unique "fingerprint" (hash) including the hash of the previous block
-- appending the blocks to a chain of blocks (blockchain) which are connected through their own hash including the hash of the predecessor block
-- the blockhash is demanding "Proof of Work", consisting of the amount of leading Zeros in the block hash (X-Zero-Hash)
-- audit functionality is checking if the integrity of transactions, blocks and blockchain is given and it have not been tampered with
-- participant balance can be checked, for ease of demonstration purposes we work with a starting balance
+# proofofwork.fyi
+
+An interactive, browser-only blockchain learning experiment, originally built for CS50 in 2021. Mine blocks, race two miners, send simulated coins, change the difficulty or halving interval, and tamper with a transaction to see integrity checks fail.
+
+This is a simplified model, not a Bitcoin wallet or network client. Coins have no monetary value. Keys and decorative demo seed words must never be used for real funds. All simulation state lives in memory; refreshing or resetting starts a new chain.
+
+## Run locally
+
+Use Node.js 22.22.2+, 24.15+ or 26+ and npm. The web app is React and Vite.
+
+```sh
+npm --prefix web ci
+npm --prefix web run dev
+```
+
+Choose **Start demo** to mine the initial coins and distribute them. Create a transfer in **New Transaction**, then choose **Mine Next Block**. **Auto-mine** repeats the experiment; **Stop mining** cancels the active attempt. **Reset** creates fresh wallets and a new genesis block while retaining experiment settings.
+
+Open **Experiment settings** to change difficulty, the coin's display name, target block time or the halving interval. Changes affect future blocks. Difficulty adapts every ten mined blocks. Difficulty is measured in leading hexadecimal zeros, so each additional zero makes a successful hash about sixteen times less likely.
+
+## Verify
+
+```sh
+npm --prefix web run check
+npm --prefix web run deploy:check
+npm --prefix web run test:browser
+npm --prefix web run preview
+```
+
+The tests cover invalid transaction values and pending balances, tampering, wallet initialization, concurrent starts, stopped halving attempts, reset, setting changes and demo distribution. `test:browser` needs Google Chrome. It starts and stops a local preview, exercises the complete demo/transfer/tamper/reset flow and checks five viewport widths. Set `BASE_URL` to check an already running site instead; screenshots go to the OS temporary directory (override with `SCREENSHOT_DIR`).
+
+The deployment check builds the public files and runs a Cloudflare dry run; it does not publish anything or establish live-domain acceptance.
+
+## Hosting on Cloudflare
+
+[Workers Static Assets](https://developers.cloudflare.com/workers/static-assets/) serves only `web/dist`. No database, application server or visitor accounts are needed. Optional analytics uses only a public PostHog project ingestion token. The pinned project Wrangler configuration is in `web/wrangler.jsonc`; use the project scripts rather than a global Wrangler installation. `_headers` supplies a same-origin content policy and basic response headers. The app loads no remote fonts or tracking scripts. Explicit opt-in event requests go only to PostHog EU.
+
+The default environment uses the separate Worker **proofofwork-fyi-preview** and has no custom domain. The explicitly selected `production` environment binds **proofofwork.fyi** to the Worker **proofofwork-fyi** in the configured account.
+
+Before a production deployment, verify the authenticated account, existing Worker and domain/DNS bindings, and obtain the release authorization required by your workflow. A browser login and Wrangler authentication are separate. Authenticate through a local OAuth flow or a locally supplied scoped token; never put a token in Git or chat.
+
+```sh
+# Authenticated account read, then explicit production release:
+npm --prefix web exec -- wrangler whoami
+npm --prefix web run deploy:production
+```
+
+After publication, verify HTTPS, response headers, asset loading and the Start demo → transfer → mine → tamper → reset flow on the actual domain. A successful upload or local dry run alone does not verify the live site.
+
+## Source layout
+
+- `web/src/lib/blockchain.js`: participants, signed transactions, blocks and integrity checks.
+- `web/src/hooks/useBlockchain.js`: simulation state, miner race, cancellation and demo setup.
+- `web/src/components/`: wallets, chain explorer, controls and detail dialogs.
+- `web/src/__tests__/`: deterministic lifecycle and model regression tests.
+- Root `main.js`, `blockchain.js`, `config.js`: historical terminal implementation.
+
+[Original video demonstration](https://youtu.be/sYBxClODaJw)
 
 
-we have 3 files:
-- main.js which has the actual function calls in order to mine 3 (or more) blocks in a row
-- blockchain.js which has the classes and methods definitions, used in main.js
-- config.js where you can alter and edit all the parameters (blockchain name, mining difficulty, mining reward, halving event definition, participants, miner declaration, starting balance, transaction content, audit functionality trigger)
+## Optional PostHog EU analytics
 
-to start the program, type in the terminal while beeing in the "project" folder:
-"node main.js"
+Set `VITE_POSTHOG_PROJECT_TOKEN` in `web/.env.production.local` or the build environment, using the **public ingestion token** from the dedicated proofofwork.fyi EU project. See `web/.env.example`. The build rejects personal/secret key formats. A Vite variable is public client configuration: never put management credentials there. Without configuration, the app still works and usage sharing stays unavailable.
 
-to alter the settings and blockchain behaviour:
-edit config.js file
+Visitors choose **Usage sharing** near the experiment settings. It defaults to off and respects browser privacy signals. The preference is the only analytics value saved locally. A random visit identifier stays in memory and is replaced after opt-out; person profiles are disabled. There is no replay, DOM/form/clipboard autocapture, analytics script loading, persisted request queue, retry or unload beacon. Opt-out aborts pending requests and prevents subsequent sends; it cannot undo requests already received by PostHog. Offline/failed sends are dropped and never block the simulation.
 
-to mine additional blocks:
-add additional array in the transaction section in config.js
+The small transport uses the documented [Capture API](https://posthog.com/docs/api/capture), including the [manual exception schema](https://posthog.com/docs/error-tracking/installation/manual). CSP permits only the EU ingestion host in addition to this site's own resources. Every event has a generated event ID, app/schema identifier and client timestamp. Allowed operation fields are defined and tested in `web/src/lib/telemetry.js`:
 
-to increase the mining difficulty:
-adjust the the parameter in config.js
+| Events | Permitted operation data |
+| --- | --- |
+| `app_opened` | No extra operation fields |
+| `demo_started`, `demo_completed`, `demo_failed`, `demo_cancelled` | Difficulty, resulting block count or a fixed failure code |
+| `mining_started`, `mining_completed`, `mining_cancelled`, `mining_failed` | Difficulty, elapsed milliseconds, attempt/miner/transaction counts, block height or a fixed reason |
+| `transaction_created`, `transaction_rejected` | Source, count, pending count or a fixed failure code |
+| `difficulty_changed`, `settings_changed` | Previous/current difficulty, fixed setting name, numeric/boolean/enumerated value |
+| `tamper_applied`, `chain_reset` | Block height or previous mined-block count |
+| `$exception` | Fixed source/type, generic message and positions in known loaded app assets |
 
-Design decisions:
-terminal style program has been sufficient and been more fitable to check the code vs the outcome in the terminal,
-since this program is for educational pruposes to understand blockchain concepts better.
-node.js has been chosen for its non-compiling nature to iterate faster been code editing and outcome cross checks
+Keys, seed words, wallet/participant names, transaction references, arbitrary error messages, query strings and other free-text bodies are not included. Mining summaries are emitted at operation boundaries, never for individual hashes or progress renders.
 
-Roadmap:
-What is actually not implemented is an automatical mining difficulty adjustment by mining time to get a consistent block mining average time , like Bitcoin does.
-Competetion is also not included between several miners to compete for the next block hash, right now, the first miner declared will always mine the blocks
+The browser check intercepts PostHog requests; it never sends test data to a real dataset. CI supplies a synthetic public token and requires the positive consent/privacy path. To run that path locally:
 
-detailed description of concepts and code can be found as comments in the code itself.
+```sh
+VITE_POSTHOG_PROJECT_TOKEN=phc_syntheticproject EXPECT_POSTHOG=1 npm --prefix web run test:browser
+```
+
+This produces a test build. Before release, rebuild through the normal production command with the real public project token. Actual acceptance also requires locating a uniquely generated synthetic event in the correct EU project's stored events; a successful capture response alone is insufficient. Authentication and that live evidence remain separate from mock coverage and CI.

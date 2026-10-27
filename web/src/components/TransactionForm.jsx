@@ -49,8 +49,9 @@ export function TransactionForm({ participants, onCreateTransaction, disabled, c
     return (
         <form onSubmit={handleSubmit}>
             <div className="form-group">
-                <label className="form-label">From</label>
+                <label className="form-label" htmlFor="tx-sender">From</label>
                 <select
+                    id="tx-sender"
                     className="form-select"
                     value={sender}
                     onChange={(e) => setSender(e.target.value)}
@@ -64,8 +65,9 @@ export function TransactionForm({ participants, onCreateTransaction, disabled, c
             </div>
 
             <div className="form-group">
-                <label className="form-label">To</label>
+                <label className="form-label" htmlFor="tx-recipient">To</label>
                 <select
+                    id="tx-recipient"
                     className="form-select"
                     value={recipient}
                     onChange={(e) => setRecipient(e.target.value)}
@@ -79,13 +81,13 @@ export function TransactionForm({ participants, onCreateTransaction, disabled, c
             </div>
 
             <div className="form-group">
-                <label className="form-label">Amount ({coinName})</label>
+                <label className="form-label" htmlFor="tx-amount">Amount ({coinName})</label>
                 <input
-                    type="number"
+                    id="tx-amount" type="number"
                     className="form-input"
                     placeholder="0.00000000"
                     step="0.00000001"
-                    min="0"
+                    min="0.00000001"
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
                     disabled={disabled}
@@ -93,9 +95,9 @@ export function TransactionForm({ participants, onCreateTransaction, disabled, c
             </div>
 
             <div className="form-group">
-                <label className="form-label">Reference (optional)</label>
+                <label className="form-label" htmlFor="tx-reference">Reference (optional)</label>
                 <input
-                    type="text"
+                    id="tx-reference" type="text"
                     className="form-input"
                     placeholder="Payment for..."
                     value={reference}
@@ -105,13 +107,13 @@ export function TransactionForm({ participants, onCreateTransaction, disabled, c
             </div>
 
             {error && (
-                <div className="validation-status validation-invalid mb-md" style={{ fontSize: '12px', width: '100%', justifyContent: 'center' }}>
+                <div role="alert" className="validation-status validation-invalid mb-md" style={{ fontSize: '12px', width: '100%', justifyContent: 'center' }}>
                     ⚠️ {error}
                 </div>
             )}
 
             {success && (
-                <div className="validation-status validation-valid mb-md" style={{ fontSize: '12px', width: '100%', justifyContent: 'center' }}>
+                <div role="status" className="validation-status validation-valid mb-md" style={{ fontSize: '12px', width: '100%', justifyContent: 'center' }}>
                     ✓ {success}
                 </div>
             )}
