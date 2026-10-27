@@ -2,7 +2,7 @@
 
 An interactive blockchain learning experiment, originally built for CS50 in 2021. Mine blocks, race two miners, send simulated coins, change the difficulty or halving interval, and tamper with a transaction to see integrity checks fail. Mining runs in your browser; an optional mining pool lets visitors compare verified work on a shared leaderboard.
 
-This is a simplified model, not a Bitcoin wallet or network client. Coins have no monetary value. Keys and decorative demo seed words must never be used for real funds. All simulation state lives in memory; refreshing or resetting starts a new chain.
+This is a simplified model, not a Bitcoin wallet or network client. Coins have no monetary value. Each participant's BIP39 recovery phrase deterministically derives its demo key through BIP32; the phrase restores the key, not the simulated ledger. Never use these demo keys or phrases for real funds. All simulation state lives in memory; refreshing or resetting starts a new chain. See [demo wallet recovery](web/README.md#demo-wallet-recovery) for the recovery API and derivation details.
 
 ## Run locally
 

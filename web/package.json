@@ -16,6 +16,8 @@
     "test:browser": "npm run build && node scripts/acceptance.mjs"
   },
   "dependencies": {
+    "@scure/bip32": "2.4.0",
+    "@scure/bip39": "2.4.0",
     "buffer": "^6.0.3",
     "crypto-js": "^4.2.0",
     "elliptic": "^6.6.1",
