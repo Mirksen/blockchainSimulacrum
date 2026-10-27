@@ -36,7 +36,7 @@ export function BlockCard({ block, index, isGenesis, isSelected, isLatest, isVal
     ].filter(Boolean).join(' ');
 
     return (
-        <div className={className} onClick={onClick}>
+        <div className={className} onClick={onClick} role="button" tabIndex={0} aria-label={`Open ${isGenesis ? 'genesis block' : `block ${index}`} details`} onKeyDown={event => { if (event.target === event.currentTarget && ['Enter', ' '].includes(event.key)) { event.preventDefault(); event.currentTarget.click(); } }}>
             <div className="block-number" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span>{isGenesis ? '🌟 Genesis' : `Block #${index}`}</span>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>

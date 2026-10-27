@@ -1,3 +1,4 @@
+import { Modal } from './Modal';
 import { useState } from 'react';
 import { TransactionDetailsModal } from './TransactionDetailsModal';
 
@@ -11,9 +12,8 @@ export function ParticipantDetailsModal({
     isMining,
     coinName = 'powCoin'
 }) {
-    if (!participant) return null;
-
     const [selectedTransaction, setSelectedTransaction] = useState(null);
+    if (!participant) return null;
 
     const getMinerColorClass = (name) => {
         return name?.toLowerCase() === 'minas' ? 'minas' : 'lars';
@@ -51,7 +51,7 @@ export function ParticipantDetailsModal({
     const miningRewards = txHistory.filter(t => t.isMiningReward).reduce((sum, t) => sum + t.tx.amount, 0);
 
     return (
-        <div className="modal-overlay" onClick={onClose}>
+        <Modal onClose={onClose} label="Participant details">
             <div className="participant-details-modal" onClick={e => e.stopPropagation()}>
                 {/* Header */}
                 <div className={`modal-header ${participant.isMiner ? `miner-header-${colorClass}` : ''}`}>
@@ -68,7 +68,7 @@ export function ParticipantDetailsModal({
                             </span>
                         )}
                     </div>
-                    <button className="modal-close-btn" onClick={onClose}>
+                    <button className="modal-close-btn" aria-label="Close details" onClick={onClose}>
                         ✕
                     </button>
                 </div>
@@ -133,7 +133,7 @@ export function ParticipantDetailsModal({
                                     value={participant.hashpower || 5}
                                     onChange={(e) => setMinerHashpower?.(participant.name, parseInt(e.target.value))}
                                     disabled={isMining}
-                                    className="hashpower-slider"
+                                    className="hashpower-slider" aria-label="Miner hashpower"
                                 />
                                 <span className="hashpower-value">{participant.hashpower || 5}/10</span>
                             </div>
@@ -145,14 +145,15 @@ export function ParticipantDetailsModal({
 
                     {/* Keys Section */}
                     <div className="modal-section">
-                        <div className="modal-section-label">Public Key (Wallet Address)</div>
+                        <div className="modal-section-label">Demo public key</div>
                         <div className="modal-hash">
                             {participant.publicKey}
                         </div>
                     </div>
 
                     <div className="modal-section">
-                        <div className="modal-section-label">🔐 Recovery Seed Phrase (Never Share!)</div>
+                        <div className="modal-section-label">Demo seed words</div>
+                        <p className="text-muted text-small">These random demo words cannot recover a wallet. Never use this simulation for real funds.</p>
                         <div className="seed-phrase-container">
                             {participant.seedPhrase?.split(' ').map((word, idx) => (
                                 <div key={idx} className="seed-word">
@@ -178,7 +179,7 @@ export function ParticipantDetailsModal({
                                     <div
                                         key={idx}
                                         className={`participant-tx-item ${item.isIncoming ? 'incoming' : 'outgoing'}`}
-                                        onClick={() => setSelectedTransaction(item.tx)}
+                                        onClick={() => setSelectedTransaction(item.tx)} role="button" tabIndex={0} aria-label={`Transaction in block ${item.blockIndex}: ${item.tx.amount}`} onKeyDown={event => { if (event.target === event.currentTarget && ['Enter', ' '].includes(event.key)) { event.preventDefault(); event.currentTarget.click(); } }}
                                         style={{ cursor: 'pointer' }}
                                         title="Click for details"
                                     >
@@ -216,7 +217,7 @@ export function ParticipantDetailsModal({
                     coinName={coinName}
                 />
             )}
-        </div>
+        </Modal>
     );
 
     function getParticipantName(publicKey) {
