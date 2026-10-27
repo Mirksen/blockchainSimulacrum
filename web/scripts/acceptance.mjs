@@ -1,5 +1,6 @@
 import { verifyHashLab } from './hash-lab.acceptance.mjs';
 import { verifyChainLab } from './chain-lab.acceptance.mjs';
+import { verifyLearningPath } from './learning-path.acceptance.mjs';
 import { chromium } from 'playwright';
 import { spawn } from 'node:child_process';
 import { mkdir } from 'node:fs/promises';
@@ -159,6 +160,9 @@ try {
  }
  results.push(...await verifyHashLab(page, output));
  results.push(...await verifyChainLab(page, output));
+ const beforeGuideTelemetry=telemetryRequests.length;
+ results.push(...await verifyLearningPath(page, output));
+ assert.equal(telemetryRequests.length,beforeGuideTelemetry,'Guide does not add telemetry while sharing is off');
  assert.deepEqual(errors,[]);
  results.push('No page errors or horizontal overflow at five widths');
  await page.close();

@@ -3,7 +3,7 @@ import { changedPositions, createTrial, findNonce, meetsTarget, parseNonce, SEAR
 import './HashLab.css';
 
 const INITIAL_MESSAGE = 'Hello, block!';
-const initialState = () => ({ message: INITIAL_MESSAGE, nonce: '0', difficulty: 2,
+const initialState = (difficulty = 2) => ({ message: INITIAL_MESSAGE, nonce: '0', difficulty,
   trial: createTrial(INITIAL_MESSAGE, 0), previousHash: null, status: 'idle', attempts: 0, error: '' });
 
 function withTrial(state, trial) {
@@ -27,13 +27,13 @@ function reducer(state, action) {
       const next = { ...state, attempts: action.attempts, status: action.type === 'progress' ? 'searching' : action.status };
       return action.trial ? withTrial({ ...next, nonce: String(action.trial.nonce) }, action.trial) : next;
     }
-    case 'reset': return initialState();
+    case 'reset': return initialState(action.difficulty);
     default: return state;
   }
 }
 
-export function HashLab({ onClose }) {
-  const [state, dispatch] = useReducer(reducer, undefined, initialState);
+export function HashLab({ onClose, lesson, onLessonEvent }) {
+  const [state, dispatch] = useReducer(reducer, lesson === 'work' ? 1 : 2, initialState);
   const activeSearch = useRef(null);
   useEffect(() => () => activeSearch.current?.abort(), []);
 
@@ -50,23 +50,35 @@ export function HashLab({ onClose }) {
   function edit(patch) {
     invalidateSearch();
     dispatch({ type: 'edit', patch });
+    if (lesson === 'hash' && typeof patch.message === 'string' && patch.message !== INITIAL_MESSAGE) {
+      try {
+        if (createTrial(patch.message, nonce).hash !== createTrial(INITIAL_MESSAGE, nonce).hash) {
+          onLessonEvent?.({ type: 'hash_changed' });
+        }
+      } catch { /* An invalid nonce is not a completed experiment. */ }
+    }
   }
   function reset() {
     invalidateSearch();
-    dispatch({ type: 'reset' });
+    dispatch({ type: 'reset', difficulty: lesson === 'work' ? 1 : 2 });
+    onLessonEvent?.({ type: 'lesson_reset' });
   }
   async function search() {
     invalidateSearch();
     const controller = new AbortController();
     activeSearch.current = controller;
     dispatch({ type: 'start' });
-    const result = await findNonce({ message, startNonce: parseNonce(nonce), difficulty, signal: controller.signal,
+    const result = await findNonce({ message, startNonce: lesson === 'work' ? 0 : parseNonce(nonce), difficulty, signal: controller.signal,
       onProgress: progress => {
         if (activeSearch.current === controller && !controller.signal.aborted) dispatch({ type: 'progress', ...progress });
       } });
     if (activeSearch.current === controller) {
       activeSearch.current = null;
-      dispatch({ type: 'result', ...result });
+      const accepted = controller.signal.aborted ? { ...result, status: 'stopped' } : result;
+      dispatch({ type: 'result', ...accepted });
+      if (lesson === 'work' && accepted.status === 'found') {
+        onLessonEvent?.({ type: 'work_found', difficulty, attempts: accepted.attempts });
+      }
     }
   }
 
@@ -79,23 +91,24 @@ export function HashLab({ onClose }) {
 
   return <section className="hash-lab" aria-labelledby="hash-lab-title">
     <header className="hash-lab-header">
-      <div><h2 id="hash-lab-title">Small change. New fingerprint.</h2>
-        <p>A hash is repeatable. Finding one that starts with zeros takes trial and error.</p></div>
-      <button className="btn btn-transparent" onClick={() => { invalidateSearch(); onClose(); }}>Back to simulator</button>
+      <div><h2 id="hash-lab-title">{lesson === 'work' ? 'Same input. A stricter target.' : 'Small change. New fingerprint.'}</h2>
+        <p>{lesson === 'work' ? 'Compare two searches, each beginning at nonce 0.' : 'A hash is repeatable. Finding one that starts with zeros takes trial and error.'}</p></div>
+      {lesson === 'hash' && <button className="btn btn-transparent" onClick={reset}>Reset lab</button>}
+      {!lesson && <button className="btn btn-transparent" onClick={() => { invalidateSearch(); onClose(); }}>Back to simulator</button>}
     </header>
 
     <div className="hash-lab-workbench">
       <div className="hash-lab-inputs">
         <label htmlFor="hash-lab-message">Message</label>
-        <textarea id="hash-lab-message" value={message} maxLength={1000} rows={3}
-          onChange={event => edit({ message: event.target.value })} aria-describedby="hash-lab-message-help" />
-        <p id="hash-lab-message-help" className="hash-lab-help">Try changing one character, then changing it back.</p>
-        <label htmlFor="hash-lab-nonce">Nonce <span className="hash-lab-help">a number you can change</span></label>
+        <textarea id="hash-lab-message" value={message} readOnly={lesson === 'work'} maxLength={1000} rows={3}
+          onChange={lesson === 'work' ? undefined : event => edit({ message: event.target.value })} aria-describedby="hash-lab-message-help" />
+        <p id="hash-lab-message-help" className="hash-lab-help">{lesson === 'work' ? 'The message is held fixed so the two searches are comparable.' : 'Try changing one character, then changing it back.'}</p>
+        <label htmlFor="hash-lab-nonce">Nonce <span className="hash-lab-help">{lesson === 'work' ? 'the number the search changes' : 'a number you can change'}</span></label>
         <div className="hash-lab-nonce-row">
-          <input id="hash-lab-nonce" inputMode="numeric" value={nonce} onChange={event => edit({ nonce: event.target.value })}
+          <input id="hash-lab-nonce" inputMode="numeric" value={nonce} readOnly={lesson === 'work'} onChange={lesson === 'work' ? undefined : event => edit({ nonce: event.target.value })}
             aria-invalid={!!error} aria-describedby={error ? 'hash-lab-error' : 'hash-lab-nonce-help'} />
-          <button className="btn btn-default" disabled={!!error || Number(nonce) >= Number.MAX_SAFE_INTEGER}
-            onClick={() => edit({ nonce: String(parseNonce(nonce) + 1) })}>Next nonce</button>
+          {lesson !== 'work' && <button className="btn btn-default" disabled={!!error || Number(nonce) >= Number.MAX_SAFE_INTEGER}
+            onClick={() => edit({ nonce: String(parseNonce(nonce) + 1) })}>Next nonce</button>}
         </div>
         <p id="hash-lab-nonce-help" className="hash-lab-help">Same message + same nonce = same hash.</p>
         {error && <p id="hash-lab-error" className="hash-lab-error" role="alert">{error} The hash below keeps the last valid input.</p>}
@@ -113,10 +126,10 @@ export function HashLab({ onClose }) {
       </div>
     </div>
 
-    <div className="hash-lab-mining">
+    {lesson !== 'hash' && <div className="hash-lab-mining">
       <div><label htmlFor="hash-lab-difficulty">Find a hash starting with</label>
-        <select id="hash-lab-difficulty" value={difficulty} onChange={event => edit({ difficulty: Number(event.target.value) })}>
-          <option value="1">0 — one zero</option><option value="2">00 — two zeros</option><option value="3">000 — three zeros</option>
+        <select id="hash-lab-difficulty" value={difficulty} onChange={event => edit({ difficulty: Number(event.target.value), ...(lesson === 'work' ? { nonce: '0' } : {}) })}>
+          <option value="1">0 — one zero</option><option value="2">00 — two zeros</option>{lesson !== 'work' && <option value="3">000 — three zeros</option>}
         </select>
         <p className="hash-lab-help">Each extra zero makes a match about 16 times less likely per attempt.</p></div>
       <div className="hash-lab-search-actions">
@@ -124,9 +137,9 @@ export function HashLab({ onClose }) {
           : <button className="btn btn-emphasized" disabled={!!error} onClick={search}>Find a nonce</button>}
         <button className="btn btn-transparent" onClick={reset}>Reset lab</button>
       </div>
-    </div>
+    </div>}
     <p className="hash-lab-feedback" role="status">{feedback}</p>
-    <p className="hash-lab-help">Search starts at the displayed nonce and checks up to {SEARCH_LIMIT.toLocaleString()} candidates. Editing an input cancels the search.</p>
+    {lesson !== 'hash' && <p className="hash-lab-help">Search starts at {lesson === 'work' ? 'nonce 0' : 'the displayed nonce'} and checks up to {SEARCH_LIMIT.toLocaleString()} candidates. Editing an input cancels the search.</p>}
 
     <details className="hash-lab-preimage"><summary>What exactly are we hashing?</summary>
       <p>The UTF-8 text below is a JSON object with the message and numeric nonce. Punctuation and spaces inside the message count too.</p>
