@@ -1,6 +1,6 @@
 # proofofwork.fyi
 
-An interactive, browser-only blockchain learning experiment, originally built for CS50 in 2021. Mine blocks, race two miners, send simulated coins, change the difficulty or halving interval, and tamper with a transaction to see integrity checks fail.
+An interactive blockchain learning experiment, originally built for CS50 in 2021. Mine blocks, race two miners, send simulated coins, change the difficulty or halving interval, and tamper with a transaction to see integrity checks fail. Mining runs in your browser; an optional mining pool lets visitors compare verified work on a shared leaderboard.
 
 This is a simplified model, not a Bitcoin wallet or network client. Coins have no monetary value. Keys and decorative demo seed words must never be used for real funds. All simulation state lives in memory; refreshing or resetting starts a new chain.
 
@@ -23,6 +23,16 @@ Choose **Chain lab** to experiment with three linked text blocks. Change Block 1
 
 Choose **Start guided experiments** for a three-step learning path: change a message’s fingerprint, find nonces for one and two leading zeros with the same input, then change Block 1 and repair the linked chain while keeping that edit. Each step unlocks from the actual experiment; navigation cannot mark it complete. Progress survives closing the guide within the current page, and **Restart learning path** clears it. Guide experiments never change simulator blocks or wallets. The two-target comparison explains probability rather than promising a fixed timing or attempt ratio.
 
+## How mining works here
+
+Every hash attempt, in the simulator and in all labs, goes through one search module (`web/src/lib/powSearch.js`). In the browser it runs in a Web Worker, so the page stays responsive while miners race. The constant part of the block header is absorbed into SHA-256 once (the midstate); each attempt only hashes the nonce and the rest. Blocks commit to their transactions through a Merkle transaction root, like Bitcoin's block header: change one transaction and the recomputed root, and with it the block hash, no longer match. Why the work stays in your browser, and when a server is used instead, is recorded in [ADR 0001](docs/adr/0001-proof-of-work-runs-in-the-browser.md); the domain terms are in [CONTEXT.md](CONTEXT.md).
+
+## Mining pool and leaderboard
+
+Choose **Mining pool**, pick a public name and join. The pool server hands out a short-lived, signed challenge; your browser searches for a nonce whose hash meets the pool's target; the server re-hashes every submitted share before it counts. Changed browser code cannot fake work, and a share cannot be reused or credited to another name. Each share earns the expected work of its target (16 to the power of the required zeros); a luckier hash only improves your best hash. Faster hardware counts too: that is proof of work. Only the chosen name and accepted shares are stored; there are no accounts. Blocks of the local simulator never count, because they exist only in one browser. If the server is unavailable, the simulator keeps working.
+
+The server lives in `server/` (Node 24, no runtime dependencies, SQLite). `deploy/lab/` runs it as a self-contained Compose stack with its own Cloudflare tunnel; see `deploy/lab/README.md`.
+
 ## Verify
 
 ```sh
@@ -30,15 +40,16 @@ npm --prefix web run check
 npm --prefix web run deploy:check
 npm --prefix web run test:browser
 npm --prefix web run preview
+npm --prefix server test
 ```
 
-The tests cover invalid transaction values and pending balances, tampering, wallet initialization, concurrent starts, stopped halving attempts, reset, setting changes and demo distribution. `test:browser` needs Google Chrome. It starts and stops a local preview, exercises the complete demo/transfer/tamper/reset flow and checks five viewport widths. Set `BASE_URL` to check an already running site instead; screenshots go to the OS temporary directory (override with `SCREENSHOT_DIR`).
+The tests cover invalid transaction values and pending balances, tampering, the Merkle transaction root, block acceptance, the search module (midstate digests, weighted races, stop and limits), wallet initialization, concurrent starts, stopped halving attempts, reset, setting changes and demo distribution. Browser and server hashing are pinned to the same vectors in `shared/share-vectors.json`. The server tests cover forged, expired, duplicate and tampered shares, rate limits and CORS. `test:browser` needs Google Chrome. It starts and stops a local preview, exercises the complete demo/transfer/tamper/reset flow and checks five viewport widths. Set `BASE_URL` to check an already running site instead; screenshots go to the OS temporary directory (override with `SCREENSHOT_DIR`).
 
 The deployment check builds the public files and runs a Cloudflare dry run; it does not publish anything or establish live-domain acceptance.
 
 ## Hosting on Cloudflare
 
-[Workers Static Assets](https://developers.cloudflare.com/workers/static-assets/) serves only `web/dist`. No database, application server or visitor accounts are needed. Optional analytics uses only a public PostHog project ingestion token. The pinned project Wrangler configuration is in `web/wrangler.jsonc`; use the project scripts rather than a global Wrangler installation. `_headers` supplies a same-origin content policy and basic response headers. The app loads no remote fonts or tracking scripts. Explicit opt-in event requests go only to PostHog EU.
+[Workers Static Assets](https://developers.cloudflare.com/workers/static-assets/) serves only `web/dist`; these are plain files any static host could serve. The simulator needs no database, application server or visitor accounts. The leaderboard API is served separately at `api.proofofwork.fyi` from the lab stack in `deploy/lab/`. Optional analytics uses only a public PostHog project ingestion token. The pinned project Wrangler configuration is in `web/wrangler.jsonc`; use the project scripts rather than a global Wrangler installation. `_headers` supplies a same-origin content policy and basic response headers. The app loads no remote fonts or tracking scripts. Explicit opt-in event requests go only to PostHog EU.
 
 The default environment uses the separate Worker **proofofwork-fyi-preview** and has no custom domain. The explicitly selected `production` environment binds **proofofwork.fyi** to the Worker **proofofwork-fyi** in the configured account.
 
@@ -54,8 +65,11 @@ After publication, verify HTTPS, response headers, asset loading and the Start d
 
 ## Source layout
 
-- `web/src/lib/blockchain.js`: participants, signed transactions, blocks and integrity checks.
-- `web/src/hooks/useBlockchain.js`: simulation state, miner race, cancellation and demo setup.
+- `web/src/lib/blockchain.js`: participants, signed transactions, the Merkle transaction root, block headers, candidate preparation and block acceptance, integrity checks.
+- `web/src/lib/powSearch.js` and `powSearch.worker.js`: the one nonce search (midstate, weighted race, Web Worker adapter).
+- `web/src/hooks/useBlockchain.js`: simulation state, miner race orchestration, cancellation and demo setup.
+- `web/src/components/PoolPanel.jsx` and `web/src/lib/poolApi.js`: the mining pool view.
+- `server/`: the leaderboard server; `deploy/lab/`: its Compose stack; `shared/`: hash vectors used by both sides.
 - `web/src/components/HashLab.jsx` and `web/src/lib/hashLab.js`: the isolated hashing experiment.
 - `web/src/components/`: wallets, chain explorer, controls and detail dialogs.
 - `web/src/__tests__/`: deterministic lifecycle and model regression tests.
