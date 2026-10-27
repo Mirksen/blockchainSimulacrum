@@ -59,7 +59,7 @@ async function main() {
     assets: [], events: [], responses: [], request_failures: [], guard_failures: [] };
   let browser, failure;
   try {
-    const headersSource = await readFile(join(dirname(fileURLToPath(import.meta.url)), '../public/_headers'), 'utf8');
+    const headersSource = await readFile(process.env.RELEASE_HEADERS_FILE || join(dirname(fileURLToPath(import.meta.url)), '../public/_headers'), 'utf8');
     const expectedCsp = headersSource.split('\n').find(line => line.trim().startsWith('Content-Security-Policy:'))?.trim().slice('Content-Security-Policy:'.length).trim();
     assert.ok(expectedCsp, 'Declared CSP is missing');
     let script;
