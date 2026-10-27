@@ -31,3 +31,48 @@ jobs:
       - run: npm run deploy:check
         env:
           WRANGLER_LOG_PATH: /tmp/proofofwork-wrangler.log
+  # A merge to master publishes the site once the checks above pass, then
+  # accepts the live domain with the same browser flow (PostHog mocked, pool
+  # requests refused, so no live data changes).
+  deploy:
+    needs: web
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    concurrency:
+      group: production-web
+      cancel-in-progress: false
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - name: Publish proofofwork.fyi
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          VITE_POSTHOG_PROJECT_TOKEN: ${{ secrets.VITE_POSTHOG_PROJECT_TOKEN }}
+          WRANGLER_LOG_PATH: /tmp/proofofwork-wrangler.log
+        run: |
+          test -n "$CLOUDFLARE_API_TOKEN" || { echo "::error::Repository secret CLOUDFLARE_API_TOKEN is missing (see README, Hosting on Cloudflare)"; exit 1; }
+          test -n "$VITE_POSTHOG_PROJECT_TOKEN" || { echo "::error::Repository secret VITE_POSTHOG_PROJECT_TOKEN is missing (see README, Hosting on Cloudflare)"; exit 1; }
+          npm run deploy:production
+      - name: Wait until the domain serves this build
+        run: |
+          for attempt in $(seq 1 30); do
+            if curl -fsS --max-time 10 https://proofofwork.fyi/ | cmp -s - dist/index.html; then
+              echo "Live index.html matches this build (attempt $attempt)"; exit 0
+            fi
+            sleep 5
+          done
+          echo "::error::https://proofofwork.fyi/ does not serve this build's index.html"; exit 1
+      - run: google-chrome --version
+      - run: node scripts/acceptance.mjs
+        env:
+          BASE_URL: https://proofofwork.fyi
+          EXPECT_POSTHOG: '1'
