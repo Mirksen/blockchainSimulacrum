@@ -16,11 +16,37 @@
 // *Valentic, Mirko  21.06.2021    major security re-conceptiopn
 */
 
-const SHA256 = require("crypto-js/sha256"); // SHA256 algorithm implemanation, also used in Bitcoin
-const { miningTimes } = require("./config");
+const { createHash } = require("node:crypto");
+const SHA256 = (value) => createHash("sha256").update(value).digest("hex");
 const EC = require("elliptic").ec; // importing signature module for transaction sign
 const ec = new EC("secp256k1"); // we pick Elliptic:secp256k1 - it refers to the parameters of the elliptic curve and defines its standard attributes defined in SEC
 const config = require("./config");
+
+// Use integer smallest units for validation, balances and fee accounting.
+const COIN = 100000000;
+function moneyUnits(value, label = "Transaction amount") {
+  const units = Math.round(value * COIN);
+  if (typeof value !== "number" || !Number.isFinite(value) || value < 0 ||
+      !Number.isSafeInteger(units) || units / COIN !== value) {
+    throw new Error(`${label} must be a finite nonnegative number with at most 8 decimals.`);
+  }
+  return units;
+}
+function checkDifficulty(value) {
+  if (!Number.isInteger(value) || value < 0 || value > 64) {
+    throw new Error("Mining difficulty must be an integer between 0 and 64.");
+  }
+}
+function safeSum(a, b) {
+  const result = a + b;
+  if (!Number.isSafeInteger(result)) throw new Error("Money exceeds the safe numeric range.");
+  return result;
+}
+function copyTransaction(tx) {
+  const copy = new Transaction(tx.sender, tx.recipient, tx.amount, tx.transactionFee, tx.referenceNumber);
+  copy.signature = tx.signature;
+  return copy;
+}
 
 // Particpants are the ledger's members possesing a wallet, beeing able to receive,sign & send transactions (a participant can be declared a miner "on top", actively adding transactions to the blockchain)
 class Participant {
@@ -61,13 +87,9 @@ class Transaction {
 
   // we create a unique hash (fingerprint-like identifier) for the specific transaction
   createHash = () => {
-    return SHA256(
-      this.sender +
-        this.recipient +
-        this.amount +
-        this.transactionFee +
-        this.referenceNumber
-    ).toString(); // adding all values and convert them to a string as SHA256 function parameter
+    return SHA256(JSON.stringify([
+      this.sender, this.recipient, this.amount, this.transactionFee, this.referenceNumber,
+    ]));
   };
 
   // the previous hash together with our private key resulting in a unique Signature, proofing the ownership of the wallet to verify transactions in the ledger, otherwise the transaction will be rejected
@@ -85,16 +107,18 @@ class Transaction {
 
   // transaction validity check
   isValid() {
-    if (this.sender === null) {
-      // check if the sender is null for mining reward
-      return true; // refers to the block reward which has no sender and do not need be signatured but is still valid
+    try {
+      const amount = moneyUnits(this.amount);
+      moneyUnits(this.transactionFee, "Transaction fee");
+      if (typeof this.recipient !== "string" || !this.recipient ||
+          typeof this.referenceNumber !== "string") return false;
+      if (this.sender === null) return this.transactionFee === 0;
+      if (amount === 0 || typeof this.sender !== "string" || !this.signature) return false;
+      const publicKey = ec.keyFromPublic(this.sender, "hex");
+      return publicKey.validate().result && publicKey.verify(this.createHash(), this.signature);
+    } catch {
+      return false;
     }
-    if (!this.signature || this.signature.length === 0) {
-      // check if there is a signature or if it is empty
-      throw new Error("No signature in this transaction!");
-    } //  if there is a signature we verify if the transaction has been verified by the private key
-    const publicKey = ec.keyFromPublic(this.sender, "hex"); // importing the public key in hex format
-    return publicKey.verify(this.createHash(), this.signature); // we want to verify if the hash of the Transaction has been verified by that extracted public key
   }
 }
 
@@ -121,6 +145,8 @@ class Block {
 
   // Proof-of-work: to avoid tampering by cheaply recalculating the whole blockchain's hashes and therefore beeing valid again we add another security layer by extending the creation time a lot by this simple condition to match an X-amount of starting Zeros in the hash, until the desired time distances between block creation being matched. Resources in form of computing power and time have to be committed and spent
   searchXZeroHash = (miningDifficulty) => {
+    checkDifficulty(miningDifficulty);
+    this.hash = this.createHash();
     let startTime = Date.now();
     while (
       this.hash.substring(
@@ -162,7 +188,7 @@ class Block {
       console.log(
         `MINING LOG \ndifficulty of - ${config.miningDifficulty} - leading zeros:`
       );
-      for (timeDiff of miningTimes) {
+      for (const timeDiff of config.miningTimes) {
         console.log(`#${counter++} block mining time: ${timeDiff}`);
       }
       console.log(`\nproof-of-work hashes: \n${config.blockHashes.join(`\n`)}`);
@@ -184,7 +210,16 @@ class Block {
 
 // a Blockchain is an array of Blocks with each block pointing to the hash of the previous block
 class Blockchain {
+  #startingBalanceUnits;
+  #initialRewardUnits;
+
   constructor(name, miningDifficulty, blockreward, halvingEvent) {
+    checkDifficulty(miningDifficulty);
+    this.#initialRewardUnits = moneyUnits(blockreward, "Block reward");
+    this.#startingBalanceUnits = moneyUnits(config.startingBalance, "Starting balance");
+    if (!Number.isSafeInteger(halvingEvent) || halvingEvent <= 0) {
+      throw new Error("Halving interval must be a positive safe integer.");
+    }
     this.name = name; // blockchain identifier to be chosen freely
     this.participants = []; // participants can be wallet owners or miners
     this.blockArray = [this.createFirstBlock()]; // array of blocks starting with the Genesis Block to have a starting anchor (main difference it has no "previous block hash value")
@@ -201,14 +236,17 @@ class Blockchain {
   }
   // create new participants handed over by an array parameter
   set members(names) {
-    this.participants.members = [...names];
-    for (let i in this.participants) {
-      this.participants[i] = new Participant(this.participants[i]);
-      // console.log(
-      //   ` participant joined: ${this.participants[i].name}\nprivate key: ${this.participants[i].privateKey}\npublickey: ${this.participants[i].publicKey}`
-      // );
+    if (!Array.isArray(names) || this.participants.length !== 0) {
+      throw new Error("Initialize participants once; use addParticipants to add more.");
     }
+    this.addParticipants(...names);
   }
+
+  participant = (name) => {
+    const participant = this.participants.find((entry) => entry.name === name);
+    if (!participant) throw new Error(`Unknown participant: ${name}`);
+    return participant;
+  };
 
   //  The first block of a blockchain is also called the "Genesis Block" and has to be created artifially (Not getting calculated by mining)
   createFirstBlock = () => {
@@ -217,28 +255,27 @@ class Blockchain {
 
   // declaring all ledger participants and print the members
   addParticipants = (...names) => {
+    const known = new Set(this.participants.map((entry) => entry.name));
+    for (const name of names) {
+      if (typeof name !== "string" || !name.trim() || known.has(name)) {
+        throw new Error("Participant names must be nonempty and unique.");
+      }
+      known.add(name);
+    }
+    const additions = names.map((name) => new Participant(name));
+    this.participants.push(...additions);
     console.log(`\n-=NEW BLOCKCHAIN: ${this.name}-=-`);
-    this.participants.push(...names);
-    for (let i in this.participants) {
-      this.participants[i] = new Participant(this.participants[i]);
-      console.log(
-        `     participant joined: ${this.participants[i].name}\n          private key: ${this.participants[i].privateKey}\n          publickey: ${this.participants[i].publicKey}`
-      );
+    for (const participant of additions) {
+      console.log(`     participant joined: ${participant.name}\n          publickey: ${participant.publicKey}`);
     }
   };
 
-  // declare a participant or multiple participants as miners which intends to add blocks the blockchain
-  setMiner = (name) => {
-    this.participants[
-      this.participants.findIndex((x) => x.name === name)
-    ].activeMiner = true;
-    console.log(
-      `        Miner declared: ${
-        this.participants[
-          this.participants.findIndex((x) => x.activeMiner === true)
-        ].name
-      }`
-    );
+  setMiner = (...names) => {
+    const miners = names.map((name) => this.participant(name));
+    for (const miner of miners) {
+      miner.activeMiner = true;
+      console.log(`        Miner declared: ${miner.name}`);
+    }
   };
 
   // function to reaveal the full ledger in JSON-format
@@ -249,30 +286,16 @@ class Blockchain {
 
   // user balance: you do not really have stored a concrete balance on your account or a single block but everytime you want to see your balance you have to scan the whole blockchain(=ledger)
   calculateBalance = (myPublicKey) => {
-    let balance = config.startingBalance; // for POC purposes we set a start balance - in real world scenarions BTC exculusively getting generated by mining - existing BTC can be purchased via cash afterwards
+    let balance = this.#startingBalanceUnits;
     for (const block of this.blockArray) {
       for (const tx of block.transactions) {
         if (tx.sender === myPublicKey) {
-          // logic: if your wallet is identified as sender while checking all transactions and thus "giving away" balance, it will be reduced by this amount
-          balance -= tx.amount; // subtracting your sent assets from your balance
+          balance = safeSum(balance, -safeSum(moneyUnits(tx.amount), moneyUnits(tx.transactionFee)));
         }
-        if (tx.sender === myPublicKey) {
-          // logic: if your wallet is identified as recipient and thus "receiving" balance, it will be increased by this amount
-          balance -= tx.transactionFee; // adding your received funds to your balance
-        }
-        if (tx.recipient === myPublicKey) {
-          // logic: if your wallet is identified as recipient and thus "receiving" balance, it will be increased by this amount
-          balance += tx.amount; // adding your received funds to your balance
-        }
+        if (tx.recipient === myPublicKey) balance = safeSum(balance, moneyUnits(tx.amount));
       }
     }
-
-    // formatting function
-    function roundXdec(number, decimals) {
-      return +(Math.round(number + "e+" + decimals) + "e-" + decimals);
-    }
-
-    return roundXdec(balance, 8); // return actual cumulated balance after scanning all transactions of all blocks and subtracting/adding all relevant values
+    return balance / COIN;
   };
 
   // checking the full ledger to get all participants most recent balance
@@ -302,24 +325,19 @@ class Blockchain {
     transactionFee,
     referenceNumber
   ) => {
-    this.transactionCounter++;
+    const signer = this.participant(signaturer);
+    const from = this.participant(sender);
+    const to = this.participant(recipient);
     const tx = new Transaction(
-      this.participants[
-        this.participants.findIndex((x) => x.name === sender)
-      ].publicKey,
-      this.participants[
-        this.participants.findIndex((x) => x.name === recipient)
-      ].publicKey,
+      from.publicKey,
+      to.publicKey,
       amount,
       transactionFee,
       referenceNumber
     );
-    tx.sign(
-      this.participants[
-        this.participants.findIndex((x) => x.name === signaturer)
-      ].keyPair
-    );
+    tx.sign(signer.keyPair);
     this.appendTx(tx);
+    this.transactionCounter++;
     console.log(
       `NEW TRANSACTION #${
         this.transactionCounter
@@ -336,91 +354,108 @@ class Blockchain {
 
   // receive the new transaction and add it to the memPool array
   appendTx = (transaction) => {
-    if (!transaction.sender || !transaction.recipient) {
-      // check if sender or recipient are filled or missing and throws error otherwise to avoid transmissions to nowhere
-      throw new Error("Transaction must include sender and recipient!");
+    const tx = copyTransaction(transaction);
+    this.validateTransfer(tx);
+    const hash = tx.createHash();
+    if (this.memPool.some((pending) => pending.createHash() === hash) ||
+        this.blockArray.some((block) => block.transactions.some((old) => old.sender !== null && old.createHash() === hash))) {
+      throw new Error("Duplicate transaction.");
     }
-    if (!transaction.isValid()) {
-      // gate for the additional security check, otherwise reject
-      throw new Error("Transaction is not valid, check your signature.");
+    const reserved = this.memPool.filter((pending) => pending.sender === tx.sender)
+      .reduce((sum, pending) => safeSum(sum, safeSum(moneyUnits(pending.amount), moneyUnits(pending.transactionFee))), 0);
+    const spend = safeSum(moneyUnits(tx.amount), moneyUnits(tx.transactionFee));
+    if (moneyUnits(this.calculateBalance(tx.sender)) - reserved < spend) {
+      throw new Error("Insufficient funds including fees and pending transactions.");
     }
-    if (transaction.amount <= 0) {
-      // handling negative values
-      throw new Error("Transaction amount is not valid.");
+    this.memPool.push(tx);
+  };
+
+  validateTransfer = (tx) => {
+    if (tx.sender === null || !tx.isValid() ||
+        !this.participants.some((p) => p.publicKey === tx.sender) ||
+        !this.participants.some((p) => p.publicKey === tx.recipient)) {
+      throw new Error("Transaction is not valid; check participants, amount, fee and signature.");
     }
-    if (this.calculateBalance(transaction.sender) < transaction.amount) {
-      // handling spending amounts you do not have
-      throw new Error("Insufficient funds.");
+  };
+
+  subsidyUnits = (height) => Math.floor(this.#initialRewardUnits / 2 ** Math.floor(height / this.halvingEvent));
+
+  // Replay transfers in order and validate each block's sole coinbase against its subsidy and fees.
+  replayTransactions = () => {
+    const balances = new Map(this.participants.map((p) => [p.publicKey, this.#startingBalanceUnits]));
+    const seen = new Set();
+    if (!Array.isArray(this.blockArray[0]?.transactions) || this.blockArray[0].transactions.length !== 0) {
+      throw new Error("Invalid genesis transactions.");
     }
-    this.memPool.push(transaction);
+    for (let height = 1; height < this.blockArray.length; height++) {
+      const transactions = this.blockArray[height].transactions;
+      if (!Array.isArray(transactions) || transactions.length === 0) throw new Error("Missing mining reward.");
+      let fees = 0;
+      for (const tx of transactions.slice(0, -1)) {
+        this.validateTransfer(tx);
+        const hash = tx.createHash();
+        if (seen.has(hash)) throw new Error("Duplicate transaction.");
+        seen.add(hash);
+        const fee = moneyUnits(tx.transactionFee);
+        const spend = safeSum(moneyUnits(tx.amount), fee);
+        if (balances.get(tx.sender) < spend) throw new Error("Insufficient funds.");
+        balances.set(tx.sender, balances.get(tx.sender) - spend);
+        balances.set(tx.recipient, safeSum(balances.get(tx.recipient), moneyUnits(tx.amount)));
+        fees = safeSum(fees, fee);
+      }
+      const reward = transactions.at(-1);
+      if (!reward || reward.sender !== null || !reward.isValid() || !balances.has(reward.recipient) ||
+          moneyUnits(reward.amount) !== safeSum(this.subsidyUnits(height), fees)) {
+        throw new Error("Invalid mining reward.");
+      }
+      balances.set(reward.recipient, safeSum(balances.get(reward.recipient), moneyUnits(reward.amount)));
+    }
+    return { balances, seen };
   };
 
   // mining function including status printing: creating a new candidate block including the validated transactions from the mempool and start the mining process for the X-Zero-Hash
   miningProcess = (miningRewardAddress) => {
-    this.blockArray.length == 1
-      ? console.log(` Genesis Block: ${this.blockArray[0].hash}`)
-      : null;
-    const block = new Block(
-      Date().toLocaleString(),
-      this.memPool,
-      this.blockArray[this.blockArray.length - 1].hash
-    ); // in real scenario there can be more transactions than a block can cover (arround 2.400 transactions) due to its limited size of 1 Megabyte (4Mb with Segwit) - therefore miners pick their transactions according to the transaction fees amount and prioritize them this way
+    checkDifficulty(this.miningDifficulty);
+    if (!this.participants.some((p) => p.publicKey === miningRewardAddress && p.activeMiner)) {
+      throw new Error("A declared miner participant is required.");
+    }
+    if (!this.areBlocksValid()) throw new Error("Cannot mine on an invalid blockchain.");
+    const { balances, seen } = this.replayTransactions();
+    const pending = this.memPool.map(copyTransaction);
+    let fees = 0;
+    for (const tx of pending) {
+      this.validateTransfer(tx);
+      const hash = tx.createHash();
+      if (seen.has(hash)) throw new Error("Duplicate transaction.");
+      seen.add(hash);
+      const fee = moneyUnits(tx.transactionFee);
+      const spend = safeSum(moneyUnits(tx.amount), fee);
+      if (balances.get(tx.sender) < spend) throw new Error("Insufficient funds.");
+      balances.set(tx.sender, balances.get(tx.sender) - spend);
+      balances.set(tx.recipient, safeSum(balances.get(tx.recipient), moneyUnits(tx.amount)));
+      fees = safeSum(fees, fee);
+    }
+    const subsidy = this.subsidyUnits(this.blockArray.length);
+    const totalReward = safeSum(subsidy, fees);
+    safeSum(balances.get(miningRewardAddress), totalReward);
+    const reward = new Transaction(null, miningRewardAddress, totalReward / COIN, 0, "Mining Compensation");
+    const block = new Block(new Date().toISOString(), [...pending, reward], this.blockArray.at(-1).hash);
     console.log(` initializing #${this.blockArray.length} Block:`);
-    console.log(`   ...appending the hash of the previous block`);
-    console.log(
-      `   ...appending all pending transactions: ${this.memPool.map(
-        (x) => x.referenceNumber
-      )} `
-    );
-    const reducer = (x, y) => x + y;
-    let transactionFees = this.memPool
-      .map((x) => x.transactionFee)
-      .reduce(reducer);
-
-    const totalMinerReward = () => {
-      // in Bitcoin this is the "coinbase transaction"
-      return this.blockArray.length % this.halvingEvent == 0
-        ? (this.blockReward /= 2) + transactionFees // including halving event every nth block via modulo
-        : this.blockReward + transactionFees; // adding the transaction fees
-    };
-
-    console.log(`   ...checking estimated block reward: ${this.blockReward}`);
-    console.log(
-      `   ...calculating estimated transaction fees: ${transactionFees.toFixed(
-        8
-      )}`
-    );
-    const rewardTx = new Transaction(
-      null,
-      miningRewardAddress,
-      totalMinerReward(),
-      0,
-      "Mining Compensation"
-    ); // adding mining award transactions (coinbase): they are not signed but still valid!
-    this.memPool.push(rewardTx); // push the blockreward to the current block's transactions
-    console.log(`   ...appending nonce: ${block.nonce}`);
-    console.log(
-      `   ...counting up nonces until a block hash matching the difficulty of min. ${this.miningDifficulty} leading zeros has been found`
-    );
-    block.searchXZeroHash(this.miningDifficulty); // finding the x-zero hash
-    this.blockArray.push(block); // append the new block to the blockchain
-    this.memPool = []; // clear the mempool
+    console.log(`   ...appending all pending transactions: ${pending.map((tx) => tx.referenceNumber)}`);
+    console.log(`   ...block subsidy: ${subsidy / COIN}; transaction fees: ${(fees / COIN).toFixed(8)}`);
+    console.log(`   ...searching for ${this.miningDifficulty} leading zeros`);
+    block.searchXZeroHash(this.miningDifficulty);
+    this.blockArray.push(block);
+    this.blockReward = subsidy / COIN;
+    this.memPool = [];
   };
 
   // function to trigger the mining process which grabs all transactions, finds the correct hash and appends it to the blockchain
   mineNextBlock = () => {
-    console.log(
-      `MINING\nMiner-${
-        this.participants[
-          this.participants.findIndex((x) => x.activeMiner === true)
-        ].name
-      } is starting a mining process ...`
-    );
-    this.miningProcess(
-      this.participants[
-        this.participants.findIndex((x) => x.activeMiner === true)
-      ].publicKey
-    ); //  refers to the public key!
+    const miner = this.participants.find((participant) => participant.activeMiner);
+    if (!miner) throw new Error("A declared miner participant is required.");
+    console.log(`MINING\nMiner-${miner.name} is starting a mining process ...`);
+    this.miningProcess(miner.publicKey);
     console.log(
       `\n***...Broadcasting the newest ${this.name} block to the network***`
     );
@@ -448,42 +483,34 @@ class Blockchain {
 
   // reveal the full transaction history of a single participant
   checkWallet = (name) => {
-    console.log(
-      `\n${name} transaction history: ${this.showTxHistory(
-        this.participants[
-          this.participants.findIndex((x) => x.name === "Mirksen")
-        ].publicKey
-      )}`
-    );
+    console.log(`\n${name} transaction history: ${this.showTxHistory(this.participant(name).publicKey)}`);
   };
 
   // validity check for blocks
   areBlocksValid = () => {
-    const genesis = JSON.stringify(this.createFirstBlock());
-    if (genesis !== JSON.stringify(this.blockArray[0])) {
-      // check if genesis has been tampered with
+    try {
+      checkDifficulty(this.miningDifficulty);
+      if (JSON.stringify(this.createFirstBlock()) !== JSON.stringify(this.blockArray[0])) return false;
+      for (let height = 1; height < this.blockArray.length; height++) {
+        const block = this.blockArray[height];
+        if (!block.isValid() || block.previousHash !== this.blockArray[height - 1].hash ||
+            !Number.isSafeInteger(block.nonce) || block.nonce < 0 ||
+            !block.hash.startsWith("0".repeat(this.miningDifficulty))) return false;
+      }
+      return true;
+    } catch {
       return false;
     }
-    for (let block of this.blockArray) {
-      if (!block.isValid()) {
-        console.log(`manipulated block in chain detected`);
-        return false;
-      }
-    }
-    return true;
   };
 
-  // validity check for transaction objects
   areTxValid = () => {
-    for (let block of this.blockArray) {
-      for (let tx of block.transactions) {
-        if (!tx.isValid()) {
-          console.log("Transaction validation failed");
-          return false;
-        }
-      }
+    try {
+      this.replayTransactions();
+      return true;
+    } catch {
+      return false;
     }
-    return true;
   };
+
 }
 module.exports.Blockchain = Blockchain; //export to be consumed in main
