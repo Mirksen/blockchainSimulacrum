@@ -1,12 +1,13 @@
-import { useEffect, useRef } from 'react';
+import { useLayoutEffect, useRef } from 'react';
 
 // Native dialogs provide focus containment/restoration and nested-modal Escape
 // handling without manually overriding the browser's keyboard behavior.
 export function Modal({ children, onClose, label }) {
     const ref = useRef(null);
-    useEffect(() => {
+    useLayoutEffect(() => {
         const dialog = ref.current;
         dialog.showModal();
+        // Close before React detaches the dialog so the browser restores opener focus.
         return () => dialog.close();
     }, []);
     return <dialog ref={ref} className="modal-overlay" aria-label={label}

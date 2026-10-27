@@ -67,6 +67,7 @@ export async function verifyHashLab(page, output) {
   assert.equal(await hashName(lab), `SHA-256 hash: ${initialHash}`);
   await lab.getByRole('button', { name: 'Back to simulator' }).click();
   await lab.waitFor({ state: 'hidden' });
+  assert.equal(await entry.evaluate(element => document.activeElement === element), true);
   return ['Hash lab fingerprints and exact search result verified', 'Lab keyboard Stop/Escape and focus restoration verified',
     'Lab fits five widths with long input; closing preserves chain and wallet state'];
 }

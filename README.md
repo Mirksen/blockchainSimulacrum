@@ -17,6 +17,8 @@ Choose **Start demo** to mine the initial coins and distribute them. Create a tr
 
 Open **Experiment settings** to change difficulty, the coin's display name, target block time or the halving interval. Changes affect future blocks. Difficulty adapts every ten mined blocks. Difficulty is measured in leading hexadecimal zeros, so each additional zero makes a successful hash about sixteen times less likely.
 
+Choose **Hash lab** in the header to edit a message and nonce, compare fingerprints, and search for a hash with one to three leading zeros. Search checks at most 50,000 candidates per run and can be stopped; editing an input cancels it. The lab uses independent temporary state and never changes the chain or wallets. **Back to simulator** or Escape closes it; reopening starts a fresh lab.
+
 ## Verify
 
 ```sh
@@ -50,6 +52,7 @@ After publication, verify HTTPS, response headers, asset loading and the Start d
 
 - `web/src/lib/blockchain.js`: participants, signed transactions, blocks and integrity checks.
 - `web/src/hooks/useBlockchain.js`: simulation state, miner race, cancellation and demo setup.
+- `web/src/components/HashLab.jsx` and `web/src/lib/hashLab.js`: the isolated hashing experiment.
 - `web/src/components/`: wallets, chain explorer, controls and detail dialogs.
 - `web/src/__tests__/`: deterministic lifecycle and model regression tests.
 - Root `main.js`, `blockchain.js`, `config.js`: historical terminal implementation.
