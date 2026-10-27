@@ -37,8 +37,23 @@ Target picture · round 1 (Mirko, 2026-10-27):
 - **Block hashes** in tiles show the first 6 and last 2 characters
   (`0080a3…4d`). Hover or focus shows the full hash with a Copy action.
 
-Open in round 2: where the race lives, how a mission starts and guides, and
-how density stays calm.
+Target picture · round 2 (Mirko, 2026-10-27):
+
+- **Layout: bento.** Under the block band a bento grid shows everything
+  important at 1440 × 900 without scrolling (round 2, variant 5).
+- **Missions: a collapsible rail on the left** (round 2, variant 4). The
+  active mission is expanded with its steps; the current step marks the
+  part of the workbench it needs with a coach ring. Collapsed, the rail
+  keeps mission state visible as icons. No separate mission tile.
+- **Race: in the block band** (round 2, variant 2). The "Next block" area
+  becomes the live race while a block is mined.
+- **Invalid states** (round 2, variant 8): the changed block shows "Hash
+  mismatch" in red with text; its descendants show "Built on a broken
+  block" in amber and never claim their own links changed; the chain pill
+  says "Chain invalid"; mining pauses while the chain is invalid.
+
+Open in round 3: whether the race lives in the band also while idle, the
+light theme, and 390 px.
 
 ## Findings: current product (2026-10-27, commit 284c54e)
 
