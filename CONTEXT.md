@@ -18,6 +18,19 @@ Terms used in code, tests and docs of proofofwork.fyi. Decisions that shape them
   `rejected` means the proof is wrong.
 - **Transaction root** — Merkle root over the transaction hashes; the header commits to it, so a
   changed transaction breaks the block hash.
+- **Block status** — `chain.inspectBlocks()` per block: `hash-mismatch` (its content no longer
+  produces the stored hash, or the stored hash misses its target), `link-broken` (its stored previous
+  hash differs from the predecessor's stored hash), `built-on-broken` (own hash and link fine, but an
+  earlier block is broken), otherwise `valid`.
+- **Edit** — a tampered transaction amount. `tamperTransaction` remembers the original once;
+  `undoTamper(block)` restores the originals of that block.
+- **Re-mine** — find a new nonce for a historical block at the current target after re-linking it
+  to its predecessor's stored hash; its transactions stay as they are. Allowed only when every
+  earlier block is `valid`, so a chain is repaired from the oldest broken block forward.
+- **Epoch** — the number of halvings applied up to a block (`chain.epochAt(height)`).
+- **Wallet (created)** — a non-miner participant the learner adds with `chain.addWallet(name)`;
+  2–16 letters or digits, unique regardless of letter case.
+- **Backing** — the learner's pick of a miner before a race; the result reports `backedWon`.
 
 ## Search
 
