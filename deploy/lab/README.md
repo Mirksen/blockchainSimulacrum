@@ -36,6 +36,23 @@ committed). Host rules for the CAX21 lab zone `172.28.0.0/16`: hausbot-bob
 4. Start it: `docker compose up -d` in `/opt/lab/<app>/`. The tunnel reconnects with the same
    token, so DNS does not change.
 
+## Moderating pool names (`lab-proofofwork`)
+
+The server refuses names that contain a blocked term or equal a reserved name (term files in
+`server/data/`; matching folds case, accents, leetspeak, hyphens and repeated letters). For a
+name that slips through, hide it in `/opt/lab/proofofwork/`:
+
+```sh
+docker compose exec app node src/admin.js hide <name>     # off the leaderboard, no new targets or shares
+docker compose exec app node src/admin.js unhide <name>   # show it again
+docker compose exec app node src/admin.js list-hidden     # one line per hidden name
+```
+
+Hiding stores the folded name, so every spelling that folds to it is hidden too. Shares stay in the
+database; nothing is deleted. Editing a term file in `server/` takes effect after
+`docker compose restart app`; an empty blocked or reserved list stops the server at startup (the
+allow list may be empty).
+
 ## Stacks
 
 | Stack | Directory | Subnet |

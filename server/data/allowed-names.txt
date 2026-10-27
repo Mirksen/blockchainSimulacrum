@@ -1,0 +1,21 @@
+# Allowed pool names: tolerated false positives of blocked-names.txt and reserved-names.txt.
+# A name whose folded form equals an entry here is accepted even though it contains a blocked term.
+# Every entry needs a reason as a comment on the same line, for example:
+#   example-name  # ordinary first name; contains a blocked term by accident
+# Add a name here only after checking that it is harmless; never weaken the folding instead.
+# This list may be empty. One name per line; text after # is a comment.
+# Entries below came from the false-positive sample of ordinary names (2026-10-27).
+scunthorpe   # English town; contains a blocked term by accident
+dickens      # surname (author Charles Dickens)
+cockburn     # common Scottish surname
+hancock      # common surname
+glasscock    # surname
+babcock      # surname
+hitchcock    # surname (film director)
+peacock      # bird and surname
+cocktail     # ordinary word (drink)
+wankel       # surname (Wankel engine)
+analyst      # ordinary word (job title)
+therapist    # ordinary word (job title)
+shiitake     # mushroom; folds like its common misspelling with one i
+skyscraper   # ordinary word (building)

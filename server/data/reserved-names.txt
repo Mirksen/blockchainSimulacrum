@@ -1,0 +1,20 @@
+# Reserved pool names: refused when a name folds to exactly one of these (see server/src/names.js).
+# They would let a visitor pose as the site, its operators or well-known figures.
+# One name per line; text after # is a comment.
+admin
+administrator
+moderator
+mod
+root
+system
+official
+support
+staff
+proofofwork
+proofofworkfyi
+satoshi
+nakamoto
+bitcoin
+anonymous
+null
+undefined

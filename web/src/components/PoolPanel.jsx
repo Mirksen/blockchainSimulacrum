@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { getChallenge, getLeaderboard, isValidPoolName, submitShare } from '../lib/poolApi';
+import { getChallenge, getLeaderboard, isValidPoolName, NAME_UNAVAILABLE_MESSAGE, submitShare } from '../lib/poolApi';
 import { runSearch } from '../lib/powSearch';
 import './PoolPanel.css';
 
@@ -42,11 +42,14 @@ export function PoolPanel({ onClose }) {
   const [phase, setPhase] = useState('idle');
   const [target, setTarget] = useState(null);
   const [errorMessage, setErrorMessage] = useState('');
+  // The last name the server refused; its message stays until the name changes.
+  const [refusedName, setRefusedName] = useState('');
   const [stats, setStats] = useState(emptyStats);
   const [board, setBoard] = useState({ state: 'loading', rows: [] });
   const run = useRef(null);
   const nameValid = isValidPoolName(name);
   const showNameError = !nameValid && (triedJoin || name !== '');
+  const nameRefused = nameValid && refusedName !== '' && name === refusedName;
   const joined = phase === 'connecting' || phase === 'searching' || phase === 'submitting';
 
   function markUnavailable() {
@@ -132,7 +135,7 @@ export function PoolPanel({ onClose }) {
 
   function join() {
     setTriedJoin(true);
-    if (!nameValid || joined) return;
+    if (!nameValid || nameRefused || joined) return;
     storeName(name);
     run.current?.abort();
     const controller = new AbortController();
@@ -140,6 +143,13 @@ export function PoolPanel({ onClose }) {
     setErrorMessage('');
     mine(name, controller).catch(error => {
       if (run.current !== controller || isAbort(error)) return;
+      if (error?.code === 'name-unavailable') {
+        // The server decides; show its answer next to the name and stop without retrying.
+        run.current = null;
+        setRefusedName(name);
+        setPhase('idle');
+        return;
+      }
       if (isUnavailable(error)) return markUnavailable();
       run.current = null;
       setErrorMessage(error.message);
@@ -180,9 +190,10 @@ export function PoolPanel({ onClose }) {
         <label htmlFor="pool-panel-name">Name on the leaderboard</label>
         <input id="pool-panel-name" value={name} maxLength={20} autoComplete="nickname" spellCheck={false} disabled={joined}
           onChange={event => setName(event.target.value)} onKeyDown={event => { if (event.key === 'Enter') join(); }}
-          aria-invalid={showNameError} aria-describedby={showNameError ? 'pool-panel-name-error' : 'pool-panel-name-help'} />
-        {showNameError
-          ? <p id="pool-panel-name-error" className="pool-panel-error" role="alert">{NAME_HINT}</p>
+          aria-invalid={showNameError || nameRefused}
+          aria-describedby={showNameError || nameRefused ? 'pool-panel-name-error' : 'pool-panel-name-help'} />
+        {showNameError || nameRefused
+          ? <p id="pool-panel-name-error" className="pool-panel-error" role="alert">{nameRefused ? NAME_UNAVAILABLE_MESSAGE : NAME_HINT}</p>
           : <p id="pool-panel-name-help" className="pool-panel-help">{NAME_HINT} Shown publicly.</p>}
       </div>
       {joined ? <button className="btn btn-negative" onClick={stop}>Stop</button>

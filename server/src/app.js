@@ -1,6 +1,7 @@
 import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import { readFile, realpath, stat } from 'node:fs/promises';
 import path from 'node:path';
+import { NAME_RE, checkName, createHiddenNames, foldName, loadNameLists, prepareNameLists } from './names.js';
 
 export const CHALLENGE_ZEROS = 4;
 export const MIN_SHARE_ZEROS = 1;
@@ -11,7 +12,6 @@ export const LEADERBOARD_SIZE = 20;
 export const RATE_LIMITS = Object.freeze({ challenge: 30, share: 120 });
 const RATE_WINDOW_MS = 60 * 1000;
 
-const NAME_RE = /^[A-Za-z0-9-]{3,20}$/;
 const ID_RE = /^[0-9a-f]{32}$/;
 const SIG_RE = /^[0-9a-f]{64}$/;
 
@@ -161,6 +161,8 @@ export function createApp({
   staticDir,
   log,
   shareZeros = CHALLENGE_ZEROS,
+  // Folded blocked/reserved/allowed name lists; defaults to the term files in server/data/.
+  nameLists,
 } = {}) {
   if (!db) throw new Error('createApp: db is required');
   if (typeof secret !== 'string' || secret.length === 0) throw new Error('createApp: secret is required');
@@ -170,6 +172,7 @@ export function createApp({
   const origins = new Set(allowedOrigins);
   const takeToken = createRateLimiter(now);
   const staticRoot = staticDir ? path.resolve(staticDir) : null;
+  const names = nameLists ? prepareNameLists(nameLists) : loadNameLists();
 
   db.exec(`
     CREATE TABLE IF NOT EXISTS shares (
@@ -184,6 +187,9 @@ export function createApp({
     );
     CREATE INDEX IF NOT EXISTS shares_name ON shares (name);
   `);
+  const hiddenNames = createHiddenNames(db);
+  // Lets the leaderboard compare stored names with hidden_names.folded in SQL.
+  db.function('fold_name', { deterministic: true }, (name) => foldName(name));
   const insertShare = db.prepare(
     `INSERT INTO shares (challenge_id, nonce, name, hash, zeros, points, created_at)
      VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -203,6 +209,7 @@ export function createApp({
     SELECT t.name AS name, t.points AS points, t.shares AS shares, b.hash AS bestHash, b.zeros AS bestZeros
     FROM totals t
     JOIN best b ON b.name = t.name AND b.rn = 1
+    WHERE NOT EXISTS (SELECT 1 FROM hidden_names h WHERE h.folded = fold_name(t.name))
     ORDER BY t.points DESC, t.first_at ASC, t.name ASC
     LIMIT ${LEADERBOARD_SIZE}
   `);
@@ -231,7 +238,9 @@ export function createApp({
   function handleChallenge(url, req, res) {
     if (!takeToken('challenge', clientKeyOf(req))) throw new HttpError(429, 'rate limited');
     const name = url.searchParams.get('name');
-    if (typeof name !== 'string' || !NAME_RE.test(name)) throw new HttpError(400, 'invalid name');
+    const verdict = checkName(name, names);
+    if (!verdict.ok && verdict.reason === 'format') throw new HttpError(400, 'invalid name');
+    if (!verdict.ok || hiddenNames.isHidden(name)) throw new HttpError(400, 'name unavailable');
     const id = randomBytes(16).toString('hex');
     const zeros = shareZeros;
     const expiresAt = now() + CHALLENGE_TTL_MS;
@@ -249,6 +258,8 @@ export function createApp({
     if (given.length !== expected.length || !timingSafeEqual(given, expected)) {
       throw new HttpError(403, 'bad signature');
     }
+    // A challenge issued before the operator hid its name earns nothing more.
+    if (hiddenNames.isHidden(challenge.name)) throw new HttpError(403, 'name unavailable');
     if (now() > challenge.expiresAt) throw new HttpError(410, 'challenge expired');
 
     // Re-verify the work: never trust a client-supplied hash.

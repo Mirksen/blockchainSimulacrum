@@ -23,8 +23,21 @@ function poolError(status, message, code) {
   return Object.assign(new Error(message), { status, ...(code ? { code } : {}) });
 }
 
+export const NAME_UNAVAILABLE_MESSAGE = 'This name is not available. Please choose another.';
+
 const messageFor = status => MESSAGES[status] ||
   (status >= 500 ? 'The leaderboard server is unavailable right now.' : 'The pool answered with an unexpected error.');
+
+// The server decides which names are available; a refused name gets its own code
+// so the panel can point at the name field instead of retrying.
+async function failureFor(response) {
+  if (response.status === 400) {
+    let body = null;
+    try { body = await response.json(); } catch { /* No readable body: a plain 400. */ }
+    if (body?.error === 'name unavailable') return poolError(400, NAME_UNAVAILABLE_MESSAGE, 'name-unavailable');
+  }
+  return poolError(response.status, messageFor(response.status));
+}
 
 async function request(path, { method = 'GET', body, signal } = {}) {
   if (signal?.aborted) throw new DOMException('The request was cancelled.', 'AbortError');
@@ -52,7 +65,7 @@ async function request(path, { method = 'GET', body, signal } = {}) {
     } catch {
       throw failure('The leaderboard server could not be reached.', 'network');
     }
-    if (!response.ok) throw poolError(response.status, messageFor(response.status));
+    if (!response.ok) throw await failureFor(response);
     try {
       return await response.json();
     } catch {

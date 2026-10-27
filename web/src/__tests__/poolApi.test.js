@@ -51,6 +51,32 @@ describe('pool API client', () => {
     expect(error.message).not.toContain('synthetic failure');
   });
 
+  it('turns a 400 "name unavailable" answer into a name-unavailable error', async () => {
+    fetchMock.mockResolvedValue(answer({ error: 'name unavailable' }, 400));
+    const error = await getChallenge('test-miner').catch(caught => caught);
+    expect(error).toBeInstanceOf(Error);
+    expect(error.status).toBe(400);
+    expect(error.code).toBe('name-unavailable');
+    expect(error.message).toBe('This name is not available. Please choose another.');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps other 400 and 403 answers generic, even with an unreadable body', async () => {
+    fetchMock.mockResolvedValue(answer({ error: 'invalid name' }, 400));
+    const invalid = await getChallenge('test-miner').catch(caught => caught);
+    expect(invalid.code).toBeUndefined();
+    expect(invalid.message).toBe('The pool did not accept this request.');
+    fetchMock.mockResolvedValue({ ok: false, status: 400, json: async () => { throw new SyntaxError('synthetic'); } });
+    const unreadable = await getChallenge('test-miner').catch(caught => caught);
+    expect(unreadable.status).toBe(400);
+    expect(unreadable.code).toBeUndefined();
+    fetchMock.mockResolvedValue(answer({ error: 'name unavailable' }, 403));
+    const hidden = await submitShare(challenge, 1).catch(caught => caught);
+    expect(hidden.status).toBe(403);
+    expect(hidden.code).toBeUndefined();
+    expect(hidden.message).toBe('The pool did not recognise this target.');
+  });
+
   it('times out after ten seconds with a status 0 error', async () => {
     vi.useFakeTimers();
     let signal;
