@@ -1,4 +1,5 @@
 import { verifyHashLab } from './hash-lab.acceptance.mjs';
+import { verifyChainLab } from './chain-lab.acceptance.mjs';
 import { chromium } from 'playwright';
 import { spawn } from 'node:child_process';
 import { mkdir } from 'node:fs/promises';
@@ -157,6 +158,7 @@ try {
   assert.ok(layout.scroll<=layout.width,JSON.stringify(layout));
  }
  results.push(...await verifyHashLab(page, output));
+ results.push(...await verifyChainLab(page, output));
  assert.deepEqual(errors,[]);
  results.push('No page errors or horizontal overflow at five widths');
  await page.close();

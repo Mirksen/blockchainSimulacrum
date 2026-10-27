@@ -19,6 +19,8 @@ Open **Experiment settings** to change difficulty, the coin's display name, targ
 
 Choose **Hash lab** in the header to edit a message and nonce, compare fingerprints, and search for a hash with one to three leading zeros. Search checks at most 50,000 candidates per run and can be stopped; editing an input cancels it. The lab uses independent temporary state and never changes the chain or wallets. **Back to simulator** or Escape closes it; reopening starts a fresh lab.
 
+Choose **Chain lab** to experiment with three linked text blocks. Change Block 1's data: its stored hash stays unchanged, while the recomputed fingerprint reveals the edit. Later blocks can still pass their own checks while depending on an invalid earlier block. Re-mine each affected block in order to adopt the preceding stored hash and find a new nonce with one leading hex zero. Repairing one block leaves its successors untouched, so their links need attention next. Each search starts at zero, checks at most 50,000 candidates and can be stopped. Edits, reset and close cancel pending searches; only a successful search replaces a stored block. This isolated demonstration has no signatures, balances or network consensus and never changes the simulator.
+
 ## Verify
 
 ```sh
