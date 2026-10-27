@@ -55,7 +55,9 @@ The deployment check builds the public files and runs a Cloudflare dry run; it d
 
 The default environment uses the separate Worker **proofofwork-fyi-preview** and has no custom domain. The explicitly selected `production` environment binds **proofofwork.fyi** to the Worker **proofofwork-fyi** in the configured account.
 
-Before a production deployment, verify the authenticated account, existing Worker and domain/DNS bindings, and obtain the release authorization required by your workflow. A browser login and Wrangler authentication are separate. Authenticate through a local OAuth flow or a locally supplied scoped token; never put a token in Git or chat.
+A merge to `master` that changes the site publishes it automatically: after the web checks pass, the `deploy` job in `.github/workflows/web.yml` runs `deploy:production`, waits until the domain serves the new `index.html` and runs the browser acceptance against `https://proofofwork.fyi` (PostHog mocked, pool requests refused). It needs the repository secret `CLOUDFLARE_API_TOKEN`: a token from the "Edit Cloudflare Workers" template, limited to this account and the `proofofwork.fyi` zone. The build carries no PostHog token, so usage sharing stays unavailable on the live site until one is added to that job.
+
+For a manual release, verify the authenticated account, existing Worker and domain/DNS bindings first. A browser login and Wrangler authentication are separate. Authenticate through a local OAuth flow or a locally supplied scoped token; never put a token in Git or chat.
 
 ```sh
 # Authenticated account read, then explicit production release:
