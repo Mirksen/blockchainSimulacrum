@@ -1,0 +1,56 @@
+name: Production acceptance
+on:
+  workflow_dispatch:
+    inputs:
+      release_manifest:
+        description: Checked release manifest JSON with source commit and four public asset SHA-256 digests
+        required: true
+        type: string
+      token_fingerprint:
+        description: SHA-256 fingerprint of the dedicated public ingestion token; never a token value
+        required: true
+        type: string
+      confirm_synthetic_probe:
+        description: Send nine anonymous synthetic usage/error events to the configured production EU project
+        required: true
+        default: false
+        type: boolean
+permissions:
+  contents: read
+jobs:
+  production:
+    if: inputs.confirm_synthetic_probe
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - run: google-chrome --version
+      - run: node scripts/acceptance.mjs
+        env:
+          BASE_URL: https://proofofwork.fyi
+          EXPECT_POSTHOG: '1'
+          SCREENSHOT_DIR: production-report
+      - run: node scripts/production-acceptance.mjs
+        env:
+          RELEASE_MANIFEST: ${{ inputs.release_manifest }}
+          POSTHOG_TOKEN_SHA256: ${{ inputs.token_fingerprint }}
+          CONFIRM_SYNTHETIC_PROBE: ${{ inputs.confirm_synthetic_probe }}
+          PRODUCTION_REPORT_DIR: production-report
+      - uses: actions/upload-artifact@v7.0.2
+        if: always()
+        with:
+          name: production-acceptance
+          path: web/production-report/
+          if-no-files-found: warn
+          retention-days: 7
