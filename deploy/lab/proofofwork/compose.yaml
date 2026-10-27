@@ -1,5 +1,5 @@
 # proofofwork.fyi leaderboard server (lab zone). See ../README.md for the zone rules.
-# Host layout (/opt/lab/proofofwork/): compose.yaml, .env (0600), server/ (copy of the repo's
+# Host layout (/opt/lab/proofofwork/): compose.yaml, .env and tunnel.env (0600), server/ (copy of the repo's
 # server/), static/ (optional web/dist), data/ (owned by uid 1000). No image is built anywhere:
 # the official Node image runs the read-only source. Moving the stack = copying this directory.
 # In the tunnel configuration, route the public hostname to http://app:8080.
@@ -18,8 +18,6 @@ services:
       PORT: "8080"
       DB_PATH: /data/leaderboard.sqlite
       STATIC_DIR: /static
-      # The app never needs the tunnel credential; blank it even though it is in the shared .env.
-      TUNNEL_TOKEN: ""
     volumes:
       - ./server:/app:ro
       - ./static:/static:ro
@@ -47,8 +45,10 @@ services:
     image: cloudflare/cloudflared:2026.10.4
     restart: unless-stopped
     command: tunnel --no-autoupdate run
-    environment:
-      TUNNEL_TOKEN: ${TUNNEL_TOKEN:?TUNNEL_TOKEN must be set in .env}
+    # Only the tunnel reads its token (tunnel.env, 0600); the app never sees it.
+    env_file:
+      - path: tunnel.env
+        required: false
     read_only: true
     cap_drop:
       - ALL
