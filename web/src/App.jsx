@@ -7,6 +7,8 @@ import { MiningCard } from './components/MiningCard';
 import { StatsDashboard } from './components/StatsDashboard';
 import { BlockchainStatsPanel } from './components/BlockchainStatsPanel';
 import { playMiningSuccessSound } from './lib/sound';
+import { AnalyticsControl } from './components/AnalyticsControl';
+import { telemetry } from './lib/telemetry';
 import './index.css';
 
 function BitcoinLogo({ size = 28, color = 'var(--sapBrandColor)' }) {
@@ -105,8 +107,8 @@ function App() {
           </button>
           <button className="btn btn-transparent" onClick={() => setShowStats(true)} aria-label="Open blockchain insights">{blocks.length - 1} mined</button>
           <button className="btn btn-transparent" onClick={reset}>Reset</button>
-          <button className="btn btn-transparent" onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')} aria-label={theme === 'light' ? 'Switch to dark theme' : 'Switch to light theme'}>{theme === 'light' ? 'Dark' : 'Light'}</button>
-          <button className="btn btn-transparent" onClick={() => setMuted(!muted)} aria-pressed={!muted}>Sound {muted ? 'off' : 'on'}</button>
+          <button className="btn btn-transparent" onClick={() => { const value = theme === 'light' ? 'dark' : 'light'; setTheme(value); void telemetry.track('settings_changed', { setting: 'theme', value }); }} aria-label={theme === 'light' ? 'Switch to dark theme' : 'Switch to light theme'}>{theme === 'light' ? 'Dark' : 'Light'}</button>
+          <button className="btn btn-transparent" onClick={() => { setMuted(!muted); void telemetry.track('settings_changed', { setting: 'sound', value: muted }); }} aria-pressed={!muted}>Sound {muted ? 'off' : 'on'}</button>
         </div>
       </header>
 
@@ -125,10 +127,11 @@ function App() {
           <label>Coin name<input aria-label="Coin name" value={coinName} maxLength={16} onChange={e => setCoinName(e.target.value)} /></label>
           <label>Mining difficulty<input aria-label="Mining difficulty" type="range" min="1" max="5" step="1" value={difficulty} disabled={busy} onChange={e => setDifficulty(e.target.value)} /><span>{difficulty} leading zeros</span></label>
           <label>Halving interval<input aria-label="Halving interval" type="number" min="2" max="100" value={halvingInterval} disabled={busy} onChange={e => setHalvingInterval(e.target.value)} /><span>blocks</span></label>
-          <label>Target block time<input aria-label="Target block time" type="number" min="1" max="60" value={targetBlockTime} disabled={busy} onChange={e => setTargetBlockTime(Math.min(60, Math.max(1, Number(e.target.value) || 10)))} /><span>seconds</span></label>
+          <label>Target block time<input aria-label="Target block time" type="number" min="1" max="60" value={targetBlockTime} disabled={busy} onChange={e => { const value = Math.min(60, Math.max(1, Number(e.target.value) || 10)); if (value !== targetBlockTime) { setTargetBlockTime(value); void telemetry.track('settings_changed', { setting: 'target_block_time', value }); } }} /><span>seconds</span></label>
         </div>
         <p className="text-muted text-small">Higher difficulty takes longer. Difficulty adapts every 10 mined blocks. Halving reduces the reward for future blocks; it does not rewrite earlier rewards.</p>
       </details>
+      <AnalyticsControl />
       {error && <div role="alert" className="simulation-error">{error}</div>}
       <main id="simulator" className="app-container">
         <section className="blockchain-column" aria-label="Blockchain experiment">

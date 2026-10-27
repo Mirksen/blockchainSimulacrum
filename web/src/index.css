@@ -2828,3 +2828,9 @@ dialog.modal-overlay > div { max-width: 100%; }
   --sapLinkColor: #80bdff;
 }
 .header-actions .btn-negative { background: #b42318; border-color: #b42318; color: #fff; }
+.analytics-control { max-width: 1568px; margin: 12px auto 0; text-align: left; border: 1px solid var(--sapList_BorderColor); border-radius: 6px; }
+.analytics-control summary { cursor: pointer; padding: 10px 12px; color: var(--sapTextColor); font-size: 13px; }
+.analytics-control > div { padding: 0 12px 12px; }
+.analytics-control p { margin: 0 0 8px; line-height: 1.6; }
+.analytics-control label { display: flex; align-items: center; gap: 8px; color: var(--sapTextColor); min-height: 40px; font-size: 13px; }
+.analytics-control input { width: 18px; height: 18px; flex-shrink: 0; }

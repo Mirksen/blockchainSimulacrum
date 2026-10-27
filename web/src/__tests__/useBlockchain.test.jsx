@@ -4,6 +4,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import SHA256 from 'crypto-js/sha256';
 import { ec as EC } from 'elliptic';
 import { useBlockchain } from '../hooks/useBlockchain';
+import { telemetry } from '../lib/telemetry';
+vi.mock('../lib/telemetry', async (importOriginal) => {
+  const actual = await importOriginal();
+  return { ...actual, telemetry: { track: vi.fn(), reportError: vi.fn() } };
+});
 
 vi.mock('crypto-js/sha256', async (importOriginal) => {
   const actual = await importOriginal();
@@ -11,7 +16,7 @@ vi.mock('crypto-js/sha256', async (importOriginal) => {
 });
 const config = { participants: ['Miner One', 'Wallet Two'], miners: ['Miner One'], miningDifficulty: 1, halvingEvent: 2 };
 beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(new Date('2026-01-02T12:00:00Z')); vi.mocked(SHA256).mockImplementation(() => ({ toString: () => '0'.repeat(64) })); });
-afterEach(() => { cleanup(); vi.useRealTimers(); vi.clearAllMocks(); vi.restoreAllMocks(); });
+afterEach(() => { cleanup(); vi.useRealTimers(); vi.clearAllMocks(); vi.restoreAllMocks(); telemetry.track.mockReset(); telemetry.reportError.mockReset(); });
 async function mine(result) {
   let outcome;
   await act(async () => { const pending = result.current.mineBlock(); await vi.runAllTimersAsync(); outcome = await pending; });
@@ -102,5 +107,58 @@ describe('simulation lifecycle', () => {
     expect(result.current.chainValid).toBe(true);
     act(() => result.current.resetBlockchain());
     expect(result.current.balances.every(p => p.balance === 0)).toBe(true);
+  });
+});
+
+describe('operation telemetry boundaries', () => {
+  const events = name => telemetry.track.mock.calls.filter(call => call[0] === name);
+  it('emits exactly one start/completion per accepted mine, never per progress render', async () => {
+    const {result,rerender}=renderHook(()=>useBlockchain(config));
+    await mine(result);rerender();rerender();
+    expect(events('mining_started')).toHaveLength(1);
+    expect(events('mining_completed')).toHaveLength(1);
+    expect(events('mining_completed')[0][1]).toEqual({difficulty:1,elapsed_ms:0,attempt_count:1,miner_count:1,transaction_count:0,block_height:1});
+  });
+  it('records cancellation once when reset also cancels an existing attempt', async () => {
+    SHA256.mockImplementation(()=>({toString:()=> 'f'.repeat(64)}));
+    const {result}=renderHook(()=>useBlockchain(config));let pending;
+    act(()=>{pending=result.current.mineBlock();result.current.cancelMining();result.current.resetBlockchain();});
+    await act(async()=>{await vi.runAllTimersAsync();await pending;});
+    expect(events('mining_cancelled')).toHaveLength(1);
+    expect(events('chain_reset')).toHaveLength(1);
+    expect(events('mining_completed')).toHaveLength(0);
+  });
+  it('counts demo operations once under StrictMode', async () => {
+    const {result,rerender}=renderHook(()=>useBlockchain(config),{reactStrictMode:true});
+    await act(async()=>{const pending=result.current.setupInitialDistribution();await vi.runAllTimersAsync();await pending;});
+    rerender();
+    expect(events('demo_started')).toHaveLength(1);expect(events('demo_completed')).toHaveLength(1);
+    expect(events('mining_started')).toHaveLength(2);expect(events('mining_completed')).toHaveLength(2);
+    expect(events('transaction_created')).toHaveLength(1);
+  });
+  it('a reset between a mined demo block and its continuation cannot report demo completion', async () => {
+    const {result}=renderHook(()=>useBlockchain(config));
+    telemetry.track.mockImplementation(event=>{if(event==='mining_completed')result.current.resetBlockchain();});
+    let outcome;
+    await act(async()=>{const pending=result.current.setupInitialDistribution();await vi.runAllTimersAsync();outcome=await pending;});
+    expect(outcome.aborted).toBe(true);expect(outcome.success).toBe(false);
+    expect(events('demo_completed')).toHaveLength(0);expect(events('demo_cancelled')).toHaveLength(1);
+  });
+  it('never places wallet keys, entered labels or references in operation events', async () => {
+    const {result}=renderHook(()=>useBlockchain(config));await mine(result);
+    act(()=>{
+      result.current.createTransaction('Miner One','Wallet Two',0.1,0,'synthetic-private-memo');
+      result.current.createTransaction('Miner One','Wallet Two',NaN,0,'synthetic-private-memo');
+    });
+    expect(events('transaction_created')).toHaveLength(1);
+    expect(events('transaction_rejected')[0][1]).toEqual({source:'manual',reason:'invalid_amount'});
+    const text=JSON.stringify(telemetry.track.mock.calls);
+    expect(text).not.toContain('synthetic-private-memo');expect(text).not.toContain('Miner One');
+    for(const participant of result.current.participants){expect(text).not.toContain(participant.privateKey);expect(text).not.toContain(participant.publicKey);}
+  });
+  it('records actual setting changes and never repeated renders or unchanged values', () => {
+    const {result,rerender}=renderHook(()=>useBlockchain(config));
+    act(()=>{result.current.setDifficulty(2);result.current.setDifficulty(2);result.current.setHalvingInterval(4);result.current.setHalvingInterval(4);});
+    rerender();expect(events('difficulty_changed')).toHaveLength(1);expect(events('settings_changed')).toHaveLength(1);
   });
 });

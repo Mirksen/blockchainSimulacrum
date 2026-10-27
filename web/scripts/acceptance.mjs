@@ -12,6 +12,17 @@ const output = process.env.SCREENSHOT_DIR || join(tmpdir(), 'proofofwork-accepta
 await mkdir(output, { recursive: true });
 let server, browser, page;
 const results=[];
+const telemetryRequests=[];
+const telemetryMock = async route => {
+ const request = route.request();
+ const headers = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'POST, OPTIONS', 'Access-Control-Allow-Headers': 'content-type' };
+ if (request.method() === 'OPTIONS') { await route.fulfill({status:204,headers}); return; }
+ assert.equal(new URL(request.url()).pathname, '/i/v0/e/');
+ assert.equal(request.method(), 'POST');
+ assert.equal(request.headers().referer, undefined);
+ telemetryRequests.push(request.postDataJSON());
+ await route.fulfill({status:200,headers,contentType:'application/json',body:'{"status":1}'});
+};
 try {
  if (!process.env.BASE_URL) {
   server = spawn(process.execPath, [join(root, 'node_modules/vite/bin/vite.js'), 'preview', '--host', '127.0.0.1', '--port', '4180', '--strictPort'], {cwd:root, stdio:['ignore', 'pipe', 'pipe']});
@@ -30,6 +41,7 @@ try {
  page=await browser.newPage({viewport:{width:1440,height:1000},reducedMotion:'reduce'});
  page.setDefaultTimeout(10000);
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
+ await page.route('https://eu.i.posthog.com/**', telemetryMock);
  await page.goto(baseURL);
  await page.getByRole('button',{name:'Start demo',exact:true}).click();
  await page.getByRole('button',{name:'Open blockchain insights'}).filter({hasText:/^2 mined$/}).waitFor({timeout:30000});
@@ -91,6 +103,52 @@ try {
  await page.getByRole('button',{name:'Stop mining',exact:true}).click();
  await page.getByRole('button',{name:'Reset',exact:true}).click();
  results.push('Auto-mine sets up and stops; reset clears the result');
+ assert.equal(telemetryRequests.length,0,'No telemetry before consent, including all prior mining operations');
+ const sharing=page.getByLabel('Share usage and technical errors');
+ await page.getByText('Usage sharing: off',{exact:true}).click();
+ if (process.env.EXPECT_POSTHOG === '1') assert.equal(await sharing.isDisabled(),false,'Configured test build is required');
+ if (!await sharing.isDisabled()) {
+  const responseFor = event => page.waitForResponse(response => response.url().startsWith('https://eu.i.posthog.com/i/v0/e/') && response.request().method()==='POST' && response.request().postDataJSON()?.event===event);
+  const opened=responseFor('app_opened');await sharing.check();await opened;
+  const demo=responseFor('demo_completed');await page.getByRole('button',{name:'Start demo',exact:true}).click();await demo;
+  assert.equal(telemetryRequests.filter(event=>event.event==='app_opened').length,1);
+  assert.equal(telemetryRequests.filter(event=>event.event==='demo_started').length,1);
+  assert.equal(telemetryRequests.filter(event=>event.event==='demo_completed').length,1);
+  assert.equal(telemetryRequests.filter(event=>event.event==='mining_started').length,2);
+  const summaries=telemetryRequests.filter(event=>event.event==='mining_completed');
+  assert.equal(summaries.length,2);
+  for(const summary of summaries) {
+   assert.equal(summary.properties.difficulty,1);
+   assert.ok(summary.properties.attempt_count>0);
+   assert.ok(summary.properties.elapsed_ms>=0);
+  }
+  await page.getByLabel('From',{exact:true}).selectOption('Alice');
+  await page.getByLabel('To',{exact:true}).selectOption('Bob');
+  await page.getByLabel('Amount (powCoin)',{exact:true}).fill('0.1');
+  await page.getByLabel('Reference (optional)',{exact:true}).fill('private-fixture-memo');
+  const transaction=responseFor('transaction_created');await page.getByRole('button',{name:'Add to Mempool'}).click();await transaction;
+  const settings=page.locator('details.simulation-settings');
+  if(!await settings.evaluate(element=>element.open)) await settings.locator('summary').click();
+  await page.getByLabel('Coin name',{exact:true}).fill('PrivateFixtureLabel');
+  const exception=responseFor('$exception');
+  await page.evaluate(()=>{
+   const error=new TypeError('private-fixture-error');
+   window.dispatchEvent(new ErrorEvent('error',{error}));
+   window.dispatchEvent(new ErrorEvent('error',{error}));
+  });
+  await exception;
+  assert.equal(telemetryRequests.filter(event=>event.event==='$exception').length,1);
+  const data=JSON.stringify(telemetryRequests);
+  for(const marker of ['private-fixture-memo','PrivateFixtureLabel','private-fixture-error']) assert.ok(!data.includes(marker));
+  const beforeOptOut=telemetryRequests.length;
+  await sharing.uncheck();
+  await page.getByRole('button',{name:'Reset',exact:true}).click();
+  await page.getByRole('button',{name:'Mine Next Block'}).click();
+  await page.getByRole('button',{name:'Open blockchain insights'}).filter({hasText:/^1 mined$/}).waitFor({timeout:30000});
+  await page.waitForTimeout(100);
+  assert.equal(telemetryRequests.length,beforeOptOut,'No sends after opt-out');
+  results.push('Mock PostHog: explicit consent, one event per operation, mining summaries, sanitized errors and opt-out');
+ } else results.push('No-config build keeps usage sharing disabled and simulation usable');
  for(const width of [320,390,768,1200,1440]) {
   await page.setViewportSize({width,height:900});
   await page.waitForTimeout(100);
@@ -101,6 +159,7 @@ try {
  results.push('No page errors or horizontal overflow at five widths');
  await page.close();
  const mobile=await browser.newPage({viewport:{width:390,height:844},reducedMotion:'reduce'});
+ await mobile.route('https://eu.i.posthog.com/**', telemetryMock);
  await mobile.goto(baseURL);
  await mobile.waitForTimeout(200);
  await mobile.screenshot({path:join(output,'mobile.png')});

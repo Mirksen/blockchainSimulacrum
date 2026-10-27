@@ -25,6 +25,9 @@ jobs:
       - run: npm run check
       - run: google-chrome --version
       - run: npm run test:browser
+        env:
+          VITE_POSTHOG_PROJECT_TOKEN: phc_syntheticproject
+          EXPECT_POSTHOG: '1'
       - run: npm run deploy:check
         env:
           WRANGLER_LOG_PATH: /tmp/proofofwork-wrangler.log

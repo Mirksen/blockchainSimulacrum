@@ -32,7 +32,7 @@ The deployment check builds the public files and runs a Cloudflare dry run; it d
 
 ## Hosting on Cloudflare
 
-[Workers Static Assets](https://developers.cloudflare.com/workers/static-assets/) serves only `web/dist`. No database, application server, API keys or visitor accounts are needed. The pinned project Wrangler configuration is in `web/wrangler.jsonc`; use the project scripts rather than a global Wrangler installation. `_headers` supplies a same-origin content policy and basic response headers. The app loads no remote fonts or analytics.
+[Workers Static Assets](https://developers.cloudflare.com/workers/static-assets/) serves only `web/dist`. No database, application server or visitor accounts are needed. Optional analytics uses only a public PostHog project ingestion token. The pinned project Wrangler configuration is in `web/wrangler.jsonc`; use the project scripts rather than a global Wrangler installation. `_headers` supplies a same-origin content policy and basic response headers. The app loads no remote fonts or tracking scripts. Explicit opt-in event requests go only to PostHog EU.
 
 The default environment uses the separate Worker **proofofwork-fyi-preview** and has no custom domain. The explicitly selected `production` environment binds **proofofwork.fyi** to the Worker **proofofwork-fyi** in the configured account.
 
@@ -55,3 +55,32 @@ After publication, verify HTTPS, response headers, asset loading and the Start d
 - Root `main.js`, `blockchain.js`, `config.js`: historical terminal implementation.
 
 [Original video demonstration](https://youtu.be/sYBxClODaJw)
+
+
+## Optional PostHog EU analytics
+
+Set `VITE_POSTHOG_PROJECT_TOKEN` in `web/.env.production.local` or the build environment, using the **public ingestion token** from the dedicated proofofwork.fyi EU project. See `web/.env.example`. The build rejects personal/secret key formats. A Vite variable is public client configuration: never put management credentials there. Without configuration, the app still works and usage sharing stays unavailable.
+
+Visitors choose **Usage sharing** near the experiment settings. It defaults to off and respects browser privacy signals. The preference is the only analytics value saved locally. A random visit identifier stays in memory and is replaced after opt-out; person profiles are disabled. There is no replay, DOM/form/clipboard autocapture, analytics script loading, persisted request queue, retry or unload beacon. Opt-out aborts pending requests and prevents subsequent sends; it cannot undo requests already received by PostHog. Offline/failed sends are dropped and never block the simulation.
+
+The small transport uses the documented [Capture API](https://posthog.com/docs/api/capture), including the [manual exception schema](https://posthog.com/docs/error-tracking/installation/manual). CSP permits only the EU ingestion host in addition to this site's own resources. Every event has a generated event ID, app/schema identifier and client timestamp. Allowed operation fields are defined and tested in `web/src/lib/telemetry.js`:
+
+| Events | Permitted operation data |
+| --- | --- |
+| `app_opened` | No extra operation fields |
+| `demo_started`, `demo_completed`, `demo_failed`, `demo_cancelled` | Difficulty, resulting block count or a fixed failure code |
+| `mining_started`, `mining_completed`, `mining_cancelled`, `mining_failed` | Difficulty, elapsed milliseconds, attempt/miner/transaction counts, block height or a fixed reason |
+| `transaction_created`, `transaction_rejected` | Source, count, pending count or a fixed failure code |
+| `difficulty_changed`, `settings_changed` | Previous/current difficulty, fixed setting name, numeric/boolean/enumerated value |
+| `tamper_applied`, `chain_reset` | Block height or previous mined-block count |
+| `$exception` | Fixed source/type, generic message and positions in known loaded app assets |
+
+Keys, seed words, wallet/participant names, transaction references, arbitrary error messages, query strings and other free-text bodies are not included. Mining summaries are emitted at operation boundaries, never for individual hashes or progress renders.
+
+The browser check intercepts PostHog requests; it never sends test data to a real dataset. CI supplies a synthetic public token and requires the positive consent/privacy path. To run that path locally:
+
+```sh
+VITE_POSTHOG_PROJECT_TOKEN=phc_syntheticproject EXPECT_POSTHOG=1 npm --prefix web run test:browser
+```
+
+This produces a test build. Before release, rebuild through the normal production command with the real public project token. Actual acceptance also requires locating a uniquely generated synthetic event in the correct EU project's stored events; a successful capture response alone is insufficient. Authentication and that live evidence remain separate from mock coverage and CI.
