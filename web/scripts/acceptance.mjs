@@ -42,6 +42,8 @@ try {
  }
  browser = await chromium.launch({channel:'chrome',headless:true});
  page=await browser.newPage({viewport:{width:1440,height:1000},reducedMotion:'reduce'});
+ // Install once before the app creates timers; all experiments share this clock.
+ await page.clock.install();
  page.setDefaultTimeout(10000);
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.route('https://eu.i.posthog.com/**', telemetryMock);
