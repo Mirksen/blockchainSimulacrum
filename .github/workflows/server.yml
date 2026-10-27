@@ -23,4 +23,5 @@ jobs:
       - run: npm test
       - name: Compose file is valid
         working-directory: deploy/lab/proofofwork
-        run: docker compose -f compose.yaml config --quiet
+        # The real .env only exists on the host; an empty one satisfies env_file.
+        run: touch .env && docker compose -f compose.yaml config --quiet
