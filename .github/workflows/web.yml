@@ -2,9 +2,9 @@ name: Web checks
 on:
   push:
     branches: [master]
-    paths: ['web/**', '.github/workflows/web.yml']
+    paths: ['web/**', '.github/workflows/web.yml', '.github/workflows/production.yml']
   pull_request:
-    paths: ['web/**', '.github/workflows/web.yml']
+    paths: ['web/**', '.github/workflows/web.yml', '.github/workflows/production.yml']
 permissions:
   contents: read
 jobs:
