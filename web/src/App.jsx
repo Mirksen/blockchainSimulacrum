@@ -31,7 +31,7 @@ const INITIAL_CONFIG = {
 };
 
 function App() {
-  const [theme, setTheme] = useState('light');
+  const [theme, setTheme] = useState('dark');
   const [muted, setMuted] = useState(true);
   const [winner, setWinner] = useState(null);
   const [autoMining, setAutoMining] = useState(false);

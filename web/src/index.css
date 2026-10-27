@@ -1,73 +1,68 @@
-/* SAP Fiori/UI5 Inspired Design System */
+/* proofofwork.fyi — component styles.
+ * Colors, type, spacing and radius come from the foundation tokens in
+ * styles/tokens.css (dark default, light via html[data-theme="light"]).
+ * The --sap* and --miner-* names below are legacy aliases onto those tokens,
+ * kept until the rebuild replaces the components that use them. */
 
-/* SAP Fiori/UI5 Inspired Design System */
-
-/* === CSS Variables - Dark Mode (Default / "Evening Horizon") === */
 :root {
-  /* SAP Fiori Color Palette - Dark Shell Theme */
-  --sapBrandColor: #0a6ed1;
-  --sapHighlightColor: #0854a0;
-  --sapBaseColor: #1d232a;
-  /* Card Background */
-  --sapShellColor: #12171c;
-  /* Shell Header Background */
-  --sapBackgroundColor: #12171c;
-  /* App Background */
+  /* Surfaces */
+  --sapBackgroundColor: var(--bg);
+  --sapShellColor: var(--bg-2);
+  --sapShell_Background: var(--bg-2);
+  --sapBaseColor: var(--panel);
+  --sapGroup_TitleBackground: var(--panel);
+  --sapGroup_ContentBackground: var(--panel);
+  --sapList_Background: var(--panel);
+  --sapTile_Background: var(--panel);
+  --sapList_HeaderBackground: var(--panel-2);
+  --sapList_Hover_Background: var(--panel-2);
+  --sapField_Background: var(--bg-2);
 
-  /* Semantic Colors */
-  --sapPositiveColor: #107e3e;
-  --sapCriticalColor: #e9730c;
-  --sapNegativeColor: #bb0000;
-  --sapInformativeColor: #0a6ed1;
-  --sapNeutralColor: #868c97;
+  /* Lines */
+  --sapGroup_TitleBorderColor: var(--line);
+  --sapList_BorderColor: var(--line);
+  --sapField_BorderColor: var(--line-3);
 
-  /* Miner Colors - Dark Mode */
-  --miner-minas-color: #A855F7;
-  --miner-minas-bg: rgba(168, 85, 247, 0.15);
-  --miner-lars-color: #FFB347;
-  --miner-lars-bg: rgba(255, 179, 71, 0.15);
+  /* Text */
+  --sapTextColor: var(--text);
+  --sapTitleColor: var(--text);
+  --sapShell_TextColor: var(--text);
+  --sapContent_LabelColor: var(--text-2);
+  --sapShell_SubtitleColor: var(--text-2);
+  --sapContent_DisabledTextColor: var(--text-3);
 
-  /* Text Colors */
-  --sapTextColor: #ffffff;
-  --sapTitleColor: #ffffff;
-  --sapLinkColor: #0a6ed1;
-  --sapContent_LabelColor: #d1d5db;
-  /* Lighters for dark mode */
-  --sapContent_DisabledTextColor: #6a6d70;
+  /* Action */
+  --sapBrandColor: var(--blue);
+  --sapHighlightColor: var(--blue-2);
+  --sapInformativeColor: var(--blue);
+  --sapLinkColor: var(--blue);
+  --sapButton_Background: var(--blue);
+  --sapButton_BorderColor: var(--blue);
+  --sapButton_TextColor: var(--on-accent);
+  --sapButton_Hover_Background: var(--blue-2);
+  --sapButton_Active_Background: var(--blue-2);
 
-  /* Background Colors */
-  --sapGroup_TitleBackground: #1d232a;
-  --sapGroup_ContentBackground: #1d232a;
-  --sapList_Background: #1d232a;
-  --sapList_HeaderBackground: #161c22;
-  --sapTile_Background: #1d232a;
+  /* Status */
+  --sapPositiveColor: var(--green);
+  --sapCriticalColor: var(--amber);
+  --sapNegativeColor: var(--red);
+  --sapNeutralColor: var(--text-3);
 
-  /* Border Colors */
-  --sapGroup_TitleBorderColor: #3a4552;
-  --sapList_BorderColor: #3a4552;
-  --sapField_BorderColor: #586c85;
+  /* Miners */
+  --miner-minas-color: var(--minas);
+  --miner-minas-bg: color-mix(in srgb, var(--minas) 15%, transparent);
+  --miner-lars-color: var(--lars);
+  --miner-lars-bg: color-mix(in srgb, var(--lars) 15%, transparent);
 
-  /* Button Colors */
-  --sapButton_Background: #0a6ed1;
-  --sapButton_BorderColor: #0a6ed1;
-  --sapButton_TextColor: #ffffff;
-  --sapButton_Hover_Background: #085caf;
-  --sapButton_Active_Background: #0854a0;
+  /* Elevation: cards are a panel with a 1 px line, no shadow */
+  --sapContent_Shadow0: 0 0 0 1px var(--line);
+  --sapContent_Shadow1: 0 0 0 1px var(--line);
+  --sapContent_Shadow2: 0 8px 24px -8px var(--shadow);
+  --sapContent_Shadow3: 0 16px 48px -12px var(--shadow);
 
-  /* Shell Header - Dark Mode */
-  --sapShell_Background: #12171c;
-  --sapShell_TextColor: #ffffff;
-  --sapShell_SubtitleColor: rgba(255, 255, 255, 0.75);
-
-  /* Shadows - Adjusted for Dark Mode */
-  --sapContent_Shadow0: 0 0 0 1px rgba(255, 255, 255, 0.1);
-  --sapContent_Shadow1: 0 1px 4px 0 rgba(0, 0, 0, 0.5);
-  --sapContent_Shadow2: 0 4px 16px 0 rgba(0, 0, 0, 0.6);
-  --sapContent_Shadow3: 0 8px 32px 0 rgba(0, 0, 0, 0.7);
-
-  /* Typography */
-  --sapFontFamily: '72', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --sapFontMonoFamily: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
+  /* Typography (sizes stay until the rebuild moves views to the type scale) */
+  --sapFontFamily: var(--ui);
+  --sapFontMonoFamily: var(--mono);
   --sapFontSize: 14px;
   --sapFontSmallSize: 12px;
   --sapFontLargeSize: 16px;
@@ -77,66 +72,14 @@
   --sapFontHeader4Size: 18px;
   --sapFontHeader5Size: 16px;
 
-  /* Spacing */
-  --sapContent_Padding: 16px;
-  --sapElement_Gap: 8px;
+  /* Spacing and radius */
+  --sapContent_Padding: var(--s-4);
+  --sapElement_Gap: var(--s-2);
+  --sapElement_BorderCornerRadius: var(--r-md);
+  --sapButton_BorderCornerRadius: var(--r-sm);
 
-  /* Border Radius */
-  --sapElement_BorderCornerRadius: 8px;
-  --sapButton_BorderCornerRadius: 6px;
-  /* slightly more rounded for Horizon */
-
-  /* Transitions */
+  /* Motion */
   --sapTransition: 0.15s ease-in-out;
-}
-
-/* === Light Mode Theme ("Morning Horizon" / "Quartz") === */
-[data-theme="light"] {
-  /* SAP Fiori Color Palette - Light Theme */
-  --sapBrandColor: #0070f2;
-  /* Brighter blue for light mode */
-  --sapHighlightColor: #005ec4;
-  --sapBaseColor: #ffffff;
-  --sapShellColor: #354a5f;
-  /* Classic Fiori Shell */
-  --sapBackgroundColor: #f5f7fa;
-  /* Fiori Light Background */
-
-  /* Miner Colors - Light Mode */
-  --miner-minas-color: #9333EA;
-  --miner-minas-bg: rgba(147, 51, 234, 0.12);
-  --miner-lars-color: #E18A00;
-  --miner-lars-bg: rgba(225, 138, 0, 0.12);
-
-  /* Text Colors */
-  --sapTextColor: #32363a;
-  --sapTitleColor: #32363a;
-  --sapLinkColor: #0070f2;
-  --sapContent_LabelColor: #6a6d70;
-  --sapContent_DisabledTextColor: #a9a9a9;
-
-  /* Background Colors */
-  --sapGroup_TitleBackground: #ffffff;
-  --sapGroup_ContentBackground: #ffffff;
-  --sapList_Background: #ffffff;
-  --sapList_HeaderBackground: #f5f7fa;
-  --sapTile_Background: #ffffff;
-
-  /* Border Colors */
-  --sapGroup_TitleBorderColor: #d9d9d9;
-  --sapList_BorderColor: #e5e5e5;
-  --sapField_BorderColor: #89919a;
-
-  /* Shell Header - Light Mode */
-  --sapShell_Background: #ffffff;
-  --sapShell_TextColor: #32363a;
-  --sapShell_SubtitleColor: #6a6d70;
-
-  /* Shadows - Standard Fiori Shadows */
-  --sapContent_Shadow0: 0 0 0 1px rgba(0, 0, 0, 0.05);
-  --sapContent_Shadow1: 0 1px 4px 0 rgba(0, 0, 0, 0.1);
-  --sapContent_Shadow2: 0 4px 16px 0 rgba(0, 0, 0, 0.1);
-  --sapContent_Shadow3: 0 8px 32px 0 rgba(0, 0, 0, 0.1);
 }
 
 /* === Miner Color Classes === */
@@ -234,21 +177,13 @@
 }
 
 .miner-race-lane.minas .miner-hashrate {
-  background: rgba(168, 85, 247, 0.2);
+  background: color-mix(in srgb, var(--minas) 20%, transparent);
   color: var(--miner-minas-color);
 }
 
 .miner-race-lane.lars .miner-hashrate {
-  background: rgba(255, 179, 71, 0.2);
+  background: color-mix(in srgb, var(--lars) 20%, transparent);
   color: var(--miner-lars-color);
-}
-
-[data-theme="light"] .miner-race-lane.minas .miner-hashrate {
-  background: rgba(147, 51, 234, 0.15);
-}
-
-[data-theme="light"] .miner-race-lane.lars .miner-hashrate {
-  background: rgba(225, 138, 0, 0.15);
 }
 
 .miner-race-stats {
@@ -451,8 +386,7 @@ h5 {
   transition: background var(--sapTransition), color var(--sapTransition);
 }
 
-/* Light mode header adjustment */
-[data-theme="light"] .app-header {
+.app-header {
   border-bottom: 1px solid var(--sapList_BorderColor);
   box-shadow: none;
 }
@@ -473,14 +407,10 @@ h5 {
   display: flex;
   align-items: center;
   gap: 8px;
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--panel-2);
   padding: 4px 8px;
   border-radius: 20px;
   font-size: 12px;
-}
-
-[data-theme="light"] .theme-toggle {
-  background: rgba(0, 0, 0, 0.05);
 }
 
 .theme-toggle-label {
@@ -494,16 +424,12 @@ h5 {
 }
 
 .theme-toggle-label:hover {
-  background: rgba(255, 255, 255, 0.1);
-}
-
-[data-theme="light"] .theme-toggle-label:hover {
-  background: rgba(0, 0, 0, 0.05);
+  background: var(--panel-3);
 }
 
 .theme-toggle-label.active {
   background: var(--sapBrandColor);
-  color: white;
+  color: var(--on-accent);
 }
 
 .theme-toggle input[type="radio"] {
@@ -516,7 +442,7 @@ h5 {
   align-items: center;
   gap: 6px;
   padding: 4px 10px;
-  background: rgba(10, 110, 209, 0.15);
+  background: var(--blue-bg);
   border: 1px solid var(--sapBrandColor);
   border-radius: 16px;
   font-size: 13px;
@@ -530,10 +456,6 @@ h5 {
 .block-height-value {
   font-family: var(--sapFontMonoFamily);
   color: var(--sapBrandColor);
-}
-
-[data-theme="light"] .block-height-counter {
-  background: rgba(0, 112, 242, 0.1);
 }
 
 /* === Page Layout === */
@@ -578,8 +500,8 @@ h5 {
 
 /* === Object Page Header Style === */
 .object-header {
-  background: linear-gradient(135deg, var(--sapShell_Background) 0%, #445a70 100%);
-  color: white;
+  background: linear-gradient(135deg, var(--panel-2) 0%, var(--panel-3) 100%);
+  color: var(--text);
   padding: 20px 24px;
   margin: -16px -16px 16px -16px;
 }
@@ -594,7 +516,9 @@ h5 {
   font-family: var(--sapFontFamily);
   font-size: 14px;
   font-weight: 500;
-  border: 1px solid transparent;
+  background: var(--panel-2);
+  color: var(--text);
+  border: 1px solid var(--line-3);
   border-radius: var(--sapButton_BorderCornerRadius);
   cursor: pointer;
   transition: all var(--sapTransition);
@@ -630,7 +554,7 @@ h5 {
 }
 
 .btn-default:hover:not(:disabled) {
-  background: rgba(10, 110, 209, 0.08);
+  background: var(--blue-bg);
 }
 
 /* Transparent Button */
@@ -641,29 +565,29 @@ h5 {
 }
 
 .btn-transparent:hover:not(:disabled) {
-  background: rgba(10, 110, 209, 0.08);
+  background: var(--blue-bg);
 }
 
 /* Negative Button */
 .btn-negative {
   background: var(--sapNegativeColor);
   border-color: var(--sapNegativeColor);
-  color: white;
+  color: var(--on-light);
 }
 
 .btn-negative:hover:not(:disabled) {
-  background: #990000;
+  background: color-mix(in srgb, var(--red) 85%, var(--bg));
 }
 
 /* Positive Button */
 .btn-positive {
   background: var(--sapPositiveColor);
   border-color: var(--sapPositiveColor);
-  color: white;
+  color: var(--on-light);
 }
 
 .btn-positive:hover:not(:disabled) {
-  background: #0d6b34;
+  background: color-mix(in srgb, var(--green) 85%, var(--bg));
 }
 
 .btn-lg {
@@ -708,7 +632,7 @@ h5 {
 .form-select:focus {
   outline: none;
   border-color: var(--sapBrandColor);
-  box-shadow: 0 0 0 2px rgba(10, 110, 209, 0.16);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--blue) 16%, transparent);
 }
 
 .form-input::placeholder {
@@ -730,7 +654,7 @@ h5 {
 }
 
 .list-item:hover {
-  background: rgba(10, 110, 209, 0.05);
+  background: color-mix(in srgb, var(--blue) 5%, transparent);
 }
 
 .list-item-avatar {
@@ -777,29 +701,29 @@ h5 {
 }
 
 .status-positive {
-  background: rgba(16, 126, 62, 0.12);
+  background: color-mix(in srgb, var(--green) 12%, transparent);
   color: var(--sapPositiveColor);
 }
 
 .status-negative {
-  background: rgba(187, 0, 0, 0.12);
+  background: color-mix(in srgb, var(--red) 12%, transparent);
   color: var(--sapNegativeColor);
 }
 
 .status-critical {
-  background: rgba(233, 115, 12, 0.12);
+  background: color-mix(in srgb, var(--amber) 12%, transparent);
   color: var(--sapCriticalColor);
 }
 
 .status-informative {
-  background: rgba(10, 110, 209, 0.12);
+  background: color-mix(in srgb, var(--blue) 12%, transparent);
   color: var(--sapInformativeColor);
 }
 
 .miner-badge {
   font-size: 11px;
   padding: 2px 6px;
-  background: rgba(10, 110, 209, 0.12);
+  background: color-mix(in srgb, var(--blue) 12%, transparent);
   color: var(--sapInformativeColor);
   border-radius: 4px;
 }
@@ -828,7 +752,7 @@ h5 {
 
 .block-card.latest {
   border-color: var(--sapBrandColor);
-  box-shadow: 0 0 15px rgba(10, 110, 209, 0.4);
+  box-shadow: 0 0 15px color-mix(in srgb, var(--blue) 40%, transparent);
   position: relative;
 }
 
@@ -838,7 +762,7 @@ h5 {
   top: -10px;
   right: -10px;
   background: var(--sapBrandColor);
-  color: #fff;
+  color: var(--on-accent);
   font-size: 10px;
   padding: 2px 6px;
   border-radius: 4px;
@@ -864,12 +788,12 @@ h5 {
 
 .block-card.genesis {
   border-color: var(--sapInformativeColor);
-  background: linear-gradient(135deg, rgba(10, 110, 209, 0.08) 0%, rgba(10, 110, 209, 0.02) 100%);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--blue) 8%, transparent) 0%, color-mix(in srgb, var(--blue) 2%, transparent) 100%);
 }
 
 .block-card.selected {
   border-color: var(--sapBrandColor);
-  box-shadow: 0 0 0 3px rgba(10, 110, 209, 0.2);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--blue) 20%, transparent);
 }
 
 
@@ -893,18 +817,18 @@ h5 {
 
   0%,
   100% {
-    box-shadow: 0 0 8px rgba(187, 0, 0, 0.4), 0 0 16px rgba(187, 0, 0, 0.2);
+    box-shadow: 0 0 8px color-mix(in srgb, var(--red) 40%, transparent), 0 0 16px color-mix(in srgb, var(--red) 20%, transparent);
   }
 
   50% {
-    box-shadow: 0 0 20px rgba(187, 0, 0, 0.6), 0 0 40px rgba(187, 0, 0, 0.3);
+    box-shadow: 0 0 20px color-mix(in srgb, var(--red) 60%, transparent), 0 0 40px color-mix(in srgb, var(--red) 30%, transparent);
   }
 }
 
 .block-card.invalid {
   border-color: var(--sapNegativeColor);
   border-width: 2px;
-  background: linear-gradient(135deg, rgba(187, 0, 0, 0.12) 0%, rgba(187, 0, 0, 0.06) 100%);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--red) 12%, transparent) 0%, color-mix(in srgb, var(--red) 6%, transparent) 100%);
   position: relative;
   opacity: 0.9;
   animation: corruption-pulse 1.5s ease-in-out infinite;
@@ -1008,26 +932,17 @@ h5 {
 .mining-overlay-icon {
   font-size: 15rem;
   animation: hammer-strike 0.8s ease-out forwards;
-  filter: drop-shadow(0 0 30px var(--sapBrandColor)) drop-shadow(0 0 60px rgba(10, 110, 209, 0.5));
+  filter: drop-shadow(0 0 30px var(--sapBrandColor)) drop-shadow(0 0 60px color-mix(in srgb, var(--blue) 50%, transparent));
   text-shadow: 0 0 40px rgba(0, 0, 0, 0.8);
 }
 
 /* Miner-specific hammer glow colors */
 .mining-overlay.winner-minas .mining-overlay-icon {
-  filter: drop-shadow(0 0 30px var(--miner-minas-color)) drop-shadow(0 0 60px rgba(168, 85, 247, 0.6));
+  filter: drop-shadow(0 0 30px var(--miner-minas-color)) drop-shadow(0 0 60px color-mix(in srgb, var(--minas) 60%, transparent));
 }
 
 .mining-overlay.winner-lars .mining-overlay-icon {
-  filter: drop-shadow(0 0 30px var(--miner-lars-color)) drop-shadow(0 0 60px rgba(255, 179, 71, 0.6));
-}
-
-/* Light mode adjustments for hammer glow */
-[data-theme="light"] .mining-overlay.winner-minas .mining-overlay-icon {
-  filter: drop-shadow(0 0 30px var(--miner-minas-color)) drop-shadow(0 0 60px rgba(147, 51, 234, 0.5));
-}
-
-[data-theme="light"] .mining-overlay.winner-lars .mining-overlay-icon {
-  filter: drop-shadow(0 0 30px var(--miner-lars-color)) drop-shadow(0 0 60px rgba(225, 138, 0, 0.5));
+  filter: drop-shadow(0 0 30px var(--miner-lars-color)) drop-shadow(0 0 60px color-mix(in srgb, var(--lars) 60%, transparent));
 }
 
 /* === Mining Visualizer === */
@@ -1047,11 +962,11 @@ h5 {
 
   0%,
   100% {
-    box-shadow: 0 0 8px rgba(10, 110, 209, 0.2);
+    box-shadow: 0 0 8px color-mix(in srgb, var(--blue) 20%, transparent);
   }
 
   50% {
-    box-shadow: 0 0 20px rgba(10, 110, 209, 0.4);
+    box-shadow: 0 0 20px color-mix(in srgb, var(--blue) 40%, transparent);
   }
 }
 
@@ -1076,7 +991,7 @@ h5 {
 }
 
 .mining-stat:hover {
-  box-shadow: 0 0 12px rgba(10, 110, 209, 0.4);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--blue) 40%, transparent);
   transform: scale(1.03);
 }
 
@@ -1302,12 +1217,12 @@ h5 {
 }
 
 .validation-valid {
-  background: rgba(16, 126, 62, 0.12);
+  background: color-mix(in srgb, var(--green) 12%, transparent);
   color: var(--sapPositiveColor);
 }
 
 .validation-invalid {
-  background: rgba(187, 0, 0, 0.12);
+  background: color-mix(in srgb, var(--red) 12%, transparent);
   color: var(--sapNegativeColor);
 }
 
@@ -1452,7 +1367,7 @@ h5 {
 }
 
 .stat-item:hover {
-  box-shadow: 0 0 12px rgba(10, 110, 209, 0.4);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--blue) 40%, transparent);
   transform: scale(1.02);
 }
 
@@ -1521,15 +1436,15 @@ h5 {
 /* === Cyber Coin Gain Animation === */
 @keyframes wallet-glow-pulse {
   0% {
-    box-shadow: inset 0 0 0 1px rgba(16, 126, 62, 0.3);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--green) 30%, transparent);
   }
 
   50% {
-    box-shadow: inset 0 0 20px rgba(16, 126, 62, 0.5), 0 0 15px rgba(16, 126, 62, 0.4);
+    box-shadow: inset 0 0 20px color-mix(in srgb, var(--green) 50%, transparent), 0 0 15px color-mix(in srgb, var(--green) 40%, transparent);
   }
 
   100% {
-    box-shadow: inset 0 0 0 1px rgba(16, 126, 62, 0.3);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--green) 30%, transparent);
   }
 }
 
@@ -1597,9 +1512,9 @@ h5 {
   animation: wallet-glow-pulse 0.5s ease-in-out 3;
   background: linear-gradient(90deg,
       transparent 0%,
-      rgba(16, 126, 62, 0.15) 45%,
-      rgba(16, 126, 62, 0.25) 50%,
-      rgba(16, 126, 62, 0.15) 55%,
+      color-mix(in srgb, var(--green) 15%, transparent) 45%,
+      color-mix(in srgb, var(--green) 25%, transparent) 50%,
+      color-mix(in srgb, var(--green) 15%, transparent) 55%,
       transparent 100%) !important;
   background-size: 200% 100%;
   animation: wallet-glow-pulse 0.5s ease-in-out 3, cyber-shimmer 0.8s ease-in-out;
@@ -1630,7 +1545,7 @@ h5 {
 .coin-particle {
   font-size: 16px;
   animation: coin-scatter 1.2s ease-out forwards;
-  filter: drop-shadow(0 0 4px rgba(255, 215, 0, 0.8));
+  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--amber) 80%, transparent));
 }
 
 .coin-particle:nth-child(1) {
@@ -1678,9 +1593,9 @@ h5 {
   font-weight: bold;
   color: var(--sapPositiveColor);
   text-shadow:
-    0 0 10px rgba(16, 126, 62, 0.8),
-    0 0 20px rgba(16, 126, 62, 0.5),
-    0 0 30px rgba(16, 126, 62, 0.3);
+    0 0 10px color-mix(in srgb, var(--green) 80%, transparent),
+    0 0 20px color-mix(in srgb, var(--green) 50%, transparent),
+    0 0 30px color-mix(in srgb, var(--green) 30%, transparent);
   animation: gain-amount-pop 1.5s ease-out forwards;
   white-space: nowrap;
 }
@@ -1688,20 +1603,8 @@ h5 {
 .balance-updating {
   color: var(--sapPositiveColor) !important;
   font-weight: bold;
-  text-shadow: 0 0 8px rgba(16, 126, 62, 0.6);
+  text-shadow: 0 0 8px color-mix(in srgb, var(--green) 60%, transparent);
   transition: all 0.3s ease;
-}
-
-/* Dark mode coin glow enhancement */
-[data-theme="dark"] .coin-particle {
-  filter: drop-shadow(0 0 8px rgba(255, 215, 0, 1)) drop-shadow(0 0 15px rgba(255, 215, 0, 0.6));
-}
-
-[data-theme="dark"] .coin-gain-amount {
-  text-shadow:
-    0 0 15px rgba(16, 126, 62, 1),
-    0 0 30px rgba(16, 126, 62, 0.7),
-    0 0 45px rgba(16, 126, 62, 0.4);
 }
 
 /* === Block Details Modal === */
@@ -1745,7 +1648,7 @@ h5 {
 .block-details-modal {
   background: var(--sapGroup_ContentBackground);
   border-radius: 12px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3), 0 0 40px rgba(0, 112, 242, 0.15);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3), 0 0 40px color-mix(in srgb, var(--blue) 15%, transparent);
   max-width: 600px;
   width: 90%;
   max-height: 85vh;
@@ -1815,13 +1718,13 @@ h5 {
 }
 
 .block-status-badge.status-valid {
-  background: rgba(16, 126, 62, 0.15);
+  background: color-mix(in srgb, var(--green) 15%, transparent);
   color: var(--sapPositiveColor);
   border: 1px solid var(--sapPositiveColor);
 }
 
 .block-status-badge.status-invalid {
-  background: rgba(187, 0, 0, 0.15);
+  background: color-mix(in srgb, var(--red) 15%, transparent);
   color: var(--sapNegativeColor);
   border: 1px solid var(--sapNegativeColor);
   animation: pulse 1.5s ease-in-out infinite;
@@ -1891,7 +1794,7 @@ h5 {
 }
 
 .tamper-analysis {
-  background: rgba(187, 0, 0, 0.1);
+  background: color-mix(in srgb, var(--red) 10%, transparent);
   border: 1px solid var(--sapNegativeColor);
   border-radius: 8px;
   padding: 12px;
@@ -1907,7 +1810,7 @@ h5 {
 .tamper-item {
   font-size: 11px;
   margin-top: 8px;
-  color: #bb0000;
+  color: var(--red);
 }
 
 .tamper-detail {
@@ -1969,13 +1872,13 @@ h5 {
   0% {
     opacity: 0;
     transform: translateX(-20px);
-    background: rgba(0, 112, 242, 0.3);
+    background: color-mix(in srgb, var(--blue) 30%, transparent);
   }
 
   30% {
     opacity: 1;
     transform: translateX(0);
-    background: rgba(0, 112, 242, 0.25);
+    background: color-mix(in srgb, var(--blue) 25%, transparent);
   }
 
   100% {
@@ -1993,7 +1896,7 @@ h5 {
   }
 
   50% {
-    box-shadow: 0 0 15px rgba(0, 112, 242, 0.4);
+    box-shadow: 0 0 15px color-mix(in srgb, var(--blue) 40%, transparent);
   }
 }
 
@@ -2026,7 +1929,7 @@ h5 {
 .participant-details-modal {
   background: var(--sapGroup_ContentBackground);
   border-radius: 12px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3), 0 0 40px rgba(0, 112, 242, 0.15);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3), 0 0 40px color-mix(in srgb, var(--blue) 15%, transparent);
   max-width: 550px;
   width: 90%;
   max-height: 85vh;
@@ -2038,7 +1941,7 @@ h5 {
 }
 
 .miner-header-minas {
-  background: linear-gradient(135deg, var(--miner-minas-color), #581c87) !important;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--minas) 70%, black), color-mix(in srgb, var(--minas) 40%, black)) !important;
 }
 
 .miner-header-minas .modal-title,
@@ -2047,7 +1950,7 @@ h5 {
 }
 
 .miner-header-lars {
-  background: linear-gradient(135deg, var(--miner-lars-color), #b35c00) !important;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--lars) 70%, black), color-mix(in srgb, var(--lars) 40%, black)) !important;
 }
 
 .miner-header-lars .modal-title,
@@ -2139,7 +2042,7 @@ h5 {
 }
 
 .modal-hash.private-key {
-  background: rgba(187, 0, 0, 0.1);
+  background: color-mix(in srgb, var(--red) 10%, transparent);
   border-color: var(--sapNegativeColor);
   color: var(--sapNegativeColor);
   font-size: 10px;
@@ -2229,28 +2132,14 @@ h5 {
   font-style: italic;
 }
 
-/* Header controls dark mode fix */
-[data-theme="dark"] .app-header input {
+/* Header controls */
+.app-header input {
   background: var(--sapField_Background);
   color: var(--sapTextColor);
   border-color: var(--sapField_BorderColor);
 }
 
-[data-theme="dark"] .app-header span {
-  color: var(--sapTextColor);
-}
-
-/* Participant balance dark mode fix */
-[data-theme="dark"] .list-item-subtitle {
-  color: var(--sapTextColor);
-}
-
-[data-theme="dark"] .participant-balance-card .balance-amount {
-  color: white;
-}
-
-/* Modal hash dark mode fix */
-[data-theme="dark"] .modal-hash {
+.modal-hash {
   color: var(--sapTextColor);
 }
 
@@ -2290,7 +2179,7 @@ h5 {
   grid-template-columns: repeat(4, 1fr);
   gap: 8px;
   padding: 12px;
-  background: rgba(187, 0, 0, 0.08);
+  background: var(--red-bg);
   border: 1px solid var(--sapNegativeColor);
   border-radius: 8px;
 }
@@ -2318,19 +2207,11 @@ h5 {
   color: var(--sapNegativeColor);
 }
 
-[data-theme="dark"] .seed-phrase-container {
-  background: rgba(187, 0, 0, 0.15);
-}
-
-[data-theme="dark"] .seed-word-text {
-  color: #ff6b6b;
-}
-
 /* === Transaction Details Modal === */
 .transaction-details-modal {
   background: var(--sapGroup_ContentBackground);
   border-radius: 12px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3), 0 0 40px rgba(0, 200, 100, 0.1);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3), 0 0 40px color-mix(in srgb, var(--green) 10%, transparent);
   max-width: 550px;
   width: 90%;
   max-height: 85vh;
@@ -2342,7 +2223,7 @@ h5 {
 }
 
 .mining-reward-header {
-  background: linear-gradient(135deg, var(--sapPositiveColor), #006644) !important;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--green) 60%, black), color-mix(in srgb, var(--green) 40%, black)) !important;
 }
 
 .tx-type-badge {
@@ -2355,13 +2236,13 @@ h5 {
 }
 
 .tx-type-badge.mining-reward {
-  background: rgba(0, 150, 100, 0.15);
+  background: color-mix(in srgb, var(--green) 15%, transparent);
   color: var(--sapPositiveColor);
   border: 1px solid var(--sapPositiveColor);
 }
 
 .tx-type-badge.transfer {
-  background: rgba(0, 112, 242, 0.15);
+  background: color-mix(in srgb, var(--blue) 15%, transparent);
   color: var(--sapBrandColor);
   border: 1px solid var(--sapBrandColor);
 }
@@ -2369,10 +2250,10 @@ h5 {
 .tx-amount-card {
   text-align: center;
   padding: 20px;
-  background: linear-gradient(135deg, var(--sapPositiveColor), #00aa66);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--green) 55%, black), color-mix(in srgb, var(--green) 40%, black));
   border-radius: 12px;
   margin-bottom: 16px;
-  color: white;
+  color: var(--on-accent);
 }
 
 .tx-amount-value {
@@ -2494,8 +2375,8 @@ h5 {
 }
 
 .tx-info-box {
-  background: rgba(0, 112, 242, 0.08);
-  border: 1px solid rgba(0, 112, 242, 0.25);
+  background: color-mix(in srgb, var(--blue) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--blue) 25%, transparent);
   border-radius: 8px;
   padding: 12px;
   margin-top: 12px;
@@ -2591,7 +2472,7 @@ h5 {
 .stats-hero {
   text-align: center;
   padding: 24px;
-  background: linear-gradient(135deg, rgba(0, 112, 242, 0.1), rgba(0, 74, 159, 0.15));
+  background: linear-gradient(135deg, color-mix(in srgb, var(--blue) 10%, transparent), color-mix(in srgb, var(--blue-2) 15%, transparent));
   border-radius: 12px;
   margin-bottom: 16px;
 }
@@ -2643,7 +2524,7 @@ h5 {
 
 .blockchain-stat-item.highlight {
   border-color: var(--sapBrandColor);
-  background: rgba(0, 112, 242, 0.08);
+  background: color-mix(in srgb, var(--blue) 8%, transparent);
 }
 
 .blockchain-stat-value {
@@ -2713,8 +2594,8 @@ h5 {
   cursor: pointer;
   padding: 4px 12px;
   border-radius: 6px;
-  background: rgba(0, 112, 242, 0.1);
-  border: 1px solid rgba(0, 112, 242, 0.3);
+  background: color-mix(in srgb, var(--blue) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--blue) 30%, transparent);
   transition: all 0.2s ease;
   display: flex;
   align-items: center;
@@ -2722,7 +2603,7 @@ h5 {
 }
 
 .block-height-clickable:hover {
-  background: rgba(0, 112, 242, 0.2);
+  background: color-mix(in srgb, var(--blue) 20%, transparent);
   border-color: var(--sapBrandColor);
   transform: translateY(-1px);
 }
@@ -2821,13 +2702,6 @@ dialog.modal-overlay > div { max-width: 100%; }
   .blockchain-column { grid-column: 2; grid-row: 1; }
   .controls-column { grid-column: 3; grid-row: 1; }
 }
-[data-theme="dark"] {
-  --sapPositiveColor: #57c98b;
-  --sapNegativeColor: #ff8d8d;
-  --sapBrandColor: #62b0ff;
-  --sapLinkColor: #80bdff;
-}
-.header-actions .btn-negative { background: #b42318; border-color: #b42318; color: #fff; }
 .analytics-control { max-width: 1568px; margin: 12px auto 0; text-align: left; border: 1px solid var(--sapList_BorderColor); border-radius: 6px; }
 .analytics-control summary { cursor: pointer; padding: 10px 12px; color: var(--sapTextColor); font-size: 13px; }
 .analytics-control > div { padding: 0 12px 12px; }

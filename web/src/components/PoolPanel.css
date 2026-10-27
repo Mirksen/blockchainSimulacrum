@@ -1,6 +1,6 @@
 .pool-panel {
-  --pool-action: #76b8ff;
-  --pool-negative: #ff9b9b;
+  --pool-action: var(--blue);
+  --pool-negative: var(--red);
   box-sizing: border-box;
   width: min(880px, calc(100vw - 32px));
   max-height: calc(100dvh - 32px);
@@ -10,10 +10,6 @@
   color: var(--sapTextColor);
   background: var(--sapGroup_ContentBackground);
   line-height: 1.55;
-}
-[data-theme="light"] .pool-panel {
-  --pool-action: var(--sapBrandColor);
-  --pool-negative: var(--sapNegativeColor);
 }
 .pool-panel *, .pool-panel *::before, .pool-panel *::after { box-sizing: border-box; }
 .pool-panel .btn.btn-transparent, .pool-panel .btn.btn-default { color: var(--pool-action); }

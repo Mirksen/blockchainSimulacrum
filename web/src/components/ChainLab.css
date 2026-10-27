@@ -1,7 +1,7 @@
 .chain-lab {
-  --chain-positive: #8cdaa5;
-  --chain-negative: #ff9b9b;
-  --chain-action: #76b8ff;
+  --chain-positive: var(--green);
+  --chain-negative: var(--red);
+  --chain-action: var(--blue);
   box-sizing: border-box;
   width: min(1120px, calc(100vw - 32px));
   max-height: calc(100dvh - 32px);
@@ -11,11 +11,6 @@
   color: var(--sapTextColor);
   border-radius: var(--sapElement_BorderCornerRadius);
   line-height: 1.5;
-}
-[data-theme="light"] .chain-lab {
-  --chain-positive: var(--sapPositiveColor);
-  --chain-negative: var(--sapNegativeColor);
-  --chain-action: var(--sapBrandColor);
 }
 .chain-lab *, .chain-lab *::before, .chain-lab *::after { box-sizing: border-box; }
 .chain-lab-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; }

@@ -1,6 +1,6 @@
 .learning-path {
-  --learning-action: #76b8ff;
-  --learning-positive: #8cdaa5;
+  --learning-action: var(--blue);
+  --learning-positive: var(--green);
   box-sizing: border-box;
   width: min(1040px, calc(100vw - 24px));
   max-height: calc(100dvh - 24px);
@@ -11,7 +11,6 @@
   border-radius: var(--sapElement_BorderCornerRadius);
   line-height: 1.55;
 }
-[data-theme="light"] .learning-path { --learning-action: var(--sapBrandColor); --learning-positive: var(--sapPositiveColor); }
 .learning-path *, .learning-path *::before, .learning-path *::after { box-sizing: border-box; }
 .learning-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; }
 .learning-header h2 { margin: 0; font-size: 28px; line-height: 1.2; letter-spacing: -0.02em; }

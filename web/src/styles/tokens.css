@@ -1,0 +1,207 @@
+/*
+ * proofofwork.fyi — foundation tokens (web/DESIGN.md › Foundation).
+ *
+ * One token set, a dark value (default, :root) and a light value
+ * (html[data-theme="light"]) per token. Components use these tokens, never
+ * hex values. Source of the values: the :root and html[data-theme="light"]
+ * blocks of studies/design-workshop/round-6/base.html and light.html.
+ * Layout tokens of the prototype (top bar, rail, chain grid, row heights)
+ * arrive with the rebuild steps that use them.
+ */
+
+:root {
+  color-scheme: dark;
+
+  /* surfaces */
+  --bg: #0b1220;
+  --bg-2: #0e1628;
+  --panel: #111a2e;
+  --panel-2: #16213a;
+  --panel-3: #1b2744;
+  --overlay: #0a1020;
+  --shadow: rgba(0, 0, 0, 0.7);
+
+  /* lines */
+  --line: #1f2b45;
+  --line-2: #192440;
+  --line-3: #2c3b5e;
+  --active-line: #2a3f6e;
+
+  /* text */
+  --text: #e7edf8;
+  --text-2: #a3b2cf;
+  --text-3: #6c7d9e;
+  --on-accent: #ffffff;
+  --on-light: #0b1220;
+
+  /* action */
+  --blue: #4d8dff;
+  --blue-2: #3a7af0;
+  --blue-bg: rgba(77, 141, 255, 0.12);
+  --blue-glow: rgba(77, 141, 255, 0.7);
+  --blue-line: rgba(77, 141, 255, 0.55);
+  --glow-action: 0 8px 24px -8px var(--blue-glow);
+  --focus: #9cc0ff;
+
+  /* status (always paired with text) */
+  --green: #3fd69a;
+  --green-bg: rgba(63, 214, 154, 0.12);
+  --green-line: rgba(63, 214, 154, 0.32);
+  --amber: #f5c04e;
+  --amber-bg: rgba(245, 192, 78, 0.12);
+  --red: #ff7a7a;
+  --red-bg: rgba(255, 122, 122, 0.13);
+
+  /* miners and wallets */
+  --lars: #f5a524;
+  --minas: #a78bfa;
+  --alice: #93c5fd;
+  --bob: #86efac;
+  --chris: #7dd3fc;
+  --genesis-av: rgba(255, 255, 255, 0.18);
+
+  /* coach (mission pointer) */
+  --coach: #7fb0ff;
+  --coach-ring: rgba(127, 176, 255, 0.18);
+  --coach-glow: rgba(127, 176, 255, 0.32);
+
+  /* block tiles (3D blocks, only on tiles) */
+  --blk-4: linear-gradient(160deg, #5a7cff 0%, #7a52ee 100%);
+  --blk-3: linear-gradient(160deg, #4f6ef0 0%, #6a45d9 100%);
+  --blk-2: linear-gradient(160deg, #4662dd 0%, #5d3cc6 100%);
+  --blk-1: linear-gradient(160deg, #3d56c8 0%, #5034b0 100%);
+  --blk-0: linear-gradient(160deg, #2f3f86 0%, #3a2a78 100%);
+  --blk-top: linear-gradient(90deg, #7d97ff, #9a7bf6);
+  --blk-side: linear-gradient(180deg, #3d50c8, #4a2fa8);
+  --blk-0-top: #44539c;
+  --blk-0-side: #232c63;
+  --blk-glow: rgba(122, 82, 238, 0.6);
+  --blk-text: #ffffff;
+  --blk-hash-bg: rgba(6, 10, 30, 0.28);
+  --blk-tag-bg: rgba(255, 255, 255, 0.18);
+  --blk-rule: rgba(255, 255, 255, 0.14);
+  --blk-hover: rgba(255, 255, 255, 0.55);
+  --blk-selected: #ffffff;
+
+  /* candidate (not mined yet) */
+  --pend-a: #17213a;
+  --pend-b: #152036;
+  --pend-line: #4a5d88;
+  --pend-top: #25314f;
+  --pend-side: #141c31;
+  --band-glow: rgba(77, 141, 255, 0.10);
+  --lane-bg: rgba(11, 18, 32, 0.72);
+
+  /* hairline links */
+  --link-line: #33415f;
+  --link-line-hover: #4b5d84;
+  --link-dot: #55668d;
+  --link-dot-ring: var(--bg);
+  --link-dot-halo: rgba(85, 102, 141, 0.30);
+  --link-dot-size: 6px;
+
+  /* type: scale 11 label / 12 meta / 13 body / 14 title / 16 heading */
+  --ui: -apple-system, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  /* spacing (4/8 grid) */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 20px;
+  --s-6: 24px;
+  --s-7: 28px;
+
+  /* radius */
+  --r-sm: 6px;
+  --r-md: 8px;
+  --r-lg: 10px;
+  --block-depth: 7px;
+}
+
+html[data-theme="light"] {
+  color-scheme: light;
+
+  /* surfaces: cool off-white page, white panels, grey recesses */
+  --bg: #f1f4f9;
+  --bg-2: #f8fafc;
+  --panel: #ffffff;
+  --panel-2: #f1f5f9;
+  --panel-3: #e2e8f0;
+  --overlay: #ffffff;
+  --shadow: rgba(15, 23, 42, 0.22);
+
+  /* lines */
+  --line: #dbe2ec;
+  --line-2: #e6ebf2;
+  --line-3: #c3cddb;
+  --active-line: #b9cbf2;
+
+  /* text: slate */
+  --text: #0f172a;
+  --text-2: #475569;
+  --text-3: #5a6a80;
+  --on-accent: #ffffff;
+  --on-light: #ffffff;
+
+  /* action (one step darker, same hues) */
+  --blue: #2459e0;
+  --blue-2: #1d4bc4;
+  --blue-bg: rgba(36, 89, 224, 0.08);
+  --blue-glow: rgba(36, 89, 224, 0.45);
+  --blue-line: rgba(36, 89, 224, 0.50);
+  --focus: #2459e0;
+
+  /* status */
+  --green: #047857;
+  --green-bg: rgba(4, 120, 87, 0.10);
+  --green-line: rgba(4, 120, 87, 0.35);
+  --amber: #9a5800;
+  --amber-bg: rgba(217, 140, 10, 0.14);
+  --red: #c42b2b;
+  --red-bg: rgba(196, 43, 43, 0.10);
+
+  /* miners and wallets: saturated fills that carry white letters */
+  --lars: #b45309;
+  --minas: #7c3aed;
+  --alice: #1f62d1;
+  --bob: #15803d;
+  --chris: #0e7490;
+  --genesis-av: rgba(255, 255, 255, 0.20);
+
+  /* coach */
+  --coach: #2154d6;
+  --coach-ring: rgba(33, 84, 214, 0.16);
+  --coach-glow: rgba(33, 84, 214, 0.30);
+
+  /* block tiles: more saturated so white text keeps >= 4.5:1 */
+  --blk-4: linear-gradient(160deg, #2b4ad8 0%, #6538dc 100%);
+  --blk-3: linear-gradient(160deg, #2a48d0 0%, #6236d2 100%);
+  --blk-2: linear-gradient(160deg, #2946c8 0%, #5a31c4 100%);
+  --blk-1: linear-gradient(160deg, #2741b8 0%, #522cb4 100%);
+  --blk-0: linear-gradient(160deg, #3a4682 0%, #3e2f78 100%);
+  --blk-top: linear-gradient(90deg, #7390ff, #9a78f7);
+  --blk-side: linear-gradient(180deg, #2238a8, #40229a);
+  --blk-0-top: #6872a8;
+  --blk-0-side: #262c5e;
+  --blk-glow: rgba(76, 60, 220, 0.45);
+  --blk-hash-bg: rgba(6, 10, 40, 0.30);
+  --blk-hover: rgba(15, 23, 42, 0.45);
+  --blk-selected: #0f172a;
+
+  /* candidate */
+  --pend-a: #eef2f9;
+  --pend-b: #e7ecf5;
+  --pend-line: #8d9bb8;
+  --pend-top: #dde3ee;
+  --pend-side: #cbd3e1;
+  --band-glow: rgba(36, 89, 224, 0.08);
+  --lane-bg: rgba(255, 255, 255, 0.88);
+
+  /* hairline links: neutral while intact */
+  --link-line: #a3b1c6;
+  --link-line-hover: #7d8ca6;
+  --link-dot: #7b8aa3;
+  --link-dot-halo: rgba(123, 138, 163, 0.30);
+}

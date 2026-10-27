@@ -96,12 +96,12 @@ try {
  results.push('Tampering is detected');
  await page.getByRole('button',{name:'Reset',exact:true}).click();
  await page.getByRole('button',{name:'Open blockchain insights'}).filter({hasText:/^0 mined$/}).waitFor();
- await page.getByRole('button',{name:'Switch to dark theme'}).click();
- assert.equal(await page.locator('html').getAttribute('data-theme'),'dark');
+ await page.getByRole('button',{name:'Switch to light theme'}).click();
+ assert.equal(await page.locator('html').getAttribute('data-theme'),'light');
  await page.evaluate(() => window.scrollTo(0,0));
  await page.waitForTimeout(100);
- await page.screenshot({path:join(output,'dark-desktop.png'),fullPage:true});
- results.push('Reset returns to genesis; dark theme works');
+ await page.screenshot({path:join(output,'light-desktop.png'),fullPage:true});
+ results.push('Reset returns to genesis; light theme works');
  await page.locator('summary').filter({hasText:'Experiment settings'}).click();
  await page.getByLabel('Mining difficulty',{exact:true}).fill('5');
  await page.getByRole('button',{name:'Mine Next Block'}).click();
