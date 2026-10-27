@@ -39,6 +39,7 @@ describe('transaction boundaries', () => {
     mineNext(chain);
     expect(chain.isChainValid()).toBe(true);
     chain.tamperTransaction(1,0,2);
+    expect(chain.blockArray[1].isValid()).toBe(false);
     expect(chain.isChainValid()).toBe(false);
   });
 });

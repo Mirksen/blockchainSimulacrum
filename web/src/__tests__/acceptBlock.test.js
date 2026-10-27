@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { candidateHash, createBlockchain } from '../lib/blockchain';
+import { candidateHash, createBlockchain, transactionRoot } from '../lib/blockchain';
 
 const T0 = Date.parse('2026-01-02T12:00:00Z');
 const setup = (overrides = {}) => createBlockchain({
@@ -39,7 +39,8 @@ describe('prepareCandidate', () => {
     expect(candidate.transactions).toHaveLength(2);
     expect(candidate.transactions[1]).toMatchObject({ sender: null, recipient: miner(chain).publicKey, amount: 3.375,
       transactionFee: 0, referenceNumber: 'Mining Reward' });
-    expect(candidate.prefix).toBe(candidate.previousHash + T0 + JSON.stringify(candidate.transactions));
+    expect(candidate.txRoot).toBe(transactionRoot(candidate.transactions));
+    expect(candidate.prefix).toBe(candidate.previousHash + candidate.txRoot + T0 + 1);
     expect(chain.memPool).toHaveLength(1);
   });
 });
@@ -89,7 +90,8 @@ describe('acceptBlock', () => {
     const { block } = outcome;
     expect(chain.blockArray).toHaveLength(2);
     expect(chain.blockArray[1]).toBe(block);
-    expect(block).toMatchObject({ timestamp: T0, previousHash: candidate.previousHash, nonce, hash, halved: false });
+    expect(block).toMatchObject({ timestamp: T0, previousHash: candidate.previousHash, difficulty: 1, txRoot: candidate.txRoot,
+      nonce, hash, halved: false });
     expect(block.createHash()).toBe(hash);
     expect(block.isValid()).toBe(true);
     expect(chain.isChainValid()).toBe(true);

@@ -128,21 +128,52 @@ export class Transaction {
   }
 }
 
-// Block class - container for transactions
+// Merkle root of a transaction list (Bitcoin-style): each leaf is the
+// transaction hash, each parent is SHA256(left + right), an odd level repeats
+// its last hash, and an empty list has an all-zero root.
+const EMPTY_ROOT = '0'.repeat(64);
+
+function transactionLeaf(tx) {
+  if (typeof tx.createHash === 'function') return tx.createHash();
+  return SHA256(tx.sender + tx.recipient + tx.amount + tx.transactionFee + tx.referenceNumber).toString();
+}
+
+export function transactionRoot(transactions) {
+  if (transactions.length === 0) return EMPTY_ROOT;
+  let level = transactions.map(transactionLeaf);
+  while (level.length > 1) {
+    const next = [];
+    for (let i = 0; i < level.length; i += 2) {
+      const left = level[i];
+      const right = i + 1 < level.length ? level[i + 1] : left;
+      next.push(SHA256(left + right).toString());
+    }
+    level = next;
+  }
+  return level[0];
+}
+
+// Block class - a header (previous hash, transaction root, timestamp,
+// difficulty, nonce) committing to its transactions through the root
 export class Block {
-  constructor(timestamp, transactions, previousHash = '') {
+  constructor(timestamp, transactions, previousHash = '', difficulty = 0) {
     this.timestamp = timestamp;
     this.transactions = transactions;
     this.previousHash = previousHash;
+    this.difficulty = difficulty;
+    this.txRoot = transactionRoot(transactions);
     this.nonce = 0;
     this.hash = this.createHash();
   }
 
+  // Recomputes the root from the current transactions, so editing any
+  // transaction after mining changes this hash.
   createHash() {
     return SHA256(
       this.previousHash +
+      transactionRoot(this.transactions) +
       this.timestamp +
-      JSON.stringify(this.transactions) +
+      this.difficulty +
       this.nonce
     ).toString();
   }
@@ -338,6 +369,7 @@ export class Blockchain {
     ]);
     const previousHash = this.blockArray[height - 1].hash;
     const difficulty = this.miningDifficulty;
+    const txRoot = transactionRoot(transactions);
     return Object.freeze({
       previousHash,
       timestamp,
@@ -348,7 +380,9 @@ export class Blockchain {
       transactions,
       minerPublicKey: miner.publicKey,
       height,
-      prefix: previousHash + timestamp + JSON.stringify(transactions)
+      txRoot,
+      // Fixed-size header: the root stands in for every transaction.
+      prefix: previousHash + txRoot + timestamp + difficulty
     });
   }
 
@@ -360,7 +394,7 @@ export class Blockchain {
     if (this.blockArray.length !== candidate.height || this.blockArray.at(-1).hash !== candidate.previousHash) {
       return { status: 'stale' };
     }
-    const block = new Block(candidate.timestamp, [...candidate.transactions], candidate.previousHash);
+    const block = new Block(candidate.timestamp, [...candidate.transactions], candidate.previousHash, candidate.difficulty);
     block.nonce = nonce;
     block.hash = hash;
     block.halved = candidate.halved;
