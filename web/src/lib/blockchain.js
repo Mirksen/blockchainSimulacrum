@@ -6,84 +6,37 @@
 
 import SHA256 from 'crypto-js/sha256';
 import { ec as EC } from 'elliptic';
+import { deriveWallet } from './wallet';
 
 const ec = new EC('secp256k1');
 
-// BIP39 word list subset (160 words covering A-Z for variety)
-const SEED_WORDS = [
-  // A words
-  'abandon', 'abstract', 'acoustic', 'airport', 'ancient', 'animal', 'approve', 'arrow',
-  // B words
-  'balance', 'banana', 'battle', 'beauty', 'believe', 'bitter', 'blanket', 'brother',
-  // C words
-  'cabin', 'camera', 'canvas', 'captain', 'castle', 'ceiling', 'change', 'crystal',
-  // D words
-  'damage', 'danger', 'decade', 'define', 'diamond', 'digital', 'dolphin', 'dragon',
-  // E words
-  'eagle', 'earth', 'eclipse', 'electric', 'embrace', 'endless', 'escape', 'evolve',
-  // F words
-  'fabric', 'famous', 'fantasy', 'fashion', 'federal', 'fiction', 'fortune', 'future',
-  // G words
-  'galaxy', 'garden', 'general', 'genius', 'glance', 'golden', 'gravity', 'guitar',
-  // H words
-  'habit', 'harbor', 'harvest', 'hidden', 'history', 'hollow', 'horizon', 'hundred',
-  // I words
-  'identity', 'ignore', 'illness', 'immune', 'impulse', 'income', 'initial', 'island',
-  // J words
-  'jacket', 'jaguar', 'jealous', 'jewel', 'journey', 'judge', 'jungle', 'junior',
-  // K words
-  'kangaroo', 'keen', 'kernel', 'kingdom', 'kitchen', 'kiwi', 'knight', 'knock',
-  // L words
-  'ladder', 'language', 'laptop', 'lateral', 'legend', 'liberty', 'lizard', 'lunar',
-  // M words
-  'machine', 'magnet', 'mansion', 'marine', 'master', 'meadow', 'million', 'mystery',
-  // N words
-  'narrow', 'nature', 'network', 'neutral', 'noble', 'normal', 'nuclear', 'number',
-  // O words
-  'object', 'obscure', 'ocean', 'obvious', 'october', 'olympic', 'opinion', 'orange',
-  // P words
-  'palace', 'panther', 'pattern', 'perfect', 'phoenix', 'pioneer', 'planet', 'python',
-  // Q words
-  'quality', 'quantum', 'quarter', 'question', 'quick', 'quiet', 'quiz', 'quote',
-  // R words
-  'rabbit', 'radar', 'random', 'realm', 'recipe', 'rescue', 'rhythm', 'rocket',
-  // S words
-  'saddle', 'salmon', 'sample', 'science', 'shadow', 'silver', 'spirit', 'strong',
-  // T words
-  'talent', 'target', 'temple', 'theory', 'thunder', 'tiger', 'tunnel', 'twelve',
-  // U words
-  'umbrella', 'uncle', 'unique', 'universe', 'unlock', 'upper', 'urban', 'useful',
-  // V words
-  'vacuum', 'various', 'velvet', 'venture', 'village', 'vintage', 'virtual', 'volcano',
-  // W words
-  'wagon', 'wander', 'warrior', 'weather', 'wedding', 'whisper', 'winter', 'wonder',
-  // X-Z words
-  'yellow', 'zebra', 'zero', 'zombie', 'window', 'witness', 'wizard', 'youth'
-];
-
-function generateSeedPhrase() {
-  const words = [];
-  for (let i = 0; i < 12; i++) {
-    const randomIndex = Math.floor(Math.random() * SEED_WORDS.length);
-    words.push(SEED_WORDS[randomIndex]);
-  }
-  return words.join(' ');
-}
-
 // Participant class - wallet owners with cryptographic key pairs
 export class Participant {
-  constructor(name, isMiner = false) {
+  constructor(name, isMiner = false, seedPhrase) {
     this.name = name;
-    this.keyPair = ec.genKeyPair();
+    const wallet = deriveWallet(seedPhrase);
+    try {
+      this.keyPair = ec.keyFromPrivate(wallet.privateKey);
+    } finally {
+      wallet.privateKey.fill(0);
+    }
     this.publicKey = this.keyPair.getPublic('hex');
     this.privateKey = this.keyPair.getPrivate('hex');
-    this.seedPhrase = generateSeedPhrase(); // Decorative demo words; cannot recover this wallet
+    this.seedPhrase = wallet.seedPhrase;
     // Miner properties
     this.isMiner = isMiner;
     this.hashpower = 5; // 1-10 scale, affects mining speed
     this.minerEnabled = true; // Can toggle miner on/off
     this.blocksWon = 0; // Counter for blocks mined
     this.activeMiner = false; // Legacy compatibility
+  }
+
+  static fromSeedPhrase(name, seedPhrase, isMiner = false) {
+    // Unlike new-wallet creation, recovery must never fall back to generation.
+    if (typeof seedPhrase !== 'string') {
+      throw new Error('Enter a valid English BIP39 recovery phrase.');
+    }
+    return new Participant(name, isMiner, seedPhrase);
   }
 }
 

@@ -1,6 +1,8 @@
 import { Modal } from './Modal';
 import { useState } from 'react';
 import { TransactionDetailsModal } from './TransactionDetailsModal';
+import { Participant } from '../lib/blockchain';
+import { WALLET_DERIVATION_PATH } from '../lib/wallet';
 
 export function ParticipantDetailsModal({
     participant,
@@ -13,7 +15,19 @@ export function ParticipantDetailsModal({
     coinName = 'powCoin'
 }) {
     const [selectedTransaction, setSelectedTransaction] = useState(null);
+    const [recoveryResult, setRecoveryResult] = useState(null);
     if (!participant) return null;
+
+    const verifyRecovery = () => {
+        let verified = false;
+        try {
+            const recovered = Participant.fromSeedPhrase(participant.name, participant.seedPhrase);
+            verified = recovered.publicKey === participant.publicKey;
+        } catch {
+            // Keep failure details and key material local; show only a fixed message.
+        }
+        setRecoveryResult({ publicKey: participant.publicKey, verified });
+    };
 
     const getMinerColorClass = (name) => {
         return name?.toLowerCase() === 'minas' ? 'minas' : 'lars';
@@ -152,8 +166,8 @@ export function ParticipantDetailsModal({
                     </div>
 
                     <div className="modal-section">
-                        <div className="modal-section-label">Demo seed words</div>
-                        <p className="text-muted text-small">These random demo words cannot recover a wallet. Never use this simulation for real funds.</p>
+                        <div className="modal-section-label">Demo recovery phrase (BIP39)</div>
+                        <p className="text-muted text-small">These words recover this demo key. Resetting still clears the simulated ledger. Never use this simulation for real funds.</p>
                         <div className="seed-phrase-container">
                             {participant.seedPhrase?.split(' ').map((word, idx) => (
                                 <div key={idx} className="seed-word">
@@ -162,6 +176,17 @@ export function ParticipantDetailsModal({
                                 </div>
                             )) || <span>No seed phrase available</span>}
                         </div>
+                        <p className="text-muted text-small">Derivation: <code>{WALLET_DERIVATION_PATH}</code>, empty passphrase.</p>
+                        <button type="button" className="btn btn-sm btn-transparent" onClick={verifyRecovery} disabled={isMining}>
+                            Verify recovery
+                        </button>
+                        {recoveryResult?.publicKey === participant.publicKey && (
+                            <p role="status" className="text-small">
+                                {recoveryResult.verified
+                                    ? 'Verified: this phrase recovers the same demo public key.'
+                                    : 'Recovery could not be verified.'}
+                            </p>
+                        )}
                     </div>
 
                     {/* Transaction History */}
