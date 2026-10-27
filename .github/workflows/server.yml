@@ -1,0 +1,26 @@
+name: Server checks
+on:
+  push:
+    branches: [master]
+    paths: ['server/**', 'shared/**', 'deploy/lab/**', '.github/workflows/server.yml']
+  pull_request:
+    paths: ['server/**', 'shared/**', 'deploy/lab/**', '.github/workflows/server.yml']
+permissions:
+  contents: read
+jobs:
+  server:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version: '24.19.0'
+      # Zero runtime dependencies: the leaderboard server runs on node:http, node:crypto and node:sqlite.
+      - run: npm test
+      - name: Compose file is valid
+        working-directory: deploy/lab/proofofwork
+        run: docker compose -f compose.yaml config --quiet
