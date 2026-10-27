@@ -2,6 +2,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import CryptoJS from 'crypto-js/core.js';
 import { remineBlock, ROOT_HASH } from '../lib/chainLab';
 
+// 50,000 real midstate attempts take ~1.7 s on an idle machine; keep headroom
+// for loaded CI runners instead of the 5 s default.
+const LIMIT_TEST_TIMEOUT_MS = 15_000;
+
 // Synthetic hash outcomes exercise search limits; real hashing is checked separately.
 // The search hashes each nonce through the SHA-256 midstate, so its finalize step is forced.
 let finalize;
@@ -19,7 +23,7 @@ describe('bounded chain-lab search', () => {
     expect(finalize).toHaveBeenCalledTimes(50_000);
     expect(progress).toHaveBeenLastCalledWith(50_000);
     expect(blocks[0].hash).toBe(ROOT_HASH);
-  });
+  }, LIMIT_TEST_TIMEOUT_MS);
   it('cancels between batches after actual work and returns no candidate block', async () => {
     finalize.mockReturnValue({ toString: () => 'f'.repeat(64) });
     const controller = new AbortController();

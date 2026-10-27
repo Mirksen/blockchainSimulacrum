@@ -3,6 +3,10 @@ import { describe, expect, it, vi } from 'vitest';
 import CryptoJS from 'crypto-js/core.js';
 import { changedPositions, createTrial, findNonce, meetsTarget, parseNonce, SEARCH_LIMIT } from '../lib/hashLab';
 
+// 50,000 real midstate attempts take ~1.7 s on an idle machine; keep headroom
+// for loaded CI runners instead of the 5 s default.
+const LIMIT_TEST_TIMEOUT_MS = 15_000;
+
 const digest = input => createHash('sha256').update(input, 'utf8').digest('hex');
 const instantYield = () => Promise.resolve();
 
@@ -84,7 +88,7 @@ describe('bounded nonce search', () => {
       expect(result.attempts).toBe(50_000);
       expect(result.trial.nonce).toBe(50_009);
     } finally { finalize.mockRestore(); }
-  });
+  }, LIMIT_TEST_TIMEOUT_MS);
   it('does not round beyond the last safe integer nonce', async () => {
     const result = await findNonce({ message: 'Synthetic block', startNonce: Number.MAX_SAFE_INTEGER, difficulty: 3, yieldControl: instantYield });
     expect(result.status).toBe('exhausted');
