@@ -65,7 +65,13 @@ try {
  await page.getByRole('button',{name:'Open Bob details',exact:true}).click();
  const dialog=page.getByRole('dialog',{name:'Participant details'});
  await dialog.waitFor();
- assert.ok((await dialog.innerText()).includes('cannot recover a wallet'));
+ await dialog.getByText('Demo recovery phrase (BIP39)',{exact:true}).waitFor();
+ assert.ok((await dialog.innerText()).includes('These words recover this demo key.'));
+ assert.ok((await dialog.innerText()).includes("m/44'/0'/0'/0/0"));
+ assert.ok((await dialog.innerText()).includes('empty passphrase'));
+ await dialog.getByRole('button',{name:'Verify recovery',exact:true}).click();
+ assert.equal(await dialog.getByRole('status').innerText(),'Verified: this phrase recovers the same demo public key.');
+ results.push('BIP39 recovery derives the same demo public key at the documented path');
  assert.ok((await dialog.locator('.balance-amount').innerText()).includes('0.70000000'));
  await dialog.getByRole('button',{name:/Transaction in block/}).first().click();
  const nested = page.getByRole('dialog',{name:'Transaction details',exact:true});
