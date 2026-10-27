@@ -67,8 +67,42 @@ Target picture · round 3 (Mirko, 2026-10-27):
 - **At 390 px the chain is a vertical list** you scroll down, not a
   sideways strip; the race sits directly under the chain.
 
-Open in round 4: block order in the band, how chain health shows in it, and
-how the grid below is packed.
+Target picture · round 4 (Mirko, 2026-10-27):
+
+- **The band reads left to right as a timeline**: #0 Genesis on the left,
+  the newest block on the right, then the dashed candidate "#N next".
+- **Links between tiles are quiet lines**, never an icon or badge; they
+  carry the link state.
+- **Chain health is one collapsible line under the tiles**, collapsed by
+  default ("Chain valid · 5 of 5 hashes start with 00 · 4 of 4 links
+  intact"); expanded it shows the per-block checks aligned under the tiles.
+- **Next block and Mempool are separate cards**, stacked directly under the
+  candidate tile.
+- **Key figures are a quiet stat line in the band header**, not a tile.
+- **Selected block above Wallets**, left of the Next block column.
+- **Reference screen: MacBook Pro 14"** (1512 × 982 points, about
+  1512 × 860 CSS px inside the browser). The workbench uses that space
+  completely, without a fold and without empty strips.
+
+Open in round 5: the link style, and checking the refined layout in its
+states, light and at 390 px.
+
+## Screen sizes
+
+Target picture · round 5 (proposed by the lead after Mirko asked for other
+common sizes, 2026-10-27; being checked in `round-5-sizes`). The MacBook
+Pro 14" stays the reference; the layout is fluid around it:
+
+| Viewport | Behavior |
+|---|---|
+| ≥ 1280 wide and ≥ 830 tall | Fills the screen without scrolling. Extra height goes to lists (wallets, mempool), extra width to block tiles (up to ~280 px each) and cards; never to empty padding. Type size stays the same. |
+| ≥ 2200 wide | Content capped at ~2160 px and centered. Open: at QHD height (~1300) the five wallets and two transactions leave empty space in their cards. |
+| < 830 tall (e.g. 1366 × 657) | The page scrolls vertically; cards keep their designed density instead of squeezing. |
+| 1024–1279 wide | Mission rail collapses to icons; band tiles narrower (min ~150 px), earlier blocks behind a "‹ N earlier" control; grid in two columns. |
+| 768–1023 wide | Chain as a vertical timeline, then Next block and Mempool, then Selected block and Wallets side by side. |
+| < 768 wide | Phone layout: vertical timeline, race directly under the chain. |
+
+No size scrolls sideways.
 
 ## Findings: current product (2026-10-27, commit 284c54e)
 

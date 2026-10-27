@@ -1,0 +1,20 @@
+{
+  "round": "Runde 5b — Bildschirmgrößen",
+  "date": "2026-10-27",
+  "viewport": [1512, 860],
+  "title": "proofofwork.fyi · Design-Workshop Runde 5b: eine Werkbank, acht Bildschirme",
+  "intro": "Dieselbe fluide Basis (Runde 5, Kachel 1) bei gängigen Bildschirmgrößen, jeweils als sichtbare Browserfläche. Leitfaden bleibt das MacBook Pro 14\" (Kachel 3). Regeln: ab 1280 Breite und 830 Höhe füllt die Werkbank den Bildschirm ohne Scrollen; mehr Höhe geht an Listen, mehr Breite an Blöcke und Karten; ab 2200 Breite bleibt sie zentriert; niedrigere Bildschirme scrollen senkrecht; unter 1280 klappt die Missions-Leiste ein; unter 1024 wird die Kette zur senkrechten Zeitlinie. Die Großansicht zeigt jede Kachel in ihrer echten Größe.",
+  "answer": "Antwort-Beispiel: passt · bei 1366 lieber … · ab 1920 lieber …",
+  "axes": {"ux": "BILDSCHIRM", "ui": "FLÄCHE"},
+  "variants": [
+    {"n": 0, "file": "original.png", "title": "Original (heute) · 14\"", "ux": "MacBook Pro 14\"", "ui": "1512 × 860", "why": "Heutiger Stand auf dem Leitfaden-Bildschirm."},
+    {"n": 1, "file": "fluid.html", "viewport": [1366, 657], "title": "Kleines Notebook", "ux": "1366 × 768 Windows", "ui": "1366 × 657", "why": "Zu niedrig für alles ohne Scrollen: Seite scrollt senkrecht, nichts wird gequetscht."},
+    {"n": 2, "file": "fluid.html", "viewport": [1470, 830], "title": "MacBook Air 13\"", "ux": "1470 × 956", "ui": "1470 × 830", "why": "Knapp unter dem Leitfaden, füllt den Bildschirm."},
+    {"n": 3, "file": "fluid.html", "viewport": [1512, 860], "title": "MacBook Pro 14\" · Leitfaden", "ux": "1512 × 982", "ui": "1512 × 860", "why": "Muss genau wie Runde 5, Kachel 1 aussehen."},
+    {"n": 4, "file": "fluid.html", "viewport": [1728, 990], "title": "MacBook Pro 16\"", "ux": "1728 × 1117", "ui": "1728 × 990", "why": "Mehr Höhe an Listen, mehr Breite an Blöcke und Karten."},
+    {"n": 5, "file": "fluid.html", "viewport": [1920, 960], "title": "Full-HD-Monitor", "ux": "1920 × 1080", "ui": "1920 × 960", "why": "Der häufigste externe Monitor."},
+    {"n": 6, "file": "fluid.html", "viewport": [2560, 1310], "title": "QHD-Monitor", "ux": "2560 × 1440", "ui": "2560 × 1310", "why": "Offene Frage: Bei dieser Höhe bleiben Wallets und Mempool halb leer. Empfehlung: ab ~1100 px Höhe eine zusätzliche Karte „Activity“ (bestätigte Transaktionen, Blockzeiten)."},
+    {"n": 7, "file": "fluid.html", "viewport": [1180, 740], "title": "iPad quer", "ux": "1180 × 820", "ui": "1180 × 740", "why": "Missions-Leiste als Symbole, Raster zweispaltig."},
+    {"n": 8, "file": "fluid.html", "viewport": [820, 1100], "title": "iPad hoch", "ux": "820 × 1180", "ui": "820 × 1100", "why": "Kette als senkrechte Zeitlinie, Karten darunter."}
+  ]
+}

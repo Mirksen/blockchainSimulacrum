@@ -26,20 +26,27 @@ def commit() -> str:
         return "unknown"
 
 
-def tile_body(round_dir: Path, item: dict) -> str:
+def tile_body(round_dir: Path, item: dict, size: list, fixed: bool) -> str:
     source = round_dir / item["file"]
+    # Each element carries its own viewport so one board can mix screen sizes.
+    attrs = (
+        f'data-vw="{size[0]}" data-vh="{size[1]}"{" data-fixed" if fixed else ""} '
+        f'style="width:{size[0]}px;height:{size[1]}px"'
+    )
     if source.suffix == ".png":
         data = base64.b64encode(source.read_bytes()).decode()
-        return f'<img src="data:image/png;base64,{data}" alt="">'
+        return f'<img {attrs} src="data:image/png;base64,{data}" alt="">'
     srcdoc = html.escape(source.read_text(encoding="utf-8"), quote=True)
-    return f'<iframe tabindex="-1" loading="lazy" srcdoc="{srcdoc}"></iframe>'
+    return f'<iframe {attrs} tabindex="-1" loading="lazy" srcdoc="{srcdoc}"></iframe>'
 
 
 def build(round_dir: Path) -> str:
     meta = json.loads((round_dir / "meta.json").read_text(encoding="utf-8"))
     axes = meta.get("axes", {"ux": "UX", "ui": "UI"})
+    vw, vh = meta.get("viewport", [1440, 900])
     tiles = []
     for item in meta["variants"]:
+        size = item.get("viewport", [vw, vh])
         chips = "".join(
             f'<span class="chip chip-{k}"><b>{html.escape(axes[k])}</b> {html.escape(item[k])}</span>'
             for k in ("ux", "ui")
@@ -47,7 +54,7 @@ def build(round_dir: Path) -> str:
         tiles.append(
             f'''<figure class="tile" data-n="{item["n"]}">
   <button class="frame" aria-label="Open variant {item["n"]}: {html.escape(item["title"])}">
-    <div class="screen">{tile_body(round_dir, item)}</div>
+    <div class="screen" style="aspect-ratio:{size[0]}/{size[1]}">{tile_body(round_dir, item, size, "viewport" in item)}</div>
   </button>
   <figcaption>
     <div class="cap-head"><span class="num">{item["n"]}</span><h2>{html.escape(item["title"])}</h2></div>
@@ -88,8 +95,8 @@ main {{ display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:28px 2
 .frame:hover, .frame:focus-visible {{ transform:translateY(-2px); box-shadow:0 8px 24px rgba(0,0,0,.14); }}
 .frame:focus-visible {{ outline:3px solid var(--acc); outline-offset:3px; }}
 .tile[data-n="0"] .frame {{ border:2px solid var(--fg); }}
-.screen {{ position:relative; width:100%; aspect-ratio:1440/900; overflow:hidden; }}
-.screen iframe, .screen img {{ position:absolute; top:0; left:0; width:1440px; height:900px; border:0; transform-origin:0 0; pointer-events:none; display:block; }}
+.screen {{ position:relative; width:100%; overflow:hidden; }}
+.screen iframe, .screen img {{ position:absolute; top:0; left:0; border:0; transform-origin:0 0; pointer-events:none; display:block; }}
 figcaption {{ padding:12px 2px 0; }}
 .cap-head {{ display:flex; align-items:baseline; gap:10px; }}
 .num {{ font:600 13px ui-monospace, Menlo, monospace; color:var(--acc); min-width:16px; }}
@@ -105,7 +112,7 @@ dialog::backdrop {{ background:transparent; }}
 .dlg-bar .sp {{ flex:1; }}
 .dlg-stage {{ position:absolute; top:48px; left:0; right:0; bottom:0; overflow:auto; display:flex; justify-content:center; }}
 .dlg-stage .wrap {{ position:relative; flex:none; }}
-.dlg-stage iframe, .dlg-stage img {{ width:1440px; height:900px; border:0; background:#fff; transform-origin:0 0; display:block; }}
+.dlg-stage iframe, .dlg-stage img {{ border:0; background:#fff; transform-origin:0 0; display:block; }}
 </style></head>
 <body>
 <header>
@@ -125,18 +132,18 @@ dialog::backdrop {{ background:transparent; }}
 const tiles = [...document.querySelectorAll('.tile')];
 function fit() {{
   for (const s of document.querySelectorAll('.screen')) {{
-    const k = s.clientWidth / 1440;
-    for (const el of s.children) el.style.transform = 'scale(' + k + ')';
+    for (const el of s.children) el.style.transform = 'scale(' + (s.clientWidth / Number(el.dataset.vw)) + ')';
   }}
   const w = document.getElementById('dlg-wrap');
   const el = w.firstElementChild;
   if (el) {{
-    const k = Math.min(1, (window.innerWidth - 32) / 1440);
-    // Iframes fill the stage and scroll inside; screenshots keep their size.
-    const h = el.tagName === 'IFRAME' ? Math.max(900, (window.innerHeight - 48) / k) : 900;
+    const vw = Number(el.dataset.vw), vh = Number(el.dataset.vh);
+    const k = Math.min(1, (window.innerWidth - 32) / vw);
+    // Iframes fill the stage and scroll inside unless the tile pins a screen size.
+    const h = el.tagName === 'IFRAME' && !('fixed' in el.dataset) ? Math.max(vh, (window.innerHeight - 48) / k) : vh;
     el.style.height = h + 'px';
     el.style.transform = 'scale(' + k + ')';
-    w.style.width = (1440 * k) + 'px'; w.style.height = (h * k) + 'px';
+    w.style.width = (vw * k) + 'px'; w.style.height = (h * k) + 'px';
   }}
 }}
 const dlg = document.getElementById('dlg');
