@@ -1,0 +1,20 @@
+{
+  "round": "Runde 6 — Korrekturen",
+  "date": "2026-10-27",
+  "viewport": [1512, 860],
+  "title": "proofofwork.fyi · Design-Workshop Runde 6: deine Korrekturen aus Runde 5",
+  "intro": "Umgesetzt: Haarlinie mit neutralem Punkt (Farbe nur bei Bruch), die vier Karten in der Mitte auf einer Flucht (Selected block und Next block oben bündig, Wallets und Mempool bündig), „+ New transaction“ oben in der Mempool-Karte mit demselben Leuchten wie Mine block, „powCoin · virtual“, Activity-Karte ab 1100 px Höhe. Alle Zustände auf der neuen Basis neu abgeleitet; 7 und 8 zeigen die fluide Basis auf Full HD und QHD.",
+  "answer": "Antwort-Beispiel: passt, Zielbild final · oder: noch … ändern",
+  "axes": {"ux": "ZUSTAND", "ui": "FLÄCHE"},
+  "variants": [
+    {"n": 0, "file": "original.png", "title": "Original (heute)", "ux": "Dashboard, alles gleichzeitig", "ui": "1512 × 860", "why": "Ausgangspunkt."},
+    {"n": 1, "file": "base.html", "title": "Basis · Ruhe", "ux": "Mission 2, Health eingeklappt", "ui": "14\" · 1512 × 860", "why": "Flucht bündig (gemessen: oben 314/314, Mitte 597/597, unten 846/846)."},
+    {"n": 2, "file": "mining.html", "title": "Minen läuft", "ux": "Live-Rennen in der Next-block-Karte", "ui": "14\"", "why": "New transaction bleibt erreichbar, leuchtet aber nicht, während gemint wird."},
+    {"n": 3, "file": "tampered.html", "title": "Manipuliert", "ux": "Block #2 gefälscht, Health offen", "ui": "14\"", "why": "Rot nur am gebrochenen Block, Re-mine block #2 als einzige Hauptaktion."},
+    {"n": 4, "file": "light.html", "title": "Hell", "ux": "Basis im Hell-Thema", "ui": "14\"", "why": "Gleiches Markup, helle Tokens."},
+    {"n": 5, "file": "phone.html", "title": "390 px", "ux": "Ruhe · Minen · Prüfung offen", "ui": "Handy", "why": "Zeitlinie neutral, New transaction oben im Mempool."},
+    {"n": 6, "file": "base.html", "viewport": [1366, 657], "title": "Kleines Notebook", "ux": "Basis", "ui": "1366 × 657", "why": "Scrollt senkrecht, nichts gequetscht."},
+    {"n": 7, "file": "base.html", "viewport": [1920, 960], "title": "Full HD", "ux": "Basis", "ui": "1920 × 960", "why": "Flucht bleibt bündig, mehr Breite an Blöcke und Karten."},
+    {"n": 8, "file": "base.html", "viewport": [2560, 1310], "title": "QHD mit Activity", "ux": "Basis", "ui": "2560 × 1310", "why": "Die Activity-Karte füllt die Höhe: bestätigte Transaktionen und Blockzeiten."}
+  ]
+}
