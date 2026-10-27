@@ -1,12 +1,8 @@
 import { createHash } from 'node:crypto';
 import { describe, expect, it, vi } from 'vitest';
-import SHA256 from 'crypto-js/sha256.js';
+import CryptoJS from 'crypto-js/core.js';
 import { changedPositions, createTrial, findNonce, meetsTarget, parseNonce, SEARCH_LIMIT } from '../lib/hashLab';
 
-vi.mock('crypto-js/sha256.js', async importOriginal => {
-  const actual = await importOriginal();
-  return { default: vi.fn(actual.default) };
-});
 const digest = input => createHash('sha256').update(input, 'utf8').digest('hex');
 const instantYield = () => Promise.resolve();
 
@@ -77,8 +73,8 @@ describe('bounded nonce search', () => {
     expect(progress).toHaveLength(1);
   });
   it('stops at its work limit even when every candidate misses', async () => {
-    const original = SHA256.getMockImplementation();
-    SHA256.mockImplementation(() => ({ toString: () => 'f'.repeat(64) }));
+    // The search hashes through the SHA-256 midstate; force every digest to miss.
+    const finalize = vi.spyOn(CryptoJS.algo.SHA256, 'finalize').mockReturnValue({ toString: () => 'f'.repeat(64) });
     try {
       const controller = new AbortController();
       const result = await findNonce({ message: 'No-match fixture', startNonce: 10, difficulty: 3, signal: controller.signal, yieldControl: instantYield,
@@ -87,7 +83,7 @@ describe('bounded nonce search', () => {
       expect(result.status).toBe('exhausted');
       expect(result.attempts).toBe(50_000);
       expect(result.trial.nonce).toBe(50_009);
-    } finally { SHA256.mockImplementation(original); }
+    } finally { finalize.mockRestore(); }
   });
   it('does not round beyond the last safe integer nonce', async () => {
     const result = await findNonce({ message: 'Synthetic block', startNonce: Number.MAX_SAFE_INTEGER, difficulty: 3, yieldControl: instantYield });

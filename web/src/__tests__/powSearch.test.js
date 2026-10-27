@@ -1,0 +1,204 @@
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import SHA256 from 'crypto-js/sha256.js';
+import CryptoJS from 'crypto-js/core.js';
+import { createHasher, hashAt, runSearch, search } from '../lib/powSearch';
+import { createTrial, findNonce } from '../lib/hashLab';
+import { blockTrial, remineBlock, sampleChain } from '../lib/chainLab';
+
+afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); });
+const noWait = async () => {};
+const plain = (prefix, nonce, suffix = '') => SHA256(prefix + nonce + suffix).toString();
+// Synthetic ~1.6 KB header: spans many 64-byte SHA-256 blocks, like a full candidate.
+const LONG_PREFIX = 'synthetic-previous-hash' + 'é{"tx":"synthetic transfer"}'.repeat(56);
+const NEVER = '0'.repeat(64);
+
+describe('midstate hashing', () => {
+  it('equals plain SHA-256 for 1,000 nonces with and without a suffix', () => {
+    expect(LONG_PREFIX.length).toBeGreaterThan(1500);
+    const bare = createHasher(LONG_PREFIX);
+    const wrapped = createHasher(LONG_PREFIX, '}');
+    for (let nonce = 0; nonce < 1000; nonce++) {
+      const n = nonce * 7919 + 1;
+      expect(bare(n)).toBe(plain(LONG_PREFIX, n));
+      expect(wrapped(n)).toBe(plain(LONG_PREFIX, n, '}'));
+    }
+    expect(createHasher('', '')(0)).toBe(plain('', 0));
+    expect(createHasher(LONG_PREFIX)(Number.MAX_SAFE_INTEGER)).toBe(plain(LONG_PREFIX, Number.MAX_SAFE_INTEGER));
+    expect(hashAt({ prefix: 'abc', suffix: '}' }, 42)).toBe(plain('abc', 42, '}'));
+    expect(hashAt({ prefix: 'abc' }, 42)).toBe(plain('abc', 42));
+  });
+});
+
+describe('round-robin search', () => {
+  it('gives each entrant `weight` consecutive nonces per round', async () => {
+    const seen = [];
+    const result = await search({ entrants: [{ id: 'heavy', weight: 3, prefix: 'h' }, { id: 'light', prefix: 'l', startNonce: 50 }],
+      target: NEVER, limit: 4001, batch: 100, yieldControl: noWait,
+      onProgress: progress => seen.push(progress) });
+    expect(result.status).toBe('exhausted');
+    expect(result.attempts).toBe(4001);
+    const { heavy, light } = result.entrants;
+    expect(heavy.attempts + light.attempts).toBe(4001);
+    // Within one round of an exact 3:1 split.
+    expect(Math.abs(heavy.attempts - 3 * light.attempts)).toBeLessThanOrEqual(3);
+    expect(heavy.nonce).toBe(heavy.attempts - 1);
+    expect(light.nonce).toBe(50 + light.attempts - 1);
+    for (const progress of seen) {
+      expect(Math.abs(progress.entrants.heavy.attempts - 3 * progress.entrants.light.attempts)).toBeLessThanOrEqual(3);
+    }
+    expect(seen).toHaveLength(40);
+    expect(seen[0].recent).toHaveLength(20);
+    expect(seen[0].recent.at(-1)).toEqual({ id: 'light', nonce: 74, hash: plain('l', 74) });
+  });
+
+  it('finds the first match in round order with the right winner, nonce and hash', async () => {
+    const entrants = [{ id: 'a', weight: 2, prefix: 'synthetic-a|', startNonce: 7 }, { id: 'b', prefix: 'synthetic-b|', suffix: '}' }];
+    // Independent replay of the expected order: a, a, b, a, a, b, ...
+    const next = { a: 7, b: 0 };
+    let expected;
+    for (let attempts = 1; !expected; attempts++) {
+      const position = (attempts - 1) % 3;
+      const entrant = position < 2 ? entrants[0] : entrants[1];
+      const nonce = next[entrant.id]++;
+      const hash = plain(entrant.prefix, nonce, entrant.suffix);
+      if (hash.startsWith('00')) expected = { winner: entrant.id, nonce, hash, attempts };
+    }
+    const result = await search({ entrants, target: '00', yieldControl: noWait });
+    expect(result).toMatchObject({ status: 'found', ...expected });
+    expect(result.entrants[expected.winner]).toMatchObject({ nonce: expected.nonce, hash: expected.hash, zeros: expect.any(Number) });
+    expect(result.entrants[expected.winner].zeros).toBeGreaterThanOrEqual(2);
+    expect(await runSearch({ entrants, target: '00', yieldControl: noWait }, { mode: 'inline' })).toEqual(result);
+  });
+
+  it('yields before the first attempt, so an early stop does no work', async () => {
+    const controller = new AbortController();
+    const finalize = vi.spyOn(CryptoJS.algo.SHA256, 'finalize');
+    const result = await search({ entrants: [{ id: 'only', prefix: 'x' }], target: '', signal: controller.signal,
+      yieldControl: async () => controller.abort() });
+    expect(result).toMatchObject({ status: 'stopped', attempts: 0, winner: null });
+    expect(finalize).not.toHaveBeenCalled();
+  });
+
+  it('stops mid-batch on abort and makes no further attempts', async () => {
+    const controller = new AbortController();
+    const original = CryptoJS.algo.SHA256.finalize;
+    let calls = 0;
+    const finalize = vi.spyOn(CryptoJS.algo.SHA256, 'finalize').mockImplementation(function (...args) {
+      if (++calls === 150) controller.abort();
+      return original.apply(this, args);
+    });
+    const yields = vi.fn(noWait);
+    const result = await search({ entrants: [{ id: 'a', weight: 3, prefix: 'a' }, { id: 'b', prefix: 'b' }],
+      target: NEVER, signal: controller.signal, yieldControl: yields });
+    expect(result.status).toBe('stopped');
+    expect(result.attempts).toBe(150);
+    expect(finalize).toHaveBeenCalledTimes(150);
+    expect(yields).toHaveBeenCalledTimes(2); // before work and after the first batch only
+  });
+
+  it('reports exhaustion at its limit and never steps past the last safe nonce', async () => {
+    const limited = await search({ entrants: [{ id: 'a', prefix: 'a' }], target: NEVER, limit: 250, yieldControl: noWait });
+    expect(limited).toMatchObject({ status: 'exhausted', attempts: 250, winner: null });
+    expect(limited.entrants.a.nonce).toBe(249);
+    const edge = await search({ entrants: [{ id: 'a', prefix: 'a', startNonce: Number.MAX_SAFE_INTEGER - 1 }, { id: 'b', prefix: 'b', startNonce: Number.MAX_SAFE_INTEGER }],
+      target: NEVER, yieldControl: noWait });
+    expect(edge).toMatchObject({ status: 'exhausted', attempts: 3 });
+    expect(edge.entrants.a).toMatchObject({ nonce: Number.MAX_SAFE_INTEGER, attempts: 2 });
+    expect(edge.entrants.b).toMatchObject({ nonce: Number.MAX_SAFE_INTEGER, attempts: 1 });
+  });
+
+  it('rejects malformed searches', async () => {
+    await expect(search({ entrants: [], target: '0' })).rejects.toThrow(RangeError);
+    await expect(search({ entrants: [{ id: 'a', prefix: 'a' }], target: '0a' })).rejects.toThrow(RangeError);
+    await expect(search({ entrants: [{ id: 'a', prefix: 'a', weight: 0 }], target: '0' })).rejects.toThrow(RangeError);
+    await expect(search({ entrants: [{ id: 'a', prefix: 'a', startNonce: -1 }], target: '0' })).rejects.toThrow(RangeError);
+    expect(() => runSearch({ entrants: [{ id: 'a', prefix: 'a' }], target: '0' }, { mode: 'thread' })).toThrow(RangeError);
+  });
+});
+
+describe('worker adapter', () => {
+  class FakeWorker {
+    static last = null;
+    constructor(url, options) { Object.assign(this, { url: String(url), options, sent: [], terminated: false }); FakeWorker.last = this; }
+    postMessage(message) { this.sent.push(message); }
+    terminate() { this.terminated = true; }
+    emit(data) { this.onmessage({ data }); }
+  }
+  const options = { entrants: [{ id: 'a', prefix: 'a' }], target: '00' };
+
+  it('auto mode stays inline under test even when Worker exists', async () => {
+    vi.stubGlobal('Worker', FakeWorker);
+    FakeWorker.last = null;
+    const result = await runSearch({ ...options, yieldControl: noWait });
+    expect(result.status).toBe('found');
+    expect(FakeWorker.last).toBeNull();
+  });
+
+  it('posts only data, relays progress and resolves with the worker result', async () => {
+    vi.stubGlobal('Worker', FakeWorker);
+    const progress = vi.fn();
+    const pending = runSearch({ ...options, onProgress: progress }, { mode: 'worker' });
+    const worker = FakeWorker.last;
+    expect(worker.options).toEqual({ type: 'module' });
+    expect(worker.url).toMatch(/powSearch\.worker\.js/);
+    expect(worker.sent).toEqual([{ entrants: options.entrants, target: '00', limit: undefined, batch: undefined }]);
+    expect(() => structuredClone(worker.sent[0])).not.toThrow();
+    const update = { attempts: 100, entrants: { a: { nonce: 99, hash: 'f', attempts: 100, zeros: 0 } }, recent: [] };
+    worker.emit({ type: 'progress', progress: update });
+    expect(progress).toHaveBeenCalledWith(update);
+    const result = { status: 'found', winner: 'a', nonce: 120, hash: '00ab', attempts: 121, entrants: {} };
+    worker.emit({ type: 'result', result });
+    expect(await pending).toEqual(result);
+    expect(worker.terminated).toBe(true);
+  });
+
+  it('abort terminates the worker and resolves stopped', async () => {
+    vi.stubGlobal('Worker', FakeWorker);
+    const controller = new AbortController();
+    const pending = runSearch({ ...options, signal: controller.signal }, { mode: 'worker' });
+    const worker = FakeWorker.last;
+    worker.emit({ type: 'progress', progress: { attempts: 300, entrants: { a: { nonce: 299, hash: 'f', attempts: 300, zeros: 0 } }, recent: [] } });
+    controller.abort();
+    expect(worker.terminated).toBe(true);
+    expect(await pending).toMatchObject({ status: 'stopped', winner: null, attempts: 300 });
+    worker.emit({ type: 'result', result: { status: 'found' } });
+  });
+
+  it('the worker module runs the same search and paces its messages', async () => {
+    const posted = [];
+    vi.stubGlobal('self', { postMessage: message => posted.push(message) });
+    await import('../lib/powSearch.worker.js');
+    await self.onmessage({ data: { entrants: [{ id: 'a', prefix: 'synthetic-a|', startNonce: 7 }, { id: 'b', prefix: 'synthetic-b|', suffix: '}' }], target: '00' } });
+    const final = posted.at(-1);
+    expect(final.type).toBe('result');
+    expect(final.result).toEqual(await search({ entrants: [{ id: 'a', prefix: 'synthetic-a|', startNonce: 7 }, { id: 'b', prefix: 'synthetic-b|', suffix: '}' }],
+      target: '00', yieldControl: noWait }));
+    expect(posted.filter(message => message.type === 'progress').length).toBeLessThanOrEqual(Math.ceil(final.result.attempts / 100));
+  });
+});
+
+describe('bounded lab adapters', () => {
+  it('findNonce results equal createTrial for the found and last nonces', async () => {
+    for (const message of ['Synthetic block', 'café 🧪', '"nonce":1}']) {
+      const result = await findNonce({ message, startNonce: 3, difficulty: 2, yieldControl: noWait });
+      expect(result.status).toBe('found');
+      expect(result.trial).toEqual(createTrial(message, result.trial.nonce));
+      expect(result.attempts).toBe(result.trial.nonce - 3 + 1);
+    }
+    const controller = new AbortController();
+    const stopped = await findNonce({ message: 'Synthetic block', startNonce: 0, difficulty: 3, signal: controller.signal,
+      yieldControl: noWait, onProgress: ({ trial }) => { expect(trial).toEqual(createTrial('Synthetic block', trial.nonce)); controller.abort(); } });
+    expect(stopped.trial).toEqual(createTrial('Synthetic block', 99));
+  });
+
+  it('remineBlock results equal blockTrial for the found nonce', async () => {
+    const blocks = sampleChain().map((block, index) => index === 1 ? { ...block, data: 'Synthetic edited record.' } : block);
+    for (const index of [0, 1, 2]) {
+      const result = await remineBlock(blocks, index, { yieldControl: noWait });
+      expect(result.status).toBe('found');
+      expect(result.block.hash).toBe(blockTrial(result.block).hash);
+      expect(result.attempts).toBe(result.block.nonce + 1);
+      expect(Object.keys(result.block)).toEqual(Object.keys(blocks[index]));
+    }
+  });
+});
