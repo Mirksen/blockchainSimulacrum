@@ -19,7 +19,8 @@ export async function verifyLearningPath(page, output) {
   assert.equal(await guide.getByLabel(/Nonce/).evaluate(element => element.readOnly), true);
 
   const time = new Date();
-  await page.clock.install({ time }); await page.clock.pauseAt(time);
+  // The installed clock keeps running; pause a moment ahead so pauseAt never goes backwards.
+  await page.clock.install({ time }); await page.clock.pauseAt(new Date(time.getTime() + 1000));
   try {
     await guide.getByRole('button', { name: 'Find a nonce', exact: true }).click();
     await guide.getByRole('button', { name: 'Stop search', exact: true }).click();
