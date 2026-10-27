@@ -21,6 +21,8 @@ Choose **Hash lab** in the header to edit a message and nonce, compare fingerpri
 
 Choose **Chain lab** to experiment with three linked text blocks. Change Block 1's data: its stored hash stays unchanged, while the recomputed fingerprint reveals the edit. Later blocks can still pass their own checks while depending on an invalid earlier block. Re-mine each affected block in order to adopt the preceding stored hash and find a new nonce with one leading hex zero. Repairing one block leaves its successors untouched, so their links need attention next. Each search starts at zero, checks at most 50,000 candidates and can be stopped. Edits, reset and close cancel pending searches; only a successful search replaces a stored block. This isolated demonstration has no signatures, balances or network consensus and never changes the simulator.
 
+Choose **Start guided experiments** for a three-step learning path: change a message’s fingerprint, find nonces for one and two leading zeros with the same input, then change Block 1 and repair the linked chain while keeping that edit. Each step unlocks from the actual experiment; navigation cannot mark it complete. Progress survives closing the guide within the current page, and **Restart learning path** clears it. Guide experiments never change simulator blocks or wallets. The two-target comparison explains probability rather than promising a fixed timing or attempt ratio.
+
 ## Verify
 
 ```sh

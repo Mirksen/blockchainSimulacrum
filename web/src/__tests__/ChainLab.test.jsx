@@ -69,6 +69,20 @@ describe('ChainLab interaction', () => {
     else expect(screen.getByLabelText('Block 1 data').value).not.toBe('Stale result');
   });
 
+  it('does not commit a late found result or emit lesson evidence after Stop', async () => {
+    let resolve;
+    vi.mocked(remineBlock).mockImplementation(() => new Promise(done => { resolve = done; }));
+    const onLessonEvent = vi.fn();
+    render(<ChainLab onClose={() => {}} onLessonEvent={onLessonEvent} />);
+    const original = screen.getByLabelText('Block 1 data').value;
+    fireEvent.click(screen.getByRole('button', { name: 'Re-mine Block 1' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Stop search' }));
+    await act(async () => { resolve({ status: 'found', attempts: 1, block: { ...sampleChain()[0], data: 'A stale completed search.' } }); });
+    expect(screen.getByLabelText('Block 1 data').value).toBe(original);
+    expect(onLessonEvent).not.toHaveBeenCalled();
+    expect(screen.getByRole('status').textContent).toContain('Stopped after 1 attempts');
+  });
+
   it('stops before the first hash and leaves the stored block alone', async () => {
     vi.useFakeTimers();
     vi.mocked(remineBlock).mockImplementation((await vi.importActual('../lib/chainLab')).remineBlock);
