@@ -11,6 +11,8 @@ import { AnalyticsControl } from './components/AnalyticsControl';
 import { telemetry } from './lib/telemetry';
 import { HashLab } from './components/HashLab';
 import { ChainLab } from './components/ChainLab';
+import { LearningPath } from './components/LearningPath';
+import { PoolPanel } from './components/PoolPanel';
 import { Modal } from './components/Modal';
 import './index.css';
 
@@ -38,6 +40,8 @@ function App() {
   const [showStats, setShowStats] = useState(false);
   const [showHashLab, setShowHashLab] = useState(false);
   const [showChainLab, setShowChainLab] = useState(false);
+  const [showPool, setShowPool] = useState(false);
+  const [showLearning, setShowLearning] = useState(false);
   const [error, setError] = useState('');
   const lastAdjustedBlock = useRef(0);
   const simulation = useBlockchain(INITIAL_CONFIG);
@@ -112,8 +116,10 @@ function App() {
           </button>
           <button className="btn btn-transparent" onClick={() => setShowStats(true)} aria-label="Open blockchain insights">{blocks.length - 1} mined</button>
           <button className="btn btn-transparent" onClick={reset}>Reset</button>
+          <button className="btn btn-transparent" onClick={() => setShowLearning(true)}>Learning path</button>
           <button className="btn btn-transparent" aria-label="Open hash lab" onClick={() => setShowHashLab(true)}>Hash lab</button>
           <button className="btn btn-transparent" aria-label="Open chain lab" onClick={() => setShowChainLab(true)}>Chain lab</button>
+          <button className="btn btn-transparent" aria-label="Open mining pool" onClick={() => setShowPool(true)}>Mining pool</button>
           <button className="btn btn-transparent" onClick={() => { const value = theme === 'light' ? 'dark' : 'light'; setTheme(value); void telemetry.track('settings_changed', { setting: 'theme', value }); }} aria-label={theme === 'light' ? 'Switch to dark theme' : 'Switch to light theme'}>{theme === 'light' ? 'Dark' : 'Light'}</button>
           <button className="btn btn-transparent" onClick={() => { setMuted(!muted); void telemetry.track('settings_changed', { setting: 'sound', value: muted }); }} aria-pressed={!muted}>Sound {muted ? 'off' : 'on'}</button>
         </div>
@@ -125,6 +131,7 @@ function App() {
           <p>Watch miners race to find a hash, send coins between wallets, then change a transaction to see the chain detect it.</p>
           <p className="simulation-note">A learning simulation in your browser. Coins have no monetary value. Refreshing or resetting starts over.</p>
         </div>
+        <button className="btn btn-default" onClick={() => setShowLearning(true)}>Start guided experiments</button>
         {fresh && <button className="btn btn-emphasized" disabled={busy} onClick={handleSetup}>{busy ? 'Preparing demo…' : 'Start demo'}</button>}
         {!fresh && <a className="btn btn-default" href="#transaction-controls">Send a transaction</a>}
       </section>
@@ -156,8 +163,10 @@ function App() {
       </main>
       <footer className="app-footer"><p>proofofwork.fyi · Originally by Mirko Valentic, CS50 2021</p><p>This simplified model explores proof of work; it does not connect to Bitcoin.</p></footer>
       {winner && <div className="mining-announcement" role="status">{winner} mined a block</div>}
+      <LearningPath open={showLearning} onClose={() => setShowLearning(false)} />
       {showHashLab && <Modal label="Hash lab" onClose={() => setShowHashLab(false)}><HashLab onClose={() => setShowHashLab(false)} /></Modal>}
       {showChainLab && <Modal label="Chain lab" onClose={() => setShowChainLab(false)}><ChainLab onClose={() => setShowChainLab(false)} /></Modal>}
+      {showPool && <Modal label="Mining pool" onClose={() => setShowPool(false)}><PoolPanel onClose={() => setShowPool(false)} /></Modal>}
       {showStats && <BlockchainStatsPanel blocks={blocks} participants={participants} difficulty={difficulty} blockReward={blockReward} halvingInterval={halvingInterval} onClose={() => setShowStats(false)} />}
     </div>
   );

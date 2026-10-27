@@ -1,5 +1,7 @@
 import { verifyHashLab } from './hash-lab.acceptance.mjs';
 import { verifyChainLab } from './chain-lab.acceptance.mjs';
+import { verifyLearningPath } from './learning-path.acceptance.mjs';
+import { verifyPool } from './pool.acceptance.mjs';
 import { chromium } from 'playwright';
 import { spawn } from 'node:child_process';
 import { mkdir } from 'node:fs/promises';
@@ -41,6 +43,8 @@ try {
  }
  browser = await chromium.launch({channel:'chrome',headless:true});
  page=await browser.newPage({viewport:{width:1440,height:1000},reducedMotion:'reduce'});
+ // Install once before the app creates timers; all experiments share this clock.
+ await page.clock.install();
  page.setDefaultTimeout(10000);
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.route('https://eu.i.posthog.com/**', telemetryMock);
@@ -165,6 +169,10 @@ try {
  }
  results.push(...await verifyHashLab(page, output));
  results.push(...await verifyChainLab(page, output));
+ results.push(...await verifyPool(page, output));
+ const beforeGuideTelemetry=telemetryRequests.length;
+ results.push(...await verifyLearningPath(page, output));
+ assert.equal(telemetryRequests.length,beforeGuideTelemetry,'Guide does not add telemetry while sharing is off');
  assert.deepEqual(errors,[]);
  results.push('No page errors or horizontal overflow at five widths');
  await page.close();

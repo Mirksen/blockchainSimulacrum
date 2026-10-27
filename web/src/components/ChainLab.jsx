@@ -3,9 +3,10 @@ import { inspectChain, remineBlock, sampleChain } from '../lib/chainLab';
 import { SEARCH_LIMIT } from '../lib/hashLab';
 import './ChainLab.css';
 
-export function ChainLab({ onClose }) {
+export function ChainLab({ onClose, embedded = false, onLessonEvent }) {
   const [blocks, setBlocks] = useState(sampleChain);
   const [searching, setSearching] = useState(null);
+  const initialData = useRef(blocks[0].data);
   const [feedback, setFeedback] = useState('Try changing the data in Block 1, then re-mine each block in order.');
   const active = useRef(null);
   useEffect(() => () => { active.current?.abort(); active.current = null; }, []);
@@ -19,12 +20,16 @@ export function ChainLab({ onClose }) {
   }
   function edit(index, patch) {
     cancel();
-    setBlocks(current => current.map((block, position) => position === index ? { ...block, ...patch } : block));
+    const next = blocks.map((block, position) => position === index ? { ...block, ...patch } : block);
+    setBlocks(next);
+    onLessonEvent?.({ type: 'chain_checked', consistent: inspectChain(next).every(check => check.valid),
+      changedFirstBlock: next[0].data !== initialData.current });
     setFeedback('Input changed. Stored hashes and links stay as they were until you re-mine a block.');
   }
   function reset() {
     cancel();
     setBlocks(sampleChain());
+    onLessonEvent?.({ type: 'lesson_reset' });
     setFeedback('Example restored. Change the first block to start again.');
   }
   async function mine(index) {
@@ -39,11 +44,14 @@ export function ChainLab({ onClose }) {
     if (active.current !== controller) return;
     active.current = null;
     setSearching(null);
-    if (result.status === 'found') {
-      setBlocks(current => current.map((block, position) => position === index ? result.block : block));
+    if (result.status === 'found' && !controller.signal.aborted) {
+      const next = blocks.map((block, position) => position === index ? result.block : block);
+      setBlocks(next);
+      onLessonEvent?.({ type: 'chain_checked', consistent: inspectChain(next).every(check => check.valid),
+        changedFirstBlock: next[0].data !== initialData.current });
       setFeedback(`Block ${index + 1} re-mined in ${result.attempts.toLocaleString()} ${result.attempts === 1 ? 'attempt' : 'attempts'}. Other blocks are unchanged; check the next link.`);
     } else {
-      setFeedback(`${result.status === 'stopped' ? 'Stopped' : 'No match'} after ${result.attempts.toLocaleString()} attempts. No stored block was changed.`);
+      setFeedback(`${result.status === 'stopped' || controller.signal.aborted ? 'Stopped' : 'No match'} after ${result.attempts.toLocaleString()} attempts. No stored block was changed.`);
     }
   }
 
@@ -51,7 +59,7 @@ export function ChainLab({ onClose }) {
     <header className="chain-lab-header">
       <div><h2 id="chain-lab-title">Change the past. Follow the links.</h2>
         <p>Each block includes the previous block’s stored hash. Repair one fingerprint and see what the next block still remembers.</p></div>
-      <button className="btn btn-transparent" onClick={() => { cancel(); onClose(); }}>Back to simulator</button>
+      {!embedded && <button className="btn btn-transparent" onClick={() => { cancel(); onClose(); }}>Back to simulator</button>}
     </header>
     <div className="chain-lab-summary">
       <p className={consistent ? 'chain-lab-positive' : 'chain-lab-negative'}><strong>{consistent ? 'Toy chain consistent' : 'Toy chain inconsistent'}</strong></p>

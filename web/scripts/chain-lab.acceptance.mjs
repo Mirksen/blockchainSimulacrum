@@ -44,9 +44,9 @@ export async function verifyChainLab(page, output) {
   assert.deepEqual(await hashes(), original);
 
   // Freeze the initial yield so the one-zero search can be stopped deterministically.
-  const now = new Date();
-  await page.clock.install({ time: now });
-  await page.clock.pauseAt(now);
+  // Read the running virtual clock after installation; pause ahead of it.
+  const pauseTime = await page.evaluate(() => Date.now() + 60_000);
+  await page.clock.pauseAt(pauseTime);
   try {
     await block(1).getByRole('button', { name: 'Re-mine Block 1' }).press('Enter');
     await block(1).getByRole('button', { name: 'Stop search', exact: true }).press('Enter');

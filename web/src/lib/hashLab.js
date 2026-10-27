@@ -1,7 +1,7 @@
 import SHA256 from 'crypto-js/sha256.js';
+import { search } from './powSearch';
 
 export const SEARCH_LIMIT = 50_000;
-const BATCH_SIZE = 100;
 
 export function parseNonce(value) {
   if ((typeof value !== 'number' && typeof value !== 'string') ||
@@ -27,27 +27,22 @@ export function changedPositions(hash, previousHash) {
   return [...hash].map((character, index) => previousHash != null && character !== previousHash[index]);
 }
 
-const yieldToBrowser = () => new Promise(resolve => setTimeout(resolve, 0));
+// Splits the trial preimage around the nonce: prefix + nonce + suffix.
+function trialParts(message) {
+  const preimage = JSON.stringify({ message, nonce: 0 });
+  return { prefix: preimage.slice(0, -'0}'.length), suffix: '}' };
+}
 
 // This bounded experiment searches one message; it never touches the chain.
 export async function findNonce({ message, startNonce, difficulty, signal,
-  onProgress = () => {}, yieldControl = yieldToBrowser }) {
-  let nonce = parseNonce(startNonce);
+  onProgress = () => {}, yieldControl }) {
+  const start = parseNonce(startNonce);
   meetsTarget('', difficulty);
-  let trial = null;
-  let attempts = 0;
-  // Let React paint the Stop button, even when the first candidate succeeds.
-  await yieldControl();
-  while (attempts < SEARCH_LIMIT && !signal?.aborted) {
-    trial = createTrial(message, nonce);
-    attempts++;
-    if (meetsTarget(trial.hash, difficulty)) return { status: 'found', attempts, trial };
-    if (nonce === Number.MAX_SAFE_INTEGER) return { status: 'exhausted', attempts, trial };
-    nonce++;
-    if (attempts % BATCH_SIZE === 0) {
-      onProgress({ attempts, trial });
-      await yieldControl();
-    }
-  }
-  return { status: signal?.aborted ? 'stopped' : 'exhausted', attempts, trial };
+  const { prefix, suffix } = trialParts(message);
+  const trialOf = ({ nonce, hash }) => ({ nonce, preimage: prefix + nonce + suffix, hash });
+  const result = await search({ entrants: [{ id: 'message', prefix, suffix, startNonce: start }],
+    target: '0'.repeat(difficulty), limit: SEARCH_LIMIT, signal, yieldControl,
+    onProgress: progress => onProgress({ attempts: progress.attempts, trial: trialOf(progress.entrants.message) }) });
+  const last = result.entrants.message;
+  return { status: result.status, attempts: result.attempts, trial: last.attempts ? trialOf(last) : null };
 }

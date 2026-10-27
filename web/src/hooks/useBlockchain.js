@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
-import { createBlockchain, Block, Transaction } from '../lib/blockchain';
-import SHA256 from 'crypto-js/sha256';
+import { createBlockchain } from '../lib/blockchain';
+import { runSearch } from '../lib/powSearch';
 import { telemetry, failureCode } from '../lib/telemetry';
 
 function snapshot(chain) {
@@ -24,6 +24,7 @@ function miningMetrics(run) {
 function cancelRun(run, reason) {
     if (!run || run.aborted || run.finished) return;
     run.aborted = true;
+    run.stop.abort(); // Ends the search (and terminates its worker) without polling.
     void telemetry.track('mining_cancelled', { ...miningMetrics(run), reason });
 }
 
@@ -87,7 +88,7 @@ export function useBlockchain(config = {}) {
         if (setup?.aborted) return aborted();
         if (!miners.length) return reject('no_miners', 'Enable at least one miner in Participants.');
         if (!allowEmpty && !chain.memPool.length) return reject('no_transactions', 'Add a transaction first.');
-        const run = { aborted: false, finished: false, startedAt: Date.now(), attempts: 0,
+        const run = { aborted: false, finished: false, startedAt: Date.now(), attempts: 0, stop: new AbortController(),
             difficulty: chain.miningDifficulty, minerCount: miners.length, transactionCount: chain.memPool.length };
         controller.run = run; // Lock synchronously, before React can rerender.
         void telemetry.track('mining_started', { difficulty: run.difficulty, miner_count: run.minerCount, transaction_count: run.transactionCount });
@@ -95,74 +96,59 @@ export function useBlockchain(config = {}) {
         setIsMining(true);
         setRaceWinner(null);
         setHashAttempts([]);
-        const reward = chain.blockArray.length % chain.halvingEvent === 0 ? chain.blockReward / 2 : chain.blockReward;
-        const transactions = [...chain.memPool];
-        const fees = transactions.reduce((sum, tx) => sum + tx.transactionFee, 0);
-        const previousHash = chain.blockArray.at(-1).hash;
+        // One shared timestamp keeps every miner's candidate on the same header time.
         const timestamp = Date.now();
-        const difficulty = chain.miningDifficulty;
-        const target = '0'.repeat(difficulty);
-        const states = miners.map(miner => ({
-            miner, nonce: Math.floor(Math.random() * 10000), hash: '', iterations: 0,
-            transactions: [...transactions, new Transaction(null, miner.publicKey, reward + fees, 0, 'Mining Reward')]
-        }));
+        const candidates = new Map(miners.map(miner => [miner.name, chain.prepareCandidate(miner, { timestamp })]));
+        // Each miner tries `hashpower` consecutive nonces per round from its own random start.
+        const entrants = miners.map(miner => ({ id: miner.name, weight: miner.hashpower,
+            prefix: candidates.get(miner.name).prefix, startNonce: Math.floor(Math.random() * 10000) + 1 }));
         const attempts = [];
-        let iterations = 0;
         const start = run.startedAt;
-        const progress = () => Object.fromEntries(states.map(s => [s.miner.name, {
-            nonce: s.nonce, hash: s.hash, iterations: s.iterations,
-            zeros: s.hash.match(/^0*/)?.[0].length || 0, elapsedMs: Date.now() - start
-        }]));
-        const report = (state) => {
-            setMinerProgress(progress());
-            setMiningProgress({ nonce: state.nonce, hash: state.hash, iterations, elapsedMs: Date.now() - start });
+        // All three updates happen in one synchronous callback, so React batches
+        // them into a single render per progress event.
+        const report = (entrantProgress, featured, total) => {
+            const elapsedMs = Date.now() - start;
+            setMinerProgress(Object.fromEntries(miners.map(miner => {
+                const entrant = entrantProgress[miner.name];
+                return [miner.name, { nonce: entrant.nonce, hash: entrant.hash, iterations: entrant.attempts,
+                    zeros: entrant.zeros, elapsedMs }];
+            })));
+            const lead = entrantProgress[featured];
+            setMiningProgress({ nonce: lead.nonce, hash: lead.hash, iterations: total, elapsedMs });
             setHashAttempts([...attempts]);
         };
+        const remember = (entries) => {
+            for (const { id, nonce, hash } of entries) attempts.push({ nonce, hash, miner: id });
+            attempts.splice(0, Math.max(0, attempts.length - 100));
+        };
         try {
-            // Always yield, including easy blocks, so Stop and concurrent starts
-            // have the same lifecycle as expensive mining.
-            await new Promise(resolve => setTimeout(resolve, 0));
-            let sinceYield = 0;
-            while (isCurrent()) {
-                for (const state of states) {
-                    for (let i = 0; i < state.miner.hashpower; i++) {
-                        state.nonce++;
-                        state.iterations++;
-                        iterations++;
-                        run.attempts = iterations;
-                        sinceYield++;
-                        state.hash = SHA256(previousHash + timestamp + JSON.stringify(state.transactions) + state.nonce).toString();
-                        attempts.push({ nonce: state.nonce, hash: state.hash, miner: state.miner.name });
-                        if (attempts.length > 100) attempts.shift();
-                        if (state.hash.startsWith(target)) {
-                            if (!isCurrent()) return aborted();
-                            const block = new Block(timestamp, state.transactions, previousHash);
-                            block.nonce = state.nonce;
-                            block.hash = state.hash;
-                            block.halved = reward !== chain.blockReward;
-                            chain.blockArray.push(block);
-                            chain.memPool = [];
-                            // A stopped attempt never changes the supply schedule.
-                            chain.blockReward = reward;
-                            chain.incrementBlocksWon(state.miner.publicKey);
-                            report(state);
-                            setRaceWinner(state.miner.name);
-                            publish();
-                            run.finished = true;
-                            void telemetry.track('mining_completed', { ...miningMetrics(run), block_height: chain.blockArray.length - 1 });
-                            return { success: true, winner: state.miner.name, block, miningTime: (Date.now() - start) / 1000 };
-                        }
-                    }
+            // The search always yields before its first attempt, including easy
+            // blocks, so Stop and concurrent starts have the same lifecycle as
+            // expensive mining.
+            const result = await runSearch({
+                entrants, target: candidates.get(miners[0].name).target, signal: run.stop.signal,
+                onProgress: progress => {
+                    if (!isCurrent()) return;
+                    run.attempts = progress.attempts;
+                    remember(progress.recent);
+                    report(progress.entrants, miners[0].name, progress.attempts);
                 }
-                // A threshold, rather than modulo equality, works for every mix
-                // of miner weights and guarantees the browser gets control.
-                if (sinceYield >= 100) {
-                    report(states[0]);
-                    sinceYield = 0;
-                    await new Promise(resolve => setTimeout(resolve, 0));
-                }
-            }
-            return aborted();
+            });
+            run.attempts = result.attempts;
+            if (result.status === 'stopped') return aborted();
+            if (result.status !== 'found') throw new Error('Every nonce was tried without a valid block.');
+            if (!isCurrent()) return aborted();
+            // A stopped, stale or rejected attempt never changes the chain or supply schedule.
+            const outcome = chain.acceptBlock(candidates.get(result.winner), result.nonce, result.hash);
+            if (outcome.status !== 'accepted') return aborted();
+            const block = outcome.block;
+            remember([{ id: result.winner, nonce: result.nonce, hash: result.hash }]);
+            report(result.entrants, result.winner, result.attempts);
+            setRaceWinner(result.winner);
+            publish();
+            run.finished = true;
+            void telemetry.track('mining_completed', { ...miningMetrics(run), block_height: chain.blockArray.length - 1 });
+            return { success: true, winner: result.winner, block, miningTime: (Date.now() - start) / 1000 };
         } catch (error) {
             run.finished = true;
             void telemetry.track('mining_failed', { ...miningMetrics(run), reason: 'unexpected' });
