@@ -42,6 +42,8 @@ export async function verifyHashLab(page, output) {
 
   for (const width of [320, 390, 768, 1200, 1440]) {
     await page.setViewportSize({ width, height: 900 });
+    const bounds = await lab.locator('.hash-lab').boundingBox();
+    assert.ok(bounds && bounds.x >= 0 && bounds.x + bounds.width <= width, JSON.stringify({ width, bounds }));
     await lab.getByLabel('Message', { exact: true }).fill('A'.repeat(1000));
     if (!(await lab.locator('.hash-lab-preimage').evaluate(element => element.open))) {
       await lab.getByText('What exactly are we hashing?', { exact: true }).click();
