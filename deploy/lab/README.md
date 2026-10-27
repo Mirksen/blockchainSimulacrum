@@ -28,6 +28,22 @@ committed). Host rules for the CAX21 lab zone `172.28.0.0/16`: hausbot-bob
 7. **Portable by construction.** Nothing in a stack depends on host-specific paths, host
    networking or provider runtime services. State lives in the stack's `data/` directory.
 
+## Updating a stack (`lab-proofofwork`)
+
+Nothing deploys the server automatically: CI only runs the tests, and a merge to `master` does not
+change the host. Whoever merges a change to `server/` or `deploy/lab/proofofwork/` puts it live:
+
+```sh
+git fetch origin
+SSH_OPTS="-F <ssh_config>" deploy/lab/proofofwork/deploy.sh <ssh-target>          # origin/master
+SSH_OPTS="-F <ssh_config>" deploy/lab/proofofwork/deploy.sh <ssh-target> <commit> # or a given commit
+```
+
+The script copies that commit's `server/` and stack files, keeps the previous `server/` as
+`server.prev`, writes the commit to `DEPLOYED`, restarts the app and fails unless it is healthy.
+`.env`, `tunnel.env`, `data/` and `static/` stay untouched. `cat /opt/lab/proofofwork/DEPLOYED`
+shows what runs; to roll back, deploy the previous commit.
+
 ## Moving a stack
 
 1. Stop it: `docker compose down` in `/opt/lab/<app>/`.
