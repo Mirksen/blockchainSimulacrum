@@ -67,9 +67,10 @@ use the monospace font.
 
 Target picture · rebuild.
 
-- **Top bar:** brand, navigation **Workbench · Hash lab · Chain lab**, the
-  coin label "powCoin · virtual", the chain status pill, and an overflow menu
-  (Reset, sound, theme).
+- **Top bar:** brand, navigation **Workbench · Hash lab · Chain lab · Mining
+  pool**, the coin label "powCoin · virtual", the chain status pill, and an
+  overflow menu (Reset, Settings, sound, theme, usage sharing); the
+  leaderboard ticker runs directly below it.
 - **Workbench is the start page.** It shows the whole simulation at once:
   1. **Mission rail** on the left (collapsible).
   2. **Chain band** across the full width of the main column.
@@ -87,11 +88,28 @@ decision, 2026-10-27):
 
 - **Mining pool** becomes the fourth tab: Workbench · Hash lab · Chain lab ·
   Mining pool. The labs and the pool are views behind the tabs, not dialogs;
-  the tab is in the URL (`#/hash-lab`, `#/chain-lab`, `#/pool`).
-- **Guided experiments** (the learning path through Hash lab and Chain lab)
-  stay as they are and open from the mission rail ("Guided experiments"
-  under the missions). Missions act on the simulator chain; guided
-  experiments never touch it.
+  the tab is in the URL (`#/hash-lab`, `#/chain-lab`, `#/pool`). Joining the
+  pool happens on its tab.
+- **Leaderboard ticker** (Mirko): a slim band directly under the top bar
+  runs the pool leaderboard from right to left (rank, name, points, best
+  hash). It pauses on hover and focus, is static under
+  `prefers-reduced-motion`, and disappears quietly when the leaderboard
+  server is unavailable. Clicking it opens the Mining pool tab.
+- **Missions and the learning path are one track** (Mirko). The three guided
+  experiments become missions; the learning path dialog goes away. A
+  mission names the view it needs, switches to that tab and marks the
+  element with the coach ring. Track:
+  1. Change a fingerprint (Hash lab)
+  2. Earn a proof of work (Hash lab)
+  3. Send your first coin (Workbench)
+  4. Win a mining race (Workbench)
+  5. Change the past (Chain lab)
+  6. Forge a block without getting caught (Workbench)
+  7. Survive a halving (Workbench)
+  8. Beat the difficulty adjustment (Workbench)
+  Missions unlock in order; free play never needs a mission. Progress stays
+  in the browser. Lab missions use the labs' own temporary state and never
+  change the simulator chain.
 - **Experiment settings** (coin name, difficulty, halving interval, target
   block time) move into a "Settings" dialog in the overflow menu; difficulty
   also stays in the Next block card.
@@ -148,8 +166,8 @@ decision, 2026-10-27):
 
 ### Mission rail
 
-- Lists the five missions with progress; the active mission is expanded with
-  its steps, a hint and its reward.
+- Lists the missions of the track with progress; the active mission is
+  expanded with its steps, a hint and its reward.
 - The current step **marks the element it needs with a coach ring** and a
   small label ("Step 3 · back Minas").
 - Collapsed, it becomes a 56 px icon rail with mission state and a progress
