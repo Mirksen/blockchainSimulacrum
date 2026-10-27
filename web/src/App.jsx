@@ -12,6 +12,7 @@ import { telemetry } from './lib/telemetry';
 import { HashLab } from './components/HashLab';
 import { ChainLab } from './components/ChainLab';
 import { LearningPath } from './components/LearningPath';
+import { PoolPanel } from './components/PoolPanel';
 import { Modal } from './components/Modal';
 import './index.css';
 
@@ -39,6 +40,7 @@ function App() {
   const [showStats, setShowStats] = useState(false);
   const [showHashLab, setShowHashLab] = useState(false);
   const [showChainLab, setShowChainLab] = useState(false);
+  const [showPool, setShowPool] = useState(false);
   const [showLearning, setShowLearning] = useState(false);
   const [error, setError] = useState('');
   const lastAdjustedBlock = useRef(0);
@@ -117,6 +119,7 @@ function App() {
           <button className="btn btn-transparent" onClick={() => setShowLearning(true)}>Learning path</button>
           <button className="btn btn-transparent" aria-label="Open hash lab" onClick={() => setShowHashLab(true)}>Hash lab</button>
           <button className="btn btn-transparent" aria-label="Open chain lab" onClick={() => setShowChainLab(true)}>Chain lab</button>
+          <button className="btn btn-transparent" aria-label="Open mining pool" onClick={() => setShowPool(true)}>Mining pool</button>
           <button className="btn btn-transparent" onClick={() => { const value = theme === 'light' ? 'dark' : 'light'; setTheme(value); void telemetry.track('settings_changed', { setting: 'theme', value }); }} aria-label={theme === 'light' ? 'Switch to dark theme' : 'Switch to light theme'}>{theme === 'light' ? 'Dark' : 'Light'}</button>
           <button className="btn btn-transparent" onClick={() => { setMuted(!muted); void telemetry.track('settings_changed', { setting: 'sound', value: muted }); }} aria-pressed={!muted}>Sound {muted ? 'off' : 'on'}</button>
         </div>
@@ -163,6 +166,7 @@ function App() {
       <LearningPath open={showLearning} onClose={() => setShowLearning(false)} />
       {showHashLab && <Modal label="Hash lab" onClose={() => setShowHashLab(false)}><HashLab onClose={() => setShowHashLab(false)} /></Modal>}
       {showChainLab && <Modal label="Chain lab" onClose={() => setShowChainLab(false)}><ChainLab onClose={() => setShowChainLab(false)} /></Modal>}
+      {showPool && <Modal label="Mining pool" onClose={() => setShowPool(false)}><PoolPanel onClose={() => setShowPool(false)} /></Modal>}
       {showStats && <BlockchainStatsPanel blocks={blocks} participants={participants} difficulty={difficulty} blockReward={blockReward} halvingInterval={halvingInterval} onClose={() => setShowStats(false)} />}
     </div>
   );

@@ -1,6 +1,7 @@
 import { Modal } from './Modal';
 import { useState } from 'react';
 import { TransactionDetailsModal } from './TransactionDetailsModal';
+import { transactionRoot } from '../lib/blockchain';
 
 export function BlockDetailsModal({
     block,
@@ -30,6 +31,9 @@ export function BlockDetailsModal({
     const miner = getMinerFromBlock();
     const minerColorClass = miner?.name?.toLowerCase() === 'minas' ? 'minas' :
         miner?.name?.toLowerCase() === 'lars' ? 'lars' : null;
+
+    const recomputedRoot = transactionRoot(block.transactions || []);
+    const rootChanged = block.txRoot !== undefined && block.txRoot !== recomputedRoot;
 
     const isInvalid = !block.isValid?.() ||
         (blockIndex > 0 && block.previousHash !== blocks[blockIndex - 1]?.hash);
@@ -93,6 +97,23 @@ export function BlockDetailsModal({
                         <div className="modal-hash small">
                             {block.previousHash}
                         </div>
+                    </div>
+
+                    <div className="modal-section">
+                        <div className="modal-section-label">Transaction Root</div>
+                        <div className="modal-hash small">
+                            {block.txRoot}
+                        </div>
+                        {rootChanged && (
+                            <>
+                                <div className="tamper-detail">
+                                    <strong>Changed after mining:</strong> recomputed root
+                                </div>
+                                <div className="modal-hash small">
+                                    {recomputedRoot}
+                                </div>
+                            </>
+                        )}
                     </div>
 
                     {/* Stats Grid */}

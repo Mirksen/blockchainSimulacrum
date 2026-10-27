@@ -2,6 +2,7 @@
 import { act, cleanup, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import SHA256 from 'crypto-js/sha256';
+import CryptoJS from 'crypto-js/core.js';
 import { ec as EC } from 'elliptic';
 import { useBlockchain } from '../hooks/useBlockchain';
 import { telemetry } from '../lib/telemetry';
@@ -15,7 +16,14 @@ vi.mock('crypto-js/sha256', async (importOriginal) => {
   return { default: vi.fn(actual.default) };
 });
 const config = { participants: ['Miner One', 'Wallet Two'], miners: ['Miner One'], miningDifficulty: 1, halvingEvent: 2 };
-beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(new Date('2026-01-02T12:00:00Z')); vi.mocked(SHA256).mockImplementation(() => ({ toString: () => '0'.repeat(64) })); });
+// Nonce searches hash through the SHA-256 midstate (finalize), block checks
+// through the SHA256 helper; both are forced to the same synthetic digest.
+let finalize;
+const forceHash = hex => {
+  vi.mocked(SHA256).mockImplementation(() => ({ toString: () => hex }));
+  finalize.mockImplementation(() => ({ toString: () => hex }));
+};
+beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(new Date('2026-01-02T12:00:00Z')); finalize = vi.spyOn(CryptoJS.algo.SHA256, 'finalize'); forceHash('0'.repeat(64)); });
 afterEach(() => { cleanup(); vi.useRealTimers(); vi.clearAllMocks(); vi.restoreAllMocks(); telemetry.track.mockReset(); telemetry.reportError.mockReset(); });
 async function mine(result) {
   let outcome;
@@ -37,7 +45,7 @@ describe('simulation lifecycle', () => {
     const { result } = renderHook(() => useBlockchain(config));
     await mine(result);
     const reward = result.current.blockchain.blockReward;
-    SHA256.mockImplementation(() => ({ toString: () => 'f'.repeat(64) }));
+    forceHash('f'.repeat(64));
     let outcome;
     await act(async () => { const pending = result.current.mineBlock(); result.current.cancelMining(); await vi.runAllTimersAsync(); outcome = await pending; });
     expect(outcome.aborted).toBe(true);
@@ -52,7 +60,7 @@ describe('simulation lifecycle', () => {
     expect(result.current.blocks).toHaveLength(2);
   });
   it('reset invalidates an old run and clears mining state', async () => {
-    SHA256.mockImplementation(() => ({ toString: () => 'f'.repeat(64) }));
+    forceHash('f'.repeat(64));
     const { result } = renderHook(() => useBlockchain(config));
     let pending;
     act(() => { pending = result.current.mineBlock(); result.current.resetBlockchain(); });
@@ -120,7 +128,7 @@ describe('operation telemetry boundaries', () => {
     expect(events('mining_completed')[0][1]).toEqual({difficulty:1,elapsed_ms:0,attempt_count:1,miner_count:1,transaction_count:0,block_height:1});
   });
   it('records cancellation once when reset also cancels an existing attempt', async () => {
-    SHA256.mockImplementation(()=>({toString:()=> 'f'.repeat(64)}));
+    forceHash('f'.repeat(64));
     const {result}=renderHook(()=>useBlockchain(config));let pending;
     act(()=>{pending=result.current.mineBlock();result.current.cancelMining();result.current.resetBlockchain();});
     await act(async()=>{await vi.runAllTimersAsync();await pending;});

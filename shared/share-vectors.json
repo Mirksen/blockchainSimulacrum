@@ -1,0 +1,44 @@
+[
+  {
+    "prefix": "proofofwork.fyi|00112233445566778899aabbccddeeff|sample-miner|",
+    "nonce": 0,
+    "hash": "7de1de45bf7974566a1be6acf606d21917e45caaeb70f34abb8fe793494d083e",
+    "zeros": 0
+  },
+  {
+    "prefix": "proofofwork.fyi|00112233445566778899aabbccddeeff|sample-miner|",
+    "nonce": 9007199254740991,
+    "hash": "13bf0696fd08ff1f8a3841c57f9ec9b83edaf1da707d825dccb9d502f2db803e",
+    "zeros": 0
+  },
+  {
+    "prefix": "proofofwork.fyi|ffeeddccbbaa99887766554433221100|test-rig-01|",
+    "nonce": 13,
+    "hash": "037680d7639f62e1d931d85d2b2cefeffde487cca756ec73a24ed21619c84914",
+    "zeros": 1
+  },
+  {
+    "prefix": "proofofwork.fyi|0123456789abcdef0123456789abcdef|Synthetic-Pool|",
+    "nonce": 400,
+    "hash": "00486765c90f39e25cbc3631d514d7ea7d5c8a97cf475144fbf2dc1ab0c27367",
+    "zeros": 2
+  },
+  {
+    "prefix": "proofofwork.fyi|deadbeefdeadbeefdeadbeefdeadbeef|abc|",
+    "nonce": 89363,
+    "hash": "00001c1175346d40f196dd954f9e0680e1801fc4222adc914e22c385a9f4a846",
+    "zeros": 4
+  },
+  {
+    "prefix": "proofofwork.fyi|cafebabecafebabecafebabecafebabe|nonce-hunter-2026|",
+    "nonce": 1047359,
+    "hash": "0000c137bbe5e0ead2cabefe72353a0b75284fabe5fedcd494ff807d61ca19c1",
+    "zeros": 4
+  },
+  {
+    "prefix": "proofofwork.fyi|0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f|demo-user|",
+    "nonce": 220356,
+    "hash": "0000061a8aa974e25c32462bdc70b83ff2d35cba6f83a9bbe14798f26cb29af1",
+    "zeros": 5
+  }
+]
