@@ -33,7 +33,7 @@ Choose **Mining pool**, pick a public name and join. The pool server hands out a
 
 Public names pass a moderation check: the server folds a name (case, accents, ß, digit look-alikes, separators) and refuses it if it contains a blocked term or equals a reserved one; an operator can hide a name later. The blocked terms in `server/data/blocked-names.txt` come from the English and German lists of [List of Dirty, Naughty, Obscene, and Otherwise Bad Words](https://github.com/LDNOOBW/List-of-Dirty-Naughty-Obscene-and-Otherwise-Bad-Words) by the LDNOOBW contributors, licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/); this project adds German umlaut spellings when it loads them.
 
-The server lives in `server/` (Node 24, no runtime dependencies, SQLite). `deploy/lab/` runs it as a self-contained Compose stack with its own Cloudflare tunnel; see `deploy/lab/README.md`.
+The server lives in `server/` (Node 24, no runtime dependencies, SQLite). `deploy/lab/` runs it as a self-contained Compose stack with its own Cloudflare tunnel; a merge to `master` goes live within minutes after the server tests pass on the host; see `deploy/lab/README.md`.
 
 ## Verify
 

@@ -1,0 +1,11 @@
+# Installed to /etc/systemd/system/ on the lab host; see deploy/lab/README.md.
+[Unit]
+Description=Check master for proofofwork.fyi leaderboard changes every 5 minutes
+
+[Timer]
+OnBootSec=3min
+OnUnitActiveSec=5min
+RandomizedDelaySec=30s
+
+[Install]
+WantedBy=timers.target

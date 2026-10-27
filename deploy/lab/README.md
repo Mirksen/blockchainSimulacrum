@@ -30,19 +30,40 @@ committed). Host rules for the CAX21 lab zone `172.28.0.0/16`: hausbot-bob
 
 ## Updating a stack (`lab-proofofwork`)
 
-Nothing deploys the server automatically: CI only runs the tests, and a merge to `master` does not
-change the host. Whoever merges a change to `server/` or `deploy/lab/proofofwork/` puts it live:
+A merge to `master` goes live on its own. On the host, `lab-proofofwork-deploy.timer` runs
+`bin/pull-deploy.sh` every five minutes: it fetches `master` with a read-only GitHub deploy key and
+hands a new commit to `bin/apply.sh`, which
+
+1. runs the server tests on that commit in a throwaway container without network,
+2. swaps in `server/` and the stack files (previous ones kept as `*.prev`),
+3. restarts the app and waits until it is healthy, and otherwise rolls back to the previous files.
+
+`DEPLOYED` holds the running commit and a fingerprint of its files; a commit that changes nothing
+here only updates `DEPLOYED`. `.env`, `tunnel.env`, `data/` and `static/` are never touched. The host
+needs no inbound access and GitHub holds no credentials for it. Check a run with
+`journalctl -u lab-proofofwork-deploy -n 50`; a failed deploy leaves the unit failed and the old
+version running.
+
+To put a commit live by hand (not on `master`, or with the timer stopped), from a checkout:
 
 ```sh
 git fetch origin
-SSH_OPTS="-F <ssh_config>" deploy/lab/proofofwork/deploy.sh <ssh-target>          # origin/master
-SSH_OPTS="-F <ssh_config>" deploy/lab/proofofwork/deploy.sh <ssh-target> <commit> # or a given commit
+SSH_OPTS="-F <ssh_config>" deploy/lab/proofofwork/deploy.sh <ssh-target> [<commit>]   # default origin/master
 ```
 
-The script copies that commit's `server/` and stack files, keeps the previous `server/` as
-`server.prev`, writes the commit to `DEPLOYED`, restarts the app and fails unless it is healthy.
-`.env`, `tunnel.env`, `data/` and `static/` stay untouched. `cat /opt/lab/proofofwork/DEPLOYED`
-shows what runs; to roll back, deploy the previous commit.
+While the timer runs, its next run puts `master` back. Stop it first with
+`systemctl stop lab-proofofwork-deploy.timer` if a non-master commit has to stay live.
+
+One-time host setup (root on the host; the private key never leaves it):
+
+```sh
+install -d -m 700 /etc/lab/proofofwork
+ssh-keygen -q -t ed25519 -N '' -C lab-proofofwork-deploy -f /etc/lab/proofofwork/github_deploy_ed25519
+ssh-keyscan -t ed25519 github.com > /etc/lab/proofofwork/known_hosts   # compare with GitHub's published fingerprint
+# add github_deploy_ed25519.pub as a read-only deploy key of the repository, then:
+install -m 644 <checkout>/deploy/lab/proofofwork/systemd/lab-proofofwork-deploy.* /etc/systemd/system/
+systemctl daemon-reload && systemctl enable --now lab-proofofwork-deploy.timer
+```
 
 ## Moving a stack
 
@@ -51,6 +72,8 @@ shows what runs; to roll back, deploy the previous commit.
 3. On the new host, apply the same lab-zone firewall rules for the stack's subnet.
 4. Start it: `docker compose up -d` in `/opt/lab/<app>/`. The tunnel reconnects with the same
    token, so DNS does not change.
+5. For `lab-proofofwork`, repeat the one-time host setup above (new deploy key, timer) and remove
+   the old host's deploy key from the repository.
 
 ## Moderating pool names (`lab-proofofwork`)
 
