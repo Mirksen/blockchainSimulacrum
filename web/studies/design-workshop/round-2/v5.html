@@ -1,0 +1,525 @@
+<!--
+  Variant: r2-v5 — "Bento, no scrolling"
+  Race: the largest bento tile. Two lanes drawn as tracks with checkpoints for each leading zero; at rest
+        they show the last round (block #4), during mining the same tracks move live.
+  Missions: one mission tile in the bento with the active mission, its progress and the one step to do
+        next ("Back Minas"); the full list of five is one click away, never in the way.
+  Density: everything fits 1440x900 with nothing below the fold: a compact block band with the single
+        primary action, then a 12-column bento of race, mempool with inline send form, wallets, key
+        figures, mission, chain health and block times, held together by one type scale and aligned numbers.
+  Rationale: A learner should never wonder where something is, so every part of the simulation has a
+        fixed tile and nothing hides behind a scroll or a modal. Density stays calm because each tile has
+        one job, one heading and right-aligned tabular numbers, and only the Mine button is filled.
+        The trade-off is a fixed canvas: tiles must stay short, which forces the copy to be concrete.
+-->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Workbench — proofofwork.fyi</title>
+<style>
+  :root{
+    --bg:#0b1220;
+    --bg-2:#0e1628;
+    --panel:#111a2e;
+    --panel-2:#16213a;
+    --panel-3:#1b2744;
+    --line:#1f2b45;
+    --line-2:#192440;
+    --text:#e7edf8;
+    --text-2:#a3b2cf;
+    --text-3:#6c7d9e;
+    --blue:#4d8dff;
+    --blue-2:#3a7af0;
+    --blue-bg:rgba(77,141,255,.12);
+    --violet:#8a63f5;
+    --green:#3fd69a;
+    --green-bg:rgba(63,214,154,.12);
+    --amber:#f5c04e;
+    --amber-bg:rgba(245,192,78,.12);
+    --red:#ff7a7a;
+    --lars:#f5a524;
+    --lars-bg:rgba(245,165,36,.14);
+    --minas:#a78bfa;
+    --minas-bg:rgba(167,139,250,.16);
+    --ui:-apple-system,"SF Pro Text","Helvetica Neue",Arial,sans-serif;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+    /* type scale: 11 label / 12 meta / 13 body / 14 title / 20 figure */
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    background:var(--bg);color:var(--text);
+    font:13px/18px var(--ui);
+    font-variant-numeric:tabular-nums;
+    -webkit-font-smoothing:antialiased;
+  }
+  button{font:inherit;color:inherit}
+  a{color:inherit}
+  .t2{color:var(--text-2)}
+  .t3{color:var(--text-3)}
+  .num{font-variant-numeric:tabular-nums;text-align:right}
+  .mono{font-family:var(--mono);font-size:12px}
+  .cap{font-size:11px;line-height:16px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text-3)}
+
+  /* ---------- header ---------- */
+  .top{height:52px;display:flex;align-items:center;gap:28px;padding:0 24px;border-bottom:1px solid var(--line);background:var(--bg-2)}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:600;font-size:15px}
+  .tabs{display:flex;gap:4px}
+  .tabs a{padding:6px 12px;border-radius:6px;color:var(--text-2);text-decoration:none;font-size:14px}
+  .tabs a:hover{background:var(--panel);color:var(--text)}
+  .tabs a.on{color:var(--text);background:var(--panel-2)}
+  .top .right{margin-left:auto;display:flex;align-items:center;gap:12px}
+  .pill{display:inline-flex;align-items:center;gap:8px;height:28px;padding:0 12px;border-radius:14px;font-size:13px;border:1px solid var(--line);color:var(--text-2);white-space:nowrap}
+  .pill.ok{color:var(--green);background:var(--green-bg);border-color:transparent;font-weight:500}
+  .pill i{width:8px;height:8px;border-radius:50%;background:currentColor}
+  .icon-btn{width:32px;height:32px;display:grid;place-items:center;border-radius:6px;border:1px solid var(--line);background:transparent;color:var(--text-2);cursor:pointer}
+  .icon-btn:hover{background:var(--panel-2);color:var(--text)}
+
+  /* ---------- block band ---------- */
+  .band{
+    height:142px;padding:20px 24px 0;
+    background:radial-gradient(560px 160px at 50% 0%,rgba(77,141,255,.10),transparent 70%),var(--bg);
+    border-bottom:1px solid var(--line-2);
+  }
+  .band-inner{display:flex;align-items:flex-start;justify-content:center}
+  .cand{display:flex;align-items:flex-start;gap:16px}
+  .ctrl{display:flex;flex-direction:column;gap:10px;width:216px;padding-top:4px}
+  .crow{display:flex;align-items:center;justify-content:space-between;height:24px;font-size:12px;color:var(--text-2)}
+  .divider{width:1px;height:84px;margin:0 32px 0 28px;position:relative;
+    background:repeating-linear-gradient(to bottom,var(--text-3) 0 5px,transparent 5px 10px)}
+  .divider span{position:absolute;top:-10px;left:50%;transform:translateX(-50%);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-3);background:var(--bg);padding:0 6px}
+  .tiles{display:flex;gap:20px}
+
+  .tile{
+    position:relative;width:116px;height:76px;margin-top:6px;padding:6px 10px 7px;
+    display:flex;flex-direction:column;justify-content:space-between;color:#fff;
+    background:linear-gradient(160deg,#5a7cff 0%,#7a52ee 100%);cursor:default;
+  }
+  .tile::before{content:"";position:absolute;left:0;top:-6px;width:100%;height:6px;background:linear-gradient(90deg,#7d97ff,#9a7bf6);transform:skewX(-45deg);transform-origin:bottom left}
+  .tile::after{content:"";position:absolute;right:-6px;top:0;width:6px;height:100%;background:linear-gradient(180deg,#3d50c8,#4a2fa8);transform:skewY(-45deg);transform-origin:top left}
+  .tile.c3{background:linear-gradient(160deg,#4f6ef0 0%,#6a45d9 100%)}
+  .tile.c2{background:linear-gradient(160deg,#4662dd 0%,#5d3cc6 100%)}
+  .tile.c1{background:linear-gradient(160deg,#3d56c8 0%,#5034b0 100%)}
+  .tile.c0{background:linear-gradient(160deg,#2f3f86 0%,#3a2a78 100%)}
+  .tile.c0::before{background:#44539c}
+  .tile.c0::after{background:#232c63}
+  .tile.newest{box-shadow:0 12px 28px -12px rgba(122,82,238,.6)}
+  .tile:hover{outline:2px solid rgba(255,255,255,.55);outline-offset:2px}
+  .tile .row{display:flex;justify-content:space-between;align-items:baseline;font-size:12px;line-height:16px}
+  .tile .row b{font-size:13px}
+  .tile .row span{opacity:.82}
+  .tile .hs{font-family:var(--mono);font-size:12px;line-height:18px;background:rgba(6,10,30,.28);border-radius:4px;padding:0 6px;align-self:flex-start}
+  .tile .who2{font-size:12px;line-height:16px;opacity:.85}
+  .tile.pend{background:repeating-linear-gradient(135deg,#1c2742 0 8px,#19233c 8px 16px);outline:1px dashed #44557c;outline-offset:-1px;color:var(--text-2)}
+  .tile.pend::before{background:#25314f}
+  .tile.pend::after{background:#141c31}
+  .tile.pend b{color:var(--text)}
+  .tile.pend:hover{outline:1px dashed #6a7fae;outline-offset:-1px}
+
+  .tip{display:none;position:absolute;z-index:40;top:calc(100% + 9px);left:50%;transform:translateX(-50%);
+    align-items:center;gap:12px;width:max-content;height:34px;padding:0 5px 0 12px;border-radius:8px;background:#0a1020;border:1px solid #2c3b5e;
+    box-shadow:0 16px 40px -8px rgba(0,0,0,.7);color:var(--text);cursor:auto}
+  .tip::before{content:"";position:absolute;top:-6px;left:50%;width:10px;height:10px;margin-left:-5px;background:#0a1020;border-left:1px solid #2c3b5e;border-top:1px solid #2c3b5e;transform:rotate(45deg)}
+  .tip::after{content:"";position:absolute;left:0;right:0;top:-12px;height:12px}
+  .tile:hover .tip,.tile.tip-open .tip{display:flex}
+  .tile:hover,.tile.tip-open{z-index:41}
+  .tip-k{font-size:12px;color:var(--text-3);white-space:nowrap}
+  .full{font-family:var(--mono);font-size:12px;white-space:nowrap}
+  .full em{font-style:normal;color:var(--green)}
+  .copy{display:inline-flex;align-items:center;height:24px;padding:0 8px;border-radius:5px;border:1px solid var(--line);background:var(--panel-2);color:var(--text);font-size:12px;cursor:pointer}
+  .copy:hover{border-color:var(--blue)}
+
+  /* ---------- controls ---------- */
+  .mine{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:38px;padding:0 16px;border-radius:8px;
+    background:var(--blue);color:#fff;border:0;font-weight:600;font-size:14px;cursor:pointer;white-space:nowrap;
+    box-shadow:0 8px 24px -8px rgba(77,141,255,.7),inset 0 1px 0 rgba(255,255,255,.18)}
+  .mine:hover{background:var(--blue-2)}
+  .mine:focus-visible{outline:2px solid #9cc0ff;outline-offset:3px}
+  .mine kbd{font:11px var(--ui);padding:0 5px;border-radius:4px;background:rgba(255,255,255,.18);line-height:16px}
+  .sec{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:30px;padding:0 12px;border-radius:6px;border:1px solid var(--line);background:var(--panel-2);color:var(--text);font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap}
+  .sec:hover{border-color:#34466e;background:var(--panel-3)}
+  .lnk{color:var(--blue);text-decoration:none;font-size:12px}
+  .lnk:hover{text-decoration:underline}
+  .switch{display:inline-flex;align-items:center;gap:8px;cursor:pointer}
+  .switch i{width:26px;height:14px;border-radius:7px;background:var(--panel-3);border:1px solid var(--line);position:relative}
+  .switch i::after{content:"";position:absolute;top:2px;left:2px;width:8px;height:8px;border-radius:50%;background:var(--text-3)}
+  .stepper{display:inline-flex;align-items:center;gap:2px;height:24px;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+  .stepper span{padding:0 6px 0 8px;color:var(--text-3)}
+  .stepper button{width:22px;height:100%;border:0;background:var(--panel);color:var(--text-2);cursor:pointer;display:grid;place-items:center}
+  .stepper button:hover{background:var(--panel-2);color:var(--text)}
+  .stepper b{min-width:18px;text-align:center;color:var(--text)}
+
+  /* ---------- bento ---------- */
+  .bento{
+    height:calc(100vh - 52px - 142px);padding:12px 16px 16px;
+    display:grid;gap:12px;
+    grid-template-columns:repeat(12,minmax(0,1fr));
+    grid-template-rows:minmax(0,1fr) minmax(0,1fr) minmax(0,.86fr);
+  }
+  .t{background:var(--panel);border:1px solid var(--line);border-radius:10px;display:flex;flex-direction:column;min-height:0;overflow:hidden}
+  .th{display:flex;align-items:center;gap:8px;height:40px;flex:none;padding:0 14px;border-bottom:1px solid var(--line-2)}
+  .th h2{margin:0;font-size:14px;font-weight:600}
+  .th .aside{margin-left:auto;font-size:12px;color:var(--text-3)}
+  .tb{padding:12px 14px;flex:1;min-height:0}
+  .race{grid-column:1/7;grid-row:1/3}
+  .mem{grid-column:7/10;grid-row:1/3}
+  .wal{grid-column:10/13;grid-row:1/2}
+  .key{grid-column:10/13;grid-row:2/3}
+  .mis{grid-column:1/6;grid-row:3/4}
+  .hea{grid-column:6/9;grid-row:3/4}
+  .tim{grid-column:9/13;grid-row:3/4}
+
+  .tag{display:inline-flex;align-items:center;height:20px;padding:0 8px;border-radius:10px;font-size:12px;font-weight:500;background:var(--panel-2);color:var(--text-2)}
+  .st{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:500;padding:0 8px;height:20px;border-radius:10px;white-space:nowrap}
+  .st i{width:6px;height:6px;border-radius:50%;background:currentColor}
+  .st.ok{color:var(--green);background:var(--green-bg)}
+  .st.pe{color:var(--amber);background:var(--amber-bg)}
+
+  /* race */
+  .race .tb{display:flex;flex-direction:column;gap:12px;padding:14px 16px}
+  .rule{font-size:13px;line-height:24px;color:var(--text-2)}
+  .cells{display:inline-flex;gap:2px;vertical-align:middle}
+  .cells span{width:18px;height:22px;display:grid;place-items:center;border-radius:4px;font-family:var(--mono);font-size:13px;background:var(--panel-2);color:var(--text-2);border:1px solid var(--line)}
+  .cells span.hit{color:var(--green);background:var(--green-bg);border-color:rgba(63,214,154,.35)}
+  .cells.target span{color:var(--green);border-style:dashed;background:transparent;border-color:rgba(63,214,154,.5)}
+  .rule .cells{margin:0 4px}
+  .race .lane{flex:1;}
+  .lane{display:grid;grid-template-columns:184px minmax(0,1fr) 150px;gap:16px;align-items:center;padding:14px;border:1px solid var(--line);border-radius:8px;background:var(--bg-2)}
+  .who{display:flex;align-items:center;gap:10px}
+  .av{width:28px;height:28px;border-radius:7px;display:grid;place-items:center;font-size:12px;font-weight:700;color:#1a1204;flex:none}
+  .av.l{background:var(--lars)}
+  .av.mi{background:var(--minas);color:#1a1033}
+  .who b{display:block;font-size:14px}
+  .who small{display:block;font-size:12px;color:var(--text-3)}
+  .track{position:relative;height:28px}
+  .track .rail{position:absolute;left:0;right:0;top:12px;height:4px;border-radius:2px;background:var(--panel-3)}
+  .track .fill{position:absolute;left:0;top:12px;height:4px;border-radius:2px}
+  .track .cp{position:absolute;top:6px;width:2px;height:16px;background:var(--line);border-radius:1px}
+  .track .cp.fin{background:var(--green);width:3px}
+  .track .run{position:absolute;top:4px;width:20px;height:20px;margin-left:-10px;border-radius:50%;border:2px solid var(--bg-2)}
+  .ticks{display:flex;justify-content:space-between;font-size:11px;color:var(--text-3);margin-top:2px}
+  .res{text-align:right}
+  .res .hx{font-family:var(--mono);font-size:13px;color:var(--text-2);display:flex;align-items:center;justify-content:flex-end;gap:6px}
+  .res small{display:block;font-size:12px;color:var(--text-3);margin-top:4px}
+  .race-f{display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid var(--line-2);margin-top:auto}
+  .race-f div{padding:10px 16px}
+  .race-f div + div{border-left:1px solid var(--line-2)}
+  .race-f .k{font-size:12px;color:var(--text-3)}
+  .race-f .v{font-size:20px;line-height:26px;font-weight:600}
+  .race-f .v small{font-size:12px;font-weight:400;color:var(--text-3);margin-left:4px}
+  .live-note{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-3)}
+  .live-note i{width:6px;height:6px;border-radius:50%;border:1px solid var(--text-3)}
+
+  /* mempool */
+  .tx{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;column-gap:12px;padding:9px 14px;border-bottom:1px solid var(--line-2)}
+  .tx b{font-weight:500}
+  .tx small{font-size:12px;color:var(--text-3);margin-left:6px}
+  .tx .amt{font-family:var(--mono);font-size:13px}
+  .into{display:flex;align-items:center;gap:8px;padding:10px 14px;font-size:12px;color:var(--text-3);border-bottom:1px solid var(--line-2)}
+  .send{padding:12px 14px 14px;display:grid;grid-template-columns:1fr 1fr;gap:8px 8px;margin-top:auto;background:var(--bg-2);border-top:1px solid var(--line-2)}
+  .send .cap{grid-column:1/-1}
+  .fld{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--text-3)}
+  .in{height:30px;border-radius:6px;border:1px solid var(--line);background:var(--panel);padding:0 10px;display:flex;align-items:center;justify-content:space-between;color:var(--text);font-size:13px}
+  .in.ph{color:var(--text-3)}
+  .send .sec{grid-column:1/-1;margin-top:4px}
+
+  /* wallets */
+  .wl{display:grid;grid-template-columns:20px minmax(0,1fr) auto;align-items:center;gap:10px;height:35px;padding:0 14px;border-bottom:1px solid var(--line-2)}
+  .wl:last-child{border-bottom:0}
+  .wl .av{width:20px;height:20px;border-radius:5px;font-size:11px}
+  .wl .role{font-size:12px;color:var(--text-3);margin-left:4px}
+  .wl .bal{font-family:var(--mono);font-size:12px;text-align:right}
+
+  /* key figures */
+  .kf{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;flex:1}
+  .kf > div{padding:10px 14px;display:flex;flex-direction:column;justify-content:center}
+  .kf > div:nth-child(odd){border-right:1px solid var(--line-2)}
+  .kf > div:nth-child(-n+2){border-bottom:1px solid var(--line-2)}
+  .kf .k{font-size:12px;color:var(--text-3)}
+  .kf .v{font-size:20px;line-height:26px;font-weight:600}
+  .kf .s{font-size:12px;color:var(--text-3)}
+  .segs{display:flex;gap:3px;margin-top:4px}
+  .segs i{flex:1;height:4px;border-radius:2px;background:var(--panel-3)}
+  .segs i.on{background:var(--blue)}
+
+  /* mission */
+  .mis .tb{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px 20px;align-content:start}
+  .path{display:flex;align-items:center;gap:6px}
+  .path i{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font-style:normal;font-size:11px;font-weight:600;background:var(--panel-2);color:var(--text-3)}
+  .path i.done{background:var(--green-bg);color:var(--green)}
+  .path i.on{background:var(--blue);color:#fff;box-shadow:0 0 0 3px rgba(77,141,255,.22)}
+  .path b{width:12px;height:1px;background:var(--line)}
+  .mt{font-size:16px;line-height:22px;font-weight:600}
+  .step{grid-column:1/-1;display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:8px;background:var(--blue-bg);border:1px solid rgba(77,141,255,.3)}
+  .step .n{font-size:12px;color:var(--text-2)}
+  .step b{display:block;font-weight:600}
+  .step .sec{margin-left:auto}
+  .mfoot{grid-column:1/-1;display:flex;align-items:center;gap:12px;font-size:12px;color:var(--text-3)}
+  .mfoot .lnk{margin-left:auto}
+  .prog{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-2)}
+  .prog .segs{width:90px;margin:0}
+
+  /* chain health */
+  .hea .tb{display:flex;flex-direction:column;gap:10px}
+  .ok-big{display:flex;align-items:center;gap:10px}
+  .ok-big .ic{width:32px;height:32px;border-radius:8px;display:grid;place-items:center;background:var(--green-bg);color:var(--green)}
+  .ok-big b{display:block;font-size:16px;line-height:20px;color:var(--green)}
+  .ok-big small{display:block;font-size:12px;color:var(--text-3)}
+  .links{display:flex;align-items:center;gap:3px}
+  .links i{flex:1;height:18px;border-radius:3px;background:var(--green-bg);border:1px solid rgba(63,214,154,.3);display:grid;place-items:center;font-style:normal;font-size:11px;color:var(--green)}
+  .hea .sec{align-self:flex-start;margin-top:auto}
+
+  /* block times */
+  .tim .tb{display:grid;grid-template-columns:minmax(0,1fr) 124px;gap:16px}
+  .chart{position:relative;display:flex;align-items:flex-end;gap:10px;height:100%;padding:0 0 18px 0;border-bottom:0}
+  .chart .tgt{position:absolute;left:0;right:0;top:4px;border-top:1px dashed var(--text-3)}
+  .chart .tgt span{position:absolute;right:0;top:-16px;font-size:11px;color:var(--text-3)}
+  .chart .avg{position:absolute;left:0;right:0;border-top:1px solid rgba(77,141,255,.6)}
+  .chart .avg span{position:absolute;left:0;top:-16px;font-size:11px;color:var(--blue)}
+  .bar{flex:1;position:relative;border-radius:3px 3px 0 0}
+  .bar span{position:absolute;bottom:-18px;left:0;right:0;text-align:center;font-size:11px;color:var(--text-3)}
+  .bar em{position:absolute;top:-16px;left:0;right:0;text-align:center;font-style:normal;font-size:11px;color:var(--text-2)}
+  .sl{display:flex;flex-direction:column;justify-content:space-between}
+  .sl div{display:flex;justify-content:space-between;font-size:12px;color:var(--text-3)}
+  .sl div b{color:var(--text);font-weight:600;font-size:13px}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="brand">
+    <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5a7cff"/><stop offset="1" stop-color="#8a63f5"/></linearGradient></defs><rect x="2" y="5" width="12" height="12" rx="2" fill="url(#g)"/><path d="M14 7.5l4-3v12l-4 3z" fill="#3d50c8"/></svg>
+    proofofwork.fyi
+  </div>
+  <nav class="tabs" aria-label="Main">
+    <a href="#" class="on" aria-current="page">Workbench</a>
+    <a href="#">Hash lab</a>
+    <a href="#">Chain lab</a>
+  </nav>
+  <div class="right">
+    <span class="pill">powCoin · simulated, no real coins</span>
+    <button class="icon-btn" aria-label="More: sound, theme, reset" title="Sound, theme, reset">
+      <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><circle cx="3.5" cy="8" r="1.4" fill="currentColor"/><circle cx="8" cy="8" r="1.4" fill="currentColor"/><circle cx="12.5" cy="8" r="1.4" fill="currentColor"/></svg>
+    </button>
+  </div>
+</header>
+
+<!-- ================= BLOCK BAND ================= -->
+<section class="band" aria-label="Blocks">
+  <div class="band-inner">
+    <div class="cand">
+      <div class="tile pend" aria-label="Next block 5, candidate from mempool">
+        <div class="row"><b>#5</b><span>2 tx</span></div>
+        <div class="who2">next block</div>
+        <div class="row"><span>reward</span><b>1.5625</b></div>
+      </div>
+      <div class="ctrl">
+        <button class="mine" type="button">
+          <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M9.5 1.5L3 9h4.5l-1 5.5L13 7H8.5z" fill="currentColor"/></svg>
+          Mine block #5 <kbd>M</kbd>
+        </button>
+        <div class="crow">
+          <label class="switch"><i></i>Auto-mine</label>
+          <span class="stepper" aria-label="Difficulty 2"><span>Diff.</span>
+            <button type="button" aria-label="Lower difficulty"><svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 5h6" stroke="currentColor" stroke-width="1.6"/></svg></button>
+            <b>2</b>
+            <button type="button" aria-label="Raise difficulty"><svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 5h6M5 2v6" stroke="currentColor" stroke-width="1.6"/></svg></button>
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <div class="divider"><span>mined</span></div>
+
+    <div class="tiles">
+      <div class="tile newest" tabindex="0" aria-label="Block 4">
+        <div class="row"><b>#4</b><span>7.1 s</span></div>
+        <div class="who2">Lars · 1 tx</div>
+        <div class="hs">0080a3…4d</div>
+        <div class="tip" role="tooltip"><span class="tip-k">Block #4</span><span class="full"><em>00</em>80a3e897fb1e3839f43f95b033620ff7fb2f9739c8e415e5ce6e7df0726c4d</span><button class="copy" type="button" data-h="0080a3e897fb1e3839f43f95b033620ff7fb2f9739c8e415e5ce6e7df0726c4d">Copy</button></div>
+      </div>
+      <div class="tile c3 tip-open" tabindex="0" aria-label="Block 3">
+        <div class="row"><b>#3</b><span>8.0 s</span></div>
+        <div class="who2">Lars · 1 tx</div>
+        <div class="hs">00e613…f8</div>
+        <div class="tip" role="tooltip"><span class="tip-k">Block #3</span><span class="full"><em>00</em>e61301ea0b9765106bd0eaa4ed68c1a108de9f700451072c4b75f5830011f8</span><button class="copy" type="button" data-h="00e61301ea0b9765106bd0eaa4ed68c1a108de9f700451072c4b75f5830011f8">Copy</button></div>
+      </div>
+      <div class="tile c2" tabindex="0" aria-label="Block 2">
+        <div class="row"><b>#2</b><span>0.1 s</span></div>
+        <div class="who2">Lars · 5 tx</div>
+        <div class="hs">009a6e…94</div>
+        <div class="tip" role="tooltip"><span class="tip-k">Block #2</span><span class="full"><em>00</em>9a6e73cac3934378dbc6e1f385239bc4ef87a5bc351687156c97341f438394</span><button class="copy" type="button" data-h="009a6e73cac3934378dbc6e1f385239bc4ef87a5bc351687156c97341f438394">Copy</button></div>
+      </div>
+      <div class="tile c1" tabindex="0" aria-label="Block 1">
+        <div class="row"><b>#1</b><span>0.3 s</span></div>
+        <div class="who2">Minas · 1 tx</div>
+        <div class="hs">00d166…48</div>
+        <div class="tip" role="tooltip"><span class="tip-k">Block #1</span><span class="full"><em>00</em>d1664c1246a070cebdc05febb822d3b66af97bf43bb6fd7ad9835f2ceaaf48</span><button class="copy" type="button" data-h="00d1664c1246a070cebdc05febb822d3b66af97bf43bb6fd7ad9835f2ceaaf48">Copy</button></div>
+      </div>
+      <div class="tile c0" tabindex="0" aria-label="Genesis block 0">
+        <div class="row"><b>#0</b><span>0 tx</span></div>
+        <div class="who2">Genesis</div>
+        <div class="hs">0000a1…71</div>
+        <div class="tip" role="tooltip" style="left:auto;right:-6px;transform:none"><span class="tip-k">Block #0</span><span class="full"><em>0000</em>a1f3c9e2b7d4e81c5f0a9b27d36c41e0f8a29d7b53c6e1048f2a9c3d5b71</span><button class="copy" type="button" data-h="0000a1f3c9e2b7d4e81c5f0a9b27d36c41e0f8a29d7b53c6e1048f2a9c3d5b71">Copy</button></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= BENTO ================= -->
+<main class="bento">
+
+  <!-- Race -->
+  <section class="t race" aria-label="Mining race">
+    <div class="th"><h2>Mining race</h2><span class="tag">Last round · block #4</span>
+      <span class="aside live-note"><i></i>Tracks move live while mining</span></div>
+    <div class="tb">
+      <div class="rule">Both miners hash the same block and change only the nonce. First hash that starts with<span class="cells target"><span>0</span><span>0</span></span>wins.</div>
+
+      <div class="lane">
+        <div class="who"><span class="av l">L</span><div><b>Lars</b><small>11,133 H/s · 50.3% share</small></div></div>
+        <div>
+          <div class="track">
+            <span class="rail"></span><span class="fill" style="width:100%;background:var(--lars)"></span>
+            <span class="cp" style="left:0"></span><span class="cp" style="left:50%"></span><span class="cp fin" style="left:calc(100% - 3px)"></span>
+            <span class="run" style="left:calc(100% - 12px);background:var(--lars)"></span>
+          </div>
+          <div class="ticks"><span>no zero</span><span>one 0</span><span>two 0s</span></div>
+        </div>
+        <div class="res">
+          <div class="hx"><span class="cells"><span class="hit">0</span><span class="hit">0</span></span>80a3…4d</div>
+          <small>nonce 5,775 · <span style="color:var(--green)">won, 2/2</span></small>
+        </div>
+      </div>
+
+      <div class="lane">
+        <div class="who"><span class="av mi">M</span><div><b>Minas</b><small>11,000 H/s · 49.7% share</small></div></div>
+        <div>
+          <div class="track">
+            <span class="rail"></span><span class="fill" style="width:6%;background:var(--minas)"></span>
+            <span class="cp" style="left:0"></span><span class="cp" style="left:50%"></span><span class="cp fin" style="left:calc(100% - 3px)"></span>
+            <span class="run" style="left:6%;background:var(--minas)"></span>
+          </div>
+          <div class="ticks"><span>no zero</span><span>one 0</span><span>two 0s</span></div>
+        </div>
+        <div class="res">
+          <div class="hx"><span class="cells"><span>d</span><span>c</span></span>80146e…</div>
+          <small>nonce 905 · 0/2</small>
+        </div>
+      </div>
+    </div>
+    <div class="race-f">
+      <div><div class="k">Winner</div><div class="v" style="color:var(--lars)">Lars</div></div>
+      <div><div class="k">Attempts</div><div class="v">332</div></div>
+      <div><div class="k">Time</div><div class="v">7.1 s<small>target 10 s</small></div></div>
+      <div><div class="k">Odds per try</div><div class="v">1 in 256</div></div>
+    </div>
+  </section>
+
+  <!-- Mempool + inline send -->
+  <section class="t mem" aria-label="Mempool">
+    <div class="th"><h2>Mempool</h2><span class="st pe"><i></i>2 pending</span></div>
+    <div class="tx"><div><b>Alice → Bob</b><small>Coffee</small></div><span class="amt">0.25</span></div>
+    <div class="tx"><div><b>Chris → Alice</b><small>Rent split</small></div><span class="amt">0.10</span></div>
+    <div class="into">
+      <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M7 2v9M3.5 7.5L7 11l3.5-3.5" stroke="currentColor" stroke-width="1.4" fill="none" stroke-linecap="round"/></svg>
+      Both go into block #5 with the 1.5625 reward.
+    </div>
+    <div class="cap" style="padding:10px 14px 0">Last confirmed</div>
+    <div class="tx"><div><b>Coinbase → Lars</b><small>Block #4 reward</small></div><span class="amt">1.5625</span></div>
+    <div class="send" aria-label="New transaction">
+      <div class="cap">New transaction</div>
+      <label class="fld">From<span class="in">Alice<svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5l3 3 3-3" stroke="var(--text-3)" stroke-width="1.4" fill="none"/></svg></span></label>
+      <label class="fld">To<span class="in">Bob<svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5l3 3 3-3" stroke="var(--text-3)" stroke-width="1.4" fill="none"/></svg></span></label>
+      <label class="fld">Amount<span class="in ph">0.00</span></label>
+      <label class="fld">Reference<span class="in ph">What for?</span></label>
+      <button class="sec" type="button"><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M6 2v8M2 6h8" stroke="currentColor" stroke-width="1.6"/></svg>Add to mempool</button>
+    </div>
+  </section>
+
+  <!-- Wallets -->
+  <section class="t wal" aria-label="Wallets">
+    <div class="th"><h2>Wallets</h2><span class="aside">powCoin</span></div>
+    <div class="wl"><span class="av l">L</span><span>Lars<span class="role">miner · 3</span></span><span class="bal">8.41250004</span></div>
+    <div class="wl"><span class="av mi">M</span><span>Minas<span class="role">miner · 1</span></span><span class="bal">0.72499996</span></div>
+    <div class="wl"><span class="av" style="background:#93c5fd">A</span><span>Alice</span><span class="bal">0.60000000</span></div>
+    <div class="wl"><span class="av" style="background:#86efac">B</span><span>Bob</span><span class="bal">0.60000000</span></div>
+    <div class="wl"><span class="av" style="background:#7dd3fc">C</span><span>Chris</span><span class="bal">0.60000000</span></div>
+  </section>
+
+  <!-- Key figures -->
+  <section class="t key" aria-label="Key figures">
+    <div class="th"><h2>Key figures</h2></div>
+    <div class="kf">
+      <div><span class="k">Avg block time</span><span class="v">3.9 s</span><span class="s">target 10 s</span></div>
+      <div><span class="k">Difficulty</span><span class="v">2</span><span class="s">hash starts 00</span></div>
+      <div><span class="k">Block reward</span><span class="v">1.5625</span><span class="s">epoch 2</span></div>
+      <div><span class="k">Next halving</span><span class="v">#8</span><span class="s">reward halves to 0.78125</span></div>
+    </div>
+  </section>
+
+  <!-- Mission -->
+  <section class="t mis" aria-label="Missions">
+    <div class="th"><h2>Missions</h2>
+      <div class="path" aria-label="Mission 2 of 5">
+        <i class="done"><svg width="10" height="10" viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 6.3l2.3 2.3 4.7-5" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></i><b></b><i class="on">2</i><b></b><i>3</i><b></b><i>4</i><b></b><i>5</i>
+      </div>
+      <span class="aside">120 XP · 1 badge</span></div>
+    <div class="tb">
+      <div><div class="cap">Mission 2 · active</div><div class="mt">Win a mining race</div></div>
+      <div class="prog"><div class="segs"><i class="on"></i><i class="on"></i><i></i></div>2 of 3 steps</div>
+      <div class="step">
+        <div><span class="n">Step 3</span><b>Back Minas and win one block</b></div>
+        <button class="sec" type="button">Back Minas</button>
+      </div>
+      <div class="mfoot"><span>Minas hashes 1% slower. Every try is a fresh 1 in 256 chance.</span><a class="lnk" href="#">All missions</a></div>
+    </div>
+  </section>
+
+  <!-- Chain health -->
+  <section class="t hea" aria-label="Chain health">
+    <div class="th"><h2>Chain health</h2><span class="aside">5 blocks</span></div>
+    <div class="tb">
+      <div class="ok-big">
+        <span class="ic"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8.3l3 3 6-6.5" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        <div><b>Chain valid</b><small>Every block links to the one before.</small></div>
+      </div>
+      <div class="links" aria-label="Blocks 0 to 4 valid"><i>#0</i><i>#1</i><i>#2</i><i>#3</i><i>#4</i></div>
+      <button class="sec" type="button"><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 10l1-3 5.5-5.5 2 2L5 9z" stroke="currentColor" stroke-width="1.3" fill="none" stroke-linejoin="round"/></svg>Tamper with a block</button>
+    </div>
+  </section>
+
+  <!-- Block times -->
+  <section class="t tim" aria-label="Block times">
+    <div class="th"><h2>Block times</h2><span class="aside">seconds per block</span></div>
+    <div class="tb">
+      <div class="chart" aria-label="Block times chart">
+        <span class="tgt"><span>target 10 s</span></span>
+        <span class="avg" style="top:calc(4px + (100% - 22px) * .61)"><span>avg 3.9 s</span></span>
+        <div class="bar" style="height:calc((100% - 22px) * .03 + 2px);background:var(--minas)"><em>0.3</em><span>#1</span></div>
+        <div class="bar" style="height:calc((100% - 22px) * .01 + 2px);background:var(--lars)"><em>0.1</em><span>#2</span></div>
+        <div class="bar" style="height:calc((100% - 22px) * .80);background:var(--lars)"><em>8.0</em><span>#3</span></div>
+        <div class="bar" style="height:calc((100% - 22px) * .71);background:var(--lars)"><em>7.1</em><span>#4</span></div>
+      </div>
+      <div class="sl">
+        <div><span>Fastest</span><b>0.1 s</b></div>
+        <div><span>Slowest</span><b>8.0 s</b></div>
+        <div><span>Average</span><b>3.9 s</b></div>
+        <div><span>Total mined</span><b>10.9375</b></div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+  document.querySelectorAll('.copy').forEach(function(b){
+    b.addEventListener('click',function(){
+      if(navigator.clipboard){navigator.clipboard.writeText(b.dataset.h);}
+      b.textContent='Copied';setTimeout(function(){b.textContent='Copy';},1200);
+    });
+  });
+</script>
+</body>
+</html>

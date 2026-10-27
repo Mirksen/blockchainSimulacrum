@@ -1,0 +1,19 @@
+{
+  "round": "Runde 2 — Werkbank",
+  "date": "2026-10-27",
+  "title": "proofofwork.fyi · Design-Workshop Runde 2: die eine Werkbank",
+  "intro": "Fest aus Runde 1: Optik von Variante 6, Explorer + Werkbank als eine Startseite mit dem Block-Band oben, Race und Missionen in der Werkbank, Menü Workbench · Hash lab · Chain lab, Kurz-Hash 6+2 mit Hover und Kopieren (in jeder Variante an einem Block geöffnet). Variiert wird nur, wo das Race lebt, wie Missionen starten und führen und wie die Dichte ruhig bleibt.",
+  "answer": "Antwort-Beispiel: Layout wie 1 · Race wie 2 · Mission wie 4 · Zustände wie 8 — oder frei.",
+  "axes": {"ux": "LAYOUT", "ui": "MISSION"},
+  "variants": [
+    {"n": 0, "file": "original.png", "title": "Original (heute)", "ux": "Dashboard, alles gleichzeitig", "ui": "keine", "why": "Ausgangspunkt, unverändert aus Runde 1."},
+    {"n": 1, "file": "v1.html", "title": "Inspector-Dock", "ux": "Drei Spalten + Block-Inspector rechts", "ui": "Chip in der Kopfzeile", "why": "Alles in drei Spalten, der gewählte Block immer im Detail daneben."},
+    {"n": 2, "file": "v2.html", "title": "Race im Block-Band", "ux": "Next-Block-Kachel wird zum Rennen", "ui": "Coach-Streifen unter dem Band", "why": "Das Rennen entsteht genau dort, wo der neue Block landet."},
+    {"n": 3, "file": "v3.html", "title": "Werkzeugleiste + Reiter", "ux": "Toolbar oben, Details in Reitern", "ui": "Menü in der Toolbar (offen)", "why": "Werkzeug-Gefühl: alle Aktionen an einer Stelle, Tabellen per Reiter."},
+    {"n": 4, "file": "v4.html", "title": "Missions-Leiste", "ux": "Leiste links, Raster rechts", "ui": "Leiste mit Schritten + Coach-Ring", "why": "Die Mission zeigt direkt auf das Element, das sie braucht."},
+    {"n": 5, "file": "v5.html", "title": "Bento ohne Scrollen", "ux": "Alles auf 1440 × 900", "ui": "Eigene Kachel", "why": "Maximale Übersicht: nichts unter dem Bildrand."},
+    {"n": 6, "file": "v6.html", "title": "Fokuskarte + Missions-Streifen", "ux": "Ein nächster Schritt führt", "ui": "Kartenreihe unter dem Band", "why": "Ruhig: Mission, Hauptaktion und Rennen in einer Karte."},
+    {"n": 7, "file": "v7.html", "title": "Unteres Dock", "ux": "Block-Detail Mitte, Dock mit Reitern unten", "ui": "Reiter im Dock", "why": "Wie DevTools: oben Kette und Detail, unten die Werkzeuge."},
+    {"n": 8, "file": "v8.html", "title": "Manipuliert + Coach", "ux": "Zustand: Block #2 gefälscht", "ui": "⌘K + Coach-Karte", "why": "Zeigt, wie ungültige Zustände in dieser Optik aussehen."}
+  ]
+}

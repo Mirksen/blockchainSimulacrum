@@ -14,10 +14,31 @@ of a rule live in the PR and the study, not here.
 
 ## Status
 
-The redesign is being workshopped (started 2026-10-27). Round 1 compares the
+The redesign is being workshopped (started 2026-10-27). Round 1 compared the
 current product with eight directions, each pairing a **UX focus** (what
-leads the screen) with a **UI taste** (how it feels). Until a direction is
-chosen, the existing UI stays as it is and only the findings below apply.
+leads the screen) with a **UI taste** (how it feels). Round 2 refines the
+decisions below. Until the target picture is complete, the existing UI stays
+as it is.
+
+## Information architecture
+
+Target picture · round 1 (Mirko, 2026-10-27):
+
+- **One workbench is the start page.** It merges the explorer (round 1,
+  variant 6) and the workbench (variant 5): the top band shows the chain as
+  block tiles, the candidate "Next block" left of the mined blocks; below it
+  the workbench. Everything needed is visible on the page at once, not
+  behind modals.
+- **The mining race is part of the workbench**, not a page. It comes alive
+  while a block is mined.
+- **Missions start inside the workbench**, not on a page of their own. A
+  mission points at the part of the workbench it needs.
+- **Top navigation:** Workbench · Hash lab · Chain lab.
+- **Block hashes** in tiles show the first 6 and last 2 characters
+  (`0080a3…4d`). Hover or focus shows the full hash with a Copy action.
+
+Open in round 2: where the race lives, how a mission starts and guides, and
+how density stays calm.
 
 ## Findings: current product (2026-10-27, commit 284c54e)
 
@@ -64,9 +85,12 @@ running (mining in progress, cancellable) states.
 
 ## Foundation (color, type, spacing, radius)
 
-Open · workshop. Decided after the UI taste is chosen: one token set with a
-light and a dark value per token; miner colors and validity states are
-semantic tokens, never hex values in components.
+Target picture · round 1: the visual language of round 1 variant 6
+("Explorer"): data-rich dark navy surfaces, blue-violet gradients only on
+block tiles, tabular figures, monospace for hashes, status always as color
+plus text. Tokens follow from round 2. One token set; miner colors and
+validity states are semantic tokens, never hex values in components. A light
+theme is open.
 
 ## Components
 

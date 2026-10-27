@@ -37,10 +37,11 @@ def tile_body(round_dir: Path, item: dict) -> str:
 
 def build(round_dir: Path) -> str:
     meta = json.loads((round_dir / "meta.json").read_text(encoding="utf-8"))
+    axes = meta.get("axes", {"ux": "UX", "ui": "UI"})
     tiles = []
     for item in meta["variants"]:
         chips = "".join(
-            f'<span class="chip chip-{k}"><b>{k.upper()}</b> {html.escape(item[k])}</span>'
+            f'<span class="chip chip-{k}"><b>{html.escape(axes[k])}</b> {html.escape(item[k])}</span>'
             for k in ("ux", "ui")
         )
         tiles.append(
