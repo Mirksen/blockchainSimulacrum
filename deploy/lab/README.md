@@ -2,7 +2,9 @@
 
 The lab zone holds small, public-facing experiments that run as self-contained Docker
 Compose stacks. Each stack lives in its own directory, `/opt/lab/<app>/`, containing
-`compose.yaml` and a local `.env` (created from `.env.example`, never committed).
+`compose.yaml`, a local `.env` and `tunnel.env` (created from the `*.example` files, never
+committed). Host rules for the CAX21 lab zone `172.28.0.0/16`: hausbot-bob
+`ops/hetzner-app/SOLL.md`, section "Lab-Zone".
 
 ## Rules
 
@@ -16,22 +18,20 @@ Compose stacks. Each stack lives in its own directory, `/opt/lab/<app>/`, contai
    an app that needs private access does not belong in the lab zone.
 3. **No published ports.** Services do not use `ports:`. Inbound traffic arrives only through
    the stack's own Cloudflare tunnel container (`cloudflared ... run` with a per-stack
-   `TUNNEL_TOKEN`), which connects outbound.
+   token in `tunnel.env`, which only that container reads), which connects outbound.
 4. **Hardened containers.** `read_only: true` (writable state only in named volumes and
-   `tmpfs`), `cap_drop: [ALL]`, `no-new-privileges:true`, non-root user, and explicit
+   `tmpfs`, data in a bind-mounted `data/` directory), `cap_drop: [ALL]`, `no-new-privileges:true`, non-root user, and explicit
    `mem_limit`, `cpus` and `pids_limit`.
 5. **Pinned images.** Images are pinned to explicit versions (or digests); no `latest`.
-6. **Secrets stay local.** Real values live only in `/opt/lab/<app>/.env` on the host.
-   Repositories contain `.env.example` with placeholders only.
+6. **Secrets stay local.** Real values live only in `/opt/lab/<app>/.env` and `tunnel.env`
+   (0600) on the host. Repositories contain `*.example` files with placeholders only.
 7. **Portable by construction.** Nothing in a stack depends on host-specific paths, host
-   networking or provider runtime services. State lives in named volumes.
+   networking or provider runtime services. State lives in the stack's `data/` directory.
 
 ## Moving a stack
 
 1. Stop it: `docker compose down` in `/opt/lab/<app>/`.
-2. Copy `/opt/lab/<app>/` (including `.env`) to the new host, and copy the named volume
-   data if the state should move along (for example via `docker run --rm -v <volume>:/v ...`
-   with `tar`).
+2. Copy `/opt/lab/<app>/` (including `.env`, `tunnel.env` and `data/`) to the new host.
 3. On the new host, apply the same lab-zone firewall rules for the stack's subnet.
 4. Start it: `docker compose up -d` in `/opt/lab/<app>/`. The tunnel reconnects with the same
    token, so DNS does not change.
