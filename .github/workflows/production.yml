@@ -26,9 +26,18 @@ jobs:
       run:
         working-directory: web
     steps:
-      - uses: actions/checkout@v7.0.1
-        with:
-          persist-credentials: false
+      # Public, immutable sources need no credentials. checkout's auth cleanup
+      # fails on the repository's historical app gitlink without .gitmodules.
+      - name: Fetch the verifier without credentials
+        working-directory: ${{ github.workspace }}
+        env:
+          SOURCE_COMMIT: ${{ github.sha }}
+        run: |
+          git init .
+          git remote add origin https://github.com/Mirksen/blockchainSimulacrum.git
+          git fetch --depth=1 origin "$SOURCE_COMMIT"
+          git checkout --detach FETCH_HEAD
+          test "$(git rev-parse HEAD)" = "$SOURCE_COMMIT"
       - uses: actions/setup-node@v7.1.0
         with:
           node-version: '22'
@@ -46,11 +55,16 @@ jobs:
           JS
         env:
           RELEASE_MANIFEST: ${{ inputs.release_manifest }}
-      - uses: actions/checkout@v7.0.1
-        with:
-          ref: ${{ steps.release.outputs.source }}
-          path: release
-          persist-credentials: false
+      - name: Fetch the declared release without credentials
+        working-directory: ${{ github.workspace }}
+        env:
+          SOURCE_COMMIT: ${{ steps.release.outputs.source }}
+        run: |
+          git init release
+          git -C release remote add origin https://github.com/Mirksen/blockchainSimulacrum.git
+          git -C release fetch --depth=1 origin "$SOURCE_COMMIT"
+          git -C release checkout --detach FETCH_HEAD
+          test "$(git -C release rev-parse HEAD)" = "$SOURCE_COMMIT"
       - run: npm ci
         working-directory: release/web
       - run: google-chrome --version
