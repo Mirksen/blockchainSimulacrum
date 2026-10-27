@@ -80,6 +80,31 @@ Target picture · rebuild.
   workbench they need.
 - Hash lab and Chain lab stay separate tools.
 
+### Existing features in the workbench
+
+Features that reached master during the workshop get these places (lead
+decision, 2026-10-27):
+
+- **Mining pool** becomes the fourth tab: Workbench · Hash lab · Chain lab ·
+  Mining pool. The labs and the pool are views behind the tabs, not dialogs;
+  the tab is in the URL (`#/hash-lab`, `#/chain-lab`, `#/pool`).
+- **Guided experiments** (the learning path through Hash lab and Chain lab)
+  stay as they are and open from the mission rail ("Guided experiments"
+  under the missions). Missions act on the simulator chain; guided
+  experiments never touch it.
+- **Experiment settings** (coin name, difficulty, halving interval, target
+  block time) move into a "Settings" dialog in the overflow menu; difficulty
+  also stays in the Next block card.
+- **Usage sharing** (analytics opt-in) moves into the overflow menu and keeps
+  its consent text.
+- **Wallet details** (recovery phrase, transactions) open from a wallet row;
+  **block and transaction details** open from the Selected block card.
+- **Fresh start:** before the demo is set up, the chain band shows only
+  Genesis and the candidate, and the single primary in the Next block card
+  is "Start demo".
+- **Stop mining** is the Pause action of the running race; Auto-mine is the
+  switch in the Next block card.
+
 ### Chain band
 
 - Reads **left to right as a timeline**: #0 Genesis on the left, the newest
