@@ -52,8 +52,23 @@ Target picture · round 2 (Mirko, 2026-10-27):
   block" in amber and never claim their own links changed; the chain pill
   says "Chain invalid"; mining pauses while the chain is invalid.
 
-Open in round 3: whether the race lives in the band also while idle, the
-light theme, and 390 px.
+Target picture · round 3 (Mirko, 2026-10-27):
+
+- **The chain band runs across the full width** and holds only the block
+  tiles, with enough room per tile that nothing is squeezed.
+- **The mining card lives in the grid**, compact (the "Next block" card of
+  round 3, variant 1). It holds the one primary action "Mine block #N" and
+  becomes the live race in place while a block is mined.
+- **Chain health has no tile of its own**; it is integrated into the band.
+- **Every tile fits its content.** Wallets are sized for the five sample
+  wallets plus one the learner creates ("Create wallet"); more scroll
+  inside the tile. Mempool and the selected block stay compact.
+- **Light and dark themes** both ship, from one token set.
+- **At 390 px the chain is a vertical list** you scroll down, not a
+  sideways strip; the race sits directly under the chain.
+
+Open in round 4: block order in the band, how chain health shows in it, and
+how the grid below is packed.
 
 ## Findings: current product (2026-10-27, commit 284c54e)
 
@@ -103,9 +118,9 @@ running (mining in progress, cancellable) states.
 Target picture · round 1: the visual language of round 1 variant 6
 ("Explorer"): data-rich dark navy surfaces, blue-violet gradients only on
 block tiles, tabular figures, monospace for hashes, status always as color
-plus text. Tokens follow from round 2. One token set; miner colors and
-validity states are semantic tokens, never hex values in components. A light
-theme is open.
+plus text. One token set with a dark and a light value per token (round 3,
+variant 7 proved the light theme needs no markup change); miner colors and
+validity states are semantic tokens, never hex values in components.
 
 ## Components
 
