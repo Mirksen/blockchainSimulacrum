@@ -1,6 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { createBlockchain, Block, Transaction } from '../lib/blockchain';
-import SHA256 from 'crypto-js/sha256';
+import { createBlockchain, candidateHash } from '../lib/blockchain';
 import { telemetry, failureCode } from '../lib/telemetry';
 
 function snapshot(chain) {
@@ -95,16 +94,11 @@ export function useBlockchain(config = {}) {
         setIsMining(true);
         setRaceWinner(null);
         setHashAttempts([]);
-        const reward = chain.blockArray.length % chain.halvingEvent === 0 ? chain.blockReward / 2 : chain.blockReward;
-        const transactions = [...chain.memPool];
-        const fees = transactions.reduce((sum, tx) => sum + tx.transactionFee, 0);
-        const previousHash = chain.blockArray.at(-1).hash;
+        // One shared timestamp keeps every miner's candidate on the same header time.
         const timestamp = Date.now();
-        const difficulty = chain.miningDifficulty;
-        const target = '0'.repeat(difficulty);
         const states = miners.map(miner => ({
             miner, nonce: Math.floor(Math.random() * 10000), hash: '', iterations: 0,
-            transactions: [...transactions, new Transaction(null, miner.publicKey, reward + fees, 0, 'Mining Reward')]
+            candidate: chain.prepareCandidate(miner, { timestamp })
         }));
         const attempts = [];
         let iterations = 0;
@@ -131,20 +125,15 @@ export function useBlockchain(config = {}) {
                         iterations++;
                         run.attempts = iterations;
                         sinceYield++;
-                        state.hash = SHA256(previousHash + timestamp + JSON.stringify(state.transactions) + state.nonce).toString();
+                        state.hash = candidateHash(state.candidate, state.nonce);
                         attempts.push({ nonce: state.nonce, hash: state.hash, miner: state.miner.name });
                         if (attempts.length > 100) attempts.shift();
-                        if (state.hash.startsWith(target)) {
+                        if (state.hash.startsWith(state.candidate.target)) {
                             if (!isCurrent()) return aborted();
-                            const block = new Block(timestamp, state.transactions, previousHash);
-                            block.nonce = state.nonce;
-                            block.hash = state.hash;
-                            block.halved = reward !== chain.blockReward;
-                            chain.blockArray.push(block);
-                            chain.memPool = [];
-                            // A stopped attempt never changes the supply schedule.
-                            chain.blockReward = reward;
-                            chain.incrementBlocksWon(state.miner.publicKey);
+                            // A stopped, stale or rejected attempt never changes the chain or supply schedule.
+                            const outcome = chain.acceptBlock(state.candidate, state.nonce, state.hash);
+                            if (outcome.status !== 'accepted') return aborted();
+                            const block = outcome.block;
                             report(state);
                             setRaceWinner(state.miner.name);
                             publish();

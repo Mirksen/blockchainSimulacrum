@@ -147,49 +147,15 @@ export class Block {
     ).toString();
   }
 
-  // Async mining with progress callback for UI updates
-  // Returns hash attempts array for visualization
-  async mineBlock(difficulty, onProgress, onAttempt, shouldAbort) {
-    const target = Array(difficulty + 1).join('0');
-    const startTime = Date.now();
-    let iterations = 0;
-
-    while (this.hash.substring(0, difficulty) !== target) {
-      this.nonce++;
-      this.hash = this.createHash();
-      iterations++;
-
-      // Record every attempt for visualization (limit to last 50 for performance)
-      if (onAttempt) {
-        onAttempt({ nonce: this.nonce, hash: this.hash });
-      }
-
-      // Call progress callback every 50 iterations for UI update
-      if (iterations % 50 === 0) {
-        if (shouldAbort && shouldAbort()) {
-          return { aborted: true, nonce: this.nonce, hash: this.hash, iterations, miningTime: (Date.now() - startTime) / 1000 };
-        }
-        if (onProgress) {
-          await onProgress({
-            nonce: this.nonce,
-            hash: this.hash,
-            iterations,
-            elapsedMs: Date.now() - startTime
-          });
-          // Yield to UI thread
-          await new Promise(resolve => setTimeout(resolve, 0));
-        }
-      }
-
-    }
-
-    const miningTime = (Date.now() - startTime) / 1000;
-    return { nonce: this.nonce, hash: this.hash, miningTime, iterations };
-  }
-
   isValid() {
     return this.hash === this.createHash();
   }
+}
+
+// Hash of a candidate block at a given nonce; equals Block.createHash for the
+// block that acceptBlock builds from the same candidate and nonce.
+export function candidateHash(candidate, nonce) {
+  return SHA256(candidate.prefix + nonce).toString();
 }
 
 // Blockchain class - the main chain management
@@ -360,60 +326,50 @@ export class Blockchain {
     return tx;
   }
 
-  // Async mining with progress callbacks and hash attempt logging
-  // allowEmpty enables mining blocks with only the reward transaction
-  async mineNextBlock(onProgress, onAttempt, allowEmpty = false, shouldAbort) {
-    const miner = this.getActiveMiner();
-    if (!miner) {
-      throw new Error('No active miner set');
-    }
-
-    if (this.memPool.length === 0 && !allowEmpty) {
-      throw new Error('No transactions in mempool to mine');
-    }
-
-    // Calculate rewards
-    const currentBlockNumber = this.blockArray.length;
-    let reward = this.blockReward;
-
-    // Apply halving
-    if (currentBlockNumber > 0 && currentBlockNumber % this.halvingEvent === 0) {
-      reward = this.blockReward / 2;
-    }
-
-    const transactionFees = this.memPool.reduce((sum, tx) => sum + tx.transactionFee, 0);
-    const totalReward = reward + transactionFees;
-
-    // Create coinbase transaction
-    const rewardTx = new Transaction(null, miner.publicKey, totalReward, 0, 'Mining Reward');
-    const transactions = [...this.memPool, rewardTx];
-
-    // Create new block
-    const previousHash = this.blockArray[this.blockArray.length - 1].hash;
-    const block = new Block(Date.now(), transactions, previousHash);
-
-    // Mine the block with attempt logging
-    const result = await block.mineBlock(this.miningDifficulty, onProgress, onAttempt, shouldAbort);
-
-    if (result.aborted || shouldAbort?.()) {
-      return { success: false, aborted: true };
-    }
-
-    // Add to chain
-    block.halved = reward !== this.blockReward;
-    this.blockArray.push(block);
-    this.blockReward = reward;
-
-    // Clear mempool
-    this.memPool = [];
-
-    // Log mining result
-    this.miningLog.push({
-      blockNumber: currentBlockNumber,
-      ...result
+  // Freeze the work for one miner: everything except the nonce is fixed here,
+  // so a search only varies the nonce appended to `prefix`.
+  prepareCandidate(miner, { timestamp = Date.now() } = {}) {
+    const height = this.blockArray.length;
+    const reward = height % this.halvingEvent === 0 ? this.blockReward / 2 : this.blockReward;
+    const fees = this.memPool.reduce((sum, tx) => sum + tx.transactionFee, 0);
+    const transactions = Object.freeze([
+      ...this.memPool,
+      new Transaction(null, miner.publicKey, reward + fees, 0, 'Mining Reward')
+    ]);
+    const previousHash = this.blockArray[height - 1].hash;
+    const difficulty = this.miningDifficulty;
+    return Object.freeze({
+      previousHash,
+      timestamp,
+      difficulty,
+      target: '0'.repeat(difficulty),
+      reward,
+      halved: reward !== this.blockReward,
+      transactions,
+      minerPublicKey: miner.publicKey,
+      height,
+      prefix: previousHash + timestamp + JSON.stringify(transactions)
     });
+  }
 
-    return { block, result, reward: totalReward };
+  // Append a solved candidate. Nothing changes unless the proof is valid and
+  // the candidate still extends the current tip.
+  acceptBlock(candidate, nonce, hash) {
+    if (hash !== candidateHash(candidate, nonce)) return { status: 'rejected', reason: 'hash-mismatch' };
+    if (!hash.startsWith(candidate.target)) return { status: 'rejected', reason: 'target-miss' };
+    if (this.blockArray.length !== candidate.height || this.blockArray.at(-1).hash !== candidate.previousHash) {
+      return { status: 'stale' };
+    }
+    const block = new Block(candidate.timestamp, [...candidate.transactions], candidate.previousHash);
+    block.nonce = nonce;
+    block.hash = hash;
+    block.halved = candidate.halved;
+    this.blockArray.push(block);
+    this.memPool = [];
+    this.blockReward = candidate.reward;
+    this.incrementBlocksWon(candidate.minerPublicKey);
+    this.miningLog.push({ blockNumber: candidate.height, nonce, hash });
+    return { status: 'accepted', block };
   }
 
   // Validation methods
