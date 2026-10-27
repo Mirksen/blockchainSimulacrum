@@ -1,0 +1,83 @@
+.hash-lab {
+  --hash-lab-action: #76b8ff;
+  --hash-lab-positive: #8cdaa5;
+  --hash-lab-error: #ff9b9b;
+  box-sizing: border-box;
+  width: min(880px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+  padding: 28px;
+  border-radius: var(--sapElement_BorderCornerRadius);
+  color: var(--sapTextColor);
+  background: var(--sapGroup_ContentBackground);
+  line-height: 1.55;
+}
+[data-theme="light"] .hash-lab {
+  --hash-lab-action: var(--sapBrandColor);
+  --hash-lab-positive: var(--sapPositiveColor);
+  --hash-lab-error: var(--sapNegativeColor);
+}
+.hash-lab .btn.btn-transparent, .hash-lab .btn.btn-default { color: var(--hash-lab-action); }
+.hash-lab *, .hash-lab *::before, .hash-lab *::after { box-sizing: border-box; }
+.hash-lab-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; }
+.hash-lab-header h2 { margin: 0; font-size: 26px; line-height: 1.2; letter-spacing: -0.02em; }
+.hash-lab-header p { margin: 10px 0 0; max-width: 55ch; }
+.hash-lab-header > .btn { flex-shrink: 0; }
+.hash-lab-workbench { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); gap: 28px; margin: 28px 0; }
+.hash-lab-inputs, .hash-lab-output { min-width: 0; }
+.hash-lab label { display: block; margin-bottom: 6px; font-weight: 600; }
+.hash-lab label > span { font-weight: 400; }
+.hash-lab textarea, .hash-lab input, .hash-lab select {
+  width: 100%; padding: 10px 12px; color: var(--sapTextColor);
+  background: var(--sapBaseColor); border: 1px solid var(--sapField_BorderColor);
+  border-radius: var(--sapButton_BorderCornerRadius); font: inherit;
+}
+.hash-lab textarea { resize: vertical; min-height: 94px; max-height: 240px; }
+.hash-lab .hash-lab-help { font-size: 13px; color: var(--sapContent_LabelColor); }
+.hash-lab-inputs > .hash-lab-help { margin: 6px 0 18px; }
+.hash-lab-nonce-row { display: flex; gap: 8px; }
+.hash-lab-nonce-row input { min-width: 0; }
+.hash-lab-nonce-row button { flex-shrink: 0; }
+.hash-lab-error { color: var(--hash-lab-error); font-size: 13px; }
+.hash-lab-hash-label { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.hash-lab-hash-label h3 { margin: 0; font-size: 15px; }
+.hash-lab-hash-label > span { font-size: 12px; }
+.hash-lab-target-met { color: var(--hash-lab-positive); font-weight: 700; }
+.hash-lab-fingerprint {
+  display: grid; grid-template-columns: repeat(16, minmax(0, 1fr)); gap: 4px 2px;
+  margin: 14px 0; padding: 18px 12px; border: 1px solid var(--sapGroup_TitleBorderColor);
+  border-radius: var(--sapElement_BorderCornerRadius); font: 500 20px/1.5 var(--sapFontMonoFamily);
+}
+.hash-lab-fingerprint span { text-align: center; border-bottom: 2px solid transparent; }
+.hash-lab-fingerprint .hash-lab-changed { background: color-mix(in srgb, var(--sapBrandColor) 12%, transparent); border-bottom-color: var(--sapBrandColor); }
+.hash-lab-comparison { margin: 0; font-size: 13px; }
+.hash-lab-previous { margin-top: 12px; font-size: 13px; }
+.hash-lab code { overflow-wrap: anywhere; white-space: pre-wrap; }
+.hash-lab-previous code { display: block; margin-top: 8px; }
+.hash-lab-mining { display: flex; justify-content: space-between; gap: 24px; padding-top: 20px; border-top: 1px solid var(--sapList_BorderColor); }
+.hash-lab-mining select { width: auto; min-width: 200px; }
+.hash-lab-mining p { margin: 8px 0 0; }
+.hash-lab-search-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.hash-lab-feedback { margin: 20px 0 6px; font-weight: 600; }
+.hash-lab-preimage { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--sapList_BorderColor); font-size: 13px; }
+.hash-lab-preimage code { display: block; padding: 12px; background: var(--sapBaseColor); border: 1px solid var(--sapList_BorderColor); border-radius: 4px; }
+.hash-lab summary { cursor: pointer; }
+.hash-lab :focus-visible { outline: 2px solid var(--hash-lab-action); outline-offset: 3px; }
+@media (max-width: 700px) {
+  .hash-lab { padding: 20px; }
+  .hash-lab-header { flex-direction: column-reverse; gap: 16px; }
+  .hash-lab-header > .btn { align-self: flex-end; }
+  .hash-lab-header h2 { font-size: 24px; }
+  .hash-lab-workbench { grid-template-columns: minmax(0, 1fr); gap: 16px; margin: 24px 0; }
+  .hash-lab-mining { flex-direction: column; gap: 16px; }
+  .hash-lab-search-actions { justify-content: flex-start; flex-wrap: wrap; }
+  .hash-lab-fingerprint { font-size: 21px; }
+}
+@media (max-width: 380px) {
+  .hash-lab { padding: 16px; }
+  .hash-lab-fingerprint { font-size: 16px; padding: 12px 6px; }
+  .hash-lab-nonce-row { flex-wrap: wrap; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hash-lab *, .hash-lab *::before, .hash-lab *::after { transition: none; animation: none; }
+}
