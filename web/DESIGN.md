@@ -84,19 +84,32 @@ Target picture · round 4 (Mirko, 2026-10-27):
   1512 × 860 CSS px inside the browser). The workbench uses that space
   completely, without a fold and without empty strips.
 
-Open in round 5: the link style, and checking the refined layout in its
-states, light and at 390 px.
+Target picture · round 5 (Mirko, 2026-10-27):
+
+- **Links are a hairline with a small neutral dot** (round 5, variant 1).
+  The dot is not colored while the link is intact; color appears only when
+  a link or block is broken.
+- **The grid aligns in one line**: Selected block and Next block start at
+  the same height, Wallets and Mempool start at the same height.
+- **"New transaction" sits at the top of the Mempool card** and draws
+  attention with the same glow as "Mine block"; the filled primary action
+  stays "Mine block".
+- **The coin is labeled "powCoin · virtual"**, not "no real coins".
+- The states (mining, tampered, light, 390 px) of round 5 hold as shown.
+
+Open in round 6: checking these fixes and the Activity card.
 
 ## Screen sizes
 
 Target picture · round 5 (proposed by the lead after Mirko asked for other
-common sizes, 2026-10-27; being checked in `round-5-sizes`). The MacBook
-Pro 14" stays the reference; the layout is fluid around it:
+common sizes, confirmed by Mirko 2026-10-27). The MacBook Pro 14" stays the
+reference; the layout is fluid around it:
 
 | Viewport | Behavior |
 |---|---|
 | ≥ 1280 wide and ≥ 830 tall | Fills the screen without scrolling. Extra height goes to lists (wallets, mempool), extra width to block tiles (up to ~280 px each) and cards; never to empty padding. Type size stays the same. |
-| ≥ 2200 wide | Content capped at ~2160 px and centered. Open: at QHD height (~1300) the five wallets and two transactions leave empty space in their cards. |
+| ≥ 1100 tall | An additional "Activity" card (confirmed transactions, block times) takes the height that lists cannot fill. |
+| ≥ 2200 wide | Content capped at ~2160 px and centered. |
 | < 830 tall (e.g. 1366 × 657) | The page scrolls vertically; cards keep their designed density instead of squeezing. |
 | 1024–1279 wide | Mission rail collapses to icons; band tiles narrower (min ~150 px), earlier blocks behind a "‹ N earlier" control; grid in two columns. |
 | 768–1023 wide | Chain as a vertical timeline, then Next block and Mempool, then Selected block and Wallets side by side. |
