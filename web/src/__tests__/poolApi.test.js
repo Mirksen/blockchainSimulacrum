@@ -61,6 +61,14 @@ describe('pool API client', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
+  it('turns a 403 "name unavailable" share answer into a name-unavailable error', async () => {
+    fetchMock.mockResolvedValue(answer({ error: 'name unavailable' }, 403));
+    const hidden = await submitShare(challenge, 1).catch(caught => caught);
+    expect(hidden.status).toBe(403);
+    expect(hidden.code).toBe('name-unavailable');
+    expect(hidden.message).toBe('This name is not available. Please choose another.');
+  });
+
   it('keeps other 400 and 403 answers generic, even with an unreadable body', async () => {
     fetchMock.mockResolvedValue(answer({ error: 'invalid name' }, 400));
     const invalid = await getChallenge('test-miner').catch(caught => caught);
@@ -70,11 +78,11 @@ describe('pool API client', () => {
     const unreadable = await getChallenge('test-miner').catch(caught => caught);
     expect(unreadable.status).toBe(400);
     expect(unreadable.code).toBeUndefined();
-    fetchMock.mockResolvedValue(answer({ error: 'name unavailable' }, 403));
-    const hidden = await submitShare(challenge, 1).catch(caught => caught);
-    expect(hidden.status).toBe(403);
-    expect(hidden.code).toBeUndefined();
-    expect(hidden.message).toBe('The pool did not recognise this target.');
+    fetchMock.mockResolvedValue(answer({ error: 'bad signature' }, 403));
+    const forged = await submitShare(challenge, 1).catch(caught => caught);
+    expect(forged.status).toBe(403);
+    expect(forged.code).toBeUndefined();
+    expect(forged.message).toBe('The pool did not recognise this target.');
   });
 
   it('times out after ten seconds with a status 0 error', async () => {

@@ -29,12 +29,15 @@ const messageFor = status => MESSAGES[status] ||
   (status >= 500 ? 'The leaderboard server is unavailable right now.' : 'The pool answered with an unexpected error.');
 
 // The server decides which names are available; a refused name gets its own code
-// so the panel can point at the name field instead of retrying.
+// so the panel can point at the name field instead of retrying. 400 refuses a new
+// challenge, 403 a share for a name that was hidden while its player was mining.
 async function failureFor(response) {
-  if (response.status === 400) {
+  if (response.status === 400 || response.status === 403) {
     let body = null;
-    try { body = await response.json(); } catch { /* No readable body: a plain 400. */ }
-    if (body?.error === 'name unavailable') return poolError(400, NAME_UNAVAILABLE_MESSAGE, 'name-unavailable');
+    try { body = await response.json(); } catch { /* No readable body: a plain error. */ }
+    if (body?.error === 'name unavailable') {
+      return poolError(response.status, NAME_UNAVAILABLE_MESSAGE, 'name-unavailable');
+    }
   }
   return poolError(response.status, messageFor(response.status));
 }

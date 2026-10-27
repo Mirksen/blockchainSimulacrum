@@ -94,6 +94,17 @@ describe('checkName with injected synthetic terms', () => {
   });
 });
 
+describe('German spellings of blocked terms', () => {
+  // Synthetic placeholder with ß and umlauts; a name can only spell them with plain letters.
+  const german = { blocked: ['grüßöl'], reserved: ['sysop'], allowed: [] };
+  test('ß is ss and an umlaut matches both its plain and its transliterated spelling', () => {
+    for (const name of ['gruessoel', 'grussol', 'Gruss-Oel', 'gru55o3l', 'xgruessoelx']) {
+      assert.deepEqual(checkName(name, german), unavailable, name);
+    }
+    assert.deepEqual(checkName('grusotter', german), ok);
+  });
+});
+
 describe('term files', () => {
   let dir;
   before(async () => {

@@ -23,6 +23,8 @@ const PREPARED = Symbol('preparedNameLists');
  */
 export function foldName(name) {
   return String(name)
+    .replace(/ß/g, 'ss')
+    .replace(/ẞ/g, 'SS')
     .normalize('NFKD')
     .replace(/\p{M}/gu, '')
     .toLowerCase()
@@ -33,11 +35,26 @@ export function foldName(name) {
 
 const codePointLength = (text) => [...text].length;
 
-function foldAll(terms) {
+// A name can only use A-Z, so each umlaut of a German term reaches it either without the
+// dots (NFKD drops them: ö → o) or transliterated (ö → oe), and a name may mix both.
+// Terms carry every combination; real terms have few umlauts.
+const UMLAUT = Object.freeze({ ä: 'ae', ö: 'oe', ü: 'ue', Ä: 'Ae', Ö: 'Oe', Ü: 'Ue' });
+function spellings(term) {
+  let variants = [''];
+  for (const ch of term) {
+    const options = UMLAUT[ch] ? [ch, UMLAUT[ch]] : [ch];
+    variants = variants.flatMap((prefix) => options.map((option) => prefix + option));
+  }
+  return variants;
+}
+
+function foldAll(terms, { transliterate = false } = {}) {
   const folded = new Set();
   for (const term of terms ?? []) {
-    const f = foldName(term);
-    if (f !== '') folded.add(f);
+    for (const spelling of transliterate ? spellings(term) : [term]) {
+      const f = foldName(spelling);
+      if (f !== '') folded.add(f);
+    }
   }
   return folded;
 }
@@ -45,12 +62,12 @@ function foldAll(terms) {
 /** Folds the term lists once; checkName() accepts the result without folding again. */
 export function prepareNameLists(lists = {}) {
   if (lists[PREPARED]) return lists;
-  const blocked = [...foldAll(lists.blocked)];
+  const blocked = [...foldAll(lists.blocked, { transliterate: true })];
   return Object.freeze({
     [PREPARED]: true,
     blockedSubstrings: Object.freeze(blocked.filter((t) => codePointLength(t) >= MIN_SUBSTRING_TERM_LENGTH)),
     blockedExact: blocked.filter((t) => codePointLength(t) < MIN_SUBSTRING_TERM_LENGTH),
-    reserved: foldAll(lists.reserved),
+    reserved: foldAll(lists.reserved, { transliterate: true }),
     allowed: foldAll(lists.allowed),
   });
 }
