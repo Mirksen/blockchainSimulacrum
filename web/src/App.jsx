@@ -10,6 +10,7 @@ import { playMiningSuccessSound } from './lib/sound';
 import { AnalyticsControl } from './components/AnalyticsControl';
 import { telemetry } from './lib/telemetry';
 import { HashLab } from './components/HashLab';
+import { ChainLab } from './components/ChainLab';
 import { Modal } from './components/Modal';
 import './index.css';
 
@@ -36,6 +37,7 @@ function App() {
   const [targetBlockTime, setTargetBlockTime] = useState(10);
   const [showStats, setShowStats] = useState(false);
   const [showHashLab, setShowHashLab] = useState(false);
+  const [showChainLab, setShowChainLab] = useState(false);
   const [error, setError] = useState('');
   const lastAdjustedBlock = useRef(0);
   const simulation = useBlockchain(INITIAL_CONFIG);
@@ -111,6 +113,7 @@ function App() {
           <button className="btn btn-transparent" onClick={() => setShowStats(true)} aria-label="Open blockchain insights">{blocks.length - 1} mined</button>
           <button className="btn btn-transparent" onClick={reset}>Reset</button>
           <button className="btn btn-transparent" aria-label="Open hash lab" onClick={() => setShowHashLab(true)}>Hash lab</button>
+          <button className="btn btn-transparent" aria-label="Open chain lab" onClick={() => setShowChainLab(true)}>Chain lab</button>
           <button className="btn btn-transparent" onClick={() => { const value = theme === 'light' ? 'dark' : 'light'; setTheme(value); void telemetry.track('settings_changed', { setting: 'theme', value }); }} aria-label={theme === 'light' ? 'Switch to dark theme' : 'Switch to light theme'}>{theme === 'light' ? 'Dark' : 'Light'}</button>
           <button className="btn btn-transparent" onClick={() => { setMuted(!muted); void telemetry.track('settings_changed', { setting: 'sound', value: muted }); }} aria-pressed={!muted}>Sound {muted ? 'off' : 'on'}</button>
         </div>
@@ -154,6 +157,7 @@ function App() {
       <footer className="app-footer"><p>proofofwork.fyi · Originally by Mirko Valentic, CS50 2021</p><p>This simplified model explores proof of work; it does not connect to Bitcoin.</p></footer>
       {winner && <div className="mining-announcement" role="status">{winner} mined a block</div>}
       {showHashLab && <Modal label="Hash lab" onClose={() => setShowHashLab(false)}><HashLab onClose={() => setShowHashLab(false)} /></Modal>}
+      {showChainLab && <Modal label="Chain lab" onClose={() => setShowChainLab(false)}><ChainLab onClose={() => setShowChainLab(false)} /></Modal>}
       {showStats && <BlockchainStatsPanel blocks={blocks} participants={participants} difficulty={difficulty} blockReward={blockReward} halvingInterval={halvingInterval} onClose={() => setShowStats(false)} />}
     </div>
   );
