@@ -53,7 +53,8 @@ export function buildBlockViews({ blocks = [], blockStatus = [], participants = 
     const minerName = isGenesis ? 'Genesis' : (miner?.name ?? 'Unknown miner');
     const minerKey = isGenesis ? 'genesis' : (KNOWN_MINERS.has(minerName.toLowerCase()) ? minerName.toLowerCase() : 'other');
     const previous = blocks[index - 1];
-    const seconds = !isGenesis && Number.isFinite(block.timestamp) && Number.isFinite(previous?.timestamp)
+    // The genesis block has a fixed launch time, so block #1 has no mining interval.
+    const seconds = index > 1 && Number.isFinite(block.timestamp) && Number.isFinite(previous?.timestamp)
       ? (block.timestamp - previous.timestamp) / 1000 : null;
     const storedHash = check.storedHash ?? block.hash ?? '';
     const computedHash = check.computedHash ?? storedHash;

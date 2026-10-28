@@ -3,6 +3,9 @@
 //
 //   node shared/mine-genesis.mjs [--zeros N]
 //
+// `targetZeros` is the planned difficulty; --zeros mines a quick draft with fewer zeros.
+// The header records the difficulty actually mined, so a draft is still a valid block.
+//
 // The block uses the app's own format (web/src/lib/blockchain.js): the header hash is
 // SHA256(previousHash + txRoot + timestamp + difficulty + nonce); with one coinbase
 // transaction the txRoot is that transaction's hash,
@@ -40,10 +43,11 @@ function mine(genesis, zeros) {
 if (import.meta.url === `file://${process.argv[1]}`) {
   const flag = process.argv.indexOf('--zeros');
   const genesis = JSON.parse(readFileSync(SHARED, 'utf8'));
-  const zeros = flag > -1 ? Number(process.argv[flag + 1]) : genesis.difficulty;
-  const found = mine(genesis, zeros);
-  const result = { ...genesis, status: zeros >= genesis.difficulty ? 'mined' : 'draft',
-    txRoot: genesisTxRoot(genesis), nonce: found.nonce, hash: found.hash };
+  const zeros = flag > -1 ? Number(process.argv[flag + 1]) : genesis.targetZeros;
+  const block = { ...genesis, difficulty: zeros };
+  const found = mine(block, zeros);
+  const result = { ...block, status: zeros >= genesis.targetZeros ? 'mined' : 'draft',
+    txRoot: genesisTxRoot(block), nonce: found.nonce, hash: found.hash };
   const text = `${JSON.stringify(result, null, 2)}\n`;
   writeFileSync(SHARED, text);
   writeFileSync(SERVER_COPY, text);

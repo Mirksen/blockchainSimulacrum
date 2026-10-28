@@ -131,7 +131,9 @@ function App() {
     if (height < 10 || height % 10 !== 0 || lastAdjustedBlock.current === height) return;
     lastAdjustedBlock.current = height;
     const current = sim.blockchain.miningDifficulty;
-    const seconds = (chainBlocks[height].timestamp - chainBlocks[height - 10].timestamp) / 10000;
+    // Measured from block #1 at the earliest: the genesis time is a fixed launch moment.
+    const from = Math.max(1, height - 10);
+    const seconds = (chainBlocks[height].timestamp - chainBlocks[from].timestamp) / 1000 / (height - from);
     let next = current;
     if (seconds < targetBlockTime * 0.7 && current < 5) next = current + 1;
     else if (seconds > targetBlockTime * 1.5 && current > 1) next = current - 1;

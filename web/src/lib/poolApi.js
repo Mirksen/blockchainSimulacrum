@@ -1,6 +1,7 @@
 // Client for the leaderboard pool server. Every call has its own timeout and
 // turns a failed answer into an Error with a numeric `status` (0 when the
 // server could not be reached or answered with something unreadable).
+import { GENESIS, proofPrefix } from './poolProof';
 
 export const POOL_API = (import.meta.env?.VITE_POOL_API || 'https://api.proofofwork.fyi').replace(/\/+$/, '');
 export const POOL_TIMEOUT_MS = 10_000;
@@ -11,10 +12,9 @@ export const isValidPoolName = name => typeof name === 'string' && NAME_PATTERN.
 
 const MESSAGES = {
   400: 'The pool did not accept this request.',
-  403: 'The pool did not recognise this target.',
-  409: 'This share was already counted.',
-  410: 'This target has expired.',
-  413: 'The share was too large to send.',
+  409: 'This proof was already counted.',
+  410: 'This round is over: a new Bitcoin block arrived.',
+  413: 'The proof was too large to send.',
   422: 'This hash does not meet the target.',
   429: 'Too many requests to the pool. Please wait a minute.',
 };
@@ -29,10 +29,9 @@ const messageFor = status => MESSAGES[status] ||
   (status >= 500 ? 'The leaderboard server is unavailable right now.' : 'The pool answered with an unexpected error.');
 
 // The server decides which names are available; a refused name gets its own code
-// so the panel can point at the name field instead of retrying. 400 refuses a new
-// challenge, 403 a share for a name that was hidden while its player was mining.
+// so the panel can point at the name field instead of retrying.
 async function failureFor(response) {
-  if (response.status === 400 || response.status === 403) {
+  if (response.status === 400) {
     let body = null;
     try { body = await response.json(); } catch { /* No readable body: a plain error. */ }
     if (body?.error === 'name unavailable') {
@@ -81,22 +80,34 @@ async function request(path, { method = 'GET', body, signal } = {}) {
 }
 
 const invalidAnswer = () => poolError(0, 'The leaderboard server sent an unreadable answer.', 'invalid');
+const HASH = /^[0-9a-f]{64}$/;
+const isRound = round => Boolean(round) && Number.isSafeInteger(round.height) && round.height >= 0 && HASH.test(round.hash ?? '');
+const isRow = row => Boolean(row) && isValidPoolName(row.name) && isRound(row.round) && Number.isSafeInteger(row.nonce) &&
+  HASH.test(row.bestHash ?? '') && Number.isInteger(row.bestZeros) && Number.isFinite(row.difficulty) && Number.isInteger(row.proofs);
 
+// The round to mine. The client rebuilds the prefix itself, so a server answering for
+// another chain or another name is refused instead of mined.
 export async function getChallenge(name, { signal } = {}) {
   const challenge = await request(`/api/challenge?name=${encodeURIComponent(name)}`, { signal });
-  if (!challenge || typeof challenge.prefix !== 'string' || !Number.isInteger(challenge.zeros) ||
-    challenge.zeros < 1 || challenge.zeros > 64 || !Number.isSafeInteger(challenge.expiresAt)) throw invalidAnswer();
+  if (!challenge || challenge.name !== name || !isRound(challenge.round) || !Number.isInteger(challenge.minZeros) ||
+    challenge.minZeros < 1 || challenge.minZeros > 64 || challenge.genesisHash !== GENESIS.hash ||
+    challenge.prefix !== proofPrefix(GENESIS.hash, challenge.round, name)) throw invalidAnswer();
   return challenge;
 }
 
-export function submitShare(challenge, nonce, { signal } = {}) {
-  // Only the signed fields travel back; the server derives the prefix itself.
-  const { id, name, zeros, expiresAt, sig } = challenge;
-  return request('/api/shares', { method: 'POST', body: { challenge: { id, name, zeros, expiresAt, sig }, nonce }, signal });
+export function submitProof(challenge, nonce, { signal } = {}) {
+  const { name, round } = challenge;
+  return request('/api/shares', { method: 'POST', body: { name, round: { height: round.height, hash: round.hash }, nonce }, signal });
 }
 
+// { round: { height, hash, rows } | null, allTime: rows }; malformed rows are dropped.
 export async function getLeaderboard({ signal } = {}) {
-  const rows = await request('/api/leaderboard', { signal });
-  if (!Array.isArray(rows)) throw invalidAnswer();
-  return rows;
+  const board = await request('/api/leaderboard', { signal });
+  if (!board || !Array.isArray(board.allTime) || (board.round !== null && !(isRound(board.round) && Array.isArray(board.round.rows)))) {
+    throw invalidAnswer();
+  }
+  return {
+    round: board.round ? { height: board.round.height, hash: board.round.hash, rows: board.round.rows.filter(isRow) } : null,
+    allTime: board.allTime.filter(isRow),
+  };
 }
