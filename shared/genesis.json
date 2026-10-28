@@ -1,0 +1,22 @@
+{
+  "status": "draft",
+  "anchor": {
+    "chain": "bitcoin",
+    "height": 973532,
+    "hash": "00000000000000000001a9c5048c6168dad1cca804b0980e584b240b2c6a7ae5",
+    "time": 1793180193
+  },
+  "timestamp": 1793180193000,
+  "difficulty": 7,
+  "coinbase": {
+    "sender": null,
+    "recipient": "satoshi",
+    "amount": 3.125,
+    "fee": 0,
+    "memo": "proofofwork.fyi 28/Oct/2026 · built on Bitcoin block 973532 · Chancellor still on brink, proof still of work"
+  },
+  "startNonce": 0,
+  "txRoot": "2806e827f3af69f2312852081984cbdae7754a0c34f4daa33a7ade36a57481bf",
+  "nonce": 3,
+  "hash": "077d01dc484a1c6281f358365a842eddbfe51ec1e68c68131d5e9aaefabad8b8"
+}
