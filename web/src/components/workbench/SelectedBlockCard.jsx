@@ -194,7 +194,9 @@ export function SelectedBlockCard({ block, status, prevHash, edit, onOpenDetails
 
   const previousRow = (
     <div className="card-kit-kv"><dt>Previous</dt><dd>
-      {isGenesis ? <span className="card-kit-t3">none · Genesis is the first block</span> : linkIntact ? (
+      {isGenesis ? (block.anchor
+        ? <><ShortHash hash={block.anchor.hash} /><span className="card-kit-t3">= Bitcoin block #{block.anchor.height}</span></>
+        : <span className="card-kit-t3">none · Genesis is the first block</span>) : linkIntact ? (
         <>
           <ShortHash hash={block.previousHash} />
           <span className="card-kit-t3">= hash of #{block.index - 1}</span>

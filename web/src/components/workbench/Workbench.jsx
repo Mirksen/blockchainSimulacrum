@@ -52,7 +52,7 @@ export function Workbench({
   const block = blocks[selected];
   const selectedView = views[selected];
   const selectedBlock = block ? {
-    index: selected, hash: block.hash, previousHash: block.previousHash, nonce: block.nonce, difficulty: block.difficulty,
+    index: selected, hash: block.hash, previousHash: block.previousHash, anchor: selectedView?.anchor ?? null, nonce: block.nonce, difficulty: block.difficulty,
     isNewest: selected === height && selected > 0, miner: selectedView?.isGenesis ? null : selectedView?.minerName,
     seconds: selectedView?.seconds, tries: lastRound?.index === selected ? lastRound.attempts : undefined,
     reward: block.transactions.find(tx => tx.sender === null)?.amount,

@@ -121,7 +121,7 @@ function TipMeta({ view, views }) {
   const zeros = targetZeros(view);
   const starts = zeros ? <b>Starts with {zeros}</b> : <b>No target</b>;
   const next = views[view.index + 1];
-  if (view.isGenesis) return <>{starts} · first block, no parent</>;
+  if (view.isGenesis) return view.anchor ? <>{starts} · built on Bitcoin block #{view.anchor.height}</> : <>{starts} · first block, no parent</>;
   switch (view.status) {
     case 'hash-mismatch':
       return <><b className="chain-band-bad">{Math.min(view.zerosNow, view.difficulty)}/{view.difficulty} zeros</b> · {next ? `#${next.index} still stores the hash as mined` : 'the stored hash no longer matches'}</>;
@@ -176,7 +176,9 @@ function Tile({ view, views, newest, selected, repairPosition, shade, onSelect, 
           <span className="chain-band-btx">{view.txCount} tx</span>
         </span>
         {view.isGenesis ? (
-          <span className="chain-band-tile-prev">prev none · first block</span>
+          <span className="chain-band-tile-prev">{view.anchor
+            ? <>prev <span className="chain-band-mono">{shortHash(view.anchor.hash)}</span> · Bitcoin #{view.anchor.height}</>
+            : 'prev none · first block'}</span>
         ) : mismatch ? (
           <span className="chain-band-tile-was">as mined <s>{shortHash(view.storedHash)}</s></span>
         ) : state === 'dependent' ? (

@@ -127,6 +127,8 @@ export function PoolPanel({ onClose }) {
     let active = null;
     let nonce = 0;
     let best = null;
+    // Attempts of this round across its searches; each search counts from zero.
+    let roundAttempts = 0;
     while (current()) {
       setPhase('connecting');
       const challenge = await getChallenge(minerName, { signal });
@@ -136,6 +138,7 @@ export function PoolPanel({ onClose }) {
         active = challenge.round;
         nonce = randomStartNonce();
         best = null;
+        roundAttempts = 0;
         setRound(challenge.round);
         setMinZeros(challenge.minZeros);
         setStats(previous => ({ ...previous, attempts: 0, rate: 0, bestHash: null }));
@@ -159,7 +162,7 @@ export function PoolPanel({ onClose }) {
           target: '0'.repeat(challenge.minZeros),
           signal: search.signal,
           onProgress: progress => {
-            if (current()) setStats(previous => ({ ...previous, attempts: progress.attempts, rate: rateAt(progress.attempts) }));
+            if (current()) setStats(previous => ({ ...previous, attempts: roundAttempts + progress.attempts, rate: rateAt(progress.attempts) }));
           },
         }, { mode: 'auto' });
       } finally {
@@ -167,7 +170,8 @@ export function PoolPanel({ onClose }) {
         signal.removeEventListener('abort', abortSearch);
       }
       if (!current()) return;
-      setStats(previous => ({ ...previous, rate: rateAt(result.attempts) }));
+      roundAttempts += result.attempts;
+      setStats(previous => ({ ...previous, attempts: roundAttempts, rate: rateAt(result.attempts) }));
       if (result.status !== 'found') {
         nonce += result.attempts;
         continue;

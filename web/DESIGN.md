@@ -48,7 +48,7 @@ show stays out.
 | Buttons are verb plus object where the context is not unique | "Mine", "Add" | "Mine block #5", "New transaction" |
 | Status says what holds, with its basis | "OK" | "Chain valid · 5 of 5 hashes start with 00 · 4 of 4 links intact" |
 | Invalid states name the cause and never overclaim | "Chain broken from #2 on" | #2 "Hash mismatch"; #3 "Built on a broken block" (its own link is intact) |
-| The coin is virtual, not "not real" | "no real coins" | "powCoin · virtual" |
+| The coin is virtual, not "not real" | "no real coins" | "powfyicoin · virtual" |
 | A hint says what happens next | "Mempool" | "goes into #5", "added when #5 is mined" |
 | Running work names itself | spinner only | "Mining block #5…" |
 
@@ -58,7 +58,7 @@ use the monospace font.
 ## Information architecture
 
 - **Top bar:** brand, navigation **Workbench · Hash lab · Chain lab · Mining
-  pool**, the coin label "powCoin · virtual", the chain status pill, and an
+  pool**, the coin label "powfyicoin · virtual", the chain status pill, and an
   overflow menu (Reset, Settings, sound, theme, usage sharing); the
   leaderboard ticker runs directly below it.
 - **Workbench is the start page.** It shows the whole simulation at once:

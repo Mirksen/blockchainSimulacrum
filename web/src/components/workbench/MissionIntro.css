@@ -1,0 +1,33 @@
+/* Mission intro: a coach card beside the collapsed rail; below 1024 px it sits under the
+   mission bar. Coach colors mark it as guidance, like the coach ring. */
+.mission-intro {
+  position: absolute; z-index: 30; top: 14px; left: 14px; width: min(340px, calc(100% - 28px));
+  display: grid; gap: var(--s-2); padding: var(--s-4); border-radius: var(--r-lg);
+  border: 1px solid var(--coach); background: var(--panel-3); color: var(--text);
+  box-shadow: 0 0 0 4px var(--coach-ring), 0 16px 40px -16px var(--shadow);
+  font-family: var(--ui);
+}
+.mission-intro-arrow {
+  position: absolute; left: -7px; top: 34px; width: 12px; height: 12px; transform: rotate(45deg);
+  background: var(--panel-3); border-left: 1px solid var(--coach); border-bottom: 1px solid var(--coach);
+}
+.mission-intro-eyebrow { margin: 0; font-size: 11px; line-height: 16px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--coach); }
+.mission-intro-title { margin: 0; font-size: 16px; line-height: 22px; font-weight: 600; text-wrap: balance; }
+.mission-intro-steps { display: grid; gap: 6px; margin: 2px 0 0; padding: 0; list-style: none; font-size: 13px; line-height: 18px; color: var(--text); }
+.mission-intro-steps li { display: grid; grid-template-columns: 20px minmax(0, 1fr); gap: var(--s-2); align-items: center; }
+.mission-intro-steps li > span {
+  width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center;
+  font-size: 11px; font-weight: 700; color: var(--coach); background: var(--coach-ring);
+}
+.mission-intro-more { color: var(--text-2); }
+.mission-intro-text { margin: 2px 0 0; font-size: 13px; line-height: 18px; color: var(--text-2); }
+.mission-intro-actions { display: flex; align-items: center; gap: var(--s-2); margin-top: var(--s-1); }
+@media (prefers-reduced-motion: no-preference) {
+  .mission-intro { animation: mission-intro-in .25s ease-out both; }
+}
+@keyframes mission-intro-in { from { opacity: 0; transform: translateX(-6px); } to { opacity: 1; transform: none; } }
+/* Below 1024 px the rail is a bar on top: the card follows it in the flow and points up. */
+@media (max-width: 1023.98px) {
+  .mission-intro { position: relative; top: auto; left: auto; width: auto; margin: var(--s-3) var(--page-x) 0; }
+  .mission-intro-arrow { left: 28px; top: -7px; border-left: 1px solid var(--coach); border-bottom: 0; border-top: 1px solid var(--coach); }
+}

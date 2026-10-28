@@ -22,7 +22,7 @@ export function BlockDetailsModal({
     blocks,
     onClose,
     participants,
-    coinName = 'powCoin'
+    coinName = 'powfyicoin'
 }) {
     const [selectedTx, setSelectedTx] = useState(null);
 

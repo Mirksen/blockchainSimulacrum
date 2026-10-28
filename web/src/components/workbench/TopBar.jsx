@@ -63,7 +63,7 @@ function NavLinks({ view, onSelect, className }) {
 }
 
 export function TopBar({
-  view = 'workbench', onNavigate, coinName = 'powCoin', chainValid = true,
+  view = 'workbench', onNavigate, coinName = 'powfyicoin', chainValid = true,
   theme = 'dark', onTheme, muted = false, onMuted, onReset, onOpenSettings, compact = false,
 }) {
   const [open, setOpen] = useState(false);

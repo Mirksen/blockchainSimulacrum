@@ -115,7 +115,7 @@ try {
  const form = page.getByRole('form',{name:'New transaction'});
  await form.getByRole('combobox',{name:'From'}).selectOption('Alice');
  await form.getByRole('combobox',{name:'To'}).selectOption('Bob');
- await form.getByLabel('Amount (powCoin)',{exact:true}).fill('0.1');
+ await form.getByLabel('Amount (powfyicoin)',{exact:true}).fill('0.1');
  await form.getByLabel(/^Reference/).fill('Synthetic acceptance transfer');
  await form.getByRole('button',{name:'Add to mempool'}).click();
  await page.getByRole('list',{name:'Pending transactions'}).getByText('Synthetic acceptance transfer').waitFor();
@@ -230,7 +230,7 @@ try {
   await page.getByRole('button',{name:'New transaction',exact:true}).click();
   await form.getByRole('combobox',{name:'From'}).selectOption('Alice');
   await form.getByRole('combobox',{name:'To'}).selectOption('Bob');
-  await form.getByLabel('Amount (powCoin)',{exact:true}).fill('0.1');
+  await form.getByLabel('Amount (powfyicoin)',{exact:true}).fill('0.1');
   await form.getByLabel(/^Reference/).fill('private-fixture-memo');
   const transaction=responseFor('transaction_created');await form.getByRole('button',{name:'Add to mempool'}).click();await transaction;
   await menu(page, 'Settings');
@@ -256,7 +256,7 @@ try {
   await page.waitForTimeout(100);
   assert.equal(telemetryRequests.length,beforeOptOut,'No sends after opt-out');
   await menu(page, 'Settings');
-  await settings.getByLabel('Coin name',{exact:true}).fill('powCoin');
+  await settings.getByLabel('Coin name',{exact:true}).fill('powfyicoin');
   await settings.getByRole('button',{name:'Done'}).click();
   results.push('Mock PostHog: explicit consent, one event per operation, mining summaries, sanitized errors and opt-out');
  } else {

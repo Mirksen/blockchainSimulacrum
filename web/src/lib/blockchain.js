@@ -597,7 +597,7 @@ export class Blockchain {
 // Factory function for easy initialization
 export function createBlockchain(config = {}) {
   const {
-    name = 'powCoin',
+    name = 'powfyicoin',
     miningDifficulty = 1,
     blockReward = 3.125,
     halvingEvent = 210000,
