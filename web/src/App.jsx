@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { useBlockchain } from './hooks/useBlockchain';
 import { playMiningSuccessSound } from './lib/sound';
 import { telemetry } from './lib/telemetry';
@@ -25,6 +25,14 @@ const viewFromHash = () => VIEWS[(globalThis.location?.hash ?? '').replace(/^#\/
 function readFlag(key) { try { return globalThis.localStorage?.getItem(key) === '1'; } catch { return false; } }
 function writeFlag(key, value) { try { globalThis.localStorage?.setItem(key, value ? '1' : '0'); } catch { /* storage may be blocked */ } }
 const browserStorage = () => { try { return globalThis.localStorage ?? null; } catch { return null; } };
+// Below 768 px the top bar folds its tabs into the menu.
+const PHONE = '(max-width: 767.98px)';
+const subscribePhone = notify => {
+  const query = globalThis.matchMedia?.(PHONE);
+  query?.addEventListener('change', notify);
+  return () => query?.removeEventListener('change', notify);
+};
+const isPhone = () => Boolean(globalThis.matchMedia?.(PHONE).matches);
 
 // Lab missions run the existing lessons of the hash and chain labs.
 const HASH_LESSONS = { 'change-fingerprint': 'hash', 'earn-proof-of-work': 'work' };
@@ -54,6 +62,7 @@ function App() {
   const [walletDetails, setWalletDetails] = useState(null);
   const [railCollapsed, setRailCollapsed] = useState(() => readFlag(RAIL_KEY));
   const [progress, setProgress] = useState(() => missions.load(browserStorage()));
+  const compact = useSyncExternalStore(subscribePhone, isPhone, () => false);
   const lastAdjustedBlock = useRef(0);
   const sim = useBlockchain(INITIAL_CONFIG);
   const { blocks, participants, balances, memPool, chainValid, isMining, isSettingUp, difficulty, halvingInterval,
@@ -219,14 +228,15 @@ function App() {
   };
 
   const wallet = walletDetails && participants.find(p => p.name === walletDetails);
-  const hashLesson = activeMission ? HASH_LESSONS[activeMission.id] : undefined;
-  const chainLesson = activeMission?.id === 'change-the-past';
+  // A collapsed rail means free play: the labs open without the mission lesson.
+  const hashLesson = !railCollapsed && activeMission ? HASH_LESSONS[activeMission.id] : undefined;
+  const chainLesson = !railCollapsed && activeMission?.id === 'change-the-past';
 
   return (
     <div className={`app-shell${view === 'workbench' ? ' is-workbench' : ''}${railCollapsed ? ' is-rail-collapsed' : ' is-rail-expanded'}`}>
       <a className="skip-link" href="#workbench">Skip to workbench</a>
       <TopBar view={view} onNavigate={navigate} coinName={coinName} chainValid={chainValid} theme={theme} onTheme={changeTheme}
-        muted={muted} onMuted={changeMuted} onReset={reset} onOpenSettings={() => setShowSettings(true)} />
+        muted={muted} onMuted={changeMuted} onReset={reset} onOpenSettings={() => setShowSettings(true)} compact={compact} />
       <LeaderboardTicker onOpenPool={() => navigate('pool')} />
       {view === 'workbench' && <Workbench sim={sim} coinName={coinName} targetSeconds={targetBlockTime}
         autoMine={autoMining} onAutoMine={value => value ? setAutoMining(true) : pause()}
@@ -237,10 +247,12 @@ function App() {
         onDifficulty={onDifficulty} onBack={onBack} onCreateTransaction={onCreateTransaction} onCreateWallet={createWallet}
         onOpenWallet={setWalletDetails} onOpenDetails={setDetails} onOpenChainLab={() => navigate('chain-lab')} error={error} />}
       {view === 'hash-lab' && <div className="wb-view">
-        <HashLab key={hashLesson ?? 'free'} lesson={hashLesson} onLessonEvent={hashLesson ? report : undefined} onClose={() => navigate('workbench')} />
+        <HashLab key={hashLesson ?? 'free'} lesson={hashLesson} onLessonEvent={hashLesson ? report : undefined}
+          coach={hashLesson ? coach : null} onClose={() => navigate('workbench')} />
       </div>}
       {view === 'chain-lab' && <div className="wb-view">
-        <ChainLab key={chainLesson ? 'lesson' : 'free'} onLessonEvent={chainLesson ? report : undefined} onClose={() => navigate('workbench')} />
+        <ChainLab key={chainLesson ? 'lesson' : 'free'} onLessonEvent={chainLesson ? report : undefined}
+          coach={chainLesson ? coach : null} onClose={() => navigate('workbench')} />
       </div>}
       {view === 'pool' && <div className="wb-view"><PoolPanel onClose={() => navigate('workbench')} /></div>}
       {winner && <div className="wb-announce" role="status">{winner} mined a block</div>}
