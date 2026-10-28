@@ -1,0 +1,108 @@
+/* Workbench layout (web/DESIGN.md, "Information architecture" and "Screen sizes").
+   Rail | main column; the main column holds the chain band and one card grid whose
+   right column starts under tile #3, the same column template the band uses. */
+.app-shell {
+  --rail-w: 248px;
+  --rail-w-collapsed: 56px;
+  --rail-cur: var(--rail-w);
+  --wb-max: 2160px;
+  --page-x: 24px;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--ui);
+}
+.app-shell.is-rail-collapsed { --rail-cur: var(--rail-w-collapsed); }
+
+.wb-shell {
+  flex: 1 0 auto;
+  width: 100%;
+  display: grid;
+  grid-template-columns: var(--rail-cur) minmax(0, 1fr);
+}
+.wb-rail { min-width: 0; min-height: 0; border-right: 1px solid var(--line); background: var(--bg-2); }
+.wb-main { min-width: 0; min-height: 0; display: flex; flex-direction: column; container: main / inline-size; }
+.wb-band { flex: none; }
+.wb-timeline { display: none; }
+.wb-mbar { display: none; }
+
+.wb-grid {
+  flex: 1 0 auto;
+  padding: 14px var(--page-x);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  gap: var(--s-3);
+}
+.wb-selected, .wb-wallets { grid-column: 1; }
+.wb-next, .wb-mempool { grid-column: 2; }
+.wb-selected, .wb-next { grid-row: 1; }
+.wb-wallets, .wb-mempool { grid-row: 2; }
+.wb-activity { display: none; grid-column: 1 / -1; grid-row: 3; }
+.wb-grid > * { min-width: 0; min-height: 0; }
+
+/* The single filled action of the view belongs to the Next block card; a short
+   live region announces found blocks without stealing focus. */
+.wb-announce {
+  position: fixed; left: 50%; bottom: var(--s-6); transform: translateX(-50%); z-index: 40;
+  padding: var(--s-2) var(--s-4); border-radius: 999px; border: 1px solid var(--line-3);
+  background: var(--panel-3); color: var(--text); font-size: 13px; box-shadow: 0 8px 24px -12px var(--shadow);
+}
+.wb-error {
+  margin: var(--s-3) var(--page-x) 0; padding: var(--s-2) var(--s-3); border-radius: var(--r-md);
+  border: 1px solid var(--red); background: var(--red-bg); color: var(--text); font-size: 13px;
+}
+
+/* Lab and pool tabs: one centered column on the same background. */
+.wb-view { flex: 1 0 auto; width: 100%; max-width: 1200px; margin: 0 auto; padding: var(--s-6) var(--page-x) var(--s-7); }
+
+/* FILL (>= 1024 wide, >= 830 tall): exactly one screen; extra height goes to lists. */
+@media (min-width: 1024px) and (min-height: 830px) {
+  .app-shell.is-workbench { height: 100vh; min-height: 0; overflow: hidden; }
+  .is-workbench .wb-shell { flex: 1 1 0; min-height: 0; }
+  .is-workbench .wb-main { overflow: hidden; }
+  .wb-grid { flex: 1 1 0; min-height: 0; grid-template-rows: auto minmax(0, 1fr); }
+}
+/* ACTIVITY (>= 1100 tall): a third row takes the height lists cannot fill. */
+@media (min-width: 1024px) and (min-height: 1100px) {
+  .wb-grid { grid-template-rows: auto minmax(280px, 380px) minmax(200px, 1fr); }
+  .wb-activity { display: block; }
+}
+/* Very wide: cap the workbench and centre it; the background continues. */
+@media (min-width: 2200px) {
+  .wb-shell { max-width: var(--wb-max); margin: 0 auto; }
+  .wb-rail { border-left: 1px solid var(--line); }
+}
+/* 1024-1279: the rail collapses to icons unless the learner opened it. */
+@media (min-width: 1024px) and (max-width: 1279.98px) {
+  .app-shell:not(.is-rail-expanded) { --rail-cur: var(--rail-w-collapsed); }
+}
+/* < 1024: mission bar on top, vertical timeline, cards stacked. */
+@media (max-width: 1023.98px) {
+  .wb-shell { grid-template-columns: minmax(0, 1fr); }
+  .wb-rail { display: none; }
+  .wb-mbar { display: block; border-bottom: 1px solid var(--line); }
+  .wb-band { display: none; }
+  .wb-timeline { display: block; }
+  .wb-next { grid-column: 1 / -1; grid-row: 1; }
+  .wb-mempool { grid-column: 1 / -1; grid-row: 2; }
+  .wb-selected { grid-column: 1; grid-row: 3; }
+  .wb-wallets { grid-column: 2; grid-row: 3; }
+  .wb-activity { grid-row: 4; }
+}
+@media (max-width: 1023.98px) and (min-height: 1100px) {
+  .wb-activity { display: block; }
+}
+/* Phone: one column. */
+@media (max-width: 767.98px) {
+  .app-shell { --page-x: 16px; }
+  .wb-grid { grid-template-columns: minmax(0, 1fr); }
+  .wb-selected, .wb-wallets, .wb-next, .wb-mempool, .wb-activity { grid-column: 1; grid-row: auto; }
+  .wb-next { order: 1; }
+  .wb-mempool { order: 2; }
+  .wb-selected { order: 3; }
+  .wb-wallets { order: 4; }
+  .wb-activity { order: 5; }
+}

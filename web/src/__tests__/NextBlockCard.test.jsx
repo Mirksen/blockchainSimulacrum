@@ -119,6 +119,18 @@ describe('NextBlockCard', () => {
     expect(onRemine).toHaveBeenCalledWith(3);
   });
 
+  it('repair with a forged signature: Undo edit is the one primary, there is no re-mine', () => {
+    const onUndo = vi.fn();
+    const onRemine = vi.fn();
+    render(<NextBlockCard {...base} mode="repair" repair={{ next: 2, order: [2], undoOnly: true, onUndo }} onRemine={onRemine} />);
+    expect(filledPrimaries()).toHaveLength(1);
+    expect(screen.queryByRole('button', { name: /^Re-mine/ })).toBeNull();
+    expect(card().textContent).toContain('Re-mining cannot fix a signature');
+    fireEvent.click(screen.getByRole('button', { name: 'Undo edit in block #2' }));
+    expect(onUndo).toHaveBeenCalledWith(2);
+    expect(onRemine).not.toHaveBeenCalled();
+  });
+
   it('paused: Mine block #N starts a new search and the paused race stays visible', () => {
     const onMine = vi.fn();
     render(<NextBlockCard {...base} mode="paused" race={race} onMine={onMine} />);

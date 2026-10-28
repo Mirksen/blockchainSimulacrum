@@ -42,6 +42,9 @@ const PlayIcon = () => (
 const Spinner = () => (
   <svg className="next-block-spin" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" strokeOpacity=".3" strokeWidth="2" /><path d="M8 2a6 6 0 0 1 6 6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg>
 );
+const UndoIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6h6a3.5 3.5 0 0 1 0 7H6M4 6l3-3M4 6l3 3" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>
+);
 const MinusIcon = () => <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M1.5 5h7" stroke="currentColor" strokeWidth="1.5" /></svg>;
 const PlusIcon = () => <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M1.5 5h7M5 1.5v7" stroke="currentColor" strokeWidth="1.5" /></svg>;
 const CheckIcon = () => (
@@ -299,12 +302,18 @@ function RepairBody({ repair, difficulty, target, onRemine, coach }) {
           </span>
         )}
       </div>
-      <CoachMark target="workbench.remine" coach={coach} className="next-block-coach-block">
-        <div className="next-block-repair-row">
-          <button type="button" className="btn-primary" aria-keyshortcuts="M" onClick={() => onRemine?.(next)}><BoltIcon />Re-mine block #{next}</button>
-          <small>Finds a new nonce so #{next} starts with {target} again.{then}</small>
+      {repair?.undoOnly
+        // A forged signature survives every re-mine; only undoing the edit repairs it.
+        ? <div className="next-block-repair-row">
+          <button type="button" className="btn-primary" onClick={() => repair.onUndo?.(next)}><UndoIcon />Undo edit in block #{next}</button>
+          <small>Block #{next} has a valid hash, but its edited transfer no longer matches its signature. Re-mining cannot fix a signature.</small>
         </div>
-      </CoachMark>
+        : <CoachMark target="workbench.remine" coach={coach} className="next-block-coach-block">
+          <div className="next-block-repair-row">
+            <button type="button" className="btn-primary" aria-keyshortcuts="M" onClick={() => onRemine?.(next)}><BoltIcon />Re-mine block #{next}</button>
+            <small>Finds a new nonce so #{next} starts with {target} again.{then}</small>
+          </div>
+        </CoachMark>}
       <div className="next-block-foot">
         <span>Each re-mine is a full race at difficulty {difficulty}.</span>
       </div>
