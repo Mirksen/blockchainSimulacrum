@@ -31,11 +31,16 @@ const telemetryMock = async route => {
  await route.fulfill({status:200,headers,contentType:'application/json',body:'{"status":1}'});
 };
 // Synthetic leaderboard for the ticker; no pool server is ever contacted.
+const FIXTURE_ROUND = { height: 900001, hash: `0000${'ab'.repeat(30)}` };
+const fixtureRow = (name, bestHash, bestZeros, difficulty) => ({ name, round: FIXTURE_ROUND, nonce: 7, bestHash, bestZeros, difficulty, proofs: 3, foundAt: 0 });
+const leaderboardFixture = () => {
+ const rows = [fixtureRow('fixture-alpha', `000000${'1'.repeat(58)}`, 6, 1048576), fixtureRow('fixture-beta', `00000${'2'.repeat(59)}`, 5, 65536)];
+ return { round: { ...FIXTURE_ROUND, rows }, allTime: rows };
+};
 const leaderboardMock = async route => {
  const headers = { 'Access-Control-Allow-Origin': '*' };
  if (new URL(route.request().url()).pathname !== '/api/leaderboard') { await route.abort('connectionrefused'); return; }
- await route.fulfill({status:200,headers,contentType:'application/json',body:JSON.stringify([
-  {name:'fixture-alpha',points:1200,shares:12,bestZeros:5},{name:'fixture-beta',points:800,shares:8,bestZeros:4}])});
+ await route.fulfill({status:200,headers,contentType:'application/json',body:JSON.stringify(leaderboardFixture())});
 };
 // The reference views of web/DESIGN.md for review: 1512 x 860 and 390 px, both themes.
 // Chain content is random per run, so they are compared by eye, not pixel by pixel.

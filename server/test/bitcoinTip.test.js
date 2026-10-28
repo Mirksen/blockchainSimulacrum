@@ -169,6 +169,16 @@ describe('createTipTracker', () => {
     assert.equal(lines.length, 1);
   });
 
+  test('an empty height before the first tip is not read as height 0', async () => {
+    const { t, chain, lines } = tracker({ height: '', hash: ROUND_A.hash });
+    await t.poll();
+    assert.equal(t.round(), null);
+    assert.deepEqual(lines, ['bitcoin tip unavailable: unreadable tip']);
+    chain.tip = ROUND_A;
+    await t.poll();
+    assert.deepEqual(t.round(), ROUND_A);
+  });
+
   test('an unreadable answer is logged and keeps the state', async () => {
     const { t, chain, lines } = tracker(ROUND_A);
     await t.poll();
@@ -178,6 +188,7 @@ describe('createTipTracker', () => {
       { height: ROUND_B.height, hash: ROUND_B.hash.toUpperCase() },
       { height: -5, hash: ROUND_B.hash },
       { height: 1.5, hash: ROUND_B.hash },
+      { height: '', hash: ROUND_B.hash },
     ]) {
       chain.tip = bad;
       lines.length = 0;

@@ -29,8 +29,10 @@ export function createTipTracker({ fetchImpl = fetch, api = TIP_API, pollMs = TI
   // mismatch on the next poll and is corrected then.
   async function poll() {
     try {
-      const height = Number(await read('/blocks/tip/height'));
+      const heightText = await read('/blocks/tip/height');
       const hash = await read('/blocks/tip/hash');
+      // Digits only: Number('') would read an empty answer as height 0.
+      const height = /^\d+$/.test(heightText) ? Number(heightText) : Number.NaN;
       const round = { height, hash };
       if (!isRound(round)) throw new Error('unreadable tip');
       if (!current || height > current.height) {
