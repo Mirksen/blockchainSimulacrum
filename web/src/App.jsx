@@ -7,6 +7,7 @@ import { TopBar } from './components/workbench/TopBar';
 import { LeaderboardTicker } from './components/workbench/LeaderboardTicker';
 import { SettingsDialog } from './components/workbench/SettingsDialog';
 import { Workbench } from './components/workbench/Workbench';
+import { MissionRail } from './components/workbench/MissionRail';
 import { HashLab } from './components/HashLab';
 import { ChainLab } from './components/ChainLab';
 import { PoolPanel } from './components/PoolPanel';
@@ -20,6 +21,7 @@ const INITIAL_CONFIG = {
 };
 const VIEWS = { '': 'workbench', 'hash-lab': 'hash-lab', 'chain-lab': 'chain-lab', pool: 'pool' };
 const RAIL_KEY = 'proofofwork-rail-collapsed';
+const VIEW_LABELS = { workbench: 'Workbench', 'hash-lab': 'Hash lab', 'chain-lab': 'Chain lab', pool: 'Mining pool' };
 
 const viewFromHash = () => VIEWS[(globalThis.location?.hash ?? '').replace(/^#\/?/, '')] ?? 'workbench';
 function readFlag(key) { try { return globalThis.localStorage?.getItem(key) === '1'; } catch { return false; } }
@@ -238,23 +240,30 @@ function App() {
       <TopBar view={view} onNavigate={navigate} coinName={coinName} chainValid={chainValid} theme={theme} onTheme={changeTheme}
         muted={muted} onMuted={changeMuted} onReset={reset} onOpenSettings={() => setShowSettings(true)} compact={compact} />
       <LeaderboardTicker onOpenPool={() => navigate('pool')} />
-      {view === 'workbench' && <Workbench sim={sim} coinName={coinName} targetSeconds={targetBlockTime}
-        autoMine={autoMining} onAutoMine={value => value ? setAutoMining(true) : pause()}
-        selectedIndex={selectedIndex} onSelect={setSelectedIndex} healthOpen={healthOpen} onToggleHealth={() => setHealthOpen(open => !open)}
-        lastRound={lastRound} remining={remining} coach={coach} missionProgress={progress}
-        railCollapsed={railCollapsed} onToggleRail={toggleRail} onShowMe={showMe}
-        onStartDemo={handleSetup} onMine={handleMine} onPause={pause} onRemine={handleRemine} onTamper={onTamper} onUndo={onUndo}
-        onDifficulty={onDifficulty} onBack={onBack} onCreateTransaction={onCreateTransaction} onCreateWallet={createWallet}
-        onOpenWallet={setWalletDetails} onOpenDetails={setDetails} onOpenChainLab={() => navigate('chain-lab')} error={error} />}
-      {view === 'hash-lab' && <div className="wb-view">
-        <HashLab key={hashLesson ?? 'free'} lesson={hashLesson} onLessonEvent={hashLesson ? report : undefined}
-          coach={hashLesson ? coach : null} onClose={() => navigate('workbench')} />
-      </div>}
-      {view === 'chain-lab' && <div className="wb-view">
-        <ChainLab key={chainLesson ? 'lesson' : 'free'} onLessonEvent={chainLesson ? report : undefined}
-          coach={chainLesson ? coach : null} onClose={() => navigate('workbench')} />
-      </div>}
-      {view === 'pool' && <div className="wb-view"><PoolPanel onClose={() => navigate('workbench')} /></div>}
+      <div className="wb-shell">
+        <div className="wb-rail">
+          <MissionRail progress={progress} collapsed={railCollapsed} onToggle={toggleRail} onShowMe={showMe} />
+        </div>
+        <main id="workbench" className="wb-main" aria-label={VIEW_LABELS[view]}>
+          <div className="wb-mbar"><MissionRail progress={progress} variant="bar" onShowMe={showMe} /></div>
+          {view === 'workbench' && <Workbench sim={sim} coinName={coinName} targetSeconds={targetBlockTime}
+            autoMine={autoMining} onAutoMine={value => value ? setAutoMining(true) : pause()}
+            selectedIndex={selectedIndex} onSelect={setSelectedIndex} healthOpen={healthOpen} onToggleHealth={() => setHealthOpen(open => !open)}
+            lastRound={lastRound} remining={remining} coach={coach}
+            onStartDemo={handleSetup} onMine={handleMine} onPause={pause} onRemine={handleRemine} onTamper={onTamper} onUndo={onUndo}
+            onDifficulty={onDifficulty} onBack={onBack} onCreateTransaction={onCreateTransaction} onCreateWallet={createWallet}
+            onOpenWallet={setWalletDetails} onOpenDetails={setDetails} onOpenChainLab={() => navigate('chain-lab')} error={error} />}
+          {view === 'hash-lab' && <div className="wb-view">
+            <HashLab key={hashLesson ?? 'free'} lesson={hashLesson} onLessonEvent={hashLesson ? report : undefined}
+              coach={hashLesson ? coach : null} onClose={() => navigate('workbench')} />
+          </div>}
+          {view === 'chain-lab' && <div className="wb-view">
+            <ChainLab key={chainLesson ? 'lesson' : 'free'} onLessonEvent={chainLesson ? report : undefined}
+              coach={chainLesson ? coach : null} onClose={() => navigate('workbench')} />
+          </div>}
+          {view === 'pool' && <div className="wb-view"><PoolPanel onClose={() => navigate('workbench')} /></div>}
+        </main>
+      </div>
       {winner && <div className="wb-announce" role="status">{winner} mined a block</div>}
       <SettingsDialog open={showSettings} onClose={() => setShowSettings(false)} coinName={coinName} onCoinName={setCoinName}
         difficulty={difficulty} onDifficulty={onDifficulty} halvingInterval={halvingInterval} onHalvingInterval={setHalvingInterval}
@@ -262,7 +271,7 @@ function App() {
       {details !== null && blocks[details] && <BlockDetailsModal block={blocks[details]} blockIndex={details} blocks={blocks}
         onClose={() => setDetails(null)} participants={participants} coinName={coinName} />}
       {wallet && <ParticipantDetailsModal participant={wallet}
-        balance={balances.find(b => b.name === wallet.name)?.balance ?? 0} blocks={blocks} onClose={() => setWalletDetails(null)}
+        balance={balances.find(b => b.name === wallet.name)} blocks={blocks} onClose={() => setWalletDetails(null)}
         toggleMiner={toggleMiner} setMinerHashpower={setMinerHashpower} isMining={busy} coinName={coinName} />}
     </div>
   );

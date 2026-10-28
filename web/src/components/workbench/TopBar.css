@@ -82,3 +82,11 @@
 .top-bar-usage .analytics-control > div { padding: 0 10px var(--s-2); font-size: 12px; line-height: 17px; color: var(--text-2); }
 .top-bar-usage .analytics-control p { margin: var(--s-2) 0 0; }
 .top-bar-usage .analytics-control label { display: flex; align-items: flex-start; gap: var(--s-2); margin-top: var(--s-2); color: var(--text); }
+
+/* 768-1023: the coin pill moves into the menu so the tabs keep their room. */
+@media (max-width: 1023.98px) {
+  .top-bar-coin { display: none; }
+}
+@media (min-width: 1024px) {
+  .top-bar-menu-coin.is-narrow-only { display: none; }
+}

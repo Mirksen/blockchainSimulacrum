@@ -169,6 +169,13 @@
 .chain-timeline-figs > span { display: inline-flex; gap: 6px; }
 .chain-timeline-figs b { color: var(--text-2); font-weight: 600; }
 
+/* smallest phones (< 340 px of row): drop the time column, let the name shrink */
+@container chain-timeline (max-width: 339.98px) {
+  .chain-timeline-t { display: none; }
+  .chain-timeline-who { flex: 0 1 80px; }
+  .chain-timeline-h { flex: none; }
+}
+
 /* tablet width (768-1023): previous hash column, wider status */
 @container chain-timeline (min-width: 640px) {
   .chain-timeline-sum { gap: var(--s-3); }

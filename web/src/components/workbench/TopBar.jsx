@@ -158,7 +158,7 @@ export function TopBar({
             <div className="top-bar-menu-section top-bar-usage">
               <AnalyticsControl />
             </div>
-            {compact && <p className="top-bar-menu-coin">{coinLabel}</p>}
+            <p className={`top-bar-menu-coin${compact ? '' : ' is-narrow-only'}`}>{coinLabel}</p>
           </div>
         )}
       </div>

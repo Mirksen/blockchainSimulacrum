@@ -6,20 +6,19 @@ import { NextBlockCard } from './NextBlockCard';
 import { WalletsCard } from './WalletsCard';
 import { MempoolCard } from './MempoolCard';
 import { ActivityCard } from './ActivityCard';
-import { MissionRail } from './MissionRail';
 import { buildBlockViews } from './blockView';
 import { keyFiguresOf, rateOf, repairOf } from './workbenchModel';
 import './Workbench.css';
 
-// The workbench view (web/DESIGN.md, "Information architecture"): mission rail,
-// chain band and the card grid. It turns the simulation snapshot into the view
-// models of the presentational components; App owns state and side effects.
+// The workbench view (web/DESIGN.md, "Information architecture"): chain band and
+// card grid; App frames it with the mission rail. It turns the simulation snapshot
+// into the view models of the presentational components; App owns state and effects.
 
 const nameOf = (participants, key) => key ? (participants.find(p => p.publicKey === key)?.name ?? 'Unknown') : null;
 
 export function Workbench({
   sim, coinName, targetSeconds, autoMine, onAutoMine, selectedIndex, onSelect, healthOpen, onToggleHealth,
-  lastRound, remining, coach, missionProgress, railCollapsed, onToggleRail, onShowMe,
+  lastRound, remining, coach,
   onStartDemo, onMine, onPause, onRemine, onTamper, onUndo, onDifficulty, onBack,
   onCreateTransaction, onCreateWallet, onOpenWallet, onOpenDetails, onOpenChainLab, error
 }) {
@@ -78,50 +77,44 @@ export function Workbench({
   const repairOrder = repair && !repair.undoOnly ? repair.order : [];
 
   return (
-    <div className="wb-shell">
-      <div className="wb-rail">
-        <MissionRail progress={missionProgress} collapsed={railCollapsed} onToggle={onToggleRail} onShowMe={onShowMe} />
-      </div>
-      <main id="workbench" className="wb-main" aria-label="Workbench">
-        <div className="wb-mbar"><MissionRail progress={missionProgress} variant="bar" onShowMe={onShowMe} /></div>
-        {error && <div role="alert" className="wb-error">{error}</div>}
-        <div className="wb-band">
-          <ChainBand views={fresh ? views.slice(0, 1) : views} candidate={candidate} selectedIndex={selected} onSelect={onSelect}
-            keyFigures={keyFigures} healthOpen={healthOpen || Boolean(repair)} onToggleHealth={onToggleHealth}
-            coach={workbenchCoach} repairOrder={repairOrder} />
-        </div>
-        <div className="wb-timeline">
-          <ChainTimeline views={views} candidate={candidate} selectedIndex={selected} onSelect={onSelect} onOpenChainLab={onOpenChainLab}
-            keyFigures={keyFigures} healthOpen={healthOpen || Boolean(repair)} onToggleHealth={onToggleHealth}
-            coach={workbenchCoach} repairOrder={repairOrder} />
-        </div>
-        <div className="wb-grid">
-          <div className="wb-selected">
-            <SelectedBlockCard block={selectedBlock} status={blockStatus[selected]} prevHash={blocks[selected - 1]?.hash ?? null}
-              edit={edits.length ? edits : null} onOpenDetails={onOpenDetails} onOpenChainLab={onOpenChainLab}
-              onTamper={onTamper} onUndo={onUndo} coach={workbenchCoach} />
-          </div>
-          <div className="wb-next">
-            <NextBlockCard mode={mode} index={busy && remining !== null ? remining : nextIndex} txCount={memPool.length}
-              reward={blockReward} difficulty={difficulty} onDifficulty={onDifficulty} autoMine={autoMine} onAutoMine={onAutoMine}
-              onStartDemo={onStartDemo} onMine={onMine} onPause={onPause} onRemine={onRemine}
-              repair={repair ? { ...repair, onUndo } : null} miners={miners} race={race} lastRound={lastRound}
-              backedMiner={backedMiner} onBack={onBack} coach={workbenchCoach} />
-          </div>
-          <div className="wb-wallets">
-            <WalletsCard wallets={wallets} coinName={coinName} onOpenWallet={onOpenWallet} onCreateWallet={onCreateWallet} />
-          </div>
-          <div className="wb-mempool">
-            <MempoolCard transactions={pending} nextIndex={nextIndex} mining={busy} participants={participants.map(p => p.name)}
-              coinName={coinName} reward={blockReward} onCreateTransaction={onCreateTransaction}
-              newTxGlow={!busy && !repair && !fresh} coach={workbenchCoach} />
-          </div>
-          <div className="wb-activity">
-            <ActivityCard confirmed={confirmed} blockTimes={blockTimes} targetSeconds={targetSeconds} />
-          </div>
-        </div>
-      </main>
+    <>
+    {error && <div role="alert" className="wb-error">{error}</div>}
+    <div className="wb-band">
+      <ChainBand views={fresh ? views.slice(0, 1) : views} candidate={candidate} selectedIndex={selected} onSelect={onSelect}
+        keyFigures={keyFigures} healthOpen={healthOpen || Boolean(repair)} onToggleHealth={onToggleHealth}
+        coach={workbenchCoach} repairOrder={repairOrder} />
     </div>
+    <div className="wb-timeline">
+      <ChainTimeline views={views} candidate={candidate} selectedIndex={selected} onSelect={onSelect} onOpenChainLab={onOpenChainLab}
+        keyFigures={keyFigures} healthOpen={healthOpen || Boolean(repair)} onToggleHealth={onToggleHealth}
+        coach={workbenchCoach} repairOrder={repairOrder} />
+    </div>
+    <div className="wb-grid">
+      <div className="wb-selected">
+        <SelectedBlockCard block={selectedBlock} status={blockStatus[selected]} prevHash={blocks[selected - 1]?.hash ?? null}
+          edit={edits.length ? edits : null} onOpenDetails={onOpenDetails} onOpenChainLab={onOpenChainLab}
+          onTamper={onTamper} onUndo={onUndo} coach={workbenchCoach} />
+      </div>
+      <div className="wb-next">
+        <NextBlockCard mode={mode} index={busy && remining !== null ? remining : nextIndex} txCount={memPool.length}
+          reward={blockReward} difficulty={difficulty} onDifficulty={onDifficulty} autoMine={autoMine} onAutoMine={onAutoMine}
+          onStartDemo={onStartDemo} onMine={onMine} onPause={onPause} onRemine={onRemine}
+          repair={repair ? { ...repair, onUndo } : null} miners={miners} race={race} lastRound={lastRound}
+          backedMiner={backedMiner} onBack={onBack} coach={workbenchCoach} />
+      </div>
+      <div className="wb-wallets">
+        <WalletsCard wallets={wallets} coinName={coinName} onOpenWallet={onOpenWallet} onCreateWallet={onCreateWallet} />
+      </div>
+      <div className="wb-mempool">
+        <MempoolCard transactions={pending} nextIndex={nextIndex} mining={busy} participants={participants.map(p => p.name)}
+          coinName={coinName} reward={blockReward} onCreateTransaction={onCreateTransaction}
+          newTxGlow={!busy && !repair && !fresh} coach={workbenchCoach} />
+      </div>
+      <div className="wb-activity">
+        <ActivityCard confirmed={confirmed} blockTimes={blockTimes} targetSeconds={targetSeconds} />
+      </div>
+    </div>
+    </>
   );
 }
 
