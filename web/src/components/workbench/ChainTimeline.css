@@ -1,0 +1,192 @@
+/* Chain timeline — vertical chain for screens below 1024 px (web/DESIGN.md
+   "Screen sizes"), on the product tokens. No hex colors. */
+
+.chain-timeline {
+  container: chain-timeline / inline-size;
+  --chain-timeline-rail-w: 22px;
+  --chain-timeline-row-h: 32px;
+  --chain-timeline-mark: 10px;
+  --chain-timeline-amber-line: color-mix(in srgb, var(--amber) 70%, transparent);
+  --chain-timeline-mine-track: color-mix(in srgb, var(--blue) 16%, transparent);
+  box-sizing: border-box;
+  height: 100%;
+  min-width: 0;
+  padding: var(--s-3) var(--s-4);
+  background: radial-gradient(360px 200px at 85% 0%, var(--band-glow), transparent 70%), var(--bg);
+  border-bottom: 1px solid var(--line-2);
+  color: var(--text);
+  font: 13px/18px var(--ui);
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+}
+.chain-timeline *, .chain-timeline *::before, .chain-timeline *::after { box-sizing: border-box; }
+.chain-timeline h2 { margin: 0; }
+
+.chain-timeline-head { display: flex; align-items: baseline; gap: var(--s-2); height: 20px; min-width: 0; white-space: nowrap; }
+.chain-timeline-head h2 { font-size: 14px; line-height: 20px; font-weight: 600; }
+.chain-timeline-sub, .chain-timeline-aside { font-size: 12px; color: var(--text-3); }
+.chain-timeline-aside { margin-left: auto; overflow: hidden; text-overflow: ellipsis; }
+
+/* ---------- rows; the rail between two marks is the link between the two blocks ---------- */
+.chain-timeline-list { list-style: none; margin: var(--s-2) 0 0; padding: 0; }
+.chain-timeline-row { position: relative; padding-left: var(--chain-timeline-rail-w); }
+.chain-timeline-row::before {
+  content: ""; position: absolute; left: calc(var(--chain-timeline-rail-w) / 2 - .5px); width: 1px;
+  top: calc(var(--chain-timeline-row-h) / 2); bottom: calc(var(--chain-timeline-row-h) / -2); background: var(--link-line);
+}
+.chain-timeline-row:last-child::before { display: none; }
+.chain-timeline-row.is-cand::before { background: repeating-linear-gradient(180deg, var(--link-line) 0 3px, transparent 3px 6px); }
+.chain-timeline-row.is-link-broken::before { background: var(--red); }
+.chain-timeline-row.is-link-dependent::before { background: var(--chain-timeline-amber-line); }
+.chain-timeline-mark {
+  position: absolute; z-index: 1;
+  left: calc(var(--chain-timeline-rail-w) / 2 - var(--chain-timeline-mark) / 2);
+  top: calc(var(--chain-timeline-row-h) / 2 - var(--chain-timeline-mark) / 2);
+  width: var(--chain-timeline-mark); height: var(--chain-timeline-mark); border-radius: 2px;
+  background: var(--blk-4); box-shadow: 0 0 0 2px var(--bg);
+}
+.chain-timeline-row[data-h="4"] .chain-timeline-mark { box-shadow: 0 0 0 2px var(--bg), 0 0 10px 1px var(--blk-glow); }
+.chain-timeline-row[data-h="3"] .chain-timeline-mark { background: var(--blk-3); }
+.chain-timeline-row[data-h="2"] .chain-timeline-mark { background: var(--blk-2); }
+.chain-timeline-row[data-h="1"] .chain-timeline-mark { background: var(--blk-1); }
+.chain-timeline-row[data-h="0"] .chain-timeline-mark { background: var(--blk-0); border: 1px solid var(--pend-line); }
+.chain-timeline-row.is-cand .chain-timeline-mark { background: var(--pend-a); border: 1px dashed var(--pend-line); }
+.chain-timeline-row.is-broken .chain-timeline-mark { background: var(--red); box-shadow: 0 0 0 2px var(--bg); }
+.chain-timeline-row.is-dependent .chain-timeline-mark { background: var(--panel-3); border: 1px dashed var(--amber); box-shadow: 0 0 0 2px var(--bg); }
+
+/* link dot where two blocks meet (bottom edge of the newer row) */
+.chain-timeline-link {
+  position: absolute; z-index: 2; left: calc(var(--chain-timeline-rail-w) / 2); top: var(--chain-timeline-row-h);
+  width: var(--link-dot-size); height: var(--link-dot-size);
+  margin: calc(var(--link-dot-size) / -2) 0 0 calc(var(--link-dot-size) / -2);
+  border-radius: 50%; background: var(--link-dot); box-shadow: 0 0 0 2px var(--link-dot-ring);
+}
+.chain-timeline-link.is-pending { background: var(--bg); box-shadow: inset 0 0 0 1px var(--pend-line), 0 0 0 2px var(--link-dot-ring); }
+.chain-timeline-link.is-broken { background: var(--red); }
+.chain-timeline-link.is-dependent { background: var(--amber); }
+
+.chain-timeline-sum {
+  display: flex; align-items: center; gap: var(--s-2); width: 100%; height: var(--chain-timeline-row-h); min-width: 0;
+  margin: 0; padding: 0 var(--s-2); border: 0; border-radius: var(--r-sm); background: transparent;
+  color: var(--text-2); font: 13px/18px var(--ui); text-align: left; white-space: nowrap; cursor: pointer;
+}
+.chain-timeline-sum:hover { background: var(--panel); }
+.chain-timeline-sum:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.chain-timeline-row.is-selected > .chain-timeline-sum { background: var(--blue-bg); box-shadow: inset 0 0 0 1px var(--active-line); }
+.chain-timeline-n { width: 30px; flex: none; color: var(--text); font-weight: 600; }
+.chain-timeline-who { width: 80px; flex: none; display: inline-flex; align-items: center; gap: 6px; min-width: 0; color: var(--text); }
+.chain-timeline-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.chain-timeline-tx { width: 40px; flex: none; }
+.chain-timeline-t { width: 44px; flex: none; }
+.chain-timeline-status {
+  display: inline-flex; align-items: center; gap: 6px; flex: 0 1 180px; min-width: 0; overflow: hidden;
+  font-size: 12px; font-weight: 600;
+}
+.chain-timeline-status-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.chain-timeline-status.is-broken { color: var(--red); }
+.chain-timeline-status.is-dependent { color: var(--amber); }
+.chain-timeline-h { font: 13px/1 var(--mono); color: var(--text); }
+.chain-timeline-h .chain-band-zero { font-weight: 400; }
+.chain-timeline-h.is-bad { color: var(--red); }
+.chain-timeline-prev { display: none; min-width: 0; overflow: hidden; text-overflow: ellipsis; font-size: 12px; color: var(--text-3); }
+.chain-timeline-prev .chain-band-mono { color: var(--text-2); }
+.chain-timeline-chev { margin-left: auto; color: var(--text-3); transition: transform .15s; }
+.chain-timeline-sum[aria-expanded="true"] .chain-timeline-chev { transform: rotate(180deg); }
+.chain-timeline-order {
+  flex: none; width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center;
+  font-size: 10px; font-weight: 700; color: var(--text); background: var(--panel-3); border: 1px solid var(--line-3);
+}
+.chain-timeline-order.is-next { background: var(--coach); border-color: var(--coach); color: var(--on-light); box-shadow: 0 0 0 3px var(--coach-ring); }
+
+/* tapped row: full hash with Copy and Open in Chain lab, in place */
+.chain-timeline-det {
+  margin: var(--s-1) 0 var(--s-2); padding: 6px 10px 10px; border-radius: var(--r-md);
+  background: var(--overlay); border: 1px solid var(--line-3);
+}
+.chain-timeline-det-head { display: flex; align-items: center; gap: var(--s-2); height: 30px; font-size: 12px; color: var(--text-3); white-space: nowrap; }
+.chain-timeline-det-head .chain-band-copy { margin-left: auto; }
+.chain-timeline-full { display: block; margin-top: 2px; font: 12px/18px var(--mono); color: var(--text); white-space: nowrap; }
+.chain-timeline-full > span { display: block; }
+.chain-timeline-det-row { display: grid; grid-template-columns: 62px auto; gap: var(--s-2); align-items: start; font-size: 12px; line-height: 18px; color: var(--text-3); }
+.chain-timeline-det-row + .chain-timeline-det-row { margin-top: 6px; }
+.chain-timeline-det-row s .chain-timeline-full, .chain-timeline-det-row s .chain-band-zero { color: var(--text-3); }
+.chain-timeline-det-edit { margin-top: 6px; font-size: 12px; line-height: 16px; color: var(--text-2); }
+.chain-timeline-det-foot {
+  display: flex; align-items: center; gap: var(--s-2); min-width: 0; margin-top: var(--s-2);
+  font-size: 12px; line-height: 16px; color: var(--text-3); white-space: nowrap;
+}
+.chain-timeline-det-check { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.chain-timeline-det-foot b { color: var(--text-2); font-weight: 600; }
+.chain-timeline-det-foot b.chain-band-bad { color: var(--red); }
+.chain-timeline-det-foot b.is-dep { color: var(--amber); }
+.chain-timeline-lab {
+  margin-left: auto; flex: none; display: inline-flex; align-items: center; height: 26px; padding: 0 10px;
+  border-radius: var(--r-sm); border: 1px solid var(--line); background: var(--panel-2); color: var(--text);
+  font: 500 12px/1 var(--ui); cursor: pointer; white-space: nowrap;
+}
+.chain-timeline-lab:hover { border-color: var(--line-3); background: var(--panel-3); }
+.chain-timeline-lab:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+/* candidate: dashed, striped, the first row */
+.chain-timeline-cand {
+  position: relative; display: flex; align-items: center; gap: var(--s-2); min-width: 0;
+  height: calc(var(--chain-timeline-row-h) - 4px); margin: 2px 0; padding: 0 var(--s-2); overflow: hidden;
+  border-radius: var(--r-sm); background: repeating-linear-gradient(135deg, var(--pend-a) 0 8px, var(--pend-b) 8px 16px);
+  outline: 1px dashed var(--pend-line); outline-offset: -1px; font-size: 13px; color: var(--text-2); white-space: nowrap;
+}
+.chain-timeline-cand .chain-timeline-n { width: auto; }
+.chain-timeline-tag { flex: none; font-size: 11px; line-height: 16px; padding: 0 6px; border-radius: 8px; background: var(--blue-bg); color: var(--coach); }
+.chain-timeline-ctxt { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.chain-timeline-ctxt b { color: var(--text); font-weight: 600; }
+.chain-timeline-cend { margin-left: auto; flex: none; display: inline-flex; align-items: center; gap: 10px; font-size: 12px; color: var(--text-3); }
+.chain-timeline-down { display: inline-flex; align-items: center; gap: 4px; font-weight: 500; color: var(--coach); }
+.chain-timeline-cand.is-mining { outline-style: solid; outline-color: var(--blue); }
+.chain-timeline-cand.is-mining .chain-timeline-tag { background: var(--blue); color: var(--on-accent); }
+.chain-timeline-cand.is-mining .chain-timeline-cend { color: var(--text-2); }
+.chain-timeline-cand.is-paused .chain-timeline-tag { background: var(--panel-3); color: var(--text-2); }
+.chain-timeline-mine-line {
+  position: absolute; left: 1px; right: 1px; bottom: 1px; height: 2px; overflow: hidden; background: var(--chain-timeline-mine-track);
+}
+.chain-timeline-mine-line::after {
+  content: ""; position: absolute; top: 0; bottom: 0; left: 0; width: 34%; border-radius: 1px;
+  background: linear-gradient(90deg, transparent, var(--blue) 30%, var(--blue) 70%, transparent);
+  transform: translateX(90%);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .chain-timeline-mine-line::after { animation: chain-timeline-mine-drift 3.6s ease-in-out infinite alternate; }
+}
+@keyframes chain-timeline-mine-drift { from { transform: translateX(-20%); } to { transform: translateX(220%); } }
+
+/* ---------- health line, per-block chips (2 columns, timeline order), key figures ---------- */
+.chain-timeline-health { margin-top: 6px; border-top: 1px solid var(--line-2); }
+.chain-timeline-health .chain-band-health-line { height: 32px; gap: var(--s-2); }
+.chain-timeline-health .chain-band-health-text { gap: var(--s-2); }
+.chain-timeline-strip { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; margin: 2px 0 var(--s-2); }
+.chain-timeline-strip .chain-band-chk { justify-content: flex-start; padding: 0 10px; }
+.chain-timeline-strip .chain-band-chk.is-two { align-items: flex-start; }
+.chain-timeline-figs { margin: 0; height: 20px; overflow: hidden; text-overflow: ellipsis; font-size: 12px; line-height: 20px; color: var(--text-3); white-space: nowrap; }
+.chain-timeline-figs > span { display: inline-flex; gap: 6px; }
+.chain-timeline-figs b { color: var(--text-2); font-weight: 600; }
+
+/* smallest phones (< 340 px of row): drop the time column, let the name shrink */
+@container chain-timeline (max-width: 339.98px) {
+  .chain-timeline-t { display: none; }
+  .chain-timeline-who { flex: 0 1 80px; }
+  .chain-timeline-h { flex: none; }
+}
+
+/* tablet width (768-1023): previous hash column, wider status */
+@container chain-timeline (min-width: 640px) {
+  .chain-timeline-sum { gap: var(--s-3); }
+  .chain-timeline-n { width: 36px; }
+  .chain-timeline-who { width: 96px; }
+  .chain-timeline-tx { width: 52px; }
+  .chain-timeline-t { width: 56px; }
+  .chain-timeline-status { flex-basis: 228px; }
+  .chain-timeline-h { width: 104px; flex: none; }
+  .chain-timeline-prev { display: block; }
+  .chain-timeline-strip { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+/* Outside a block tile the genesis mark needs a page-colored chip. */
+.chain-timeline .chain-band-av.is-genesis { background: var(--panel-3); color: var(--text); box-shadow: inset 0 0 0 1px var(--line-3); }

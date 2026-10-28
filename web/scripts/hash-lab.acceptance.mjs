@@ -1,19 +1,18 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { join } from 'node:path';
+import { openTab, settle, snapshot } from './workbench.helpers.mjs';
 
 const nonceLabel = 'Nonce a number you can change';
 const initialHash = 'c7045b5e21b4edb436fb86d51830d621c23095d920e36976325d652c4f0207d9';
 const hashName = async lab => lab.getByRole('img', { name: /^SHA-256 hash:/ }).getAttribute('aria-label');
 
-// Run in the app's existing browser acceptance session, with auto-mining stopped.
-export async function verifyHashLab(page, output) {
-  const chainBefore = await page.getByRole('button', { name: 'Open blockchain insights' }).innerText();
-  const walletsBefore = await page.getByRole('button', { name: /^Open .+ details$/ }).allTextContents();
-  const entry = page.getByRole('button', { name: 'Open hash lab', exact: true });
-  await entry.click();
-  const lab = page.getByRole('dialog', { name: 'Hash lab', exact: true });
+// Run in the app's browser acceptance session in free play, with mining stopped.
+export async function verifyHashLab(page, output, before) {
+  await openTab(page, 'Hash lab');
+  const lab = page.locator('section.hash-lab');
   await lab.waitFor();
+  assert.match(page.url(), /#\/hash-lab$/);
   assert.equal(await hashName(lab), `SHA-256 hash: ${initialHash}`);
   await lab.getByLabel('Message', { exact: true }).fill('Hello, block?');
   const edited = createHash('sha256').update('{"message":"Hello, block?","nonce":0}').digest('hex');
@@ -42,7 +41,8 @@ export async function verifyHashLab(page, output) {
 
   for (const width of [320, 390, 768, 1200, 1440]) {
     await page.setViewportSize({ width, height: 900 });
-    const bounds = await lab.locator('.hash-lab').boundingBox();
+    await settle(page);
+    const bounds = await lab.boundingBox();
     assert.ok(bounds && bounds.x >= 0 && bounds.x + bounds.width <= width, JSON.stringify({ width, bounds }));
     await lab.getByLabel('Message', { exact: true }).fill('A'.repeat(1000));
     if (!(await lab.locator('.hash-lab-preimage').evaluate(element => element.open))) {
@@ -55,19 +55,15 @@ export async function verifyHashLab(page, output) {
     assert.ok(size.pageWidth <= size.viewport, JSON.stringify(size));
     assert.ok(size.contentWidth <= size.panelWidth, JSON.stringify(size));
     await lab.getByRole('button', { name: 'Reset lab' }).click();
-    await page.locator('.hash-lab').evaluate(element => { element.scrollTop = 0; });
     await page.screenshot({ path: join(output, `hash-lab-${width}.png`) });
   }
-  await page.keyboard.press('Escape');
-  await lab.waitFor({ state: 'hidden' });
-  assert.equal(await page.getByRole('button', { name: 'Open blockchain insights' }).innerText(), chainBefore);
-  assert.deepEqual(await page.getByRole('button', { name: /^Open .+ details$/ }).allTextContents(), walletsBefore);
-  assert.equal(await entry.evaluate(element => document.activeElement === element), true);
-  await entry.click();
-  assert.equal(await hashName(lab), `SHA-256 hash: ${initialHash}`);
+  await page.setViewportSize({ width: 1440, height: 1000 });
   await lab.getByRole('button', { name: 'Back to simulator' }).click();
   await lab.waitFor({ state: 'hidden' });
-  assert.equal(await entry.evaluate(element => document.activeElement === element), true);
-  return ['Hash lab fingerprints and exact search result verified', 'Lab keyboard Stop/Escape and focus restoration verified',
-    'Lab fits five widths with long input; closing preserves chain and wallet state'];
+  assert.deepEqual(await snapshot(page), before, 'The hash lab leaves the chain and wallets untouched');
+  await openTab(page, 'Hash lab');
+  assert.equal(await hashName(lab), `SHA-256 hash: ${initialHash}`, 'Reopening restores the sample');
+  await openTab(page, 'Workbench');
+  return ['Hash lab fingerprints and exact search result verified', 'Lab keyboard Stop and reset verified',
+    'Lab fits five widths with long input; leaving preserves chain and wallet state'];
 }

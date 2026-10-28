@@ -142,6 +142,8 @@ export function candidateHash(candidate, nonce) {
   return SHA256(candidate.prefix + nonce).toString();
 }
 
+const WALLET_NAME = /^[A-Za-z0-9]{2,16}$/;
+
 // Blockchain class - the main chain management
 export class Blockchain {
   constructor(name, miningDifficulty = 3, blockReward = 3.125, halvingEvent = 210000, startingBalance = 0) {
@@ -154,6 +156,17 @@ export class Blockchain {
     this.memPool = [];
     this.startingBalance = startingBalance;
     this.miningLog = [];
+    // Original amounts of tampered transactions, keyed "block:tx"; set once per edit.
+    this.tamperedOriginals = new Map();
+    // Set by every change to an already mined block (tamper, undo, re-mine).
+    this.historyEdited = false;
+  }
+
+  // Whether a new block may be appended. acceptBlock only extends a valid tip,
+  // so the chain can only turn invalid through an edit of its history; the full
+  // re-validation (every hash and signature) is needed only after one.
+  canExtend() {
+    return !this.historyEdited || this.isChainValid();
   }
 
   createGenesisBlock() {
@@ -164,6 +177,17 @@ export class Blockchain {
     const participant = new Participant(name, isMiner);
     this.participants.push(participant);
     return participant;
+  }
+
+  // A wallet the learner creates: a non-miner participant whose balance
+  // follows the starting balance rule like every other wallet.
+  addWallet(name) {
+    const trimmed = typeof name === 'string' ? name.trim() : '';
+    if (!WALLET_NAME.test(trimmed)) return { success: false, error: 'Use 2–16 letters or digits for the wallet name.' };
+    const taken = this.participants.some(p => p.name.toLowerCase() === trimmed.toLowerCase());
+    if (taken) return { success: false, error: `A wallet named ${trimmed} already exists.` };
+    const participant = this.addParticipant(trimmed, false);
+    return { success: true, error: null, participant };
   }
 
   getParticipantByName(name) {
@@ -359,6 +383,55 @@ export class Blockchain {
     return { status: 'accepted', block };
   }
 
+  // Halving epoch of the block at `height`: the number of halvings applied up
+  // to and including it (0 before the first halving).
+  epochAt(height) {
+    return this.blockArray.slice(1, height + 1).filter(block => block.halved === true).length;
+  }
+
+  // Freeze the work to re-mine historical block `index`: it is re-linked to its
+  // predecessor's current stored hash and needs the current target; its
+  // transactions and timestamp stay as they are. Every earlier block must be valid.
+  prepareRemine(index, { difficulty = this.miningDifficulty } = {}) {
+    if (!Number.isInteger(index) || index < 1 || index >= this.blockArray.length) {
+      return { success: false, code: 'invalid_block', error: 'Choose a mined block after Genesis to re-mine.' };
+    }
+    const broken = this.firstBrokenBlock();
+    if (broken !== null && broken < index) {
+      return { success: false, code: 'repair_first', repairFirst: broken, error: `Re-mine block #${broken} first.` };
+    }
+    const block = this.blockArray[index];
+    const previousHash = this.blockArray[index - 1].hash;
+    const txRoot = transactionRoot(block.transactions);
+    return {
+      success: true,
+      candidate: Object.freeze({
+        index, previousHash, timestamp: block.timestamp, difficulty, target: '0'.repeat(difficulty), txRoot,
+        prefix: previousHash + txRoot + block.timestamp + difficulty
+      })
+    };
+  }
+
+  // Store a re-mining proof. Nothing changes unless the proof is valid and the
+  // block, its predecessor and every earlier block are as they were prepared.
+  acceptRemine(candidate, nonce, hash) {
+    if (hash !== candidateHash(candidate, nonce)) return { status: 'rejected', reason: 'hash-mismatch' };
+    if (!hash.startsWith(candidate.target)) return { status: 'rejected', reason: 'target-miss' };
+    const block = this.blockArray[candidate.index];
+    const broken = this.firstBrokenBlock();
+    if (!block || this.blockArray[candidate.index - 1].hash !== candidate.previousHash ||
+      transactionRoot(block.transactions) !== candidate.txRoot || (broken !== null && broken < candidate.index)) {
+      return { status: 'stale' };
+    }
+    block.previousHash = candidate.previousHash;
+    block.txRoot = candidate.txRoot;
+    block.difficulty = candidate.difficulty;
+    block.nonce = nonce;
+    block.hash = hash;
+    this.historyEdited = true;
+    return { status: 'accepted', block };
+  }
+
   // Validation methods
   areBlocksValid() {
     // Genesis block validity check (timestamp-agnostic)
@@ -373,6 +446,38 @@ export class Blockchain {
     }
 
     return true;
+  }
+
+  // Per-block checks for the chain health view. A block's own status:
+  // `hash-mismatch` when its content no longer produces the stored hash or the
+  // stored hash misses its target; `link-broken` when its stored previous hash
+  // differs from the predecessor's stored hash; `signature-invalid` when hash
+  // and link are fine but a signed transaction no longer matches its signature
+  // (re-mining repairs hashes, never signatures); `built-on-broken` when the
+  // block itself is fine but an earlier block is broken; otherwise `valid`.
+  inspectBlocks() {
+    let brokenBefore = false;
+    return this.blockArray.map((block, index) => {
+      const storedHash = block.hash;
+      const computedHash = block.createHash();
+      const hashMatches = storedHash === computedHash;
+      const meetsTarget = storedHash.startsWith('0'.repeat(block.difficulty));
+      // Genesis has no predecessor; its link is intact by definition.
+      const linkIntact = index === 0 || block.previousHash === this.blockArray[index - 1].hash;
+      const signaturesValid = block.transactions.every(tx => { try { return tx.isValid(); } catch { return false; } });
+      const builtOnBroken = brokenBefore;
+      const status = !hashMatches || !meetsTarget ? 'hash-mismatch'
+        : !linkIntact ? 'link-broken'
+          : !signaturesValid ? 'signature-invalid'
+            : builtOnBroken ? 'built-on-broken' : 'valid';
+      if (status !== 'valid') brokenBefore = true;
+      return { index, storedHash, computedHash, hashMatches, meetsTarget, linkIntact, signaturesValid, builtOnBroken, status };
+    });
+  }
+
+  // Index of the first block whose status is not `valid`, or null.
+  firstBrokenBlock() {
+    return this.inspectBlocks().find(check => check.status !== 'valid')?.index ?? null;
   }
 
   areTransactionsValid() {
@@ -414,12 +519,40 @@ export class Blockchain {
   }
 
   // Tamper with a transaction (for demo purposes)
+  // The first edit of a transaction remembers its original amount; setting the
+  // original amount again ends the edit.
   tamperTransaction(blockIndex, txIndex, newAmount) {
     if (this.blockArray[blockIndex] && this.blockArray[blockIndex].transactions[txIndex]) {
-      this.blockArray[blockIndex].transactions[txIndex].amount = newAmount;
+      const tx = this.blockArray[blockIndex].transactions[txIndex];
+      const key = `${blockIndex}:${txIndex}`;
+      if (!this.tamperedOriginals.has(key)) this.tamperedOriginals.set(key, { blockIndex, txIndex, amount: tx.amount });
+      tx.amount = newAmount;
+      this.historyEdited = true;
+      if (this.tamperedOriginals.get(key).amount === newAmount) this.tamperedOriginals.delete(key);
       return true;
     }
     return false;
+  }
+
+  // Restore the original amounts of every edited transaction in one block.
+  undoTamper(blockIndex) {
+    let restored = 0;
+    for (const [key, edit] of this.tamperedOriginals) {
+      if (edit.blockIndex !== blockIndex) continue;
+      this.blockArray[edit.blockIndex].transactions[edit.txIndex].amount = edit.amount;
+      this.tamperedOriginals.delete(key);
+      this.historyEdited = true;
+      restored++;
+    }
+    return { success: restored > 0, restored };
+  }
+
+  // Current edits, ordered by block and transaction: amount `from` → `to`.
+  getTamperedEdits() {
+    return [...this.tamperedOriginals.values()]
+      .map(({ blockIndex, txIndex, amount }) => ({ blockIndex, txIndex, from: amount,
+        to: this.blockArray[blockIndex].transactions[txIndex].amount }))
+      .sort((a, b) => a.blockIndex - b.blockIndex || a.txIndex - b.txIndex);
   }
 
   // Get block details

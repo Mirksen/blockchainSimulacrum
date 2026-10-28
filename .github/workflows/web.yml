@@ -28,6 +28,15 @@ jobs:
         env:
           VITE_POSTHOG_PROJECT_TOKEN: phc_syntheticproject
           EXPECT_POSTHOG: '1'
+          SCREENSHOT_DIR: ${{ github.workspace }}/web/screenshots
+      # The reference views (web/DESIGN.md, "Rebuild") for review on every PR.
+      - uses: actions/upload-artifact@v7.0.2
+        if: always()
+        with:
+          name: screenshots
+          path: web/screenshots/
+          if-no-files-found: warn
+          retention-days: 14
       - run: npm run deploy:check
         env:
           WRANGLER_LOG_PATH: /tmp/proofofwork-wrangler.log

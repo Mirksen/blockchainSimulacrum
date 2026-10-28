@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { inspectChain, remineBlock, sampleChain } from '../lib/chainLab';
 import { SEARCH_LIMIT } from '../lib/hashLab';
+import { CoachMark } from './workbench/CoachMark';
 import './ChainLab.css';
 
-export function ChainLab({ onClose, embedded = false, onLessonEvent }) {
+export function ChainLab({ onClose, embedded = false, onLessonEvent, coach = null }) {
   const [blocks, setBlocks] = useState(sampleChain);
   const [searching, setSearching] = useState(null);
   const initialData = useRef(blocks[0].data);
@@ -12,6 +13,7 @@ export function ChainLab({ onClose, embedded = false, onLessonEvent }) {
   useEffect(() => () => { active.current?.abort(); active.current = null; }, []);
   const checks = inspectChain(blocks);
   const consistent = checks.every(check => check.valid);
+  const firstBroken = checks.findIndex(check => !check.valid);
 
   function cancel() {
     active.current?.abort();
@@ -74,8 +76,10 @@ export function ChainLab({ onClose, embedded = false, onLessonEvent }) {
             <header><h3 id={`chain-block-${index}-title`}>Block {block.number}</h3>
               <span className={check.valid ? 'chain-lab-positive' : 'chain-lab-negative'}>{check.valid ? 'Valid through here' : 'Invalid through here'}</span></header>
             <label htmlFor={`chain-data-${index}`}>Block {block.number} data</label>
-            <textarea id={`chain-data-${index}`} rows={2} maxLength={300} value={block.data}
-              onChange={event => edit(index, { data: event.target.value })} />
+            <CoachMark target={index === 0 ? 'chain-lab.block-1' : undefined} coach={index === 0 ? coach : null}>
+              <textarea id={`chain-data-${index}`} rows={2} maxLength={300} value={block.data}
+                onChange={event => edit(index, { data: event.target.value })} />
+            </CoachMark>
             <label htmlFor={`chain-nonce-${index}`}>Block {block.number} nonce</label>
             <input id={`chain-nonce-${index}`} inputMode="numeric" value={block.nonce}
               aria-invalid={!!check.error} aria-describedby={check.error ? `chain-error-${index}` : undefined}
@@ -91,8 +95,10 @@ export function ChainLab({ onClose, embedded = false, onLessonEvent }) {
               <li className={check.linkMatches ? 'chain-lab-positive' : 'chain-lab-negative'}>{check.linkMatches ? 'Previous link matches' : 'Previous link does not match'}</li>
               {index > 0 && <li className={check.ancestorsValid ? 'chain-lab-positive' : 'chain-lab-negative'}>{check.ancestorsValid ? 'Earlier blocks valid' : 'Earlier block invalid'}</li>}
             </ul>
-            {searching === index ? <button className="btn btn-negative" onClick={() => active.current?.abort()}>Stop search</button>
-              : <button className="btn btn-emphasized" disabled={!!check.error || searching !== null} onClick={() => mine(index)}>Re-mine Block {block.number}</button>}
+            <CoachMark target={index === firstBroken ? 'chain-lab.remine' : undefined} coach={index === firstBroken ? coach : null}>
+              {searching === index ? <button className="btn btn-negative" onClick={() => active.current?.abort()}>Stop search</button>
+                : <button className="btn btn-emphasized" disabled={!!check.error || searching !== null} onClick={() => mine(index)}>Re-mine Block {block.number}</button>}
+            </CoachMark>
             <details className="chain-lab-input"><summary>Inspect Block {block.number} input</summary>
               <p>SHA-256 hashes this exact UTF-8 JSON text:</p><code>{check.trial?.preimage || 'Enter a valid nonce to inspect the input.'}</code>
               <p>Recomputed hash:</p><code>{check.trial?.hash || 'Waiting for a valid nonce'}</code>

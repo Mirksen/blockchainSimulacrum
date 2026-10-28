@@ -1,0 +1,421 @@
+/* Chain band — web/DESIGN.md "Chain band", on the product tokens
+   (styles/tokens.css). No hex colors here:
+   state colors are mixed from the tokens so both themes follow. */
+
+.chain-band {
+  container: chain-band / inline-size;
+  --chain-band-page-x: var(--s-6);
+  --chain-band-tile-h: 140px;
+  --chain-band-tile-max: 280px;
+  --chain-band-link-w: clamp(28px, 2.85cqi, 36px);
+  --chain-band-earlier-w: 88px;
+  --chain-band-cols: 6;
+  --chain-band-order-size: 22px;
+  --chain-band-chk-h-tall: 36px;
+  /* state colors (tampered.html, r5-v6), derived from tokens */
+  --chain-band-broken: linear-gradient(160deg, color-mix(in srgb, var(--red) 38%, var(--blk-0-side)) 0%, color-mix(in srgb, var(--red) 22%, var(--blk-0-side)) 100%);
+  --chain-band-broken-top: color-mix(in srgb, var(--red) 46%, var(--blk-0-side));
+  --chain-band-broken-side: color-mix(in srgb, var(--red) 18%, var(--blk-0-side));
+  --chain-band-broken-soft: color-mix(in srgb, var(--red) 38%, var(--blk-text));
+  --chain-band-dep: linear-gradient(160deg, color-mix(in srgb, var(--blk-0-top) 82%, var(--blk-0-side)) 0%, color-mix(in srgb, var(--blk-0-top) 52%, var(--blk-0-side)) 100%);
+  --chain-band-dep-top: color-mix(in srgb, var(--blk-0-top) 92%, var(--blk-text));
+  --chain-band-dep-side: var(--blk-0-side);
+  --chain-band-dep-text: color-mix(in srgb, var(--blk-text) 88%, var(--blk-0-top));
+  --chain-band-dep-soft: color-mix(in srgb, var(--amber) 32%, var(--blk-text));
+  --chain-band-amber-line: color-mix(in srgb, var(--amber) 70%, transparent);
+  --chain-band-mine-track: color-mix(in srgb, var(--blue) 16%, transparent);
+
+  position: relative;
+  z-index: 5;
+  box-sizing: border-box;
+  height: 100%;
+  min-width: 0;
+  background: radial-gradient(760px 220px at 85% 0%, var(--band-glow), transparent 70%), var(--bg);
+  border-bottom: 1px solid var(--line-2);
+  color: var(--text);
+  font: 13px/18px var(--ui);
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+}
+.chain-band *, .chain-band *::before, .chain-band *::after { box-sizing: border-box; }
+.chain-band h2 { margin: 0; }
+.chain-band-inner { padding: var(--s-3) var(--chain-band-page-x) 10px; }
+.chain-band-mono { font-family: var(--mono); font-size: 11px; }
+.chain-band-sep { color: var(--text-3); }
+.chain-band-zero { color: var(--green); font-weight: 700; }
+.chain-band-bad { color: var(--red); font-weight: 700; }
+
+/* ---------- header: title, order, hint, quiet key figures ---------- */
+.chain-band-header {
+  display: flex; align-items: center; gap: 10px; height: 26px; min-width: 0;
+  font-size: 12px; line-height: 16px; color: var(--text-3); white-space: nowrap;
+}
+.chain-band-header h2 { font-size: 13px; font-weight: 600; color: var(--text); }
+.chain-band-grows { display: inline-flex; align-items: center; gap: 6px; }
+.chain-band-stats {
+  margin-left: auto; display: flex; align-items: center; gap: 10px; min-width: 0;
+  overflow: hidden; color: var(--text-3);
+}
+.chain-band-stats b { color: var(--text-2); font-weight: 600; }
+
+/* ---------- row: [earlier] [#0] [link #1] … [link cand depth]; the strip uses the same items ---------- */
+.chain-band-row { display: flex; align-items: stretch; min-width: 0; margin-top: calc(14px + var(--block-depth)); }
+.chain-band-item {
+  position: relative; display: flex; min-width: 0;
+  flex: 1 1 var(--chain-band-link-w);
+  max-width: calc(var(--chain-band-tile-max) + var(--chain-band-link-w));
+}
+.chain-band-item.is-first { flex-basis: 0; max-width: var(--chain-band-tile-max); }
+.chain-band-item.is-cand {
+  flex-basis: calc(var(--chain-band-link-w) + var(--block-depth));
+  max-width: calc(var(--chain-band-tile-max) + var(--chain-band-link-w) + var(--block-depth));
+}
+.chain-band-item.is-earlier { display: none; flex: 0 0 var(--chain-band-earlier-w); max-width: none; }
+.chain-band-depth { flex: 0 0 var(--block-depth); }
+
+/* ---------- block tile (3D) ---------- */
+.chain-band-tile {
+  position: relative; flex: 1 1 0; min-width: 0; height: var(--chain-band-tile-h);
+  color: var(--blk-text); background: var(--blk-4);
+}
+.chain-band-tile::before {
+  content: ""; position: absolute; left: 0; top: calc(var(--block-depth) * -1); width: 100%; height: var(--block-depth);
+  background: var(--blk-top); transform: skewX(-45deg); transform-origin: bottom left;
+}
+.chain-band-tile::after {
+  content: ""; position: absolute; right: calc(var(--block-depth) * -1); top: 0; width: var(--block-depth); height: 100%;
+  background: var(--blk-side); transform: skewY(-45deg); transform-origin: top left;
+}
+.chain-band-tile[data-h="3"] { background: var(--blk-3); }
+.chain-band-tile[data-h="2"] { background: var(--blk-2); }
+.chain-band-tile[data-h="1"] { background: var(--blk-1); }
+.chain-band-tile[data-h="0"] { background: var(--blk-0); }
+.chain-band-tile[data-h="0"]::before { background: var(--blk-0-top); }
+.chain-band-tile[data-h="0"]::after { background: var(--blk-0-side); }
+.chain-band-tile.is-newest { box-shadow: 0 12px 28px -12px var(--blk-glow); }
+.chain-band-tile:hover { outline: 2px solid var(--blk-hover); outline-offset: 3px; }
+.chain-band-tile.is-selected { outline: 2px solid var(--blk-selected); outline-offset: 3px; }
+
+.chain-band-tile-face {
+  display: flex; flex-direction: column; justify-content: space-between; width: 100%; height: 100%;
+  margin: 0; padding: 12px 16px; border: 0; border-radius: 0; background: transparent; overflow: hidden;
+  color: inherit; font: inherit; text-align: left; cursor: pointer;
+}
+.chain-band-tile-face:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
+.chain-band-tile-top { display: flex; align-items: baseline; gap: var(--s-2); min-width: 0; font-size: 12px; line-height: 20px; white-space: nowrap; }
+.chain-band-tile-top b { font-size: 17px; font-weight: 600; }
+.chain-band-tag {
+  min-width: 0; overflow: hidden; text-overflow: ellipsis;
+  font-size: 11px; line-height: 16px; padding: 0 6px; border-radius: 8px; background: var(--blk-tag-bg);
+}
+.chain-band-time { margin-left: auto; opacity: .85; }
+.chain-band-tile-by { display: flex; align-items: center; gap: var(--s-2); min-width: 0; font-size: 13px; line-height: 18px; white-space: nowrap; }
+.chain-band-who { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.chain-band-btx { margin-left: auto; font-size: 12px; opacity: .85; }
+.chain-band-tile-prev, .chain-band-tile-was, .chain-band-tile-status {
+  display: block; font-size: 11px; line-height: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.chain-band-tile-prev { opacity: .78; }
+.chain-band-tile-foot {
+  display: flex; align-items: center; gap: var(--s-2); min-width: 0; padding-top: 10px; border-top: 1px solid var(--blk-rule);
+}
+.chain-band-tile-hash {
+  font-family: var(--mono); font-size: 12px; line-height: 20px; background: var(--blk-hash-bg);
+  border-radius: 4px; padding: 0 6px; white-space: nowrap;
+}
+.chain-band-lz { font-weight: 700; }
+.chain-band-meets { margin-left: auto; font-size: 11px; opacity: .8; white-space: nowrap; }
+
+/* miner chip */
+.chain-band-av {
+  width: 18px; height: 18px; flex: none; border-radius: 5px; display: inline-grid; place-items: center;
+  font-size: 10px; font-weight: 700; color: var(--on-light); background: var(--panel-3);
+}
+.chain-band-av.is-lars { background: var(--lars); }
+.chain-band-av.is-minas { background: var(--minas); }
+.chain-band-av.is-alice { background: var(--alice); }
+.chain-band-av.is-bob { background: var(--bob); }
+.chain-band-av.is-chris { background: var(--chris); }
+.chain-band-av.is-genesis { background: var(--genesis-av); color: var(--blk-text); }
+.chain-band-av.is-other { color: var(--text); }
+
+/* broken block: red, "Hash mismatch" / "Signature invalid" / "Link broken", new hash, stored hash struck */
+.chain-band-tile.is-broken { background: var(--chain-band-broken); box-shadow: inset 0 0 0 2px var(--red); }
+.chain-band-tile.is-broken::before { background: var(--chain-band-broken-top); }
+.chain-band-tile.is-broken::after { background: var(--chain-band-broken-side); }
+.chain-band-tile.is-broken:hover { outline: 2px solid var(--blk-hover); outline-offset: 3px; }
+.chain-band-tile.is-broken.is-selected { outline: 2px solid var(--blk-selected); outline-offset: 3px; }
+.chain-band-tag.is-bad { background: var(--red); color: var(--on-light); font-weight: 600; }
+.chain-band-tile.is-broken .chain-band-tile-hash { background: color-mix(in srgb, var(--blk-0-side) 70%, transparent); }
+.chain-band-tile.is-broken .chain-band-lz,
+.chain-band-meets.is-bad { color: var(--chain-band-broken-soft); }
+.chain-band-meets.is-bad { opacity: 1; font-weight: 600; }
+.chain-band-tile-was { color: var(--chain-band-broken-soft); }
+.chain-band-tile-was s { font-family: var(--mono); text-decoration-thickness: 1px; }
+
+/* built on a broken block: muted tile, dashed amber edge, contents unchanged */
+.chain-band-tile.is-dependent {
+  background: var(--chain-band-dep); color: var(--chain-band-dep-text);
+  outline: 1px dashed var(--chain-band-amber-line); outline-offset: -1px;
+}
+.chain-band-tile.is-dependent::before { background: var(--chain-band-dep-top); }
+.chain-band-tile.is-dependent::after { background: var(--chain-band-dep-side); }
+.chain-band-tile.is-dependent.is-newest { box-shadow: none; }
+.chain-band-tile.is-dependent:hover,
+.chain-band-tile.is-dependent.is-selected { outline: 2px solid var(--blk-hover); outline-offset: 3px; }
+.chain-band-tile.is-dependent.is-selected { outline-color: var(--blk-selected); }
+.chain-band-tile-status { color: var(--chain-band-dep-soft); font-weight: 600; }
+
+/* re-mine order markers on the tile corner */
+.chain-band-order {
+  position: absolute; z-index: 3;
+  top: calc(var(--chain-band-order-size) / -2 - 2px); right: calc(var(--chain-band-order-size) / -2 - 2px);
+  width: var(--chain-band-order-size); height: var(--chain-band-order-size); border-radius: 50%;
+  display: grid; place-items: center; font-size: 11px; font-weight: 700; color: var(--text);
+  background: var(--panel-3); border: 1px solid var(--line-3); box-shadow: 0 0 0 3px var(--bg);
+}
+.chain-band-order.is-next {
+  background: var(--coach); border-color: var(--coach); color: var(--on-light);
+  box-shadow: 0 0 0 3px var(--bg), 0 0 0 6px var(--coach-ring);
+}
+
+/* ---------- hairline link: 1 px line at mid-height + 6 px dot ---------- */
+.chain-band-link { position: relative; flex: 0 0 var(--chain-band-link-w); min-width: 0; cursor: help; }
+.chain-band-link::before {
+  content: ""; position: absolute; left: var(--block-depth); right: 0; top: 50%; height: 1px; background: var(--link-line);
+}
+.chain-band-link-dot {
+  position: absolute; top: 50%; left: calc(var(--block-depth) + (100% - var(--block-depth)) / 2);
+  width: var(--link-dot-size); height: var(--link-dot-size);
+  margin: calc(var(--link-dot-size) / -2) 0 0 calc(var(--link-dot-size) / -2);
+  border-radius: 50%; background: var(--link-dot); box-shadow: 0 0 0 2px var(--link-dot-ring);
+}
+.chain-band-link:hover::before, .chain-band-link:focus-visible::before { background: var(--link-line-hover); }
+.chain-band-link:hover .chain-band-link-dot, .chain-band-link:focus-visible .chain-band-link-dot {
+  box-shadow: 0 0 0 2px var(--link-dot-ring), 0 0 0 5px var(--link-dot-halo);
+}
+.chain-band-link:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.chain-band-link.is-pending::before { background: repeating-linear-gradient(90deg, var(--link-line) 0 3px, transparent 3px 6px); }
+.chain-band-link.is-pending .chain-band-link-dot { background: var(--bg); box-shadow: inset 0 0 0 1px var(--pend-line), 0 0 0 2px var(--link-dot-ring); }
+.chain-band-link.is-broken::before { background: var(--red); }
+.chain-band-link.is-broken .chain-band-link-dot { background: var(--red); }
+.chain-band-link.is-dependent .chain-band-link-dot { background: var(--amber); }
+.chain-band-ltip {
+  display: none; position: absolute; z-index: 40; left: calc(var(--block-depth) + (100% - var(--block-depth)) / 2);
+  bottom: calc(50% + 12px); transform: translateX(-50%);
+  padding: 5px 9px; border-radius: var(--r-sm); background: var(--overlay); border: 1px solid var(--line-3);
+  box-shadow: 0 12px 28px -10px var(--shadow);
+  font-size: 12px; line-height: 16px; color: var(--text-2); white-space: nowrap; pointer-events: none;
+}
+.chain-band-ltip b { color: var(--green); font-weight: 500; }
+.chain-band-link.is-broken .chain-band-ltip b { color: var(--red); }
+.chain-band-link.is-dependent .chain-band-ltip b { color: var(--amber); }
+.chain-band-link.is-pending .chain-band-ltip b { color: var(--text); }
+.chain-band-link:hover .chain-band-ltip, .chain-band-link:focus-visible .chain-band-ltip { display: block; }
+
+/* ---------- candidate tile at the growing end ---------- */
+.chain-band-cand {
+  position: relative; flex: 1 1 0; min-width: 0; height: var(--chain-band-tile-h); padding: 12px 16px;
+  display: flex; flex-direction: column; justify-content: space-between; overflow: visible; color: var(--text);
+  background: repeating-linear-gradient(135deg, var(--pend-a) 0 8px, var(--pend-b) 8px 16px);
+  outline: 1px dashed var(--pend-line); outline-offset: -1px;
+}
+.chain-band-cand::before {
+  content: ""; position: absolute; left: 0; top: calc(var(--block-depth) * -1); width: 100%; height: var(--block-depth);
+  background: var(--pend-top); transform: skewX(-45deg); transform-origin: bottom left;
+}
+.chain-band-cand::after {
+  content: ""; position: absolute; right: calc(var(--block-depth) * -1); top: 0; width: var(--block-depth); height: 100%;
+  background: var(--pend-side); transform: skewY(-45deg); transform-origin: top left;
+}
+.chain-band-cand .chain-band-tag { flex: none; background: var(--blue-bg); color: var(--coach); }
+.chain-band-cand .chain-band-time { min-width: 0; overflow: hidden; text-overflow: ellipsis; color: var(--text-3); opacity: 1; }
+.chain-band-cand .chain-band-tile-by { color: var(--text-2); }
+.chain-band-cand .chain-band-tile-by span { overflow: hidden; text-overflow: ellipsis; }
+.chain-band-cand .chain-band-tile-prev { color: var(--text-3); opacity: 1; }
+.chain-band-cand .chain-band-tile-foot { border-top-color: var(--line-3); }
+.chain-band-down {
+  display: inline-flex; align-items: center; gap: 6px; height: 20px; min-width: 0; overflow: hidden;
+  font-size: 12px; font-weight: 500; color: var(--coach); white-space: nowrap;
+}
+.chain-band-cand.is-mining { outline-style: solid; outline-color: var(--blue); }
+.chain-band-cand.is-mining .chain-band-tag { background: var(--blue); color: var(--on-accent); }
+.chain-band-cand.is-mining .chain-band-time { color: var(--text-2); }
+.chain-band-cand.is-mining .chain-band-tile-by b { color: var(--text); font-weight: 600; }
+.chain-band-cand.is-paused .chain-band-tag { background: var(--panel-3); color: var(--text-2); }
+.chain-band-mine-line {
+  position: absolute; left: 1px; right: 1px; bottom: 1px; height: 2px; overflow: hidden; background: var(--chain-band-mine-track);
+}
+.chain-band-mine-line::after {
+  content: ""; position: absolute; top: 0; bottom: 0; left: 0; width: 34%; border-radius: 1px;
+  background: linear-gradient(90deg, transparent, var(--blue) 30%, var(--blue) 70%, transparent);
+  transform: translateX(90%);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .chain-band-mine-line::after { animation: chain-band-mine-drift 3.6s ease-in-out infinite alternate; }
+}
+@keyframes chain-band-mine-drift { from { transform: translateX(-20%); } to { transform: translateX(220%); } }
+
+/* ---------- "‹ N earlier" control ---------- */
+.chain-band-earlier {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  width: 100%; min-width: 0; height: var(--chain-band-tile-h); padding: 0 var(--s-2);
+  border: 1px solid var(--line); border-radius: var(--r-md); background: transparent;
+  color: var(--text-2); font: 12px/16px var(--ui); cursor: pointer; white-space: nowrap;
+}
+.chain-band-earlier svg { color: var(--text-3); margin-bottom: 2px; }
+.chain-band-earlier small { display: block; font-size: 11px; color: var(--text-3); }
+.chain-band-earlier:hover { background: var(--panel); border-color: var(--line-3); color: var(--text); }
+.chain-band-earlier:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.chain-band-tier-a, .chain-band-tier-b, .chain-band-tier-c { display: none; flex-direction: column; align-items: center; }
+
+/* ---------- full-hash tooltip on hover and focus ---------- */
+.chain-band-tip {
+  display: none; position: absolute; z-index: 30; top: calc(100% + 12px); left: -12px;
+  padding: 10px var(--s-3) var(--s-3); border-radius: var(--r-md); cursor: default; text-align: left;
+  background: var(--overlay); border: 1px solid var(--line-3); color: var(--text);
+  box-shadow: 0 18px 40px -10px var(--shadow);
+}
+.chain-band-tip::before {
+  content: ""; position: absolute; top: -6px; left: 40px; width: 10px; height: 10px; transform: rotate(45deg);
+  background: var(--overlay); border-left: 1px solid var(--line-3); border-top: 1px solid var(--line-3);
+}
+.chain-band-tip::after { content: ""; position: absolute; left: 0; right: 0; top: -14px; height: 14px; }
+.chain-band-tip.is-end { left: auto; right: -12px; }
+.chain-band-tip.is-end::before { left: auto; right: 40px; }
+.chain-band-tile:hover .chain-band-tip, .chain-band-tile:focus-within .chain-band-tip { display: block; }
+.chain-band-tile:hover, .chain-band-tile:focus-within { z-index: 31; }
+.chain-band-tip-head {
+  display: flex; align-items: center; gap: var(--s-3); margin-bottom: 6px;
+  font-size: 12px; line-height: 16px; color: var(--text-3); white-space: nowrap;
+}
+.chain-band-tip-head .chain-band-copy { margin-left: auto; }
+.chain-band-tip-full { display: block; font: 12px/18px var(--mono); width: 32ch; color: var(--text); }
+.chain-band-tip-full > span { display: block; white-space: nowrap; }
+.chain-band-tip-row {
+  display: grid; grid-template-columns: 62px auto; gap: var(--s-2); align-items: start;
+  font-size: 12px; line-height: 18px; color: var(--text-3);
+}
+.chain-band-tip-row + .chain-band-tip-row { margin-top: 6px; }
+.chain-band-tip-was, .chain-band-tip-was .chain-band-tip-full, .chain-band-tip-was .chain-band-zero { color: var(--text-3); }
+.chain-band-tip-meta { margin-top: 6px; font-size: 12px; line-height: 16px; color: var(--text-3); white-space: nowrap; }
+.chain-band-tip-meta b { color: var(--green); font-weight: 500; }
+.chain-band-tip-meta b.chain-band-bad { color: var(--red); font-weight: 700; }
+
+.chain-band-copy {
+  display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 var(--s-2); border-radius: 5px;
+  border: 1px solid var(--line-3); background: var(--panel-2); color: var(--text); font: 12px/1 var(--ui); cursor: pointer;
+}
+.chain-band-copy:hover { border-color: var(--blue); }
+.chain-band-copy:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+/* ---------- chain health: one quiet line, per-block checks when open ---------- */
+.chain-band-health { margin-top: 10px; }
+.chain-band-health-line {
+  display: flex; align-items: center; gap: 10px; height: 28px; min-width: 0;
+  font-size: 12px; line-height: 16px; color: var(--text-3); white-space: nowrap;
+}
+.chain-band-health-text { display: flex; align-items: center; gap: 10px; min-width: 0; overflow: hidden; }
+.chain-band-health-line b { color: var(--text-2); font-weight: 600; }
+.chain-band-health-sum { display: inline-flex; align-items: center; gap: 6px; color: var(--green); }
+.chain-band-health-line .chain-band-health-sum b { color: var(--green); }
+.chain-band-health-sum i { width: var(--link-dot-size); height: var(--link-dot-size); border-radius: 50%; background: var(--green); }
+.chain-band-health.is-invalid .chain-band-health-sum,
+.chain-band-health.is-invalid .chain-band-health-sum b { color: var(--red); }
+.chain-band-health.is-invalid .chain-band-health-sum i { background: var(--red); }
+.chain-band-health-issues { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.chain-band-health-toggle {
+  margin-left: auto; flex: none; display: inline-flex; align-items: center; gap: 6px; height: 24px;
+  padding: 0 6px 0 var(--s-2); border-radius: var(--r-sm); border: 0; background: transparent;
+  color: var(--text-2); font: 12px/16px var(--ui); cursor: pointer;
+}
+.chain-band-health-toggle:hover { background: var(--panel-2); color: var(--text); }
+.chain-band-health-toggle:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.chain-band-health-toggle svg { transition: transform .15s; }
+.chain-band-health.is-open .chain-band-health-toggle svg { transform: rotate(180deg); }
+
+.chain-band-strip { align-items: center; margin-top: var(--s-2); }
+.chain-band-health.is-invalid .chain-band-strip { align-items: stretch; }
+.chain-band-chk {
+  display: flex; align-items: center; justify-content: center; gap: 6px; flex: 1 1 0; height: 26px; min-width: 0;
+  padding: 0 var(--s-2); overflow: hidden; border-radius: 13px; border: 1px solid var(--line-3); background: var(--panel);
+  font-size: 12px; line-height: 16px; color: var(--text-2); white-space: nowrap;
+}
+.chain-band-chk b { color: var(--text); font-weight: 600; }
+.chain-band-ok { display: inline-flex; align-items: center; gap: 3px; color: var(--text-2); font-weight: 500; }
+.chain-band-chk.is-broken { border-color: var(--red); color: var(--red); }
+.chain-band-chk.is-dependent { border-color: var(--amber); color: var(--amber); }
+.chain-band-chk.is-pending { border-style: dashed; border-color: var(--pend-line); background: transparent; color: var(--text-3); }
+.chain-band-chk.is-two {
+  height: var(--chain-band-chk-h-tall, 36px); border-radius: var(--r-md); flex-direction: column; gap: 0; line-height: 14px;
+}
+.chain-band-chk-st { max-width: 100%; overflow: hidden; text-overflow: ellipsis; font-size: 12px; line-height: 15px; font-weight: 600; }
+.chain-band-chk-dt {
+  display: inline-flex; align-items: center; gap: 4px; max-width: 100%; overflow: hidden;
+  font-size: 11px; line-height: 14px; color: var(--text-3); white-space: nowrap;
+}
+.chain-band-chk.is-ok .chain-band-chk-st { color: var(--text); }
+.chain-band-chk.is-broken { background: var(--red-bg); }
+.chain-band-chk.is-broken .chain-band-chk-st, .chain-band-chk.is-broken .chain-band-chk-dt { color: var(--red); }
+.chain-band-chk.is-dependent { border-style: dashed; background: var(--amber-bg); }
+.chain-band-chk.is-dependent .chain-band-chk-st { color: var(--amber); }
+.chain-band-chk.is-dependent .chain-band-chk-dt { color: var(--text-2); }
+.chain-band-chk-link { position: relative; flex: 0 0 var(--chain-band-link-w); min-height: 26px; }
+.chain-band-chk-link::before { content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 1px; background: var(--link-line); }
+.chain-band-chk-link.is-pending::before { background: repeating-linear-gradient(90deg, var(--link-line) 0 3px, transparent 3px 6px); }
+.chain-band-chk-link.is-dependent::before { background: var(--chain-band-amber-line); }
+.chain-band-chk-link.is-broken::before { background: var(--red); }
+.chain-band-earlier-cell { display: none; flex: 1 1 0; min-width: 0; }
+.chain-band-earlier-cell .chain-band-chk { height: 100%; }
+.chain-band-earlier-cell .chain-band-chk:not(.is-two) { height: 26px; }
+
+/* ---------- fluid: container tiers (band width), no sideways scroll ---------- */
+@container chain-band (max-width: 1209.98px) {
+  .chain-band-tile-face, .chain-band-cand { padding-left: var(--s-3); padding-right: var(--s-3); }
+  .chain-band-meets { display: none; }
+}
+@container chain-band (max-width: 1179.98px) {
+  .chain-band-hint { display: none; }
+}
+/* tier a: < 1114 px, tiles would drop below ~150 px: newest 3 + candidate */
+@container chain-band (max-width: 1113.98px) {
+  .chain-band-row { --chain-band-cols: 4; }
+  .chain-band.has-earlier-a .chain-band-item.is-earlier { display: flex; }
+  .chain-band-earlier .chain-band-tier-a { display: flex; }
+  .chain-band-earlier-cell.chain-band-tier-a { display: block; }
+  .chain-band-item.is-hidden-a { display: none; }
+  .chain-band-tile-face, .chain-band-cand { padding-left: var(--s-4); padding-right: var(--s-4); }
+  .chain-band-meets { display: inline; }
+}
+/* tier b: 1114-1239 px: up to 5 blocks, or newest 4 next to the earlier control */
+@container chain-band (min-width: 1114px) and (max-width: 1239.98px) {
+  .chain-band.has-earlier-b .chain-band-item.is-earlier { display: flex; }
+  .chain-band-earlier .chain-band-tier-b { display: flex; }
+  .chain-band-earlier-cell.chain-band-tier-b { display: block; }
+  .chain-band-item.is-hidden-b { display: none; }
+}
+/* tier c: >= 1240 px: up to 5 blocks, also next to the earlier control */
+@container chain-band (min-width: 1240px) {
+  .chain-band.has-earlier-c .chain-band-item.is-earlier { display: flex; }
+  .chain-band-earlier .chain-band-tier-c { display: flex; }
+  .chain-band-earlier-cell.chain-band-tier-c { display: block; }
+  .chain-band-item.is-hidden-c { display: none; }
+}
+/* very narrow hosts (the workbench shows ChainTimeline below 1024 px): header keeps title and key figures */
+@container chain-band (max-width: 599.98px) {
+  .chain-band-hint, .chain-band-grows { display: none; }
+}
+
+/* earlier blocks shown: all tiles wrap into rows on the same column width */
+.chain-band.is-all .chain-band-row { flex-wrap: wrap; row-gap: calc(var(--s-6) + var(--block-depth)); }
+.chain-band.is-all .chain-band-strip { row-gap: var(--s-2); }
+.chain-band.is-all .chain-band-item.is-hidden-a,
+.chain-band.is-all .chain-band-item.is-hidden-b,
+.chain-band.is-all .chain-band-item.is-hidden-c { display: flex; }
+.chain-band.is-all .chain-band-item { flex: 0 0 auto; max-width: none; }
+.chain-band.is-all .chain-band-item.is-earlier { flex: 0 0 var(--chain-band-earlier-w); }
+.chain-band.is-all .chain-band-item.is-first { padding-left: var(--chain-band-link-w); }
+.chain-band.is-all :is(.chain-band-tile, .chain-band-cand, .chain-band-item > .chain-band-chk) {
+  flex: 0 0 min(var(--chain-band-tile-max), calc((100cqi - 2 * var(--chain-band-page-x) - var(--chain-band-earlier-w) - var(--chain-band-cols) * var(--chain-band-link-w) - var(--block-depth)) / var(--chain-band-cols)));
+}
+.chain-band.is-all .chain-band-earlier-cell { visibility: hidden; }

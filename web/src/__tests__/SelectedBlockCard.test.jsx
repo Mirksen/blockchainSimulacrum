@@ -1,0 +1,144 @@
+// @vitest-environment jsdom
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { SelectedBlockCard } from '../components/workbench/SelectedBlockCard';
+
+afterEach(cleanup);
+
+const HASH = '0080a3e897fb1e3839f43f95b033620ff7fb2f9739c8e415e5ce6e7df0726c4d';
+const PREV = '00e6130b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f708192a3b4c5d6e7f80912f8';
+const block = (overrides = {}) => ({
+  index: 4, hash: HASH, previousHash: PREV, nonce: 5775, difficulty: 2, isNewest: true,
+  miner: 'Lars', seconds: 7.1, tries: 332, reward: 1.5625,
+  transactions: [{ from: 'Alice', to: 'Bob', amount: 0.25 }, { from: null, to: 'Lars', amount: 1.5625 }],
+  ...overrides
+});
+const card = () => screen.getByRole('region', { name: /Selected block/ });
+
+describe('SelectedBlockCard', () => {
+  it('shows an empty state without a block', () => {
+    render(<SelectedBlockCard block={null} />);
+    expect(card().textContent).toContain('No block selected.');
+  });
+
+  it('shows a valid block: short hash with Copy, intact link, nonce, miner facts and transactions', () => {
+    render(<SelectedBlockCard block={block()} status="valid" prevHash={PREV} />);
+    const text = card().textContent;
+    expect(screen.getByRole('heading', { name: 'Selected block #4' })).toBeTruthy();
+    expect(text).toContain('Valid');
+    expect(text).toContain('newest · mined by Lars');
+    expect(text).toContain('0080a3…4d');
+    expect(text).toContain('starts with 00');
+    expect(text).toContain('= hash of #3');
+    expect(text).toContain('link intact');
+    expect(text).toContain('5,775');
+    expect(text).toContain('7.1 s · 332 tries · reward 1.5625');
+    expect(text).toContain('Alice → Bob 0.25 and 1 more');
+    expect(screen.getByRole('button', { name: 'Tamper with this block' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Undo edit/ })).toBeNull();
+  });
+
+  it('copies the full hash and says so', () => {
+    const writeText = vi.fn(() => Promise.resolve());
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+    render(<SelectedBlockCard block={block()} prevHash={PREV} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Copy hash' }));
+    expect(writeText).toHaveBeenCalledWith(HASH);
+    expect(screen.getByRole('button', { name: 'hash copied' }).textContent).toBe('Copied');
+  });
+
+  it('calls Open in Chain lab and Details with the block index', () => {
+    const onOpenChainLab = vi.fn();
+    const onOpenDetails = vi.fn();
+    render(<SelectedBlockCard block={block()} prevHash={PREV} onOpenChainLab={onOpenChainLab} onOpenDetails={onOpenDetails} />);
+    fireEvent.click(screen.getByRole('button', { name: /Open in Chain lab/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Details' }));
+    expect(onOpenChainLab).toHaveBeenCalledWith(4);
+    expect(onOpenDetails).toHaveBeenCalledWith(4);
+  });
+
+  it('tamper opens an inline editor that validates and changes one amount', () => {
+    const onTamper = vi.fn();
+    render(<SelectedBlockCard block={block()} prevHash={PREV} onTamper={onTamper} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Tamper with this block' }));
+    const form = screen.getByRole('form', { name: 'Change a transaction amount in block 4' });
+    const amount = within(form).getByLabelText('New amount');
+    expect(amount.value).toBe('0.25');
+
+    fireEvent.click(within(form).getByRole('button', { name: 'Change amount' }));
+    expect(screen.getByRole('alert').textContent).toBe('That is the current amount. Enter a different one.');
+    fireEvent.change(amount, { target: { value: '-1' } });
+    fireEvent.click(within(form).getByRole('button', { name: 'Change amount' }));
+    expect(screen.getByRole('alert').textContent).toBe('Enter an amount of 0 or more.');
+    fireEvent.change(amount, { target: { value: 'abc' } });
+    fireEvent.click(within(form).getByRole('button', { name: 'Change amount' }));
+    expect(screen.getByRole('alert').textContent).toBe('Enter an amount, for example 2.00.');
+    expect(onTamper).not.toHaveBeenCalled();
+
+    fireEvent.change(within(form).getByLabelText('Transaction'), { target: { value: '1' } });
+    expect(amount.value).toBe('1.5625');
+    fireEvent.change(amount, { target: { value: '5' } });
+    fireEvent.click(within(form).getByRole('button', { name: 'Change amount' }));
+    expect(onTamper).toHaveBeenCalledWith(4, 1, 5);
+    expect(screen.queryByRole('form')).toBeNull();
+  });
+
+  it('closes the editor on Cancel and disables Tamper for a block without transactions', () => {
+    const { rerender } = render(<SelectedBlockCard block={block()} prevHash={PREV} onTamper={() => {}} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Tamper with this block' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(screen.queryByRole('form')).toBeNull();
+    rerender(<SelectedBlockCard block={block({ transactions: [] })} prevHash={PREV} onTamper={() => {}} />);
+    expect(screen.getByRole('button', { name: 'Tamper with this block' }).disabled).toBe(true);
+  });
+
+  it('marks the tamper button as the coach target', () => {
+    render(<SelectedBlockCard block={block()} prevHash={PREV} onTamper={() => {}}
+      coach={{ target: 'workbench.selected-block.tamper', label: 'Step 1 · tamper' }} />);
+    const mark = document.querySelector('[data-coach-target="workbench.selected-block.tamper"]');
+    expect(mark.classList.contains('is-active')).toBe(true);
+    expect(within(mark).getByRole('button', { name: 'Tamper with this block' })).toBeTruthy();
+    expect(screen.getByRole('note').textContent).toContain('Step 1 · tamper');
+  });
+
+  it('shows a hash mismatch with hash now, as mined, the edit and Undo edit', () => {
+    const onUndo = vi.fn();
+    const computed = '7c41e235e2f72f5e4541c5f66eec0ce5e06e28d53ef19595758471564a74a5b0';
+    const b = block({ index: 2, isNewest: false, transactions: [{ from: 'Lars', to: 'Minas', amount: 0.6 }, { from: 'Bob', to: 'Chris', amount: 2 }] });
+    render(<SelectedBlockCard block={b} status={{ status: 'hash-mismatch', storedHash: HASH, computedHash: computed }}
+      prevHash={PREV} edit={{ blockIndex: 2, txIndex: 1, from: 0.2, to: 2 }} onUndo={onUndo} />);
+    const text = card().textContent;
+    expect(text).toContain('Hash mismatch');
+    expect(text).toContain('edited after mining · mined by Lars');
+    expect(text).toContain('Hash now');
+    expect(text).toContain('7c41e2…b0');
+    expect(text).toContain('0/2 zeros');
+    expect(text).toContain('does not start with 00');
+    expect(text).toContain('As mined');
+    expect(text).toContain('what #3 still stores as its previous hash');
+    expect(text).toContain('Your edit');
+    expect(text).toContain('Bob → Chris 0.20 → 2.00');
+    expect(text).toContain('tx 2 of 2');
+    expect(screen.queryByRole('button', { name: 'Tamper with this block' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Undo edit' }));
+    expect(onUndo).toHaveBeenCalledWith(2);
+  });
+
+  it('names the other invalid statuses with their cause', () => {
+    const { rerender } = render(<SelectedBlockCard block={block({ index: 3, isNewest: false })} status="built-on-broken" prevHash={PREV} />);
+    expect(card().textContent).toContain('Built on a broken block');
+    expect(card().textContent).toContain('its own link is intact');
+    expect(card().textContent).toContain('link intact');
+
+    rerender(<SelectedBlockCard block={block({ index: 3 })} status="link-broken" prevHash="00ffee0000000000000000000000000000000000000000000000000000000011" />);
+    expect(card().textContent).toContain('Link broken');
+    expect(card().textContent).toContain('link broken');
+    expect(card().textContent).toContain('#2 is now 00ffee…11');
+
+    rerender(<SelectedBlockCard block={block({ index: 2 })} status="signature-invalid" prevHash={PREV}
+      edit={{ txIndex: 0, from: 0.2, to: 2 }} onUndo={() => {}} />);
+    expect(card().textContent).toContain('Signature invalid');
+    expect(screen.getByText('Re-mining fixes the hash, not the signature. Undo the edit to repair.')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Undo edit' })).toBeTruthy();
+  });
+});

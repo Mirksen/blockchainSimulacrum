@@ -1,5 +1,6 @@
 import { useEffect, useReducer, useRef } from 'react';
 import { changedPositions, createTrial, findNonce, meetsTarget, parseNonce, SEARCH_LIMIT } from '../lib/hashLab';
+import { CoachMark } from './workbench/CoachMark';
 import './HashLab.css';
 
 const INITIAL_MESSAGE = 'Hello, block!';
@@ -32,7 +33,7 @@ function reducer(state, action) {
   }
 }
 
-export function HashLab({ onClose, lesson, onLessonEvent }) {
+export function HashLab({ onClose, lesson, onLessonEvent, coach = null }) {
   const [state, dispatch] = useReducer(reducer, lesson === 'work' ? 1 : 2, initialState);
   const activeSearch = useRef(null);
   useEffect(() => () => activeSearch.current?.abort(), []);
@@ -100,8 +101,10 @@ export function HashLab({ onClose, lesson, onLessonEvent }) {
     <div className="hash-lab-workbench">
       <div className="hash-lab-inputs">
         <label htmlFor="hash-lab-message">Message</label>
-        <textarea id="hash-lab-message" value={message} readOnly={lesson === 'work'} maxLength={1000} rows={3}
-          onChange={lesson === 'work' ? undefined : event => edit({ message: event.target.value })} aria-describedby="hash-lab-message-help" />
+        <CoachMark target="hash-lab.message" coach={coach}>
+          <textarea id="hash-lab-message" value={message} readOnly={lesson === 'work'} maxLength={1000} rows={3}
+            onChange={lesson === 'work' ? undefined : event => edit({ message: event.target.value })} aria-describedby="hash-lab-message-help" />
+        </CoachMark>
         <p id="hash-lab-message-help" className="hash-lab-help">{lesson === 'work' ? 'The message is held fixed so the two searches are comparable.' : 'Try changing one character, then changing it back.'}</p>
         <label htmlFor="hash-lab-nonce">Nonce <span className="hash-lab-help">{lesson === 'work' ? 'the number the search changes' : 'a number you can change'}</span></label>
         <div className="hash-lab-nonce-row">
@@ -132,11 +135,13 @@ export function HashLab({ onClose, lesson, onLessonEvent }) {
           <option value="1">0 — one zero</option><option value="2">00 — two zeros</option>{lesson !== 'work' && <option value="3">000 — three zeros</option>}
         </select>
         <p className="hash-lab-help">Each extra zero makes a match about 16 times less likely per attempt.</p></div>
-      <div className="hash-lab-search-actions">
-        {searching ? <button className="btn btn-negative" onClick={() => { activeSearch.current?.abort(); dispatch({ type: 'stopping' }); }}>Stop search</button>
-          : <button className="btn btn-emphasized" disabled={!!error} onClick={search}>Find a nonce</button>}
-        <button className="btn btn-transparent" onClick={reset}>Reset lab</button>
-      </div>
+      <CoachMark target="hash-lab.search" coach={coach}>
+        <div className="hash-lab-search-actions">
+          {searching ? <button className="btn btn-negative" onClick={() => { activeSearch.current?.abort(); dispatch({ type: 'stopping' }); }}>Stop search</button>
+            : <button className="btn btn-emphasized" disabled={!!error} onClick={search}>Find a nonce</button>}
+          <button className="btn btn-transparent" onClick={reset}>Reset lab</button>
+        </div>
+      </CoachMark>
     </div>}
     <p className="hash-lab-feedback" role="status">{feedback}</p>
     {lesson !== 'hash' && <p className="hash-lab-help">Search starts at {lesson === 'work' ? 'nonce 0' : 'the displayed nonce'} and checks up to {SEARCH_LIMIT.toLocaleString()} candidates. Editing an input cancels the search.</p>}

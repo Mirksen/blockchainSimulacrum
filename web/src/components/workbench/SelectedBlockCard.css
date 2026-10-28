@@ -1,0 +1,30 @@
+/* Selected block card — shell, rows and buttons come from cardKit.css */
+.selected-block { container: selected-block / inline-size; }
+.selected-block .card-kit-head .card-kit-pill > svg { flex: none; }
+.selected-block-rows { min-height: 0; }
+.selected-block-txs { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.selected-block-edit b { font-weight: 600; }
+
+.selected-block-note {
+  flex: none; margin: 0 var(--s-4) var(--s-1); padding: 6px 10px; border-radius: var(--r-sm);
+  background: var(--red-bg); color: var(--text); font-size: 12px; line-height: 16px;
+}
+
+.selected-block-actions { flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); padding: var(--s-1) var(--s-4) 14px; }
+.selected-block-details { margin-left: auto; }
+.coach-mark.is-active.selected-block-coach { display: inline-flex; }
+
+.selected-block-editor { flex: none; border-top: 1px solid var(--line-2); border-bottom: 0; }
+.selected-block-editor-fields { display: grid; grid-template-columns: minmax(0, 1fr) 128px; gap: var(--s-2); }
+.selected-block-editor-hint { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* narrow card (phone, tablet side by side): explanations wrap under their value */
+@container selected-block (max-width: 520px) {
+  .selected-block .card-kit-kv { grid-template-columns: 92px minmax(0, 1fr); align-items: start; flex: none; padding: 6px 0; }
+  .selected-block .card-kit-kv > dt { line-height: 24px; }
+  .selected-block .card-kit-kv > dd { min-height: 24px; }
+  .selected-block .card-kit-kv > dd { flex-wrap: wrap; white-space: normal; row-gap: 2px; }
+  .selected-block .card-kit-head .card-kit-aside { display: none; }
+  .selected-block-editor-fields { grid-template-columns: minmax(0, 1fr); }
+  .selected-block-editor-hint { display: none; }
+}

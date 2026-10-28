@@ -1,0 +1,92 @@
+/* Top bar (web/DESIGN.md, "Information architecture"). */
+.top-bar {
+  flex: none; position: relative; z-index: 40;
+  height: 52px; display: flex; align-items: center; gap: var(--s-7);
+  padding: 0 var(--s-6); border-bottom: 1px solid var(--line); background: var(--bg-2);
+  color: var(--text); font: 13px/18px var(--ui); font-variant-numeric: tabular-nums;
+}
+.top-bar *, .top-bar *::before, .top-bar *::after { box-sizing: border-box; }
+.top-bar.is-compact { gap: 10px; padding: 0 var(--s-4); }
+
+.top-bar-brand { display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 15px; white-space: nowrap; }
+.top-bar.is-compact .top-bar-brand { gap: var(--s-2); }
+.top-bar-logo { flex: none; }
+.top-bar-logo-a { stop-color: var(--blue); }
+.top-bar-logo-b { stop-color: var(--minas); }
+.top-bar-logo-side { fill: var(--blue-2); }
+
+.top-bar-tabs { display: flex; gap: var(--s-1); list-style: none; margin: 0; padding: 0; }
+.top-bar-tabs a {
+  display: block; padding: 6px var(--s-3); border-radius: var(--r-sm);
+  color: var(--text-2); text-decoration: none; font-size: 14px; line-height: 20px; white-space: nowrap;
+}
+.top-bar-tabs a:hover { background: var(--panel); color: var(--text); }
+.top-bar-tabs a.is-current { color: var(--text); background: var(--panel-2); }
+
+.top-bar-end { position: relative; margin-left: auto; display: flex; align-items: center; gap: var(--s-3); }
+.top-bar.is-compact .top-bar-end { gap: var(--s-2); }
+
+.top-bar-pill {
+  display: inline-flex; align-items: center; gap: var(--s-2); height: 28px; padding: 0 var(--s-3);
+  border-radius: 14px; font-size: 13px; border: 1px solid var(--line); color: var(--text-2); white-space: nowrap;
+}
+.top-bar-pill i { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+.top-bar-chain.is-ok { color: var(--green); background: var(--green-bg); border-color: transparent; font-weight: 500; }
+.top-bar-chain.is-bad { color: var(--red); background: var(--red-bg); border-color: transparent; font-weight: 600; }
+
+.top-bar-more {
+  width: 32px; height: 32px; display: grid; place-items: center; padding: 0; border-radius: var(--r-sm);
+  border: 1px solid var(--line); background: transparent; color: var(--text-2); cursor: pointer;
+}
+.top-bar-more:hover, .top-bar-more[aria-expanded="true"] { background: var(--panel-2); color: var(--text); }
+
+.top-bar a:focus-visible, .top-bar button:focus-visible, .top-bar summary:focus-visible, .top-bar input:focus-visible {
+  outline: 2px solid var(--focus); outline-offset: 2px;
+}
+
+/* overflow menu */
+.top-bar-menu {
+  position: absolute; z-index: 60; right: 0; top: calc(100% + 8px); width: 280px;
+  max-height: calc(100vh - 72px); overflow-y: auto;
+  padding: var(--s-1); border-radius: var(--r-lg); background: var(--overlay); border: 1px solid var(--line-3);
+  box-shadow: 0 18px 40px -10px var(--shadow);
+}
+.top-bar-menu-section { padding: var(--s-1) 0; }
+.top-bar-menu-section + .top-bar-menu-section { border-top: 1px solid var(--line-2); }
+.top-bar-menu-nav { list-style: none; margin: 0; padding: 0; }
+.top-bar-menu-nav a, .top-bar-item {
+  width: 100%; display: flex; align-items: center; gap: 10px; min-height: 36px; padding: 0 10px;
+  border: 0; border-radius: var(--r-sm); background: transparent; color: var(--text);
+  font: inherit; font-size: 13px; text-align: left; text-decoration: none; cursor: pointer;
+}
+.top-bar-menu-nav a { color: var(--text-2); font-size: 14px; }
+.top-bar-menu-nav a.is-current { color: var(--text); background: var(--panel-2); font-weight: 500; }
+.top-bar-menu-nav a:hover, .top-bar-item:hover { background: var(--panel-2); color: var(--text); }
+.top-bar-item svg { color: var(--text-2); }
+.top-bar-item-state { margin-left: auto; color: var(--text-3); font-size: 12px; }
+.top-bar-menu-coin { margin: 0; padding: var(--s-2) 10px; border-top: 1px solid var(--line-2); font-size: 12px; color: var(--text-3); }
+
+/* the existing usage-sharing control, restyled inside the menu */
+.top-bar-usage .analytics-control { margin: 0; padding: 0; border: 0; background: transparent; color: var(--text); }
+.top-bar-usage .analytics-control summary {
+  display: flex; align-items: center; min-height: 36px; padding: 0 10px; border-radius: var(--r-sm);
+  font-size: 13px; color: var(--text); cursor: pointer;
+}
+.top-bar-usage .analytics-control summary::-webkit-details-marker { display: none; }
+.top-bar-usage .analytics-control summary::after {
+  content: ""; margin-left: auto; width: 6px; height: 6px; margin-top: -3px;
+  border-right: 1.5px solid var(--text-3); border-bottom: 1.5px solid var(--text-3); transform: rotate(45deg);
+}
+.top-bar-usage .analytics-control[open] summary::after { margin-top: 3px; transform: rotate(-135deg); }
+.top-bar-usage .analytics-control summary:hover { background: var(--panel-2); }
+.top-bar-usage .analytics-control > div { padding: 0 10px var(--s-2); font-size: 12px; line-height: 17px; color: var(--text-2); }
+.top-bar-usage .analytics-control p { margin: var(--s-2) 0 0; }
+.top-bar-usage .analytics-control label { display: flex; align-items: flex-start; gap: var(--s-2); margin-top: var(--s-2); color: var(--text); }
+
+/* 768-1023: the coin pill moves into the menu so the tabs keep their room. */
+@media (max-width: 1023.98px) {
+  .top-bar-coin { display: none; }
+}
+@media (min-width: 1024px) {
+  .top-bar-menu-coin.is-narrow-only { display: none; }
+}

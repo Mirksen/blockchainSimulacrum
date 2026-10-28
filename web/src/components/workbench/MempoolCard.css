@@ -1,0 +1,36 @@
+/* Mempool card — rows take the card height; the form opens under the header */
+.mempool-card { container: mempool-card / inline-size; }
+.mempool-card .card-kit-head { position: relative; z-index: 1; }
+.coach-mark.is-active.mempool-card-coach { display: inline-flex; }
+
+.mempool-card-form { flex: none; }
+.mempool-card-fields { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 112px minmax(0, 1.2fr); gap: var(--s-2); }
+.mempool-card-form-hint { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.mempool-card-list { list-style: none; margin: 0; padding: 0; flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; }
+.mempool-card-tx {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: var(--s-3);
+  flex: 1 1 44px; min-height: 36px; max-height: 96px; padding: 0 var(--s-4); border-bottom: 1px solid var(--line-2);
+}
+.mempool-card-tx.is-mining { grid-template-columns: minmax(0, 1fr) auto auto; }
+.mempool-card-what { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mempool-card-what b { font-weight: 500; }
+.mempool-card-what small { font-size: 12px; color: var(--text-3); margin-left: var(--s-2); }
+.mempool-card-amt { font-family: var(--mono); font-size: 13px; }
+.mempool-card-tx.is-coinbase { border-bottom: 0; }
+.mempool-card-tx.is-coinbase b { font-weight: 400; color: var(--text-2); }
+.mempool-card-tx.is-coinbase .mempool-card-amt { color: var(--text-2); }
+.mempool-card-state { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--coach); white-space: nowrap; }
+.mempool-card-state i { width: 6px; height: 6px; border-radius: 50%; background: var(--blue); }
+.mempool-card-empty { flex: none; border-bottom: 1px solid var(--line-2); }
+
+@container mempool-card (max-width: 520px) {
+  .mempool-card-aside { display: none; }
+  .mempool-card .card-kit-head .btn-tinted, .coach-mark.is-active.mempool-card-coach { margin-left: auto; }
+  .coach-mark.is-active.mempool-card-coach .btn-tinted { margin-left: 0; }
+  .mempool-card-fields { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .mempool-card-form-hint { display: none; }
+  .mempool-card-tx.is-mining { grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: auto auto; padding-block: 6px; }
+  .mempool-card-tx.is-mining .mempool-card-state { grid-column: 1; grid-row: 2; }
+  .mempool-card-tx.is-mining .mempool-card-amt { grid-column: 2; grid-row: 1 / 3; }
+}

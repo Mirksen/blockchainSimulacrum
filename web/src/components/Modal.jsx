@@ -1,4 +1,5 @@
 import { useLayoutEffect, useRef } from 'react';
+import './DetailsModal.css';
 
 // Native dialogs provide focus containment/restoration and nested-modal Escape
 // handling without manually overriding the browser's keyboard behavior.

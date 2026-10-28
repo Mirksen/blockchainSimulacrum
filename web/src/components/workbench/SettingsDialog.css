@@ -1,0 +1,47 @@
+/* Settings dialog: card surface on the overlay, product tokens only. */
+.settings-dialog {
+  width: min(460px, calc(100% - 32px)); max-width: 100%; max-height: calc(100vh - 32px);
+  padding: 0; border: 1px solid var(--line-3); border-radius: var(--r-lg);
+  background: var(--panel); color: var(--text); box-shadow: 0 18px 40px -10px var(--shadow);
+  font: 13px/18px var(--ui); font-variant-numeric: tabular-nums;
+}
+.settings-dialog::backdrop { background: var(--overlay); opacity: .7; }
+.settings-dialog *, .settings-dialog *::before, .settings-dialog *::after { box-sizing: border-box; }
+.settings-dialog-panel { padding: var(--s-4) var(--s-5) var(--s-5); display: flex; flex-direction: column; gap: var(--s-3); }
+.settings-dialog-head { display: flex; align-items: center; gap: var(--s-2); }
+.settings-dialog-head h2 { margin: 0; font-size: 16px; line-height: 22px; font-weight: 600; }
+.settings-dialog-close {
+  margin-left: auto; width: 28px; height: 28px; display: grid; place-items: center; padding: 0;
+  border-radius: var(--r-sm); border: 1px solid var(--line); background: transparent; color: var(--text-2); cursor: pointer;
+}
+.settings-dialog-close:hover { background: var(--panel-2); color: var(--text); }
+.settings-dialog-intro, .settings-dialog-help, .settings-dialog-busy { margin: 0; font-size: 12px; line-height: 17px; color: var(--text-2); }
+.settings-dialog-help { color: var(--text-3); }
+.settings-dialog-busy { padding: var(--s-2) 10px; border-radius: var(--r-sm); background: var(--amber-bg); color: var(--amber); }
+
+.settings-dialog-fields { display: flex; flex-direction: column; border-top: 1px solid var(--line-2); }
+.settings-dialog-field {
+  display: grid; grid-template-columns: 140px minmax(0, 1fr); align-items: center; gap: var(--s-3);
+  min-height: 44px; padding: 6px 0; border-bottom: 1px solid var(--line-2);
+}
+.settings-dialog-label { font-size: 13px; color: var(--text-2); }
+.settings-dialog-control { display: flex; align-items: center; gap: var(--s-2); min-width: 0; }
+.settings-dialog-unit { font-size: 12px; color: var(--text-3); white-space: nowrap; }
+.settings-dialog input {
+  height: 30px; min-width: 0; padding: 0 var(--s-2); border: 1px solid var(--line-3); border-radius: var(--r-sm);
+  background: var(--bg-2); color: var(--text); font: 13px var(--mono);
+}
+.settings-dialog input:not([type]) { flex: 1 1 auto; width: 100%; font-family: var(--ui); }
+.settings-dialog input[type="number"] { width: 84px; }
+.settings-dialog input[type="range"] { flex: 1 1 auto; height: auto; padding: 0; border: 0; background: transparent; accent-color: var(--blue); }
+.settings-dialog input:disabled { opacity: .55; cursor: not-allowed; }
+.settings-dialog-foot { display: flex; justify-content: flex-end; }
+.settings-dialog-done {
+  height: 30px; padding: 0 var(--s-3); border-radius: var(--r-sm); border: 1px solid var(--line);
+  background: var(--panel-2); color: var(--text); font: 500 13px var(--ui); cursor: pointer;
+}
+.settings-dialog-done:hover { border-color: var(--line-3); background: var(--panel-3); }
+.settings-dialog button:focus-visible, .settings-dialog input:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+@media (max-width: 480px) {
+  .settings-dialog-field { grid-template-columns: minmax(0, 1fr); gap: var(--s-1); }
+}
