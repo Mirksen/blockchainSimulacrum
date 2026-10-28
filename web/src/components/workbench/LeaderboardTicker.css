@@ -1,0 +1,51 @@
+/* Leaderboard ticker: a 28 px band directly under the top bar (web/DESIGN.md, "Existing features"). */
+.leaderboard-ticker {
+  flex: none; height: 28px; border-bottom: 1px solid var(--line-2); background: var(--bg);
+  font: 12px/16px var(--ui); font-variant-numeric: tabular-nums; color: var(--text-3);
+}
+.leaderboard-ticker *, .leaderboard-ticker *::before, .leaderboard-ticker *::after { box-sizing: border-box; }
+.leaderboard-ticker-button {
+  width: 100%; height: 100%; display: flex; align-items: center; gap: var(--s-3);
+  padding: 0 var(--s-6); border: 0; background: transparent; color: inherit; font: inherit;
+  text-align: left; cursor: pointer; overflow: hidden;
+}
+.leaderboard-ticker-button:hover { background: var(--bg-2); }
+.leaderboard-ticker-button:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+
+.leaderboard-ticker-title { flex: none; display: inline-flex; align-items: center; gap: 6px; font-weight: 600; color: var(--text-2); white-space: nowrap; }
+.leaderboard-ticker-open { flex: none; display: inline-flex; align-items: center; gap: var(--s-1); color: var(--text-3); white-space: nowrap; }
+.leaderboard-ticker-button:hover .leaderboard-ticker-open,
+.leaderboard-ticker-button:focus-visible .leaderboard-ticker-open { color: var(--text); }
+
+.leaderboard-ticker-viewport {
+  flex: 1 1 0; min-width: 0; overflow: hidden; white-space: nowrap;
+  -webkit-mask-image: linear-gradient(90deg, transparent, black 24px, black calc(100% - 24px), transparent);
+  mask-image: linear-gradient(90deg, transparent, black 24px, black calc(100% - 24px), transparent);
+}
+.leaderboard-ticker-track { display: inline-flex; width: max-content; }
+.leaderboard-ticker-list { display: inline-flex; flex: none; padding-left: var(--s-3); }
+.leaderboard-ticker { container: leaderboard-ticker / inline-size; }
+@container leaderboard-ticker (max-width: 599.98px) {
+  .leaderboard-ticker-button { padding: 0 var(--s-4); gap: var(--s-2); }
+  .leaderboard-ticker-title-text { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+}
+.leaderboard-ticker-row { display: inline-flex; align-items: baseline; gap: 6px; padding: 0 var(--s-5) 0 var(--s-2); }
+.leaderboard-ticker-row + .leaderboard-ticker-row { border-left: 1px solid var(--line-3); padding-left: var(--s-5); }
+.leaderboard-ticker-rank { color: var(--text-3); }
+.leaderboard-ticker-name { color: var(--text); font-weight: 500; }
+.leaderboard-ticker-points { color: var(--text-2); font-family: var(--mono); font-size: 11px; }
+.leaderboard-ticker-hash { color: var(--text-3); font-family: var(--mono); font-size: 11px; }
+.leaderboard-ticker-zero { color: var(--green); font-weight: 600; }
+
+@keyframes leaderboard-ticker-scroll {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .leaderboard-ticker:not(.is-static) .leaderboard-ticker-track {
+    animation: leaderboard-ticker-scroll var(--leaderboard-ticker-duration, 40s) linear infinite;
+  }
+  .leaderboard-ticker.is-paused .leaderboard-ticker-track,
+  .leaderboard-ticker-button:hover .leaderboard-ticker-track,
+  .leaderboard-ticker-button:focus-visible .leaderboard-ticker-track { animation-play-state: paused; }
+}

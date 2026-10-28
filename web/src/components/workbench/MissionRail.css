@@ -1,0 +1,151 @@
+/* Mission rail (web/DESIGN.md, "Mission rail"; round-6/base.html .rail, tampered.html, phone.html .mbar).
+   The parent grid sets the width: about 248 px open, 56 px collapsed. */
+.mission-rail, .mission-rail-sheet {
+  font: 13px/18px var(--ui); font-variant-numeric: tabular-nums; color: var(--text);
+}
+.mission-rail *, .mission-rail *::before, .mission-rail *::after,
+.mission-rail-sheet *, .mission-rail-sheet *::before, .mission-rail-sheet *::after { box-sizing: border-box; }
+.mission-rail h2, .mission-rail-sheet h2 { margin: 0; }
+.mission-rail button, .mission-rail-sheet button { font: inherit; color: inherit; }
+.mission-rail:not(.is-bar) {
+  width: 100%; height: 100%; min-height: 0; overflow: hidden;
+  background: var(--bg-2); border-right: 1px solid var(--line);
+}
+.mission-rail.is-collapsed { overflow: visible; position: relative; z-index: 20; }
+
+/* ---------- open form ---------- */
+.mission-rail-full { height: 100%; min-height: 0; padding: var(--s-4); display: flex; flex-direction: column; gap: 10px; }
+.mission-rail-head { flex: none; display: flex; align-items: center; gap: var(--s-2); height: 28px; }
+.mission-rail-flag { display: grid; color: var(--text-2); }
+.mission-rail-head h2 { font-size: 12px; line-height: 16px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--text-2); }
+.mission-rail-icon-btn {
+  width: 28px; height: 28px; display: grid; place-items: center; padding: 0; border-radius: var(--r-sm);
+  border: 1px solid var(--line); background: transparent; color: var(--text-2); cursor: pointer;
+}
+.mission-rail-head .mission-rail-icon-btn { margin-left: auto; }
+.mission-rail-icon-btn:hover { background: var(--panel-2); color: var(--text); }
+.mission-rail-xp { flex: none; display: flex; flex-wrap: wrap; gap: 0 var(--s-3); font-size: 12px; line-height: 16px; color: var(--text-3); }
+.mission-rail-xp b { color: var(--text-2); font-weight: 600; }
+.mission-rail-scroll { flex: 1 1 0; min-height: 0; overflow-y: auto; margin: 0 calc(-1 * var(--s-1)); padding: 0 var(--s-1); }
+.mission-rail-foot { flex: none; font-size: 12px; line-height: 17px; color: var(--text-3); border-top: 1px solid var(--line-2); padding-top: var(--s-3); }
+
+.mission-rail-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--s-1); }
+.mission-rail-mission {
+  display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: 10px; align-items: start;
+  padding: 6px var(--s-2); border-radius: var(--r-md); border: 1px solid transparent;
+}
+.mission-rail-ic { width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; font-weight: 600; }
+.mission-rail-body { min-width: 0; }
+.mission-rail-n { font-size: 11px; line-height: 16px; color: var(--text-3); }
+.mission-rail-title { display: block; font-size: 13px; line-height: 18px; font-weight: 500; }
+.mission-rail-title.is-button { width: 100%; padding: 0; border: 0; background: none; text-align: left; cursor: pointer; }
+.mission-rail-title.is-button:hover { text-decoration: underline; }
+.mission-rail-mission.is-done .mission-rail-ic { background: var(--green-bg); color: var(--green); }
+.mission-rail-mission.is-done .mission-rail-title { color: var(--text-2); }
+.mission-rail-mission.is-locked .mission-rail-ic { background: var(--panel-2); color: var(--text-3); }
+.mission-rail-mission.is-locked .mission-rail-title { color: var(--text-3); }
+.mission-rail-mission.is-active { background: var(--panel); border-color: var(--active-line); padding: var(--s-3) 10px; }
+.mission-rail-mission.is-active .mission-rail-ic { background: var(--blue); color: var(--on-accent); }
+
+.mission-rail-progress { height: 4px; border-radius: 2px; background: var(--panel-3); overflow: hidden; margin: var(--s-2) 0 var(--s-1); }
+.mission-rail-progress i { display: block; height: 100%; background: var(--blue); border-radius: 2px; }
+.mission-rail-steps { list-style: none; margin: var(--s-2) 0 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.mission-rail-step {
+  display: grid; grid-template-columns: 16px minmax(0, 1fr); gap: var(--s-2); padding: 6px;
+  border-radius: var(--r-sm); font-size: 13px; line-height: 18px; color: var(--text-2);
+}
+.mission-rail-step-ck { width: 16px; height: 16px; border-radius: 50%; margin-top: 1px; display: grid; place-items: center; }
+.mission-rail-step.is-done .mission-rail-step-ck { background: var(--green-bg); color: var(--green); }
+.mission-rail-step.is-done .mission-rail-step-txt { color: var(--text-3); text-decoration: line-through; text-decoration-color: var(--text-3); }
+.mission-rail-step.is-current { background: var(--blue-bg); color: var(--text); font-weight: 500; }
+.mission-rail-step.is-current .mission-rail-step-ck { border: 2px solid var(--coach); box-shadow: 0 0 0 3px var(--coach-ring); }
+.mission-rail-step.is-next .mission-rail-step-ck { border: 1.5px solid var(--line-3); }
+.mission-rail-step.is-next .mission-rail-step-txt { color: var(--text-3); }
+.mission-rail-show {
+  display: flex; align-items: center; gap: var(--s-1); margin-top: 6px; padding: 0; border: 0; background: none;
+  font-size: 12px; line-height: 16px; font-weight: 500; color: var(--coach); cursor: pointer;
+}
+.mission-rail-show:hover { text-decoration: underline; }
+.mission-rail-hint {
+  margin-top: var(--s-2); padding: var(--s-2) 10px; border-radius: var(--r-sm); background: var(--bg-2);
+  border: 1px solid var(--line-2); font-size: 12px; line-height: 17px; color: var(--text-2);
+}
+.mission-rail-reward { margin-top: var(--s-2); font-size: 12px; line-height: 16px; color: var(--text-3); }
+.mission-rail-complete {
+  display: flex; align-items: center; gap: var(--s-2); margin-top: var(--s-3); padding: var(--s-2) 10px;
+  border-radius: var(--r-sm); background: var(--green-bg); color: var(--green); font-size: 12px; line-height: 17px; font-weight: 500;
+}
+.mission-rail-sr {
+  position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden;
+  clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+
+/* ---------- icon form (56 px) ---------- */
+.mission-rail-mini { height: 100%; display: flex; flex-direction: column; align-items: center; gap: var(--s-2); padding: var(--s-3) 0; }
+.mission-rail-icons {
+  list-style: none; margin: 0; padding: var(--s-2) 0 0; width: 32px;
+  display: flex; flex-direction: column; align-items: center; gap: var(--s-2); border-top: 1px solid var(--line-2);
+}
+.mission-rail-icon {
+  position: relative; width: 32px; height: 32px; padding: 0; border: 0; border-radius: 50%;
+  display: grid; place-items: center; font-size: 12px; font-weight: 600; background: transparent; cursor: pointer;
+}
+.mission-rail-icon.is-done { background: var(--green-bg); color: var(--green); }
+.mission-rail-icon.is-locked { background: var(--panel-2); color: var(--text-3); }
+.mission-rail-ring { position: absolute; inset: 0; transform: rotate(-90deg); }
+.mission-rail-ring circle { fill: none; stroke-width: 3; }
+.mission-rail-ring-track { stroke: var(--panel-3); }
+.mission-rail-ring-fill { stroke: var(--blue); stroke-linecap: round; }
+.mission-rail-icon.is-active b {
+  position: relative; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--blue); color: var(--on-accent); font-size: 12px; font-weight: 600;
+}
+.mission-rail-icon:hover { box-shadow: 0 0 0 2px var(--line-3); }
+.mission-rail-tip {
+  display: none; position: absolute; z-index: 60; left: calc(100% + 14px); top: 50%; transform: translateY(-50%);
+  align-items: center; gap: var(--s-1); height: 30px; padding: 0 var(--s-3); border-radius: var(--r-md); white-space: nowrap;
+  background: var(--overlay); border: 1px solid var(--line-3); color: var(--text); font-size: 12px; font-weight: 500;
+  box-shadow: 0 18px 40px -10px var(--shadow); pointer-events: none;
+}
+.mission-rail-tip-detail { color: var(--text-3); font-weight: 400; }
+.mission-rail-icon:hover .mission-rail-tip, .mission-rail-icon:focus-visible .mission-rail-tip { display: inline-flex; }
+.mission-rail-xp-mini { margin-top: auto; display: grid; justify-items: center; font-size: 11px; line-height: 14px; color: var(--text-3); }
+.mission-rail-xp-mini b { font-size: 12px; color: var(--text-2); font-weight: 600; }
+
+/* ---------- mission bar (< 1024 px) ---------- */
+.mission-rail.is-bar { flex: none; width: 100%; container: mission-bar / inline-size; }
+.mission-rail-bar {
+  width: 100%; height: 44px; display: flex; align-items: center; gap: 10px; padding: 0 var(--s-4);
+  background: var(--panel); border: 0; border-bottom: 1px solid var(--line); text-align: left; cursor: pointer; color: var(--text-2);
+}
+.mission-rail-bar:hover { background: var(--panel-2); }
+.mission-rail-bar-n {
+  width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; flex: none;
+  background: var(--blue-bg); color: var(--blue); border: 1px solid var(--blue-line); font-size: 12px; font-weight: 600;
+}
+.mission-rail-bar-n.is-done { background: var(--green-bg); color: var(--green); border-color: var(--green-line); }
+.mission-rail-bar-txt { min-width: 0; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 13px; }
+.mission-rail-bar-txt b { color: var(--text); font-weight: 600; }
+.mission-rail-bar-title { display: none; }
+@container mission-bar (min-width: 600px) {
+  .mission-rail-bar { padding: 0 var(--s-6); }
+  .mission-rail-bar-title { display: inline; }
+}
+.mission-rail-bar-prog { width: 44px; height: 4px; border-radius: 2px; background: var(--panel-3); overflow: hidden; flex: none; }
+.mission-rail-bar-prog i { display: block; height: 100%; background: var(--blue); }
+.mission-rail-bar-chev { display: grid; color: var(--text-2); }
+
+/* the full list as a sheet */
+.mission-rail-sheet {
+  width: min(420px, 100%); max-width: 100%; height: min(640px, 85vh); max-height: 85vh; margin: auto auto 0;
+  padding: 0; border: 1px solid var(--line-3); border-bottom: 0; border-radius: var(--r-lg) var(--r-lg) 0 0;
+  background: var(--bg-2); color: var(--text); box-shadow: 0 -18px 40px -10px var(--shadow);
+}
+.mission-rail-sheet::backdrop { background: var(--overlay); opacity: .7; }
+.mission-rail-sheet .mission-rail-head .mission-rail-icon-btn { margin-left: auto; }
+@media (min-width: 768px) {
+  .mission-rail-sheet { margin: auto; border-bottom: 1px solid var(--line-3); border-radius: var(--r-lg); }
+}
+
+.mission-rail button:focus-visible, .mission-rail-sheet button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.mission-rail-bar:focus-visible { outline-offset: -2px; }
