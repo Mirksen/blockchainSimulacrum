@@ -1,0 +1,194 @@
+/*
+ * Detail dialogs (block, transaction, participant) on the shared Modal shell.
+ * Workbench look (web/DESIGN.md, Foundation): panel surface, 1px lines, radius
+ * tokens, mono for hashes and amounts, status color only for valid/invalid.
+ * Tokens only, no hex values.
+ */
+
+/* ---------- overlay: the native dialog fills the viewport, a click outside the panel closes ---------- */
+dialog.modal-overlay {
+  position: fixed; inset: 0; z-index: 1000; box-sizing: border-box;
+  display: flex; align-items: center; justify-content: center;
+  margin: 0; padding: var(--s-4); border: 0; width: 100%; height: 100%; max-width: none; max-height: none;
+  background: color-mix(in srgb, var(--overlay) 70%, transparent); color: var(--text);
+}
+dialog.modal-overlay::backdrop { background: transparent; }
+dialog.modal-overlay:not([open]) { display: none; }
+
+/* ---------- panel ---------- */
+.details-modal {
+  width: min(560px, 100%); max-width: 100%; max-height: calc(100vh - 32px); box-sizing: border-box;
+  display: flex; flex-direction: column; overflow: hidden;
+  background: var(--panel); border: 1px solid var(--line-3); border-radius: var(--r-lg);
+  box-shadow: 0 18px 40px -10px var(--shadow);
+  color: var(--text); font: 13px/18px var(--ui); font-variant-numeric: tabular-nums;
+}
+.details-modal *, .details-modal *::before, .details-modal *::after { box-sizing: border-box; }
+
+.details-modal-head {
+  flex: none; display: flex; align-items: center; gap: var(--s-2); min-height: 52px; min-width: 0;
+  padding: var(--s-2) var(--s-4) var(--s-2) var(--s-5); border-bottom: 1px solid var(--line-2);
+}
+.details-modal-title {
+  display: flex; align-items: center; flex-wrap: wrap; gap: var(--s-2); min-width: 0;
+  margin: 0; font-size: 16px; line-height: 22px; font-weight: 600;
+}
+.details-modal-close {
+  margin-left: auto; flex: none; width: 32px; height: 32px; display: grid; place-items: center; padding: 0;
+  border: 1px solid var(--line); border-radius: var(--r-sm); background: transparent; color: var(--text-2); cursor: pointer;
+}
+.details-modal-close:hover { background: var(--panel-2); color: var(--text); }
+
+.details-modal-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: var(--s-4) var(--s-5) var(--s-5); }
+
+/* ---------- avatar and pills ---------- */
+.details-modal-av {
+  width: 22px; height: 22px; border-radius: var(--r-sm); flex: none; display: grid; place-items: center;
+  font-size: 11px; font-weight: 700; color: var(--on-light); background: var(--av-color, var(--panel-3));
+}
+.details-modal-av.is-plain { color: var(--text); }
+.details-modal-pill {
+  display: inline-flex; align-items: center; gap: 6px; flex: none; height: 20px; padding: 0 var(--s-2);
+  border-radius: 10px; font-size: 12px; line-height: 16px; font-weight: 500; white-space: nowrap;
+  color: var(--text-2); background: var(--panel-2);
+}
+.details-modal-pill > i { width: 6px; height: 6px; border-radius: 50%; background: var(--dot, currentColor); flex: none; }
+.details-modal-pill.is-ok { color: var(--green); background: var(--green-bg); }
+.details-modal-pill.is-err { color: var(--red); background: var(--red-bg); font-weight: 600; }
+.details-modal-status { display: flex; margin-bottom: var(--s-4); }
+
+/* ---------- sections, labels, hashes ---------- */
+.details-modal-section { margin-bottom: var(--s-4); }
+.details-modal-label { margin-bottom: 6px; font-size: 12px; line-height: 16px; color: var(--text-3); }
+.details-modal-hash {
+  min-width: 0; padding: var(--s-2) 10px; border: 1px solid var(--line); border-radius: var(--r-sm);
+  background: var(--bg-2); color: var(--text); font: 12px/18px var(--mono);
+  overflow-wrap: anywhere; word-break: break-all;
+}
+.details-modal-hash.is-small { font-size: 11px; color: var(--text-2); }
+.details-modal-hash code { font: inherit; color: inherit; }
+.details-modal-zeros { font-weight: 700; color: var(--text); }
+.details-modal-note { margin: var(--s-2) 0; font-size: 12px; line-height: 17px; color: var(--text-2); }
+.details-modal-note code { font-family: var(--mono); color: var(--text); }
+.details-modal-text { padding: var(--s-2) 10px; border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--bg-2); color: var(--text); }
+
+/* ---------- key figures ---------- */
+.details-modal-stats {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: var(--s-2); margin-bottom: var(--s-4);
+}
+.details-modal-stat { min-width: 0; padding: 10px var(--s-3); border: 1px solid var(--line); border-radius: var(--r-md); background: var(--bg-2); }
+.details-modal-stat-value { font: 600 13px/18px var(--mono); color: var(--text); overflow-wrap: anywhere; }
+.details-modal-stat-value.is-ui { font-family: var(--ui); }
+.details-modal-stat-value.is-small { font-size: 11px; font-weight: 500; }
+.details-modal-stat-value.is-ok { color: var(--green); }
+.details-modal-stat-value.is-err { color: var(--red); }
+.details-modal-stat-label { margin-top: 2px; font-size: 12px; line-height: 16px; color: var(--text-3); }
+
+/* ---------- tamper analysis (invalid state, red) ---------- */
+.details-modal-tamper {
+  margin-bottom: var(--s-4); padding: var(--s-3); border-radius: var(--r-md);
+  border: 1px solid color-mix(in srgb, var(--red) 45%, transparent); background: var(--red-bg);
+}
+.details-modal-tamper-title { display: flex; align-items: center; gap: 6px; font-weight: 600; color: var(--red); }
+.details-modal-tamper-item { margin-top: var(--s-2); font-size: 12px; color: var(--text); }
+.details-modal-tamper-detail { margin-top: 2px; font: 11px/16px var(--mono); color: var(--text-2); overflow-wrap: anywhere; }
+
+/* ---------- lists of transactions ---------- */
+.details-modal-list {
+  max-height: 240px; overflow-y: auto; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--bg-2);
+}
+.details-modal-row {
+  display: flex; align-items: center; gap: 10px; min-width: 0; padding: var(--s-2) var(--s-3);
+  border-bottom: 1px solid var(--line-2); cursor: pointer;
+}
+.details-modal-row:last-child { border-bottom: 0; }
+.details-modal-row:hover { background: var(--panel-2); }
+.details-modal-row:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.details-modal-row-icon { flex: none; width: 24px; height: 24px; display: grid; place-items: center; border-radius: var(--r-sm); background: var(--panel-2); color: var(--text-2); }
+.details-modal-row-main { flex: 1 1 auto; min-width: 0; }
+.details-modal-row-title { display: flex; align-items: center; gap: 6px; min-width: 0; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.details-modal-row-title > svg { flex: none; color: var(--text-3); }
+.details-modal-row-meta { margin-top: 2px; font-size: 12px; line-height: 16px; color: var(--text-3); overflow-wrap: anywhere; }
+.details-modal-row-amount { flex: none; font: 600 12px/16px var(--mono); color: var(--text); white-space: nowrap; }
+.details-modal-row-chevron { flex: none; color: var(--text-3); }
+.details-modal-row:hover .details-modal-row-chevron { color: var(--text); }
+.details-modal-quiet { color: var(--text-2); }
+.details-modal-empty { padding: var(--s-4); text-align: center; color: var(--text-2); }
+
+/* ---------- transaction dialog ---------- */
+.details-modal-type { display: flex; justify-content: center; margin-bottom: var(--s-4); }
+.details-modal-amount {
+  margin-bottom: var(--s-4); padding: var(--s-4); text-align: center;
+  border: 1px solid var(--line); border-radius: var(--r-md); background: var(--bg-2);
+}
+.details-modal-amount-value { font: 600 24px/30px var(--mono); color: var(--text); overflow-wrap: anywhere; }
+.details-modal-amount-label { margin-top: 2px; font-size: 12px; color: var(--text-3); }
+.details-modal-amount-fee { margin-top: 4px; font: 12px/16px var(--mono); color: var(--text-2); }
+
+.details-modal-parties { display: flex; align-items: stretch; gap: var(--s-2); margin-bottom: var(--s-4); }
+.details-modal-party { flex: 1 1 0; min-width: 0; padding: 10px var(--s-3); border: 1px solid var(--line); border-radius: var(--r-md); background: var(--bg-2); }
+.details-modal-party-name { margin: 2px 0 4px; font-size: 14px; line-height: 20px; font-weight: 600; }
+.details-modal-party-key { font: 11px/16px var(--mono); color: var(--text-2); overflow-wrap: anywhere; word-break: break-all; }
+.details-modal-arrow { flex: none; display: grid; place-items: center; color: var(--text-3); }
+
+.details-modal-sig { margin-bottom: var(--s-2); font-weight: 600; color: var(--text-2); }
+.details-modal-sig.is-ok { color: var(--green); }
+.details-modal-sig.is-err { color: var(--red); }
+
+.details-modal-info { margin-top: var(--s-3); padding: var(--s-3); border: 1px solid var(--line); border-radius: var(--r-md); background: var(--panel-2); }
+.details-modal-info-title { margin-bottom: 6px; font-weight: 600; }
+.details-modal-info ul { margin: 0; padding-left: var(--s-4); font-size: 12px; line-height: 18px; color: var(--text-2); }
+.details-modal-info li { margin-bottom: 2px; }
+.details-modal-info strong { color: var(--text); font-weight: 600; }
+
+/* ---------- participant dialog ---------- */
+.details-modal-balance {
+  margin-bottom: var(--s-4); padding: var(--s-4); text-align: center;
+  border: 1px solid var(--line); border-radius: var(--r-md); background: var(--bg-2);
+}
+.details-modal .balance-amount { font: 600 24px/30px var(--mono); color: var(--text); overflow-wrap: anywhere; }
+.details-modal-balance-label { margin-top: 2px; font-size: 12px; color: var(--text-3); }
+
+.details-modal-miner { margin-bottom: var(--s-4); padding: var(--s-3); border: 1px solid var(--line); border-radius: var(--r-md); background: var(--bg-2); }
+.details-modal-miner-head { display: flex; align-items: center; justify-content: space-between; gap: var(--s-2); margin-bottom: 10px; }
+.details-modal-miner-title { font-weight: 600; }
+.details-modal-hashpower { display: flex; align-items: center; gap: 10px; }
+.details-modal-hashpower-label { font-size: 12px; color: var(--text-3); }
+.details-modal-hashpower input { flex: 1 1 auto; min-width: 0; accent-color: var(--blue); cursor: pointer; }
+.details-modal-hashpower input:disabled { opacity: .55; cursor: not-allowed; }
+.details-modal-hashpower-value { min-width: 40px; text-align: right; font: 600 13px var(--mono); }
+
+.details-modal-seed {
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px;
+  padding: var(--s-2); border: 1px solid var(--line); border-radius: var(--r-md); background: var(--bg-2);
+}
+.details-modal-seed-word {
+  display: flex; align-items: center; gap: 6px; min-width: 0; padding: 4px var(--s-2);
+  border: 1px solid var(--line-2); border-radius: var(--r-sm); background: var(--panel);
+}
+.details-modal-seed-number { min-width: 14px; font-size: 11px; color: var(--text-3); }
+.details-modal-seed-text { min-width: 0; font: 500 12px/16px var(--mono); color: var(--text); overflow-wrap: anywhere; }
+.details-modal-result { margin: var(--s-2) 0 0; font-size: 12px; line-height: 16px; color: var(--red); }
+.details-modal-result.is-ok { color: var(--green); }
+
+/* ---------- buttons ---------- */
+.details-modal-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 28px; padding: 0 10px;
+  border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--panel-2); color: var(--text);
+  font: 500 12px/1 var(--ui); cursor: pointer; white-space: nowrap;
+}
+.details-modal-btn:hover:not(:disabled) { border-color: var(--line-3); background: var(--panel-3); }
+.details-modal-btn.is-on { border-color: var(--blue-line); background: var(--blue-bg); }
+.details-modal-btn:disabled { opacity: .5; cursor: not-allowed; }
+.details-modal-close:focus-visible, .details-modal-btn:focus-visible, .details-modal-hashpower input:focus-visible {
+  outline: 2px solid var(--focus); outline-offset: 2px;
+}
+
+@media (max-width: 600px) {
+  dialog.modal-overlay { padding: var(--s-2); }
+  .details-modal-head { padding-left: var(--s-4); }
+  .details-modal-body { padding: var(--s-3) var(--s-4) var(--s-4); }
+  .details-modal-stats, .details-modal-seed { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .details-modal-parties { flex-direction: column; }
+  .details-modal-arrow { transform: rotate(90deg); }
+}
