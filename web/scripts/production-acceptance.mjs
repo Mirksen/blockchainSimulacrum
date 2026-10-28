@@ -4,6 +4,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
+import { menu } from './workbench.helpers.mjs';
 
 const BASE_URL = 'https://proofofwork.fyi';
 const INGEST_URL = 'https://eu.i.posthog.com/i/v0/e/';
@@ -108,15 +109,24 @@ async function main() {
       response.request().method() === 'POST' && response.request().postDataJSON()?.event === event, { timeout: 15000 });
     const navigation = await page.goto(BASE_URL);
     record.tls = await navigation.securityDetails();
-    await page.locator('summary').filter({ hasText: 'Experiment settings' }).click();
-    await page.getByLabel('Mining difficulty', { exact: true }).fill('1');
+    await menu(page, 'Settings');
+    const settings = page.getByRole('dialog', { name: 'Settings' });
+    await settings.getByLabel('Mining difficulty', { exact: true }).fill('1');
+    await settings.getByRole('button', { name: 'Done' }).click();
     assert.equal(record.events.length, 0);
     assert.equal(record.guard_failures.length, 0);
-    await page.getByText('Usage sharing: off', { exact: true }).click();
+    const openSharing = async () => {
+      const toggle = page.getByRole('button', { name: /^(More|Menu)$/ });
+      if (await toggle.getAttribute('aria-expanded') !== 'true') await toggle.click();
+      if (!await page.locator('details.analytics-control').evaluate(element => element.open)) await page.getByText(/^Usage sharing: /).click();
+    };
+    await openSharing();
+    await page.getByText('Usage sharing: off', { exact: true }).waitFor();
     const sharing = page.getByLabel('Share usage and technical errors');
     assert.equal(await sharing.isDisabled(), false);
     consent = true;
     const opened = responseFor('app_opened'); await sharing.check(); await opened;
+    await page.keyboard.press('Escape');
     const demo = responseFor('demo_completed'); await page.getByRole('button', { name: 'Start demo', exact: true }).click(); await demo;
     const exception = responseFor('$exception');
     await page.evaluate(() => {
@@ -137,8 +147,10 @@ async function main() {
     assert.ok(!JSON.stringify(record.events).includes('synthetic-production-private-marker'));
     record.distinct_id = record.events[0].distinct_id;
     assert.ok(record.events.every(event => event.distinct_id === record.distinct_id));
+    await openSharing();
     await sharing.uncheck(); consent = false;
-    await page.getByRole('button', { name: 'Reset', exact: true }).click();
+    await page.keyboard.press('Escape');
+    await menu(page, 'Reset');
     await page.waitForTimeout(300);
     assert.equal(record.events.length, 9);
     assert.deepEqual(record.guard_failures, []);

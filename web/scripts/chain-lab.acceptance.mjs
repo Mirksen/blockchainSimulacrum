@@ -1,15 +1,13 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { join } from 'node:path';
+import { menu, openTab, settle, snapshot } from './workbench.helpers.mjs';
 
-export async function verifyChainLab(page, output) {
-  const chainBefore = await page.getByRole('button', { name: 'Open blockchain insights' }).innerText();
-  const walletsBefore = await page.getByRole('button', { name: /^Open .+ details$/ }).allTextContents();
-  const entry = page.getByRole('button', { name: 'Open chain lab', exact: true });
-  const lab = page.getByRole('dialog', { name: 'Chain lab', exact: true });
+export async function verifyChainLab(page, output, before) {
+  const lab = page.locator('section.chain-lab');
   const block = number => lab.getByRole('article', { name: `Block ${number}`, exact: true });
   const hashes = async () => lab.locator('.chain-lab-hashes dd:last-child code').allTextContents();
-  await entry.click();
+  await openTab(page, 'Chain lab');
   await lab.getByText('Toy chain consistent', { exact: true }).waitFor();
   const original = await hashes();
   await lab.getByLabel('Block 1 data', { exact: true }).fill('An edited parcel record.');
@@ -55,19 +53,15 @@ export async function verifyChainLab(page, output) {
     assert.deepEqual(await hashes(), original);
   } finally { await page.clock.resume(); }
   await lab.getByRole('button', { name: 'Reset chain lab' }).click();
-  await page.keyboard.press('Escape');
-  await lab.waitFor({ state: 'hidden' });
-  assert.equal(await entry.evaluate(element => document.activeElement === element), true);
 
   for (const theme of ['light', 'dark']) {
-    const currentTheme = await page.locator('html').getAttribute('data-theme');
-    if (currentTheme !== theme) await page.getByRole('button', { name: `Switch to ${theme} theme`, exact: true }).click();
-    await entry.click();
+    if (await page.locator('html').getAttribute('data-theme') !== theme) await menu(page, theme === 'light' ? 'Light theme' : 'Dark theme');
     for (const width of [320, 390, 768, 1200, 1440]) {
       await page.setViewportSize({ width, height: 900 });
+      await settle(page);
       await lab.getByLabel('Block 1 data', { exact: true }).fill('A'.repeat(300));
       await block(1).getByText('Inspect Block 1 input', { exact: true }).click();
-      const bounds = await lab.locator('.chain-lab').boundingBox();
+      const bounds = await lab.boundingBox();
       assert.ok(bounds && bounds.x >= 0 && bounds.x + bounds.width <= width, JSON.stringify({ width, bounds }));
       const size = await page.evaluate(() => {
         const panel = document.querySelector('.chain-lab');
@@ -75,27 +69,20 @@ export async function verifyChainLab(page, output) {
       });
       assert.ok(size.pageWidth <= size.viewport && size.contentWidth <= size.panelWidth, JSON.stringify(size));
       await lab.getByRole('button', { name: 'Reset chain lab' }).click();
-      await lab.locator('.chain-lab').evaluate(element => { element.scrollTop = 0; });
+      await page.evaluate(() => scrollTo(0, 0));
       await page.screenshot({ path: join(output, `chain-lab-${theme}-${width}.png`) });
-      if (width === 390) {
-        await lab.locator('.chain-lab').evaluate(element => { element.scrollTop = element.scrollHeight; });
-        await page.screenshot({ path: join(output, `chain-lab-${theme}-mobile-bottom.png`) });
-      }
+      if (width === 390) await page.screenshot({ path: join(output, `chain-lab-${theme}-mobile-full.png`), fullPage: true });
       // The input details remain open across reset; close them for the next iteration.
       await block(1).getByText('Inspect Block 1 input', { exact: true }).click();
     }
-    await page.keyboard.press('Escape');
-    await lab.waitFor({ state: 'hidden' });
-    assert.equal(await entry.evaluate(element => document.activeElement === element), true);
   }
-  await entry.click();
+  await openTab(page, 'Workbench');
+  await openTab(page, 'Chain lab');
   assert.deepEqual(await hashes(), original, 'Reopening restores the deterministic sample');
   await lab.getByRole('button', { name: 'Back to simulator' }).click();
   await lab.waitFor({ state: 'hidden' });
-  assert.equal(await entry.evaluate(element => document.activeElement === element), true);
-  assert.equal(await page.getByRole('button', { name: 'Open blockchain insights' }).innerText(), chainBefore);
-  assert.deepEqual(await page.getByRole('button', { name: /^Open .+ details$/ }).allTextContents(), walletsBefore);
+  assert.deepEqual(await snapshot(page), before, 'The chain lab leaves the simulator chain and wallets untouched');
   return ['Chain lab: edit, real recomputed SHA-256 and sequential repair verified',
-    'Chain lab: bounded search Stop, keyboard Escape/back focus and reset verified',
+    'Chain lab: bounded search Stop and reset verified',
     'Chain lab: five widths in both themes with long input, unchanged simulator and wallets'];
 }
