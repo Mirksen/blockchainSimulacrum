@@ -7,9 +7,9 @@
   max-height: calc(100dvh - 32px);
   overflow-y: auto;
   padding: 28px;
-  border-radius: var(--sapElement_BorderCornerRadius);
-  color: var(--sapTextColor);
-  background: var(--sapGroup_ContentBackground);
+  border-radius: var(--r-md);
+  color: var(--text);
+  background: var(--panel);
   line-height: 1.55;
 }
 .hash-lab .btn.btn-transparent, .hash-lab .btn.btn-default { color: var(--hash-lab-action); }
@@ -23,12 +23,12 @@
 .hash-lab label { display: block; margin-bottom: 6px; font-weight: 600; }
 .hash-lab label > span { font-weight: 400; }
 .hash-lab textarea, .hash-lab input, .hash-lab select {
-  width: 100%; padding: 10px 12px; color: var(--sapTextColor);
-  background: var(--sapBaseColor); border: 1px solid var(--sapField_BorderColor);
-  border-radius: var(--sapButton_BorderCornerRadius); font: inherit;
+  width: 100%; padding: 10px 12px; color: var(--text);
+  background: var(--panel); border: 1px solid var(--line-3);
+  border-radius: var(--r-sm); font: inherit;
 }
 .hash-lab textarea { resize: vertical; min-height: 94px; max-height: 240px; }
-.hash-lab .hash-lab-help { font-size: 13px; color: var(--sapContent_LabelColor); }
+.hash-lab .hash-lab-help { font-size: 13px; color: var(--text-2); }
 .hash-lab-inputs > .hash-lab-help { margin: 6px 0 18px; }
 .hash-lab-nonce-row { display: flex; gap: 8px; }
 .hash-lab-nonce-row input { min-width: 0; }
@@ -40,22 +40,22 @@
 .hash-lab-target-met { color: var(--hash-lab-positive); font-weight: 700; }
 .hash-lab-fingerprint {
   display: grid; grid-template-columns: repeat(16, minmax(0, 1fr)); gap: 4px 2px;
-  margin: 14px 0; padding: 18px 12px; border: 1px solid var(--sapGroup_TitleBorderColor);
-  border-radius: var(--sapElement_BorderCornerRadius); font: 500 20px/1.5 var(--sapFontMonoFamily);
+  margin: 14px 0; padding: 18px 12px; border: 1px solid var(--line);
+  border-radius: var(--r-md); font: 500 20px/1.5 var(--mono);
 }
 .hash-lab-fingerprint span { text-align: center; border-bottom: 2px solid transparent; }
-.hash-lab-fingerprint .hash-lab-changed { background: color-mix(in srgb, var(--sapBrandColor) 12%, transparent); border-bottom-color: var(--sapBrandColor); }
+.hash-lab-fingerprint .hash-lab-changed { background: color-mix(in srgb, var(--blue) 12%, transparent); border-bottom-color: var(--blue); }
 .hash-lab-comparison { margin: 0; font-size: 13px; }
 .hash-lab-previous { margin-top: 12px; font-size: 13px; }
 .hash-lab code { overflow-wrap: anywhere; white-space: pre-wrap; }
 .hash-lab-previous code { display: block; margin-top: 8px; }
-.hash-lab-mining { display: flex; justify-content: space-between; gap: 24px; padding-top: 20px; border-top: 1px solid var(--sapList_BorderColor); }
+.hash-lab-mining { display: flex; justify-content: space-between; gap: 24px; padding-top: 20px; border-top: 1px solid var(--line); }
 .hash-lab-mining select { width: auto; min-width: 200px; }
 .hash-lab-mining p { margin: 8px 0 0; }
 .hash-lab-search-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 .hash-lab-feedback { margin: 20px 0 6px; font-weight: 600; }
-.hash-lab-preimage { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--sapList_BorderColor); font-size: 13px; }
-.hash-lab-preimage code { display: block; padding: 12px; background: var(--sapBaseColor); border: 1px solid var(--sapList_BorderColor); border-radius: 4px; }
+.hash-lab-preimage { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--line); font-size: 13px; }
+.hash-lab-preimage code { display: block; padding: 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 4px; }
 .hash-lab summary { cursor: pointer; }
 .hash-lab :focus-visible { outline: 2px solid var(--hash-lab-action); outline-offset: 3px; }
 @media (max-width: 700px) {

@@ -37,6 +37,22 @@ const leaderboardMock = async route => {
  await route.fulfill({status:200,headers,contentType:'application/json',body:JSON.stringify([
   {name:'fixture-alpha',points:1200,shares:12,bestZeros:5},{name:'fixture-beta',points:800,shares:8,bestZeros:4}])});
 };
+// The reference views of web/DESIGN.md for review: 1512 x 860 and 390 px, both themes.
+// Chain content is random per run, so they are compared by eye, not pixel by pixel.
+const referenceViews = async name => {
+ for (const theme of ['dark','light']) {
+  if (await page.locator('html').getAttribute('data-theme') !== theme) await menu(page, theme === 'light' ? 'Light theme' : 'Dark theme');
+  for (const [width,height] of [[1512,860],[390,844]]) {
+   await page.setViewportSize({width,height});
+   await settle(page);
+   await page.evaluate(() => scrollTo(0,0));
+   await page.screenshot({path:join(output,`view-${name}-${theme}-${width}.png`),fullPage:width<1024});
+  }
+ }
+ if (await page.locator('html').getAttribute('data-theme') !== 'dark') await menu(page, 'Dark theme');
+ await page.setViewportSize({width:1440,height:1000});
+ await settle(page);
+};
 const fitsWidths = async (label) => {
  for (const width of WIDTHS) {
   await page.setViewportSize({width,height:900});
@@ -102,6 +118,7 @@ try {
  await wb.mine(4).waitFor({timeout:30000});
  assert.equal(await page.getByText('Synthetic acceptance transfer').count(), 0, 'The mined transfer left the mempool');
  results.push('Transfer enters the mempool and confirms in a valid block');
+ await referenceViews('workbench');
 
  await page.getByRole('button',{name:/^Open Bob, balance 0\.7/}).click();
  const dialog=page.getByRole('dialog',{name:'Participant details'});
@@ -134,7 +151,7 @@ try {
  assert.match(await wb.tile(1).getAttribute('aria-label'), /hash mismatch/i);
  assert.match(await wb.tile(2).getAttribute('aria-label'), /built on a broken block/i);
  assert.ok(await page.getByRole('button',{name:'Mine block #4',exact:true}).isDisabled());
- await page.screenshot({path:join(output,'tampered-desktop.png')});
+ await referenceViews('tampered');
  for (const index of [1, 2, 3]) {
   await page.getByRole('button',{name:`Re-mine block #${index}`,exact:true}).click();
   if (index < 3) await page.getByRole('button',{name:`Re-mine block #${index + 1}`,exact:true}).waitFor({timeout:30000});

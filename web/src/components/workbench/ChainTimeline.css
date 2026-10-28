@@ -188,3 +188,6 @@
   .chain-timeline-prev { display: block; }
   .chain-timeline-strip { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
+
+/* Outside a block tile the genesis mark needs a page-colored chip. */
+.chain-timeline .chain-band-av.is-genesis { background: var(--panel-3); color: var(--text); box-shadow: inset 0 0 0 1px var(--line-3); }

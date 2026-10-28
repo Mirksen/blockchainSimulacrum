@@ -343,8 +343,7 @@
   font-size: 12px; line-height: 16px; color: var(--text-2); white-space: nowrap;
 }
 .chain-band-chk b { color: var(--text); font-weight: 600; }
-.chain-band-ok { display: inline-flex; align-items: center; gap: 3px; color: var(--green); font-weight: 500; }
-.chain-band-chk.is-ok { border-color: var(--green-line); }
+.chain-band-ok { display: inline-flex; align-items: center; gap: 3px; color: var(--text-2); font-weight: 500; }
 .chain-band-chk.is-broken { border-color: var(--red); color: var(--red); }
 .chain-band-chk.is-dependent { border-color: var(--amber); color: var(--amber); }
 .chain-band-chk.is-pending { border-style: dashed; border-color: var(--pend-line); background: transparent; color: var(--text-3); }
@@ -356,7 +355,7 @@
   display: inline-flex; align-items: center; gap: 4px; max-width: 100%; overflow: hidden;
   font-size: 11px; line-height: 14px; color: var(--text-3); white-space: nowrap;
 }
-.chain-band-chk.is-ok .chain-band-chk-st { color: var(--green); }
+.chain-band-chk.is-ok .chain-band-chk-st { color: var(--text); }
 .chain-band-chk.is-broken { background: var(--red-bg); }
 .chain-band-chk.is-broken .chain-band-chk-st, .chain-band-chk.is-broken .chain-band-chk-dt { color: var(--red); }
 .chain-band-chk.is-dependent { border-style: dashed; background: var(--amber-bg); }

@@ -1,246 +1,6 @@
-/* proofofwork.fyi — component styles.
+/* proofofwork.fyi — base styles, lab buttons and the error fallback.
  * Colors, type, spacing and radius come from the foundation tokens in
- * styles/tokens.css (dark default, light via html[data-theme="light"]).
- * The --sap* and --miner-* names below are legacy aliases onto those tokens,
- * kept until the rebuild replaces the components that use them. */
-
-:root {
-  /* Surfaces */
-  --sapBackgroundColor: var(--bg);
-  --sapShellColor: var(--bg-2);
-  --sapShell_Background: var(--bg-2);
-  --sapBaseColor: var(--panel);
-  --sapGroup_TitleBackground: var(--panel);
-  --sapGroup_ContentBackground: var(--panel);
-  --sapList_Background: var(--panel);
-  --sapTile_Background: var(--panel);
-  --sapList_HeaderBackground: var(--panel-2);
-  --sapList_Hover_Background: var(--panel-2);
-  --sapField_Background: var(--bg-2);
-
-  /* Lines */
-  --sapGroup_TitleBorderColor: var(--line);
-  --sapList_BorderColor: var(--line);
-  --sapField_BorderColor: var(--line-3);
-
-  /* Text */
-  --sapTextColor: var(--text);
-  --sapTitleColor: var(--text);
-  --sapShell_TextColor: var(--text);
-  --sapContent_LabelColor: var(--text-2);
-  --sapShell_SubtitleColor: var(--text-2);
-  --sapContent_DisabledTextColor: var(--text-3);
-
-  /* Action */
-  --sapBrandColor: var(--blue);
-  --sapHighlightColor: var(--blue-2);
-  --sapInformativeColor: var(--blue);
-  --sapLinkColor: var(--blue);
-  --sapButton_Background: var(--blue);
-  --sapButton_BorderColor: var(--blue);
-  --sapButton_TextColor: var(--on-accent);
-  --sapButton_Hover_Background: var(--blue-2);
-  --sapButton_Active_Background: var(--blue-2);
-
-  /* Status */
-  --sapPositiveColor: var(--green);
-  --sapCriticalColor: var(--amber);
-  --sapNegativeColor: var(--red);
-  --sapNeutralColor: var(--text-3);
-
-  /* Miners */
-  --miner-minas-color: var(--minas);
-  --miner-minas-bg: color-mix(in srgb, var(--minas) 15%, transparent);
-  --miner-lars-color: var(--lars);
-  --miner-lars-bg: color-mix(in srgb, var(--lars) 15%, transparent);
-
-  /* Elevation: cards are a panel with a 1 px line, no shadow */
-  --sapContent_Shadow0: 0 0 0 1px var(--line);
-  --sapContent_Shadow1: 0 0 0 1px var(--line);
-  --sapContent_Shadow2: 0 8px 24px -8px var(--shadow);
-  --sapContent_Shadow3: 0 16px 48px -12px var(--shadow);
-
-  /* Typography (sizes stay until the rebuild moves views to the type scale) */
-  --sapFontFamily: var(--ui);
-  --sapFontMonoFamily: var(--mono);
-  --sapFontSize: 14px;
-  --sapFontSmallSize: 12px;
-  --sapFontLargeSize: 16px;
-  --sapFontHeader1Size: 36px;
-  --sapFontHeader2Size: 24px;
-  --sapFontHeader3Size: 20px;
-  --sapFontHeader4Size: 18px;
-  --sapFontHeader5Size: 16px;
-
-  /* Spacing and radius */
-  --sapContent_Padding: var(--s-4);
-  --sapElement_Gap: var(--s-2);
-  --sapElement_BorderCornerRadius: var(--r-md);
-  --sapButton_BorderCornerRadius: var(--r-sm);
-
-  /* Motion */
-  --sapTransition: 0.15s ease-in-out;
-}
-
-/* === Miner Color Classes === */
-.miner-minas {
-  color: var(--miner-minas-color);
-}
-
-.miner-lars {
-  color: var(--miner-lars-color);
-}
-
-.miner-minas-border {
-  border-left: 4px solid var(--miner-minas-color);
-}
-
-.miner-lars-border {
-  border-left: 4px solid var(--miner-lars-color);
-}
-
-.miner-minas-bg {
-  background: var(--miner-minas-bg);
-}
-
-.miner-lars-bg {
-  background: var(--miner-lars-bg);
-}
-
-/* Racing Lane Styles */
-.miner-race-container {
-  display: flex;
-  gap: 12px;
-  margin-bottom: 12px;
-}
-
-.miner-race-lane {
-  flex: 1;
-  min-width: 0;
-  /* Allow flex shrinking */
-  padding: 12px;
-  border-radius: 8px;
-  border: 2px solid var(--sapList_BorderColor);
-  background: var(--sapGroup_ContentBackground);
-  transition: all 0.3s ease;
-}
-
-.miner-race-lane.minas {
-  border-color: var(--miner-minas-color);
-  background: var(--miner-minas-bg);
-}
-
-.miner-race-lane.lars {
-  border-color: var(--miner-lars-color);
-  background: var(--miner-lars-bg);
-}
-
-.miner-race-lane.leading {
-  box-shadow: 0 0 12px currentColor;
-  transform: scale(1.02);
-}
-
-/* Miner Lane Header with Name and H/s */
-.miner-lane-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 8px;
-}
-
-.miner-race-lane .miner-name {
-  font-weight: bold;
-  font-size: 13px;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.miner-race-lane.minas .miner-name {
-  color: var(--miner-minas-color);
-}
-
-.miner-race-lane.lars .miner-name {
-  color: var(--miner-lars-color);
-}
-
-.miner-hashrate {
-  font-family: var(--sapFontMonoFamily);
-  font-size: 10px;
-  font-weight: 600;
-  padding: 2px 6px;
-  border-radius: 4px;
-  white-space: nowrap;
-}
-
-.miner-race-lane.minas .miner-hashrate {
-  background: color-mix(in srgb, var(--minas) 20%, transparent);
-  color: var(--miner-minas-color);
-}
-
-.miner-race-lane.lars .miner-hashrate {
-  background: color-mix(in srgb, var(--lars) 20%, transparent);
-  color: var(--miner-lars-color);
-}
-
-.miner-race-stats {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  font-size: 11px;
-}
-
-.miner-race-stat-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.miner-stat-label {
-  font-size: 9px;
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
-  color: var(--sapContent_LabelColor);
-}
-
-.miner-race-stat-value {
-  font-weight: bold;
-  font-family: var(--sapFontMonoFamily);
-  font-size: 12px;
-}
-
-.miner-hash-value {
-  font-size: 9px !important;
-  word-break: break-all;
-  line-height: 1.4;
-  min-height: 26px;
-  /* Consistent 2-line height */
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-/* Winner Animation */
-@keyframes winner-glow {
-
-  0%,
-  100% {
-    box-shadow: 0 0 8px currentColor;
-  }
-
-  50% {
-    box-shadow: 0 0 24px currentColor, 0 0 40px currentColor;
-  }
-}
-
-.miner-winner {
-  animation: winner-glow 0.5s ease-in-out 3 forwards;
-}
-
+ * styles/tokens.css (dark default, light via html[data-theme="light"]). */
 
 /* === Base Styles === */
 *,
@@ -252,15 +12,15 @@
 }
 
 html {
-  font-size: var(--sapFontSize);
+  font-size: 14px;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
 body {
-  font-family: var(--sapFontFamily);
-  background-color: var(--sapBackgroundColor);
-  color: var(--sapTextColor);
+  font-family: var(--ui);
+  background-color: var(--bg);
+  color: var(--text);
   line-height: 1.5;
   min-height: 100vh;
 }
@@ -272,59 +32,47 @@ h3,
 h4,
 h5,
 h6 {
-  color: var(--sapTitleColor);
+  color: var(--text);
   font-weight: 600;
   line-height: 1.3;
 }
 
 h1 {
-  font-size: var(--sapFontHeader1Size);
+  font-size: 36px;
 }
 
 h2 {
-  font-size: var(--sapFontHeader2Size);
+  font-size: 24px;
 }
 
 h3 {
-  font-size: var(--sapFontHeader3Size);
+  font-size: 20px;
 }
 
 h4 {
-  font-size: var(--sapFontHeader4Size);
+  font-size: 18px;
 }
 
 h5 {
-  font-size: var(--sapFontHeader5Size);
+  font-size: 16px;
 }
 
-/* === Shell Header (Fiori Launchpad Style) === */
-
-/* === Theme Toggle === */
-
-/* === Block Height Counter === */
-
-/* === Page Layout === */
-
-/* === Fiori Tile/Card === */
-
-/* === Object Page Header Style === */
-
-/* === Buttons (Fiori Style) === */
+/* === Buttons of the lab and pool views === */
 .btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
   padding: 8px 16px;
-  font-family: var(--sapFontFamily);
+  font-family: var(--ui);
   font-size: 14px;
   font-weight: 500;
   background: var(--panel-2);
   color: var(--text);
   border: 1px solid var(--line-3);
-  border-radius: var(--sapButton_BorderCornerRadius);
+  border-radius: var(--r-sm);
   cursor: pointer;
-  transition: all var(--sapTransition);
+  transition: all 0.15s ease-in-out;
   text-decoration: none;
 }
 
@@ -335,25 +83,25 @@ h5 {
 
 /* Emphasized Button (Primary) */
 .btn-emphasized {
-  background: var(--sapButton_Background);
-  border-color: var(--sapButton_BorderColor);
-  color: var(--sapButton_TextColor);
+  background: var(--blue);
+  border-color: var(--blue);
+  color: var(--on-accent);
 }
 
 .btn-emphasized:hover:not(:disabled) {
-  background: var(--sapButton_Hover_Background);
-  border-color: var(--sapButton_Hover_Background);
+  background: var(--blue-2);
+  border-color: var(--blue-2);
 }
 
 .btn-emphasized:active:not(:disabled) {
-  background: var(--sapButton_Active_Background);
+  background: var(--blue-2);
 }
 
 /* Default Button (Secondary) */
 .btn-default {
   background: transparent;
-  border-color: var(--sapButton_Background);
-  color: var(--sapButton_Background);
+  border-color: var(--blue);
+  color: var(--blue);
 }
 
 .btn-default:hover:not(:disabled) {
@@ -364,7 +112,7 @@ h5 {
 .btn-transparent {
   background: transparent;
   border-color: transparent;
-  color: var(--sapLinkColor);
+  color: var(--blue);
 }
 
 .btn-transparent:hover:not(:disabled) {
@@ -373,8 +121,8 @@ h5 {
 
 /* Negative Button */
 .btn-negative {
-  background: var(--sapNegativeColor);
-  border-color: var(--sapNegativeColor);
+  background: var(--red);
+  border-color: var(--red);
   color: var(--on-light);
 }
 
@@ -382,307 +130,14 @@ h5 {
   background: color-mix(in srgb, var(--red) 85%, var(--bg));
 }
 
-/* Positive Button */
-
-/* === Form Elements (Fiori Style) === */
-
-/* === List Items (Fiori Style) === */
-
-/* === Object Status / Badge === */
-
-.miner-badge {
-  font-size: 11px;
-  padding: 2px 6px;
-  background: color-mix(in srgb, var(--blue) 12%, transparent);
-  color: var(--sapInformativeColor);
-  border-radius: 4px;
-}
-
-/* === Blockchain Visualization === */
-
-@keyframes corruption-pulse {
-
-  0%,
-  100% {
-    box-shadow: 0 0 8px color-mix(in srgb, var(--red) 40%, transparent), 0 0 16px color-mix(in srgb, var(--red) 20%, transparent);
-  }
-
-  50% {
-    box-shadow: 0 0 20px color-mix(in srgb, var(--red) 60%, transparent), 0 0 40px color-mix(in srgb, var(--red) 30%, transparent);
-  }
-}
-
-/* === Mining Animation Overlay === */
-@keyframes cyber-shake {
-  0% {
-    transform: translate(0, 0) scale(1);
-    filter: brightness(1);
-  }
-
-  10% {
-    transform: translate(-5px, -5px) scale(1.02);
-    filter: brightness(1.2);
-  }
-
-  20% {
-    transform: translate(5px, 5px) scale(1.02);
-  }
-
-  30% {
-    transform: translate(-5px, 5px) scale(1.02);
-    filter: brightness(1.5);
-  }
-
-  40% {
-    transform: translate(5px, -5px) scale(1.02);
-  }
-
-  50% {
-    transform: translate(0, 0) scale(1);
-    filter: brightness(1);
-  }
-
-  100% {
-    transform: translate(0, 0) scale(1);
-  }
-}
-
-@keyframes hammer-strike {
-  0% {
-    transform: scale(3) rotate(-45deg);
-    opacity: 0;
-  }
-
-  50% {
-    transform: scale(1) rotate(0deg);
-    opacity: 1;
-  }
-
-  60% {
-    transform: scale(0.9);
-  }
-
-  70% {
-    transform: scale(1);
-  }
-
-  100% {
-    transform: scale(1);
-    opacity: 0;
-  }
-}
-
-/* Miner-specific hammer glow colors */
-
-/* === Mining Visualizer === */
-
-@keyframes mining-glow {
-
-  0%,
-  100% {
-    box-shadow: 0 0 8px color-mix(in srgb, var(--blue) 20%, transparent);
-  }
-
-  50% {
-    box-shadow: 0 0 20px color-mix(in srgb, var(--blue) 40%, transparent);
-  }
-}
-
-/* Progress Bar */
-
-/* === Hash Attempts Log === */
-
-/* === Transaction Items === */
-
-/* === Mempool === */
-
-/* === Slider (Fiori Style) === */
-
-/* === Validation Status === */
-
-/* === Footer === */
-
-/* === Animations === */
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes pulse {
-
-  0%,
-  100% {
-    opacity: 1;
-  }
-
-  50% {
-    opacity: 0.6;
-  }
-}
-
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-/* === Utility Classes === */
-
-/* === Responsive Design === */
-
-/* === Statistics Dashboard === */
-
-/* === Cyber Coin Gain Animation === */
-@keyframes wallet-glow-pulse {
-  0% {
-    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--green) 30%, transparent);
-  }
-
-  50% {
-    box-shadow: inset 0 0 20px color-mix(in srgb, var(--green) 50%, transparent), 0 0 15px color-mix(in srgb, var(--green) 40%, transparent);
-  }
-
-  100% {
-    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--green) 30%, transparent);
-  }
-}
-
-@keyframes coin-float-up {
-  0% {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-
-  50% {
-    opacity: 1;
-    transform: translateY(-15px) scale(1.2);
-  }
-
-  100% {
-    opacity: 0;
-    transform: translateY(-30px) scale(0.8);
-  }
-}
-
-@keyframes coin-scatter {
-  0% {
-    opacity: 0;
-    transform: translate(0, 0) scale(0.5) rotate(0deg);
-  }
-
-  20% {
-    opacity: 1;
-  }
-
-  100% {
-    opacity: 0;
-    transform: translate(var(--tx), var(--ty)) scale(1) rotate(var(--rot));
-  }
-}
-
-@keyframes gain-amount-pop {
-  0% {
-    opacity: 0;
-    transform: translateY(10px) scale(0.5);
-  }
-
-  30% {
-    opacity: 1;
-    transform: translateY(-5px) scale(1.2);
-  }
-
-  100% {
-    opacity: 0;
-    transform: translateY(-25px) scale(0.9);
-  }
-}
-
-@keyframes cyber-shimmer {
-  0% {
-    background-position: -200% center;
-  }
-
-  100% {
-    background-position: 200% center;
-  }
-}
-
-/* === Mempool New Transaction Animation === */
-@keyframes mempool-new-tx {
-  0% {
-    opacity: 0;
-    transform: translateX(-20px);
-    background: color-mix(in srgb, var(--blue) 30%, transparent);
-  }
-
-  30% {
-    opacity: 1;
-    transform: translateX(0);
-    background: color-mix(in srgb, var(--blue) 25%, transparent);
-  }
-
-  100% {
-    opacity: 1;
-    transform: translateX(0);
-    background: transparent;
-  }
-}
-
-@keyframes mempool-glow {
-
-  0%,
-  100% {
-    box-shadow: none;
-  }
-
-  50% {
-    box-shadow: 0 0 15px color-mix(in srgb, var(--blue) 40%, transparent);
-  }
-}
-
-/* Mempool counter badge pulse */
-@keyframes badge-pulse {
-
-  0%,
-  100% {
-    transform: scale(1);
-  }
-
-  50% {
-    transform: scale(1.15);
-  }
-}
-
-/* Clickable Mempool Transactions */
-
-/* === Blockchain Stats Panel === */
-
-.miner-leaderboard {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-/* Public simulator entry: the experiment remains the main screen. */
+/* Error fallback screen (AppErrorBoundary). */
 .simulation-intro { max-width: 1568px; margin: 20px auto 0; }
 .simulation-intro { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 12px 16px; }
 .simulation-intro h2 { font-size: 26px; line-height: 1.25; margin: 0 0 10px; }
 .simulation-intro p { max-width: 76ch; line-height: 1.6; margin: 4px 0; }
 .simulation-intro > .btn { flex-shrink: 0; min-width: 144px; text-decoration: none; text-align: center; }
-:focus-visible { outline: 3px solid var(--sapBrandColor); outline-offset: 3px; }
-.skip-link { position: fixed; left: 12px; top: -80px; z-index: 1000; background: var(--sapGroup_ContentBackground); padding: 12px; }
+:focus-visible { outline: 3px solid var(--blue); outline-offset: 3px; }
+.skip-link { position: fixed; left: 12px; top: -80px; z-index: 1000; background: var(--panel); padding: 12px; }
 .skip-link:focus { top: 12px; }
 @media (max-width: 992px) {
   .simulation-intro { align-items: flex-start; }
@@ -695,9 +150,9 @@ h5 {
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 }
-.analytics-control { max-width: 1568px; margin: 12px auto 0; text-align: left; border: 1px solid var(--sapList_BorderColor); border-radius: 6px; }
-.analytics-control summary { cursor: pointer; padding: 10px 12px; color: var(--sapTextColor); font-size: 13px; }
+.analytics-control { max-width: 1568px; margin: 12px auto 0; text-align: left; border: 1px solid var(--line); border-radius: 6px; }
+.analytics-control summary { cursor: pointer; padding: 10px 12px; color: var(--text); font-size: 13px; }
 .analytics-control > div { padding: 0 12px 12px; }
 .analytics-control p { margin: 0 0 8px; line-height: 1.6; }
-.analytics-control label { display: flex; align-items: center; gap: 8px; color: var(--sapTextColor); min-height: 40px; font-size: 13px; }
+.analytics-control label { display: flex; align-items: center; gap: 8px; color: var(--text); min-height: 40px; font-size: 13px; }
 .analytics-control input { width: 18px; height: 18px; flex-shrink: 0; }
