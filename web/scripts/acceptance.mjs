@@ -92,6 +92,19 @@ try {
  await page.goto(baseURL);
  const wb = workbench(page);
 
+ // First visit: the rail is collapsed and one card invites to the missions; Not now is remembered.
+ const intro = page.getByRole('region',{name:'Learn proof of work by doing it'});
+ await intro.waitFor();
+ assert.equal(await page.locator('.mission-rail.is-collapsed').count(), 1);
+ await page.screenshot({path:join(output,'view-intro-dark-1440.png')});
+ await intro.getByRole('button',{name:'Not now'}).click();
+ await intro.waitFor({state:'detached'});
+ await page.reload();
+ await wb.tile(0).waitFor();
+ assert.equal(await intro.count(), 0, 'The dismissed intro stays away after a reload');
+ assert.equal(await page.locator('.mission-rail.is-collapsed').count(), 1);
+ results.push('First visit: collapsed rail with a mission intro that stays away once dismissed');
+
  // Fresh start: only Genesis and the candidate; the single primary is Start demo.
  await wb.tile(0).waitFor();
  assert.equal(await wb.tiles().count(), 1);
@@ -269,7 +282,7 @@ try {
  await fitsWidths('Workbench after demo');
 
  // Labs in free play: the collapsed rail opens them without a mission lesson.
- await page.getByRole('button',{name:'Collapse mission rail'}).click();
+ // The rail is still collapsed from the start.
  const before = await snapshot(page);
  results.push(...await verifyHashLab(page, output, before));
  results.push(...await verifyChainLab(page, output, before));
