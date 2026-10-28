@@ -1,6 +1,5 @@
 /* Chain timeline — vertical chain for screens below 1024 px (web/DESIGN.md
-   "Screen sizes"); look from studies/design-workshop/round-6/phone.html and the
-   .tl timeline of base.html, rewritten on the product tokens. No hex colors. */
+   "Screen sizes"), on the product tokens. No hex colors. */
 
 .chain-timeline {
   container: chain-timeline / inline-size;

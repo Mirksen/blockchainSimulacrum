@@ -2,7 +2,7 @@ import { useId, useLayoutEffect, useRef, useState } from 'react';
 import { MISSIONS, activeStep, earnedBadges, missionStatus, totalXp } from '../../lib/missions';
 import './MissionRail.css';
 
-// Mission rail (web/DESIGN.md, "Mission rail"; round-6/base.html .rail, tampered.html, phone.html .mbar).
+// Mission rail (web/DESIGN.md, "Mission rail").
 // variant="rail": open form (248 px) or, with `collapsed`, the 56 px icon form.
 // variant="bar": the slim mission bar for < 1024 px that opens the full list as a sheet.
 // onShowMe receives activeStep(progress) ({ mission, step, view, target }); the parent switches

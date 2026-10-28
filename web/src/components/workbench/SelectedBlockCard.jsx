@@ -3,8 +3,7 @@ import { CoachMark } from './CoachMark';
 import './cardKit.css';
 import './SelectedBlockCard.css';
 
-// Selected block card (web/DESIGN.md, "Card grid"; prototypes round-6 base.html
-// and tampered.html). Presentational: the parent passes the block as a view
+// Selected block card (web/DESIGN.md, "Card grid"). Presentational: the parent passes the block as a view
 // model with names already resolved, its check from `inspectBlocks()` and the
 // stored hash of its predecessor.
 //

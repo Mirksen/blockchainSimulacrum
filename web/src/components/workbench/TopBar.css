@@ -1,4 +1,4 @@
-/* Top bar (web/DESIGN.md, "Information architecture"; round-6/base.html .topbar, phone.html .m-top). */
+/* Top bar (web/DESIGN.md, "Information architecture"). */
 .top-bar {
   flex: none; position: relative; z-index: 40;
   height: 52px; display: flex; align-items: center; gap: var(--s-7);

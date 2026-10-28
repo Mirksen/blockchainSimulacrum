@@ -1,8 +1,8 @@
 import './cardKit.css';
 import './ActivityCard.css';
 
-// Activity card (web/DESIGN.md, "Card grid": only on tall screens; prototype round-6
-// base.html). Recent confirmed transactions on the left, block times on the right.
+// Activity card (web/DESIGN.md, "Card grid": only on tall screens). Recent
+// confirmed transactions on the left, block times on the right.
 // confirmed:  [{ blockIndex, label, amount }]  newest first; label like "Coinbase → Lars",
 //             amount a number or a ready string ("0.60 each")
 // blockTimes: [{ index, seconds }]             newest first

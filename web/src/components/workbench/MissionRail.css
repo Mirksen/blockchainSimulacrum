@@ -1,4 +1,4 @@
-/* Mission rail (web/DESIGN.md, "Mission rail"; round-6/base.html .rail, tampered.html, phone.html .mbar).
+/* Mission rail (web/DESIGN.md, "Mission rail").
    The parent grid sets the width: about 248 px open, 56 px collapsed. */
 .mission-rail, .mission-rail-sheet {
   font: 13px/18px var(--ui); font-variant-numeric: tabular-nums; color: var(--text);

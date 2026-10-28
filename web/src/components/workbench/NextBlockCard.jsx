@@ -2,8 +2,7 @@ import { CoachMark } from './CoachMark';
 import './cardKit.css';
 import './NextBlockCard.css';
 
-// Next block card (web/DESIGN.md, "Card grid" and "Interaction patterns";
-// prototypes round-6 base.html, mining.html, tampered.html, phone.html).
+// Next block card (web/DESIGN.md, "Card grid" and "Interaction patterns").
 // One filled primary per mode:
 //   fresh   "Start demo"            idle   "Mine block #N"
 //   mining  "Mining block #N…" (disabled, Pause next to it)

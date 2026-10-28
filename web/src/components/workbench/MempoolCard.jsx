@@ -3,8 +3,8 @@ import { CoachMark } from './CoachMark';
 import './cardKit.css';
 import './MempoolCard.css';
 
-// Mempool card (web/DESIGN.md, "Card grid" and "Interaction patterns"; prototypes
-// round-6 base.html, mining.html, phone.html). "New transaction" sits in the header
+// Mempool card (web/DESIGN.md, "Card grid" and "Interaction patterns"). "New
+// transaction" sits in the header
 // as the tinted second invitation and opens the form in place at the top of the card.
 // transactions: [{ from, to, amount, reference? }] with names already resolved
 // participants:  [{ name }] or names, the choices for From and To

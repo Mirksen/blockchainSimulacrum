@@ -6,19 +6,11 @@ components last. Anyone building or changing a view checks it against every
 section.
 
 **In force or target picture.** A section without a marker is in force: new
-and changed code follows it, and deviations in existing code are named. A
-section marked "Target picture · rebuild" is decided but not yet built; new
-views follow it with the components that already exist, existing views are
-changed only by the [rebuild](#rebuild). Origin and trade-offs of a rule live
-in the PR and in [`studies/design-workshop/`](studies/design-workshop/), not
-here.
-
-**Reference.** The prototype of the target picture is
-[`studies/design-workshop/round-6/`](studies/design-workshop/round-6/)
-(`base.html` idle, `mining.html`, `tampered.html`, `light.html`,
-`phone.html`); build the board with
-`python3 web/studies/design-workshop/build.py round-6`. Where this document and
-the prototype disagree, this document wins.
+and changed code follows it, and deviations in existing code are named under
+[Deviations](#deviations). A section marked "Target picture" is decided but
+not yet built. Origin and trade-offs of a rule live in the PR, not here; the
+workshop behind the current design is in PRs #14 and #15. The product is the
+reference.
 
 ## Core feeling
 
@@ -64,8 +56,6 @@ Titles carry no full stop. Numbers use tabular figures; hashes and amounts
 use the monospace font.
 
 ## Information architecture
-
-Target picture · rebuild.
 
 - **Top bar:** brand, navigation **Workbench · Hash lab · Chain lab · Mining
   pool**, the coin label "powCoin · virtual", the chain status pill, and an
@@ -146,8 +136,6 @@ decision, 2026-10-27):
 
 - **One grid with shared rows.** Selected block and Next block start and end
   at the same height; Wallets and Mempool start and end at the same height.
-  The right column starts under the candidate tile; a small notch on the Next
-  block card points at it without shifting the card.
 - **Selected block:** hash with Copy, previous hash, nonce, miner with time,
   tries and reward, transactions; "Open in Chain lab", "Tamper with this
   block".
@@ -191,7 +179,7 @@ tamper without a mission.
 
 ## Screen sizes
 
-Target picture · rebuild. Reference screen: **MacBook Pro 14"** (1512 × 982
+Reference screen: **MacBook Pro 14"** (1512 × 982
 points, 1512 × 860 CSS px inside the browser). The workbench is fluid around
 it; type size never changes with the viewport.
 
@@ -209,12 +197,10 @@ No size scrolls sideways.
 
 ## Foundation
 
-Target picture · rebuild. One token set in CSS custom properties with a
-dark and a light value per token; the light theme needs no markup change.
-Components never use hex values; miner colors and validity states are
-semantic tokens. Source of the values: the `:root` and
-`html[data-theme="light"]` blocks of `round-6/base.html` and
-`round-6/light.html`.
+One token set in CSS custom properties with a dark and a light value per
+token, in [`src/styles/tokens.css`](src/styles/tokens.css); the light theme
+needs no markup change. Components never use color literals; miner colors
+and validity states are semantic tokens.
 
 | Group | Tokens | Dark (default) |
 |---|---|---|
@@ -240,11 +226,9 @@ semantic tokens. Source of the values: the `:root` and
 
 ## Components
 
-Target picture · rebuild. Built in the order of the [rebuild](#rebuild).
-
 | Component | Contract |
 |---|---|
-| Top bar | Brand, three-tab navigation, coin label, chain status pill, overflow menu |
+| Top bar | Brand, four-tab navigation, coin label, chain status pill, overflow menu; below 768 px the tabs fold into the menu |
 | Block tile | Number, time, miner chip, tx count, stored previous hash, short hash with highlighted zeros; states `is-selected`, `is-newest`, `is-broken`, `is-dependent`; full-hash tooltip with Copy on hover and focus |
 | Candidate tile | Dashed; idle "next", mining "mining · 3.4 s", paused while invalid |
 | Link | 1 px hairline with a neutral 6 px dot; `is-broken` red, `is-dependent` amber; explaining tooltip |
@@ -258,36 +242,44 @@ Target picture · rebuild. Built in the order of the [rebuild](#rebuild).
 | Mission rail | Open and collapsed forms, steps with done/current/locked |
 | Tooltip | Overlay surface, mono content, Copy |
 
-## Rebuild
+Rules for every workbench component (`src/components/workbench/`):
 
-Target picture · rebuild. Steps, one PR each, in this order. Each view PR
-shows before and after at 1512 × 860 and 390 px, light and dark, and keeps
-the existing tests green.
+- Presentational: data and callbacks come in as props; no `useBlockchain`
+  call, no global state, no fetching (except the leaderboard ticker).
+  `App.jsx` owns state and side effects; `Workbench.jsx` turns the
+  simulation snapshot into view models.
+- Each component fills its container; lists scroll inside and the header
+  stays visible, so the parent grid decides sizes.
+- One CSS file per component, class names prefixed with the component name
+  in kebab case (`.chain-band-…`, `.next-block-…`).
+- Status is always color plus text. Focus is visible; hover tooltips also
+  open on focus.
+- A step a mission needs is wrapped in `<CoachMark target="…" coach={coach}>`;
+  the target ids are the `target` strings in `src/lib/missions.js`.
+- Short hash: first 6 + last 2 characters with "…", leading zeros
+  highlighted.
+- Each component has a test (vitest and Testing Library) for its states and
+  callbacks.
 
-1. **Tokens and theme.** Replace the `--sap*` tokens with the foundation
-   above (dark default, light via `data-theme`); no layout change yet.
-2. **Shell.** Top bar with Workbench · Hash lab · Chain lab and overflow
-   menu; fluid page frame with the size rules.
-3. **Chain band.** Tiles, candidate, hairline links, key-figure line, chain
-   health with Show checks, full-hash tooltip with Copy, selection.
-4. **Card grid.** Selected block, Next block (mining card and live race),
-   Wallets, Mempool with New transaction in the header; Activity on tall
-   screens; tampered state.
-5. **Mobile and tablet.** Vertical timeline and the stacked order.
-6. **Missions.** Rail, steps, coach ring. Needs new simulation features that
-   do not exist yet: mission progress, backing a miner, creating a wallet,
-   re-mining a historical block and undoing an edit. Each is its own PR with
-   tests before the rail uses it.
-7. **Guards.** A check that components use tokens only (no hex in component
-   CSS), and the screenshot comparison for the views above.
+## Guards
 
-The PR finishing step 7 removes the "Target picture · rebuild" markers and
-deletes `studies/design-workshop/`; from then on the product is the
-reference.
+- `src/__tests__/designTokens.test.js` fails on any color literal (hex,
+  `rgb()`, `hsl()`) outside `src/styles/tokens.css`.
+- The browser acceptance (`npm run test:browser`) writes the reference views
+  `view-workbench-*` and `view-tampered-*` at 1512 × 860 and 390 px in both
+  themes; CI uploads them as the `screenshots` artifact for review. Chain
+  content is random per run, so they are compared by eye, not pixel by pixel.
 
-## Findings: current product (2026-10-27, commit 284c54e)
+## Deviations
 
-The finding the redesign answers. Inventory of `web/src`:
+- The card grid uses two equal columns. The workshop prototype started the
+  right column under the third visible tile and gave the Next block card a
+  notch pointing at the candidate; both are not built, because the chain band
+  shows a varying number of tiles.
+
+## Findings: product before the redesign (2026-10-27, commit 284c54e)
+
+The finding the redesign answered. Inventory of `web/src` at the time:
 
 | Finding | Measured |
 |---|---|
@@ -310,12 +302,13 @@ looking.
 
 1. **Finding.** A target picture answers a measured finding or Mirko's
    impression at a named place, not taste alone.
-2. **Direction.** Workshop rounds in `studies/design-workshop/round-N/`:
-   tile 0 is the current product, tiles 1–8 are variants or states. Mirko
+2. **Direction.** Workshop rounds in `studies/<workshop>/round-N/`: tile 0
+   is the current product, tiles 1–8 are variants or states. Mirko
    prioritizes; the next round narrows.
 3. **Target picture and prototype.** The decision lands here, marked as
    target picture, with its prototype in the study.
 4. **Review at the prototype.** The lead checks it at the reference size,
    light and dark, at 390 px and at the size extremes.
-5. **Rebuild** in the steps above, one PR per step.
+5. **Rebuild** in steps, one PR per step, each with before and after
+   screenshots of the reference views.
 6. **Close.** The last PR removes the markers and the prototype.

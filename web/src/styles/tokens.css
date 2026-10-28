@@ -3,10 +3,7 @@
  *
  * One token set, a dark value (default, :root) and a light value
  * (html[data-theme="light"]) per token. Components use these tokens, never
- * hex values. Source of the values: the :root and html[data-theme="light"]
- * blocks of studies/design-workshop/round-6/base.html and light.html.
- * Layout tokens of the prototype (top bar, rail, chain grid, row heights)
- * arrive with the rebuild steps that use them.
+ * hex values.
  */
 
 :root {

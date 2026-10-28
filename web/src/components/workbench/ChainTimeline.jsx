@@ -9,7 +9,7 @@ import {
 import './ChainTimeline.css';
 
 // Chain as a vertical timeline for screens below 1024 px (web/DESIGN.md,
-// "Screen sizes"; prototype round-6/phone.html): newest on top, the candidate
+// "Screen sizes"): newest on top, the candidate
 // row first, a tap opens the full hash with Copy and "Open in Chain lab".
 // Same props as ChainBand plus onOpenChainLab(index).
 

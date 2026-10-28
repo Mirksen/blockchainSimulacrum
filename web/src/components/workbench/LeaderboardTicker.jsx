@@ -20,7 +20,7 @@ const reducedMotion = () => typeof window !== 'undefined' && Boolean(window.matc
 const formatNumber = value => Number(value).toLocaleString('en-US');
 const isRow = row => row !== null && typeof row === 'object' && typeof row.name === 'string' && row.name !== '';
 
-// Short hash: first 6 + last 2 characters, leading zeros highlighted (CONTRACT.md).
+// Short hash: first 6 + last 2 characters, leading zeros highlighted (web/DESIGN.md).
 function ShortHash({ hash }) {
   const text = typeof hash === 'string' ? hash : '';
   if (text.length < 9) return <span className="leaderboard-ticker-hash">{text || '–'}</span>;

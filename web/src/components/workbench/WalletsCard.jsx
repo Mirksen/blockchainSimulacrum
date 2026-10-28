@@ -2,7 +2,7 @@ import { useState } from 'react';
 import './cardKit.css';
 import './WalletsCard.css';
 
-// Wallets card (web/DESIGN.md, "Card grid"; prototypes round-6 base.html, phone.html).
+// Wallets card (web/DESIGN.md, "Card grid").
 // wallets: [{ name, balance, isMiner?, blocksWon?, hashrate? }]  hashrate in H/s, shown for miners
 // onCreateWallet(name) returns { success, error }; the error text is shown under the field.
 
