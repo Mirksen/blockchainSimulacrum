@@ -6,10 +6,16 @@ import { getLeaderboard } from '../lib/poolApi';
 
 vi.mock('../lib/poolApi', async importOriginal => ({ ...(await importOriginal()), getLeaderboard: vi.fn() }));
 
+const ROUND = { height: 900001, hash: `0000${'ab'.repeat(30)}` };
 const ROWS = [
-  { name: 'test-miner-a', points: 65536, shares: 1, bestHash: '0000ab'.padEnd(62, 'c') + 'ef', bestZeros: 4 },
-  { name: 'test-miner-b', points: 4096, shares: 2, bestHash: '000f12'.padEnd(62, 'd') + '9a', bestZeros: 3 },
+  { name: 'test-miner-a', round: ROUND, nonce: 4242, bestHash: '0000ab'.padEnd(62, 'c') + 'ef', bestZeros: 4,
+    difficulty: 2.5e9, proofs: 3, foundAt: 1_800_000_000_000 },
+  { name: 'test-miner-b', round: { height: 899990, hash: 'a'.repeat(64) }, nonce: 7, bestHash: '000f12'.padEnd(62, 'd') + '9a',
+    bestZeros: 3, difficulty: 4096, proofs: 1, foundAt: 1_799_999_000_000 },
 ];
+const ROUND_ROW = { ...ROWS[1], name: 'round-only-miner', round: ROUND };
+// The ticker shows the all-time board; this round's rows are for the pool panel.
+const board = (allTime, roundRows = [ROUND_ROW]) => ({ recent: { from: ROUND.height - 143, to: ROUND.height, rows: roundRows }, allTime });
 const flush = () => act(async () => {});
 const ticker = () => screen.queryByTestId('leaderboard-ticker');
 const stubMotion = reduce => vi.stubGlobal('matchMedia', query => ({
@@ -21,8 +27,8 @@ beforeEach(() => { vi.mocked(getLeaderboard).mockReset(); stubMotion(false); });
 afterEach(() => { cleanup(); vi.useRealTimers(); vi.unstubAllGlobals(); });
 
 describe('LeaderboardTicker', () => {
-  it('shows rank, name, points and the short best hash, and opens the pool on click', async () => {
-    vi.mocked(getLeaderboard).mockResolvedValue(ROWS);
+  it('shows rank, name, zeros, difficulty and the short best hash of all time, and opens the pool on click', async () => {
+    vi.mocked(getLeaderboard).mockResolvedValue(board(ROWS));
     const onOpenPool = vi.fn();
     render(<LeaderboardTicker onOpenPool={onOpenPool} />);
     await flush();
@@ -30,33 +36,41 @@ describe('LeaderboardTicker', () => {
     expect(band).toBeTruthy();
     const list = band.querySelector('.leaderboard-ticker-list:not([aria-hidden])');
     const first = list.querySelector('.leaderboard-ticker-row');
-    expect(first.textContent).toBe('#1test-miner-a65,536 pts0000ab…ef');
+    expect(first.textContent).toBe('#1test-miner-a4 zeros · 2.5 B0000ab…ef');
     expect(first.querySelector('.leaderboard-ticker-zero').textContent).toBe('0000');
-    expect(list.querySelectorAll('.leaderboard-ticker-row')[1].textContent).toContain('#2test-miner-b4,096 pts000f12…9a');
+    expect(list.querySelectorAll('.leaderboard-ticker-row')[1].textContent).toBe('#2test-miner-b3 zeros · 4,096000f12…9a');
+    expect(band.textContent).not.toContain('round-only-miner');
     // The second copy only makes the loop seamless; assistive tech hears one list.
     expect(band.querySelectorAll('.leaderboard-ticker-list[aria-hidden="true"]')).toHaveLength(1);
 
-    const button = screen.getByRole('button', { name: /^Pool leaderboard, 2 miners, leader test-miner-a with 65,536 points/ });
+    const button = screen.getByRole('button', { name: 'Pool leaderboard, 2 miners, leader test-miner-a with 4 zeros. Open the Mining pool' });
     fireEvent.click(button);
     expect(onOpenPool).toHaveBeenCalledTimes(1);
   });
 
-  it('renders nothing when the server is unavailable', async () => {
-    vi.mocked(getLeaderboard).mockRejectedValue(Object.assign(new Error('The leaderboard server could not be reached.'), { status: 0 }));
+  it.each([
+    ['unavailable', { status: 0, code: 'network' }],
+    ['answering with a malformed board', { status: 0, code: 'invalid' }],
+  ])('renders nothing when the server is %s', async (_label, failure) => {
+    vi.mocked(getLeaderboard).mockRejectedValue(Object.assign(new Error('Synthetic pool failure.'), failure));
     const { container } = render(<LeaderboardTicker onOpenPool={() => {}} />);
     await flush();
     expect(container.innerHTML).toBe('');
   });
 
-  it('renders nothing for an empty board', async () => {
-    vi.mocked(getLeaderboard).mockResolvedValue([]);
+  it.each([
+    ['an empty board', { round: null, allTime: [] }],
+    ['a board with proofs only in this round', board([])],
+  ])('renders nothing for %s', async (_label, answer) => {
+    vi.mocked(getLeaderboard).mockResolvedValue(answer);
     const { container } = render(<LeaderboardTicker onOpenPool={() => {}} />);
     await flush();
+    expect(getLeaderboard).toHaveBeenCalledTimes(1);
     expect(container.innerHTML).toBe('');
   });
 
   it('pauses on hover and focus and resumes after', async () => {
-    vi.mocked(getLeaderboard).mockResolvedValue(ROWS);
+    vi.mocked(getLeaderboard).mockResolvedValue(board(ROWS));
     render(<LeaderboardTicker onOpenPool={() => {}} />);
     await flush();
     const button = screen.getByRole('button');
@@ -73,7 +87,7 @@ describe('LeaderboardTicker', () => {
 
   it('is a static single list under prefers-reduced-motion', async () => {
     stubMotion(true);
-    vi.mocked(getLeaderboard).mockResolvedValue(ROWS);
+    vi.mocked(getLeaderboard).mockResolvedValue(board(ROWS));
     render(<LeaderboardTicker onOpenPool={() => {}} />);
     await flush();
     expect(ticker().classList.contains('is-static')).toBe(true);
@@ -82,7 +96,7 @@ describe('LeaderboardTicker', () => {
 
   it('refreshes every 60 s and hides quietly when a refresh fails', async () => {
     vi.useFakeTimers();
-    vi.mocked(getLeaderboard).mockResolvedValueOnce(ROWS).mockResolvedValueOnce([ROWS[1]])
+    vi.mocked(getLeaderboard).mockResolvedValueOnce(board(ROWS)).mockResolvedValueOnce(board([ROWS[1]]))
       .mockRejectedValueOnce(Object.assign(new Error('The leaderboard server is unavailable right now.'), { status: 503 }));
     render(<LeaderboardTicker onOpenPool={() => {}} />);
     await flush();
@@ -93,7 +107,7 @@ describe('LeaderboardTicker', () => {
     expect(getLeaderboard).toHaveBeenCalledTimes(1);
     await act(async () => { await vi.advanceTimersByTimeAsync(1); });
     expect(getLeaderboard).toHaveBeenCalledTimes(2);
-    expect(screen.getByRole('button').getAttribute('aria-label')).toMatch(/1 miner, leader test-miner-b/);
+    expect(screen.getByRole('button').getAttribute('aria-label')).toBe('Pool leaderboard, 1 miner, leader test-miner-b with 3 zeros. Open the Mining pool');
 
     await act(async () => { await vi.advanceTimersByTimeAsync(TICKER_REFRESH_MS); });
     expect(getLeaderboard).toHaveBeenCalledTimes(3);

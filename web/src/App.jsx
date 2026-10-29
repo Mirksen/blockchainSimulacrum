@@ -8,6 +8,7 @@ import { LeaderboardTicker } from './components/workbench/LeaderboardTicker';
 import { SettingsDialog } from './components/workbench/SettingsDialog';
 import { Workbench } from './components/workbench/Workbench';
 import { MissionRail } from './components/workbench/MissionRail';
+import { MissionIntro } from './components/workbench/MissionIntro';
 import { HashLab } from './components/HashLab';
 import { ChainLab } from './components/ChainLab';
 import { PoolPanel } from './components/PoolPanel';
@@ -16,15 +17,18 @@ import { ParticipantDetailsModal } from './components/ParticipantDetailsModal';
 import './index.css';
 
 const INITIAL_CONFIG = {
-  name: 'powCoin', miningDifficulty: 2, blockReward: 3.125, halvingEvent: 4,
+  name: 'powfyicoin', miningDifficulty: 2, blockReward: 3.125, halvingEvent: 4,
   participants: ['Alice', 'Bob', 'Chris', 'Lars', 'Minas'], miners: ['Minas', 'Lars'], startingBalance: 0
 };
 const VIEWS = { '': 'workbench', 'hash-lab': 'hash-lab', 'chain-lab': 'chain-lab', pool: 'pool' };
 const RAIL_KEY = 'proofofwork-rail-collapsed';
+const INTRO_KEY = 'proofofwork-missions-intro-seen';
 const VIEW_LABELS = { workbench: 'Workbench', 'hash-lab': 'Hash lab', 'chain-lab': 'Chain lab', pool: 'Mining pool' };
 
 const viewFromHash = () => VIEWS[(globalThis.location?.hash ?? '').replace(/^#\/?/, '')] ?? 'workbench';
-function readFlag(key) { try { return globalThis.localStorage?.getItem(key) === '1'; } catch { return false; } }
+function readFlag(key, fallback = false) {
+  try { const value = globalThis.localStorage?.getItem(key); return value == null ? fallback : value === '1'; } catch { return fallback; }
+}
 function writeFlag(key, value) { try { globalThis.localStorage?.setItem(key, value ? '1' : '0'); } catch { /* storage may be blocked */ } }
 const browserStorage = () => { try { return globalThis.localStorage ?? null; } catch { return null; } };
 // Below 768 px the top bar folds its tabs into the menu.
@@ -52,7 +56,7 @@ function App() {
   const [view, setView] = useState(viewFromHash);
   const [winner, setWinner] = useState(null);
   const [autoMining, setAutoMining] = useState(false);
-  const [coinName, setCoinName] = useState('powCoin');
+  const [coinName, setCoinName] = useState('powfyicoin');
   const [targetBlockTime, setTargetBlockTime] = useState(10);
   const [showSettings, setShowSettings] = useState(false);
   const [error, setError] = useState('');
@@ -63,7 +67,9 @@ function App() {
   const [details, setDetails] = useState(null);
   const [walletDetails, setWalletDetails] = useState(null);
   const [workComparison, setWorkComparison] = useState(null);
-  const [railCollapsed, setRailCollapsed] = useState(() => readFlag(RAIL_KEY));
+  // The rail starts collapsed (free play); a first-visit card invites to the missions once.
+  const [railCollapsed, setRailCollapsed] = useState(() => readFlag(RAIL_KEY, true));
+  const [introSeen, setIntroSeen] = useState(() => readFlag(INTRO_KEY));
   const [progress, setProgress] = useState(() => missions.load(browserStorage()));
   const compact = useSyncExternalStore(subscribePhone, isPhone, () => false);
   const lastAdjustedBlock = useRef(0);
@@ -132,7 +138,9 @@ function App() {
     if (height < 10 || height % 10 !== 0 || lastAdjustedBlock.current === height) return;
     lastAdjustedBlock.current = height;
     const current = sim.blockchain.miningDifficulty;
-    const seconds = (chainBlocks[height].timestamp - chainBlocks[height - 10].timestamp) / 10000;
+    // Measured from block #1 at the earliest: the genesis time is a fixed launch moment.
+    const from = Math.max(1, height - 10);
+    const seconds = (chainBlocks[height].timestamp - chainBlocks[from].timestamp) / 1000 / (height - from);
     let next = current;
     if (seconds < targetBlockTime * 0.7 && current < 5) next = current + 1;
     else if (seconds > targetBlockTime * 1.5 && current > 1) next = current - 1;
@@ -204,7 +212,18 @@ function App() {
       element?.querySelector('button, input, select, textarea, a[href]')?.focus({ preventScroll: true });
     });
   };
-  const toggleRail = () => setRailCollapsed(current => { writeFlag(RAIL_KEY, !current); return !current; });
+  const dismissIntro = () => { writeFlag(INTRO_KEY, true); setIntroSeen(true); };
+  const toggleRail = () => {
+    if (railCollapsed) dismissIntro();
+    setRailCollapsed(current => { writeFlag(RAIL_KEY, !current); return !current; });
+  };
+  const startMissions = () => {
+    dismissIntro();
+    writeFlag(RAIL_KEY, false);
+    setRailCollapsed(false);
+  };
+  // Only for someone who has not started a mission yet.
+  const showIntro = !introSeen && railCollapsed && progress.step === 0 && progress.completed.length === 0;
 
   const onCreateTransaction = (from, to, amount, reference) => {
     const result = createTransaction(from, to, Number(amount), undefined, reference);
@@ -247,6 +266,7 @@ function App() {
         </div>
         <main id="workbench" className="wb-main" aria-label={VIEW_LABELS[view]}>
           <div className="wb-mbar"><MissionRail progress={progress} variant="bar" onShowMe={showMe} /></div>
+          {showIntro && <MissionIntro onStart={startMissions} onDismiss={dismissIntro} />}
           {view === 'workbench' && <Workbench sim={sim} coinName={coinName} targetSeconds={targetBlockTime}
             autoMine={autoMining} onAutoMine={value => value ? setAutoMining(true) : pause()}
             selectedIndex={selectedIndex} onSelect={setSelectedIndex} healthOpen={healthOpen} onToggleHealth={() => setHealthOpen(open => !open)}

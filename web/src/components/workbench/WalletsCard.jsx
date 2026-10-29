@@ -54,7 +54,7 @@ function CreateWalletForm({ onCreate, onCancel }) {
   );
 }
 
-export function WalletsCard({ wallets = [], coinName = 'powCoin', onOpenWallet, onCreateWallet }) {
+export function WalletsCard({ wallets = [], coinName = 'powfyicoin', onOpenWallet, onCreateWallet }) {
   const [creating, setCreating] = useState(false);
   return (
     <section className="card-kit wallets-card" aria-label="Wallets">

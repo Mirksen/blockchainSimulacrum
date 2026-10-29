@@ -7,6 +7,7 @@
 import SHA256 from 'crypto-js/sha256';
 import { ec as EC } from 'elliptic';
 import { deriveWallet } from './wallet';
+import genesis from '../../../shared/genesis.json';
 
 const ec = new EC('secp256k1');
 
@@ -136,6 +137,18 @@ export class Block {
   }
 }
 
+export const GENESIS = genesis;
+
+export function createGenesisBlock() {
+  const { coinbase } = genesis;
+  const tx = new Transaction(coinbase.sender, coinbase.recipient, coinbase.amount, coinbase.fee, coinbase.memo);
+  tx.timestamp = new Date(genesis.timestamp).toISOString();
+  const block = new Block(genesis.timestamp, [tx], genesis.anchor.hash, genesis.difficulty);
+  block.nonce = genesis.nonce;
+  block.hash = block.createHash();
+  return block;
+}
+
 // Hash of a candidate block at a given nonce; equals Block.createHash for the
 // block that acceptBlock builds from the same candidate and nonce.
 export function candidateHash(candidate, nonce) {
@@ -169,8 +182,11 @@ export class Blockchain {
     return !this.historyEdited || this.isChainValid();
   }
 
+  // The fixed genesis block of proofofwork.fyi (shared/genesis.json): built on a
+  // Bitcoin block of its launch day, with one unspendable coinbase carrying its
+  // memo, like Satoshi's. Every chain and every pool proof starts from this hash.
   createGenesisBlock() {
-    return new Block(Date.now(), [], '0');
+    return createGenesisBlock();
   }
 
   addParticipant(name, isMiner = false) {
@@ -581,7 +597,7 @@ export class Blockchain {
 // Factory function for easy initialization
 export function createBlockchain(config = {}) {
   const {
-    name = 'powCoin',
+    name = 'powfyicoin',
     miningDifficulty = 1,
     blockReward = 3.125,
     halvingEvent = 210000,

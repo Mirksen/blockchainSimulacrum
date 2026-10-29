@@ -56,7 +56,7 @@ describe('mission track', () => {
     expect(MISSIONS.find(mission => mission.id === 'change-the-past').result)
       .toContain('This toy chain shows links and work, not signatures or network consensus.');
     expect(MISSIONS.find(mission => mission.id === 'forge-a-block').result).toMatch(/redid the work.*real network.*no network/);
-    expect(MISSIONS.find(mission => mission.id === 'send-first-coin').result).toContain('powCoin is virtual');
+    expect(MISSIONS.find(mission => mission.id === 'send-first-coin').result).toContain('powfyicoin is virtual');
   });
 
   it('starts at mission 1 and unlocks missions only in order', () => {

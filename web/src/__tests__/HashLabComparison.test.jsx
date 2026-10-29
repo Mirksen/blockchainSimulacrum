@@ -69,6 +69,8 @@ describe('measured work-lesson comparison', () => {
   it('survives the real App mission-completion remount, then Reset clears the recap', async () => {
     vi.useFakeTimers();
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 1, completed: ['change-fingerprint'], step: 0, data: {} }));
+    // The rail starts collapsed (free play); the lab lesson needs it open.
+    localStorage.setItem('proofofwork-rail-collapsed', '0');
     history.replaceState(null, '', '/#/hash-lab');
     render(<App />);
     expect(screen.getByRole('heading', { name: 'Same input. A stricter target.' })).toBeTruthy();

@@ -45,7 +45,19 @@
 .pool-panel table { width: 100%; border-collapse: collapse; font-size: 14px; }
 .pool-panel th, .pool-panel td { padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--line); vertical-align: baseline; }
 .pool-panel th { font-size: 12px; font-weight: 600; color: var(--text-2); }
-.pool-panel th:nth-child(3), .pool-panel th:nth-child(4), .pool-panel td:nth-child(3), .pool-panel td:nth-child(4) { text-align: right; font-variant-numeric: tabular-nums; }
+.pool-panel th:nth-child(4), .pool-panel th:nth-child(5), .pool-panel th:nth-child(6),
+.pool-panel td:nth-child(4), .pool-panel td:nth-child(5), .pool-panel td:nth-child(6) { text-align: right; font-variant-numeric: tabular-nums; }
+.pool-panel-zero { color: var(--green); font-weight: 600; }
+.pool-panel .pool-panel-verify-btn { padding: 2px 8px; font-size: 13px; }
+.pool-panel-verify-row td { background: var(--panel-2); }
+.pool-panel-verify { display: grid; gap: 4px; font-size: 13px; }
+.pool-panel-verify p { margin: 0; }
+.pool-panel .pool-panel-preimage { display: block; overflow-wrap: anywhere; color: var(--text); }
+.pool-panel-verify-ok { color: var(--green); font-weight: 600; }
+.pool-panel-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.pool-panel-board + .pool-panel-board { margin-top: 20px; }
+.pool-panel-genesis { margin: 12px 0 0; }
+.pool-panel-stats a { color: var(--pool-action); }
 .pool-panel-cell-name { overflow-wrap: break-word; }
 .pool-panel code { font: 13px/1.5 var(--mono); }
 .pool-panel :focus-visible { outline: 2px solid var(--pool-action); outline-offset: 3px; }

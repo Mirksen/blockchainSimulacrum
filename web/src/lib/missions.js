@@ -50,7 +50,7 @@ export const MISSIONS = freeze([
       { id: 'new-transaction', text: 'Create a transaction from one wallet to another.', target: 'workbench.new-transaction' }
     ],
     hint: 'A new transaction waits in the mempool until a mined block includes it.',
-    result: 'Your transaction is waiting in the mempool. Once a mined block includes it, it is part of the chain. powCoin is virtual: no real money moves.',
+    result: 'Your transaction is waiting in the mempool. Once a mined block includes it, it is part of the chain. powfyicoin is virtual: no real money moves.',
     reward: { xp: 40 }
   },
   {
@@ -92,7 +92,7 @@ export const MISSIONS = freeze([
       { id: 'reach-halving', text: 'Keep mining until the block reward halves.', target: 'workbench.mine' }
     ],
     hint: 'The reward halves after a fixed number of blocks. A shorter halving interval in Settings gets you there sooner.',
-    result: 'The block reward halved. A block still needs the same work, but it now creates fewer new powCoin.',
+    result: 'The block reward halved. A block still needs the same work, but it now creates fewer new powfyicoin.',
     reward: { xp: 60, badge: 'Halving survivor' }
   },
   {

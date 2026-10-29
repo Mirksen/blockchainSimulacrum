@@ -74,7 +74,7 @@ function NewTransactionForm({ names, coinName, onCreate, onClose }) {
 }
 
 export function MempoolCard({
-  transactions = [], nextIndex, mining = false, participants = [], coinName = 'powCoin', reward,
+  transactions = [], nextIndex, mining = false, participants = [], coinName = 'powfyicoin', reward,
   onCreateTransaction, newTxGlow = false, coach = null
 }) {
   const [open, setOpen] = useState(false);

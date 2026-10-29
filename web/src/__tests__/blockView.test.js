@@ -57,7 +57,9 @@ describe('buildBlockViews', () => {
     const chain = minedChain();
     const views = snapshotViews(chain);
     expect(views).toHaveLength(5);
-    expect(views[0]).toMatchObject({ index: 0, isGenesis: true, minerName: 'Genesis', minerKey: 'genesis', txCount: 0, seconds: null, prevHash: null });
+    expect(views[0]).toMatchObject({ index: 0, isGenesis: true, minerName: 'Genesis', minerKey: 'genesis', txCount: 1, seconds: null, prevHash: null });
+    // The genesis time is a fixed launch moment, so block #1 has no mining interval.
+    expect(views[1].seconds).toBeNull();
     expect(views[2]).toMatchObject({
       index: 2, minerName: 'Lars', minerKey: 'lars', txCount: 1, seconds: 2.5, status: 'valid', difficulty: 1,
       storedHash: chain.blockArray[2].hash, prevHash: chain.blockArray[1].hash, edited: false, edits: []
@@ -90,7 +92,7 @@ describe('buildBlockViews', () => {
   it('passes signature-invalid through from blockStatus', () => {
     const blocks = [{ hash: 'aa', transactions: [], difficulty: 0, timestamp: 1 }, { hash: '00bb', previousHash: 'aa', transactions: [], difficulty: 2, timestamp: 1001 }];
     const views = buildBlockViews({ blocks, blockStatus: [{ status: 'valid' }, { status: 'signature-invalid', hashMatches: true, meetsTarget: true, linkIntact: true, signaturesValid: false }] });
-    expect(views[1]).toMatchObject({ status: 'signature-invalid', minerName: 'Unknown miner', minerKey: 'other', seconds: 1 });
+    expect(views[1]).toMatchObject({ status: 'signature-invalid', minerName: 'Unknown miner', minerKey: 'other', seconds: null });
     expect(stateOf(views[1])).toBe('broken');
     expect(statusLabel('signature-invalid')).toBe('Signature invalid');
     expect(healthSummary(views).issues).toEqual(['#1 has a signature that no longer matches']);

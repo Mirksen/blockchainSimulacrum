@@ -1,0 +1,22 @@
+{
+  "status": "bridge",
+  "anchor": {
+    "chain": "bitcoin",
+    "height": 973700,
+    "hash": "000000000000000000000873038b9e19f073923de87b05b7872ca66771d3455a",
+    "time": 1793284355
+  },
+  "timestamp": 1793284355000,
+  "difficulty": 4,
+  "coinbase": {
+    "sender": null,
+    "recipient": "satoshi",
+    "amount": 3.125,
+    "fee": 0,
+    "memo": "proofofwork.fyi bridge genesis 29/Oct/2026 · built on Bitcoin block 973700 · the real genesis follows on 31/Oct/2026"
+  },
+  "startNonce": 0,
+  "txRoot": "4a2b94583471eb85bdd7d9da7c72d572e2fe5acfa3b94d33687e6904d9dc4d5c",
+  "nonce": 123494,
+  "hash": "000080634a9094da77ef54c95a708b9c1662ea16bef12ef9d41101dc2d953cf9"
+}

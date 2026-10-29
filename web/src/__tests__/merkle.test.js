@@ -69,7 +69,8 @@ describe('transactionRoot', () => {
 describe('block header with a transaction root', () => {
   it('keeps a fresh chain with its genesis block valid', () => {
     const chain = setup();
-    expect(chain.blockArray[0].txRoot).toBe(ZERO_ROOT);
+    const [coinbase] = chain.blockArray[0].transactions;
+    expect(chain.blockArray[0].txRoot).toBe(coinbase.createHash());
     expect(chain.isChainValid()).toBe(true);
   });
 

@@ -1,8 +1,9 @@
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import { getLeaderboard } from '../../lib/poolApi';
+import { formatDifficulty } from '../../lib/poolProof';
 import './LeaderboardTicker.css';
 
-// Slim band under the top bar that runs the pool leaderboard from right to left
+// Slim band under the top bar that runs the all-time pool leaderboard from right to left
 // (web/DESIGN.md, "Existing features in the workbench"). It pauses on hover and
 // focus, is static under prefers-reduced-motion and renders nothing while the
 // leaderboard server is unavailable or the board is empty. The only component of
@@ -17,8 +18,6 @@ function subscribeReducedMotion(callback) {
 }
 const reducedMotion = () => typeof window !== 'undefined' && Boolean(window.matchMedia?.(REDUCED_MOTION).matches);
 
-const formatNumber = value => Number(value).toLocaleString('en-US');
-const isRow = row => row !== null && typeof row === 'object' && typeof row.name === 'string' && row.name !== '';
 
 // Short hash: first 6 + last 2 characters, leading zeros highlighted (web/DESIGN.md).
 function ShortHash({ hash }) {
@@ -41,7 +40,7 @@ function Rows({ rows, hidden }) {
         <span className="leaderboard-ticker-row" key={`${row.name}-${index}`}>
           <span className="leaderboard-ticker-rank">#{Number.isSafeInteger(row.rank) ? row.rank : index + 1}</span>
           <span className="leaderboard-ticker-name">{row.name}</span>
-          <span className="leaderboard-ticker-points">{formatNumber(row.points ?? 0)} pts</span>
+          <span className="leaderboard-ticker-points">{row.bestZeros} zeros · {formatDifficulty(row.difficulty)}</span>
           <ShortHash hash={row.bestHash} />
         </span>
       ))}
@@ -60,7 +59,7 @@ export function LeaderboardTicker({ onOpenPool, refreshMs = TICKER_REFRESH_MS })
     const load = async () => {
       try {
         const answer = await getLeaderboard({ signal: controller.signal });
-        if (alive) setRows(Array.isArray(answer) ? answer.filter(isRow) : null);
+        if (alive) setRows(answer.allTime);
       } catch {
         // Unavailable or cancelled: disappear quietly until the next refresh succeeds.
         if (alive) setRows(null);
@@ -75,7 +74,7 @@ export function LeaderboardTicker({ onOpenPool, refreshMs = TICKER_REFRESH_MS })
 
   const leader = rows[0];
   const label = `Pool leaderboard, ${rows.length} ${rows.length === 1 ? 'miner' : 'miners'}, `
-    + `leader ${leader.name} with ${formatNumber(leader.points ?? 0)} points. Open the Mining pool`;
+    + `leader ${leader.name} with ${leader.bestZeros} zeros. Open the Mining pool`;
   const duration = `${Math.max(24, rows.length * 6)}s`;
   const classes = ['leaderboard-ticker', paused && 'is-paused', reduced && 'is-static'].filter(Boolean).join(' ');
 
