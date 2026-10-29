@@ -2,29 +2,86 @@ name: Server checks
 on:
   push:
     branches: [master]
-    paths: ['server/**', 'shared/**', 'deploy/lab/**', '.github/workflows/server.yml']
+    paths: ['server/**', 'shared/**', 'web/**', 'deploy/lab/**', '.github/workflows/server.yml']
   pull_request:
-    paths: ['server/**', 'shared/**', 'deploy/lab/**', '.github/workflows/server.yml']
+    paths: ['server/**', 'shared/**', 'web/**', 'deploy/lab/**', '.github/workflows/server.yml']
 permissions:
   contents: read
 jobs:
   server:
-    runs-on: ubuntu-24.04
-    timeout-minutes: 10
-    defaults:
-      run:
-        working-directory: server
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@v7.1.0
         with:
           node-version: '24.19.0'
-      # Zero runtime dependencies: the leaderboard server runs on node:http, node:crypto and node:sqlite.
-      - run: npm test
-      - name: Compose file is valid
-        working-directory: deploy/lab/proofofwork
-        # The real .env only exists on the host; an empty one satisfies env_file.
-        run: touch .env && docker compose -f compose.yaml config --quiet
-      - name: Deploy script applies, rolls back and skips correctly
-        working-directory: .
-        run: bash deploy/lab/proofofwork/test/apply.test.sh
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Check server, web and release declaration
+        run: |
+          npm --prefix server test
+          npm --prefix web ci
+          npm --prefix web run check
+          python3 -m unittest discover -s deploy/lab/proofofwork/test -p test_release.py -v
+      - name: Build and accept the complete immutable ARM64 runtime
+        env:
+          SOURCE_REVISION: ${{ github.sha }}
+        run: |
+          docker build --build-arg SOURCE_REVISION="$SOURCE_REVISION" -t proofofwork-lab:checked -f deploy/lab/proofofwork/Dockerfile .
+          test "$(docker image inspect --format '{{.Architecture}}' proofofwork-lab:checked)" = arm64
+          test "$(docker image inspect --format '{{index .Config.Labels "org.opencontainers.image.revision"}}' proofofwork-lab:checked)" = "$SOURCE_REVISION"
+          bash deploy/lab/proofofwork/test/image-check.sh proofofwork-lab:checked
+          mkdir -p checked-image
+          docker save proofofwork-lab:checked > checked-image/image.tar
+          docker image inspect --format '{{.Id}}' proofofwork-lab:checked > checked-image/image.id
+          (cd checked-image && sha256sum image.tar image.id > SHA256SUMS)
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: lab-checked-image-${{ github.run_id }}-${{ github.run_attempt }}
+          path: checked-image/
+          retention-days: 3
+          if-no-files-found: error
+
+  publish:
+    needs: server
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: lab-checked-image-${{ github.run_id }}-${{ github.run_attempt }}
+          path: checked-image/
+      - name: Publish only the already accepted image and release declaration
+        env:
+          SOURCE_REVISION: ${{ github.sha }}
+          RELEASE_RUN_ID: ${{ github.run_id }}
+          REGISTRY_ACTOR: ${{ github.actor }}
+          REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          (cd checked-image && sha256sum -c SHA256SUMS)
+          docker load -i checked-image/image.tar
+          test "$(docker image inspect --format '{{.Id}}' proofofwork-lab:checked)" = "$(cat checked-image/image.id)"
+          printf '%s' "$REGISTRY_TOKEN" | docker login ghcr.io --username "$REGISTRY_ACTOR" --password-stdin
+          docker tag proofofwork-lab:checked "ghcr.io/mirksen/proofofwork-lab:$SOURCE_REVISION"
+          docker push "ghcr.io/mirksen/proofofwork-lab:$SOURCE_REVISION"
+          docker logout ghcr.io
+          docker pull --platform linux/arm64 cloudflare/cloudflared@sha256:c6c7ae1d5dfdcb094ad344ed68ccffc26635c9c6be80965664c33baf064b0515
+          mkdir -p lab-release
+          python3 deploy/lab/proofofwork/make-release.py --revision "$SOURCE_REVISION" --run-id "$RELEASE_RUN_ID" --output lab-release/release.json
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: lab-release-${{ github.run_id }}-${{ github.run_attempt }}
+          path: lab-release/release.json
+          retention-days: 30
+          if-no-files-found: error
