@@ -24,6 +24,20 @@ jobs:
           git fetch --depth=1 origin "$SOURCE_REVISION"
           git checkout --detach FETCH_HEAD
           test "$(git rev-parse HEAD)" = "$SOURCE_REVISION"
+      - name: Prepare complete image accounting in this fresh hosted job
+        run: |
+          # This job owns its ephemeral daemon; never reconfigure a shared pool host.
+          sudo python3 - <<'PYCODE'
+          import json
+          from pathlib import Path
+          path = Path("/etc/docker/daemon.json")
+          config = json.loads(path.read_text()) if path.exists() else {}
+          config.setdefault("features", {})["containerd-snapshotter"] = True
+          path.write_text(json.dumps(config))
+          PYCODE
+          sudo systemctl restart docker
+          docker version --format '{{.Server.Version}}'
+          docker info --format '{{json .DriverStatus}}'
       - uses: actions/setup-node@v7.1.0
         with:
           node-version: '24.19.0'
@@ -82,6 +96,20 @@ jobs:
           git fetch --depth=1 origin "$SOURCE_REVISION"
           git checkout --detach FETCH_HEAD
           test "$(git rev-parse HEAD)" = "$SOURCE_REVISION"
+      - name: Prepare complete image accounting in this fresh hosted job
+        run: |
+          # This job owns its ephemeral daemon; never reconfigure a shared pool host.
+          sudo python3 - <<'PYCODE'
+          import json
+          from pathlib import Path
+          path = Path("/etc/docker/daemon.json")
+          config = json.loads(path.read_text()) if path.exists() else {}
+          config.setdefault("features", {})["containerd-snapshotter"] = True
+          path.write_text(json.dumps(config))
+          PYCODE
+          sudo systemctl restart docker
+          docker version --format '{{.Server.Version}}'
+          docker info --format '{{json .DriverStatus}}'
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           name: lab-checked-image-${{ github.run_id }}-${{ github.run_attempt }}
