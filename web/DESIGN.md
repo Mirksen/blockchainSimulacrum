@@ -80,9 +80,15 @@ decision, 2026-10-27):
   Mining pool. The labs and the pool are views behind the tabs, not dialogs;
   the tab is in the URL (`#/hash-lab`, `#/chain-lab`, `#/pool`). Joining the
   pool happens on its tab.
+- **Pool proofs** (Mirko, 2026-10-29): a proof hashes our genesis hash, a
+  recent Bitcoin block (height and hash), the name and a nonce. It counts
+  while that Bitcoin block is one of the last 144 (about a day); the pool
+  tab lists "Last 144 blocks" and "All time", ranked by the smallest hash.
+  Every row has Verify. A bridge genesis says so under the board; the final
+  genesis (mined 31 October 2026) starts the board again.
 - **Leaderboard ticker** (Mirko): a slim band directly under the top bar
-  runs the pool leaderboard from right to left (rank, name, points, best
-  hash). It pauses on hover and focus, is static under
+  runs the all-time pool leaderboard from right to left (rank, name, zeros,
+  difficulty, best hash). It pauses on hover and focus, is static under
   `prefers-reduced-motion`, and disappears quietly when the leaderboard
   server is unavailable. Clicking it opens the Mining pool tab.
 - **Missions and the learning path are one track** (Mirko). The three guided
@@ -154,6 +160,16 @@ decision, 2026-10-27):
 
 ### Mission rail
 
+- **Starts collapsed for free play.** The learner can expand it at any
+  time; the browser remembers the expanded or collapsed state. With the
+  rail collapsed, Hash lab and Chain lab open without the mission lesson.
+- **First-visit invitation:** while the rail is collapsed and no mission
+  progress has been made, a non-modal card introduces the track. "Start
+  missions" expands the rail; "Not now" dismisses only the card. Either
+  action, or manually expanding the rail, marks the invitation as seen in
+  this browser, so it stays away on later visits when browser storage is
+  available. The invitation adds no filled primary action and never blocks
+  free play.
 - Lists the missions of the track with progress; the active mission is
   expanded with its steps, a hint and its reward.
 - The current step **marks the element it needs with a coach ring** and a

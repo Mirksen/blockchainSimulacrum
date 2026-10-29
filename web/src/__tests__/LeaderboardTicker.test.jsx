@@ -15,7 +15,7 @@ const ROWS = [
 ];
 const ROUND_ROW = { ...ROWS[1], name: 'round-only-miner', round: ROUND };
 // The ticker shows the all-time board; this round's rows are for the pool panel.
-const board = (allTime, roundRows = [ROUND_ROW]) => ({ round: { ...ROUND, rows: roundRows }, allTime });
+const board = (allTime, roundRows = [ROUND_ROW]) => ({ recent: { from: ROUND.height - 143, to: ROUND.height, rows: roundRows }, allTime });
 const flush = () => act(async () => {});
 const ticker = () => screen.queryByTestId('leaderboard-ticker');
 const stubMotion = reduce => vi.stubGlobal('matchMedia', query => ({

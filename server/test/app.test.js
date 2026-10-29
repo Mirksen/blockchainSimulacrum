@@ -116,6 +116,7 @@ describe('challenge endpoint', () => {
     assert.deepEqual(body, {
       name: 'sample-miner',
       round: ROUND_A,
+      windowStart: ROUND_A.height - 1,
       prefix: `proofofwork.fyi|${TEST_GENESIS}|${ROUND_A.height}:${ROUND_A.hash}|sample-miner|`,
       minZeros: 1,
       genesisHash: TEST_GENESIS,
@@ -139,7 +140,7 @@ describe('challenge endpoint', () => {
       assert.deepEqual(body, { error: 'round unavailable' });
       const lb = await getLeaderboard(srv);
       assert.equal(lb.status, 200);
-      assert.deepEqual(lb.body, { genesisHash: TEST_GENESIS, round: null, allTime: [] });
+      assert.deepEqual(lb.body, { genesisHash: TEST_GENESIS, recent: null, allTime: [] });
     } finally {
       srv.tip.state.current = ROUND_A;
     }
@@ -181,6 +182,7 @@ describe('share verification', () => {
     assert.equal(proof.hash, sha256hex(`proofofwork.fyi|${TEST_GENESIS}|${ROUND_B.height}:${ROUND_B.hash}|honest-miner|${proof.nonce}`));
     const rows = srv.db.prepare("SELECT * FROM proofs WHERE name = 'honest-miner'").all().map((row) => ({ ...row }));
     assert.deepEqual(rows, [{
+      genesis_hash: TEST_GENESIS,
       name: 'honest-miner',
       round_height: ROUND_B.height,
       round_hash: ROUND_B.hash,
@@ -191,7 +193,7 @@ describe('share verification', () => {
     }]);
   });
 
-  test('the previous round is still accepted', async () => {
+  test('an older block inside the window is still accepted', async () => {
     const { res } = await prove(srv, 'slow-miner', ROUND_A);
     assert.equal(res.status, 200);
     assert.deepEqual(res.body.round, ROUND_A);
@@ -232,7 +234,7 @@ describe('share verification', () => {
     assert.equal((await postShare(srv, { name: 'bound-miner', round: ROUND_B, nonce: proof.nonce })).status, 200);
   });
 
-  test('a round that is not current or previous is 410 round over', async () => {
+  test('an unknown block or one outside the window is 410 round over', async () => {
     const before = countProofs(srv);
     const unknown = { height: ROUND_B.height, hash: `${'0'.repeat(20)}${'d'.repeat(44)}` };
     for (const round of [ROUND_C, unknown, { height: 1, hash: ROUND_A.hash }]) {
@@ -331,7 +333,7 @@ describe('leaderboard', () => {
   test('starts empty', async () => {
     const { status, body } = await getLeaderboard(srv);
     assert.equal(status, 200);
-    assert.deepEqual(body, { genesisHash: TEST_GENESIS, round: { ...ROUND_A, rows: [] }, allTime: [] });
+    assert.deepEqual(body, { genesisHash: TEST_GENESIS, recent: { from: ROUND_A.height - 1, to: ROUND_A.height, rows: [] }, allTime: [] });
   });
 
   let big;
@@ -356,13 +358,13 @@ describe('leaderboard', () => {
     }
 
     const { body } = await getLeaderboard(srv);
-    assert.deepEqual(body.round.rows, body.allTime, 'one round so far: both lists agree');
-    assert.deepEqual(summary(body.round.rows), [
+    assert.deepEqual(body.recent.rows, body.allTime, 'one round so far: both lists agree');
+    assert.deepEqual(summary(body.recent.rows), [
       ['deep-miner', ROUND_A.height, 2, 2],
       ['equal-small', ROUND_A.height, 1, 1],
       ['equal-big', ROUND_A.height, 1, 2],
     ]);
-    assert.deepEqual(body.round.rows[0], {
+    assert.deepEqual(body.recent.rows[0], {
       name: 'deep-miner',
       round: ROUND_A,
       nonce: deep.nonce,
@@ -372,33 +374,37 @@ describe('leaderboard', () => {
       proofs: 2,
       foundAt: T0 + 3000,
     });
-    assert.equal(body.round.rows[2].bestHash, big.hash, 'the best of two proofs, not the latest');
-    assert.equal(body.round.rows[2].foundAt, T0 + 1000);
-    const [d0, d1, d2] = body.round.rows.map((r) => r.difficulty);
+    assert.equal(body.recent.rows[2].bestHash, big.hash, 'the best of two proofs, not the latest');
+    assert.equal(body.recent.rows[2].foundAt, T0 + 1000);
+    const [d0, d1, d2] = body.recent.rows.map((r) => r.difficulty);
     assert.ok(d0 > d1 && d1 > d2, 'difficulty descends with the ranking');
   });
 
-  test('the round list holds only the current round; all-time spans every round', async () => {
+  test('the recent list holds the window; all-time spans every round', async () => {
+    // Window of two blocks: A and B both count as recent.
     srv.tip.advance(ROUND_B);
     let { body } = await getLeaderboard(srv);
-    assert.deepEqual(body.round, { ...ROUND_B, rows: [] });
-    assert.equal(body.allTime.length, 3);
+    assert.deepEqual([body.recent.from, body.recent.to], [ROUND_A.height, ROUND_B.height]);
+    assert.deepEqual(body.recent.rows, body.allTime);
 
-    // equal-small in round B with a worse hash than in round A; a late proof for round A.
-    const smallB = mine(srv.prefix('equal-small', ROUND_B), { exact: 1, accept: (_, hash) => hash > small.hash });
-    assert.equal((await at(T0 + 6000, () => postShare(srv, { name: 'equal-small', round: ROUND_B, nonce: smallB.nonce }))).status, 200);
     const fresh = await at(T0 + 7000, () => prove(srv, 'round-b-miner', ROUND_B, { exact: 2 }));
     assert.equal(fresh.res.status, 200);
     const lateA = await at(T0 + 8000, () => prove(srv, 'late-a-miner', ROUND_A, { exact: 3 }));
     assert.equal(lateA.res.status, 200);
-
     ({ body } = await getLeaderboard(srv));
-    assert.deepEqual(summary(body.round.rows), [
-      ['round-b-miner', ROUND_B.height, 2, 1],
-      ['equal-small', ROUND_B.height, 1, 1],
-    ]);
-    assert.equal(body.round.rows[1].bestHash, smallB.hash);
-    for (const row of body.round.rows) assert.deepEqual(row.round, ROUND_B);
+    assert.equal(body.recent.rows[0].name, 'late-a-miner');
+    assert.deepEqual(body.recent.rows.find((r) => r.name === 'round-b-miner').round, ROUND_B);
+
+    // One block on, A leaves the window: its proofs leave the recent list and earn nothing new.
+    srv.tip.advance(ROUND_C);
+    const tooLate = await prove(srv, 'equal-big', ROUND_A, { start: 1000 });
+    assert.equal(tooLate.res.status, 410);
+    const stillB = await prove(srv, 'equal-big', ROUND_B);
+    assert.equal(stillB.res.status, 200);
+    ({ body } = await getLeaderboard(srv));
+    assert.deepEqual([body.recent.from, body.recent.to], [ROUND_B.height, ROUND_C.height]);
+    assert.deepEqual(body.recent.rows.map((r) => r.name).sort(), ['equal-big', 'round-b-miner']);
+    for (const row of body.recent.rows) assert.ok(row.round.height >= ROUND_B.height);
 
     const allTime = body.allTime.map((r) => r.bestHash);
     assert.deepEqual(allTime, [...allTime].sort(), 'all-time is ordered by hash');
@@ -406,18 +412,21 @@ describe('leaderboard', () => {
       body.allTime.map((r) => r.name).sort(),
       ['deep-miner', 'equal-big', 'equal-small', 'late-a-miner', 'round-b-miner'],
     );
-    assert.equal(body.allTime[0].name, 'late-a-miner');
-    const smallRow = body.allTime.find((r) => r.name === 'equal-small');
-    assert.deepEqual([smallRow.bestHash, smallRow.round, smallRow.proofs], [small.hash, ROUND_A, 2]);
+    const bigRow = body.allTime.find((r) => r.name === 'equal-big');
+    assert.deepEqual([bigRow.bestHash, bigRow.round, bigRow.proofs], [big.hash, ROUND_A, 3]);
+  });
 
-    // Two blocks on, round A is over and round B is the previous round.
-    srv.tip.advance(ROUND_C);
-    const tooLate = await prove(srv, 'equal-big', ROUND_A, { start: 1000 });
-    assert.equal(tooLate.res.status, 410);
-    const stillB = await prove(srv, 'equal-big', ROUND_B);
-    assert.equal(stillB.res.status, 200);
-    ({ body } = await getLeaderboard(srv));
-    assert.deepEqual(body.round, { ...ROUND_C, rows: [] });
+  test('proofs for another genesis never count', async () => {
+    const other = await startServer({ db: srv.db, genesisHash: 'b2'.repeat(32), tip: srv.tip });
+    try {
+      const { body } = await getLeaderboard(other);
+      assert.deepEqual([body.recent.rows, body.allTime], [[], []]);
+      assert.equal((await prove(other, 'next-genesis', ROUND_C)).res.status, 200);
+      assert.deepEqual((await getLeaderboard(other)).body.allTime.map((r) => r.name), ['next-genesis']);
+      assert.ok(!(await getLeaderboard(srv)).body.allTime.some((r) => r.name === 'next-genesis'));
+    } finally {
+      await other.close();
+    }
   });
 
   test('a hidden name leaves the round list and the all-time list', async () => {
@@ -425,14 +434,14 @@ describe('leaderboard', () => {
     let { body } = await getLeaderboard(srv);
     const before = body.allTime.map((r) => r.name);
     hidden.hide('Equal-Smal', T0); // folds to the same name as equal-small
-    srv.tip.state.current = ROUND_B;
+    srv.tip.state.window = 3;
     try {
       ({ body } = await getLeaderboard(srv));
-      assert.ok(!body.round.rows.some((r) => r.name === 'equal-small'));
+      assert.ok(!body.recent.rows.some((r) => r.name === 'equal-small'));
       assert.deepEqual(body.allTime.map((r) => r.name), before.filter((name) => name !== 'equal-small'));
     } finally {
       hidden.unhide('equal-small');
-      srv.tip.state.current = ROUND_C;
+      srv.tip.state.window = 2;
     }
   });
 });
@@ -440,8 +449,8 @@ describe('leaderboard', () => {
 describe('leaderboard limits and ties', () => {
   let srv;
   const insert = (name, round, nonce, hash, createdAt) => srv.db
-    .prepare('INSERT INTO proofs (name, round_height, round_hash, nonce, hash, zeros, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)')
-    .run(name, round.height, round.hash, nonce, hash, leadingHexZeros(hash), createdAt);
+    .prepare('INSERT INTO proofs (genesis_hash, name, round_height, round_hash, nonce, hash, zeros, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+    .run(TEST_GENESIS, name, round.height, round.hash, nonce, hash, leadingHexZeros(hash), createdAt);
   before(async () => {
     srv = await startServer();
   });
@@ -452,7 +461,7 @@ describe('leaderboard limits and ties', () => {
     insert('tie-late', ROUND_A, 1, hash, T0 + 2000);
     insert('tie-early', ROUND_A, 2, hash, T0 + 1000);
     const { body } = await getLeaderboard(srv);
-    assert.deepEqual(body.round.rows.map((r) => r.name), ['tie-early', 'tie-late']);
+    assert.deepEqual(body.recent.rows.map((r) => r.name), ['tie-early', 'tie-late']);
     assert.deepEqual(body.allTime.map((r) => r.name), ['tie-early', 'tie-late']);
   });
 
@@ -462,7 +471,7 @@ describe('leaderboard limits and ties', () => {
     }
     const { body } = await getLeaderboard(srv);
     assert.equal(LEADERBOARD_SIZE, 20);
-    assert.equal(body.round.rows.length, 20);
+    assert.equal(body.recent.rows.length, 20);
     assert.equal(body.allTime.length, 20);
     assert.deepEqual(body.allTime.slice(0, 3).map((r) => r.name), ['tie-early', 'tie-late', 'filler-00']);
   });
@@ -615,7 +624,7 @@ describe('privacy: no client address in logs or database', () => {
     }
 
     const columns = srv.db.prepare('PRAGMA table_info(proofs)').all().map((c) => c.name);
-    assert.deepEqual(columns, ['name', 'round_height', 'round_hash', 'nonce', 'hash', 'zeros', 'created_at']);
+    assert.deepEqual(columns, ['genesis_hash', 'name', 'round_height', 'round_hash', 'nonce', 'hash', 'zeros', 'created_at']);
     const dump = JSON.stringify(srv.db.prepare('SELECT * FROM proofs').all());
     assert.ok(dump.includes('privacy-miner'));
     assert.ok(!dump.includes(ip));

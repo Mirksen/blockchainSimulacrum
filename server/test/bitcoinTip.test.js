@@ -1,223 +1,152 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { createTipTracker, isRound, TIP_API, TIP_POLL_MS } from '../src/bitcoinTip.js';
-import { ROUND_A, ROUND_B, ROUND_C } from './helpers.js';
+import { createTipTracker, isRound, TIP_API, TIP_POLL_MS, WINDOW_BLOCKS } from '../src/bitcoinTip.js';
 
 const API = 'https://tip.example.test/api';
+const TOP = 900200;
+const hashOf = (height, salt = 'a') => `${'0'.repeat(20)}${salt}${height.toString(16).padStart(43, '0')}`;
 
 /**
- * A fake block explorer: answers /blocks/tip/height and /blocks/tip/hash from `chain.tip`,
- * or fails as `chain.fail` says. No network.
+ * A fake block explorer with mempool.space's /v1/blocks[/:start] pages: up to 15
+ * blocks, newest first. `chain.top` is the tip, `chain.salt` per height can mark a
+ * reorganisation, `chain.fail` breaks the answer. No network.
  */
-function fakeExplorer(tip = ROUND_A) {
-  const chain = { tip, fail: null, calls: [] };
+function fakeExplorer() {
+  const chain = { top: TOP, salt: {}, fail: null, calls: [] };
   const fetchImpl = async (url, options) => {
     chain.calls.push({ url, options });
     if (chain.fail === 'throw') throw new Error('synthetic network failure');
-    if (chain.fail === 'status') return { ok: false, status: 503, text: async () => 'busy' };
-    const body = url === `${API}/blocks/tip/height`
-      ? `${chain.tip.height}\n`
-      : url === `${API}/blocks/tip/hash`
-        ? `${chain.tip.hash}\n`
-        : null;
-    if (body === null) return { ok: false, status: 404, text: async () => 'not found' };
-    return { ok: true, status: 200, text: async () => body };
+    if (chain.fail === 'status') return { ok: false, status: 503, json: async () => ({}) };
+    if (chain.fail === 'garbage') return { ok: true, status: 200, json: async () => [{ height: 'x', id: 'nope' }] };
+    if (chain.fail === 'empty') return { ok: true, status: 200, json: async () => [] };
+    const match = /\/v1\/blocks(?:\/(\d+))?$/.exec(url);
+    if (!match) return { ok: false, status: 404, json: async () => ({}) };
+    const start = match[1] === undefined ? chain.top : Math.min(Number(match[1]), chain.top);
+    const blocks = [];
+    for (let height = start; height > start - 15 && height >= 0; height -= 1) {
+      blocks.push({ height, id: hashOf(height, chain.salt[height]), timestamp: height });
+    }
+    return { ok: true, status: 200, json: async () => blocks };
   };
   return { chain, fetchImpl };
 }
 
-function tracker(tip) {
+function tracker(options = {}) {
   const lines = [];
-  const explorer = fakeExplorer(tip);
-  const t = createTipTracker({ fetchImpl: explorer.fetchImpl, api: API, log: (line) => lines.push(line) });
+  const explorer = fakeExplorer();
+  const t = createTipTracker({ fetchImpl: explorer.fetchImpl, api: API, log: (line) => lines.push(line), ...options });
   return { t, chain: explorer.chain, lines };
 }
 
-const flush = () => new Promise((resolve) => setImmediate(resolve));
-
 describe('isRound', () => {
   test('accepts a safe non-negative height and a 64-character lowercase hex hash', () => {
-    assert.equal(isRound(ROUND_A), true);
-    assert.equal(isRound({ height: 0, hash: 'f'.repeat(64) }), true);
+    assert.equal(isRound({ height: 0, hash: hashOf(1) }), true);
   });
-
   test('refuses anything else', () => {
-    for (const bad of [
-      null,
-      undefined,
-      {},
-      { height: -1, hash: ROUND_A.hash },
-      { height: 1.5, hash: ROUND_A.hash },
-      { height: '900001', hash: ROUND_A.hash },
-      { height: Number.MAX_SAFE_INTEGER + 1, hash: ROUND_A.hash },
-      { height: Number.NaN, hash: ROUND_A.hash },
-      { height: 1, hash: ROUND_A.hash.toUpperCase() },
-      { height: 1, hash: ROUND_A.hash.slice(1) },
-      { height: 1, hash: `${ROUND_A.hash}0` },
-      { height: 1, hash: 42 },
-    ]) {
+    for (const bad of [null, {}, { height: -1, hash: hashOf(1) }, { height: 1.5, hash: hashOf(1) }, { height: '1', hash: hashOf(1) },
+      { height: 1, hash: hashOf(1).toUpperCase() }, { height: 1, hash: 'ab' }]) {
       assert.equal(isRound(bad), false, JSON.stringify(bad));
     }
   });
 });
 
 describe('createTipTracker', () => {
-  test('defaults to mempool.space once a minute', () => {
+  test('defaults to mempool.space once a minute with a window of 144 blocks', () => {
     assert.equal(TIP_API, 'https://mempool.space/api');
     assert.equal(TIP_POLL_MS, 60_000);
+    assert.equal(WINDOW_BLOCKS, 144);
   });
 
   test('knows no round and accepts nothing before the first poll', () => {
     const { t } = tracker();
     assert.equal(t.round(), null);
-    assert.equal(t.accepts(ROUND_A), false);
+    assert.equal(t.windowStart(), null);
+    assert.equal(t.accepts({ height: TOP, hash: hashOf(TOP) }), false);
   });
 
-  test('a new tip becomes the round; the height and hash endpoints are read with a timeout', async () => {
-    const { t, chain, lines } = tracker(ROUND_A);
+  test('the first poll reads the tip and fills the whole window page by page', async () => {
+    const { t, chain } = tracker();
     await t.poll();
-    assert.deepEqual(t.round(), ROUND_A);
-    assert.equal(t.accepts(ROUND_A), true);
-    assert.equal(t.accepts({ ...ROUND_A }), true, 'compared by value');
-    assert.deepEqual(chain.calls.map((c) => c.url), [`${API}/blocks/tip/height`, `${API}/blocks/tip/hash`]);
-    for (const call of chain.calls) assert.ok(call.options.signal instanceof AbortSignal);
-    assert.deepEqual(lines, []);
+    assert.deepEqual(t.round(), { height: TOP, hash: hashOf(TOP) });
+    assert.equal(t.windowStart(), TOP - 143);
+    assert.equal(t.accepts({ height: TOP - 143, hash: hashOf(TOP - 143) }), true, 'the oldest block of the window');
+    assert.equal(t.accepts({ height: TOP - 144, hash: hashOf(TOP - 144) }), false, 'one block older');
+    assert.equal(chain.calls.length, Math.ceil(144 / 15), 'ten pages of 15 blocks');
+    assert.ok(chain.calls.every((call) => call.options?.signal), 'every request has a timeout signal');
   });
 
-  test('the previous tip is still accepted; two tips back is refused', async () => {
-    const { t, chain } = tracker(ROUND_A);
+  test('a new block moves the window and needs one request', async () => {
+    const { t, chain } = tracker();
     await t.poll();
-    chain.tip = ROUND_B;
+    chain.top += 1;
+    chain.calls.length = 0;
     await t.poll();
-    assert.deepEqual(t.round(), ROUND_B);
-    assert.equal(t.accepts(ROUND_B), true);
-    assert.equal(t.accepts(ROUND_A), true, 'previous round');
-
-    chain.tip = ROUND_C;
-    await t.poll();
-    assert.deepEqual(t.round(), ROUND_C);
-    assert.equal(t.accepts(ROUND_C), true);
-    assert.equal(t.accepts(ROUND_B), true);
-    assert.equal(t.accepts(ROUND_A), false, 'two tips back');
+    assert.equal(chain.calls.length, 1);
+    assert.deepEqual(t.round(), { height: TOP + 1, hash: hashOf(TOP + 1) });
+    assert.equal(t.accepts({ height: TOP - 143, hash: hashOf(TOP - 143) }), false, 'fell out of the window');
+    assert.equal(t.accepts({ height: TOP - 142, hash: hashOf(TOP - 142) }), true);
   });
 
-  test('a round must match height and hash and be well formed', async () => {
-    const { t } = tracker(ROUND_A);
+  test('a block must match height and hash', async () => {
+    const { t } = tracker();
     await t.poll();
-    assert.equal(t.accepts({ height: ROUND_A.height + 1, hash: ROUND_A.hash }), false);
-    assert.equal(t.accepts({ height: ROUND_A.height, hash: ROUND_B.hash }), false);
-    assert.equal(t.accepts({ height: ROUND_A.height, hash: ROUND_A.hash.toUpperCase() }), false);
-    assert.equal(t.accepts(null), false);
+    assert.equal(t.accepts({ height: TOP, hash: hashOf(TOP - 1) }), false);
+    assert.equal(t.accepts({ height: TOP + 1, hash: hashOf(TOP + 1) }), false, 'not mined yet');
+    assert.equal(t.accepts({ height: '900200', hash: hashOf(TOP) }), false);
   });
 
-  test('a reorganisation at the same height replaces the current tip and keeps the previous one', async () => {
-    const { t, chain } = tracker(ROUND_A);
+  test('a reorganisation replaces the hashes of the newest blocks', async () => {
+    const { t, chain } = tracker();
     await t.poll();
-    chain.tip = ROUND_B;
+    chain.salt[TOP] = 'b';
+    chain.salt[TOP - 1] = 'b';
     await t.poll();
-    const rival = { height: ROUND_B.height, hash: `${'0'.repeat(20)}${'e'.repeat(44)}` };
-    chain.tip = rival;
-    await t.poll();
-    assert.deepEqual(t.round(), rival);
-    assert.equal(t.accepts(rival), true);
-    assert.equal(t.accepts(ROUND_B), false, 'the replaced block is gone');
-    assert.equal(t.accepts(ROUND_A), true, 'the previous round is kept');
+    assert.deepEqual(t.round(), { height: TOP, hash: hashOf(TOP, 'b') });
+    assert.equal(t.accepts({ height: TOP, hash: hashOf(TOP) }), false);
+    assert.equal(t.accepts({ height: TOP - 1, hash: hashOf(TOP - 1, 'b') }), true);
   });
 
-  test('the same tip again or an older tip changes nothing', async () => {
-    const { t, chain } = tracker(ROUND_A);
+  test('a short window keeps only that many blocks', async () => {
+    const { t } = tracker({ windowBlocks: 6 });
     await t.poll();
-    chain.tip = ROUND_B;
-    await t.poll();
-    await t.poll();
-    chain.tip = ROUND_A;
-    await t.poll();
-    assert.deepEqual(t.round(), ROUND_B);
-    assert.equal(t.accepts(ROUND_A), true);
-    assert.equal(t.accepts(ROUND_B), true);
+    assert.equal(t.windowStart(), TOP - 5);
+    assert.equal(t.accepts({ height: TOP - 6, hash: hashOf(TOP - 6) }), false);
   });
 
-  test('a fetch error or an error status is logged and keeps the state', async () => {
-    const { t, chain, lines } = tracker(ROUND_A);
-    await t.poll();
-    chain.tip = ROUND_B;
-    await t.poll();
-
-    chain.fail = 'throw';
-    chain.tip = ROUND_C;
-    await t.poll();
-    chain.fail = 'status';
-    await t.poll();
-    assert.deepEqual(lines, [
-      'bitcoin tip unavailable: synthetic network failure',
-      'bitcoin tip unavailable: /blocks/tip/height answered 503',
-    ]);
-    assert.deepEqual(t.round(), ROUND_B);
-    assert.equal(t.accepts(ROUND_A), true);
-    assert.equal(t.accepts(ROUND_C), false);
-
-    chain.fail = null;
-    await t.poll();
-    assert.deepEqual(t.round(), ROUND_C, 'recovers on the next good answer');
-  });
-
-  test('a fetch error before the first tip leaves no round', async () => {
-    const { t, chain, lines } = tracker(ROUND_A);
-    chain.fail = 'throw';
-    await t.poll();
-    assert.equal(t.round(), null);
-    assert.equal(lines.length, 1);
-  });
-
-  test('an empty height before the first tip is not read as height 0', async () => {
-    const { t, chain, lines } = tracker({ height: '', hash: ROUND_A.hash });
-    await t.poll();
-    assert.equal(t.round(), null);
-    assert.deepEqual(lines, ['bitcoin tip unavailable: unreadable tip']);
-    chain.tip = ROUND_A;
-    await t.poll();
-    assert.deepEqual(t.round(), ROUND_A);
-  });
-
-  test('an unreadable answer is logged and keeps the state', async () => {
-    const { t, chain, lines } = tracker(ROUND_A);
-    await t.poll();
-    for (const bad of [
-      { height: 'not-a-height', hash: ROUND_B.hash },
-      { height: ROUND_B.height, hash: 'not-a-hash' },
-      { height: ROUND_B.height, hash: ROUND_B.hash.toUpperCase() },
-      { height: -5, hash: ROUND_B.hash },
-      { height: 1.5, hash: ROUND_B.hash },
-      { height: '', hash: ROUND_B.hash },
-    ]) {
-      chain.tip = bad;
-      lines.length = 0;
+  for (const fail of ['throw', 'status', 'garbage', 'empty']) {
+    test(`a failing answer (${fail}) is logged and keeps the state`, async () => {
+      const { t, chain, lines } = tracker();
       await t.poll();
-      assert.deepEqual(lines, ['bitcoin tip unavailable: unreadable tip'], JSON.stringify(bad));
-      assert.deepEqual(t.round(), ROUND_A, JSON.stringify(bad));
-    }
+      chain.fail = fail;
+      chain.top += 1;
+      await t.poll();
+      assert.equal(lines.length, 1, lines.join('\n'));
+      assert.match(lines[0], /^bitcoin tip unavailable: /);
+      assert.deepEqual(t.round(), { height: TOP, hash: hashOf(TOP) });
+    });
+  }
+
+  test('a failure before the first tip leaves no round', async () => {
+    const { t, chain } = tracker();
+    chain.fail = 'throw';
+    await t.poll();
+    assert.equal(t.round(), null);
   });
 
   test('start polls at once and then every pollMs; stop ends polling', async (t) => {
     t.mock.timers.enable({ apis: ['setInterval'] });
-    const explorer = fakeExplorer(ROUND_A);
-    const tip = createTipTracker({ fetchImpl: explorer.fetchImpl, api: API, pollMs: 5000 });
+    const { t: tip, chain } = tracker({ pollMs: 1000 });
     tip.start();
-    await flush();
-    assert.deepEqual(tip.round(), ROUND_A);
-    assert.equal(explorer.chain.calls.length, 2);
-
-    explorer.chain.tip = ROUND_B;
-    t.mock.timers.tick(5000);
-    await flush();
-    assert.deepEqual(tip.round(), ROUND_B);
-    assert.equal(explorer.chain.calls.length, 4);
-
+    await new Promise((resolve) => setImmediate(resolve));
+    const first = chain.calls.length;
+    assert.ok(first >= 1);
+    chain.top += 1;
+    t.mock.timers.tick(1000);
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(chain.calls.length, first + 1);
     tip.stop();
-    explorer.chain.tip = ROUND_C;
-    t.mock.timers.tick(20_000);
-    await flush();
-    assert.deepEqual(tip.round(), ROUND_B);
-    assert.equal(explorer.chain.calls.length, 4);
+    t.mock.timers.tick(5000);
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(chain.calls.length, first + 1);
   });
 });

@@ -18,12 +18,15 @@ vi.mock('../lib/powSearch', async importOriginal => {
 const NAME = 'test-miner';
 const UNAVAILABLE = 'The leaderboard server is unavailable right now. The simulator keeps working.';
 const START_NONCE = Math.floor(0.25 * 2 ** 52);
-const EMPTY = { round: null, allTime: [] };
+const EMPTY = { recent: null, allTime: [] };
 const sha256 = text => SHA256(text).toString();
 // Synthetic Bitcoin rounds: the hash is the height in hex, so every height is a distinct round.
 const roundOf = height => ({ height, hash: height.toString(16).padStart(64, '0') });
-const makeChallenge = (round, minZeros = 1, name = NAME) => ({ name, round, prefix: proofPrefix(GENESIS.hash, round, name),
-  minZeros, genesisHash: GENESIS.hash });
+// The window is the last 144 blocks; a later window start moves an older round out of it.
+const makeChallenge = (round, minZeros = 1, name = NAME, windowStart = round.height - 143) => ({ name, round, windowStart,
+  prefix: proofPrefix(GENESIS.hash, round, name), minZeros, genesisHash: GENESIS.hash });
+const recentOf = (round, rows = []) => ({ from: round.height - 143, to: round.height, rows });
+const recentTitle = round => `Last 144 blocks · Bitcoin #${round.height - 143}–#${round.height}`;
 // The proofs an honest search finds, in order, from a start nonce.
 function proofsFrom(challenge, count, start = START_NONCE) {
   const target = '0'.repeat(challenge.minZeros);
@@ -35,9 +38,10 @@ function proofsFrom(challenge, count, start = START_NONCE) {
   return found;
 }
 // The first synthetic round from `height` on whose proofs satisfy `wanted`; deterministic for a fixed genesis.
+// Its window starts at its own block, so every earlier round has left it.
 function findChallenge(height, count, wanted) {
   for (let candidate = height; ; candidate++) {
-    const challenge = makeChallenge(roundOf(candidate));
+    const challenge = makeChallenge(roundOf(candidate), 1, NAME, candidate);
     const proofs = proofsFrom(challenge, count);
     if (wanted(proofs)) return { challenge, proofs };
   }
@@ -92,10 +96,10 @@ describe('PoolPanel', () => {
       difficulty: 16, proofs: 1, foundAt: 1_800_000_100_000 };
     vi.mocked(getChallenge).mockResolvedValueOnce(first).mockImplementation(parked);
     vi.mocked(submitProof).mockImplementation(accept);
-    vi.mocked(getLeaderboard).mockResolvedValueOnce(EMPTY).mockResolvedValueOnce({ round: { ...round, rows: [] }, allTime: [leader] })
-      .mockResolvedValue({ round: { ...round, rows: [mine] }, allTime: [leader, mine] });
+    vi.mocked(getLeaderboard).mockResolvedValueOnce(EMPTY).mockResolvedValueOnce({ recent: recentOf(round), allTime: [leader] })
+      .mockResolvedValue({ recent: recentOf(round, [mine]), allTime: [leader, mine] });
     render(<PoolPanel onClose={() => {}} />);
-    await screen.findByText('No proofs in this round yet. Join to find the first one.');
+    await screen.findByText('No proofs in the last day. Join to find the first one.');
     expect(screen.getByText('No proofs yet.')).toBeTruthy();
     join();
     await waitFor(() => expect(submitProof).toHaveBeenCalledTimes(1));
@@ -112,7 +116,7 @@ describe('PoolPanel', () => {
     expect(stat('Round')).toBe('#900001');
     expect(localStorage.getItem('proofofwork-pool-name')).toBe(NAME);
 
-    const thisRound = await findRegion('This round · Bitcoin block #900001');
+    const thisRound = await findRegion(recentTitle(round));
     expect(within(thisRound).getAllByRole('columnheader').map(cell => cell.textContent))
       .toEqual(['Rank', 'Name', 'Best hash', 'Zeros', 'Difficulty', 'Proofs', 'Check']);
     const roundRows = within(thisRound).getAllByRole('row');
@@ -144,14 +148,14 @@ describe('PoolPanel', () => {
     expect(getLeaderboard).toHaveBeenCalledTimes(4);
   });
 
-  it('starts over in a new round: fresh nonces, a fresh best and a refreshed board', async () => {
+  it('starts over once its round leaves the window: fresh nonces, a fresh best and a refreshed board', async () => {
     const first = makeChallenge(roundOf(900200));
     const [firstProof] = proofsFrom(first, 1);
     // A next round whose first proof is worse than the old best, so only a reset best submits it.
     const { challenge: next, proofs: [nextProof] } = findChallenge(900201, 1, ([proof]) => proof.hash > firstProof.hash);
     vi.mocked(getChallenge).mockResolvedValueOnce(first).mockResolvedValueOnce(next).mockImplementation(parked);
     vi.mocked(submitProof).mockImplementation(accept);
-    const nextBoard = { round: { ...next.round, rows: [] }, allTime: [] };
+    const nextBoard = { recent: recentOf(next.round), allTime: [] };
     vi.mocked(getLeaderboard).mockResolvedValueOnce(EMPTY).mockResolvedValueOnce(EMPTY).mockResolvedValueOnce(EMPTY)
       .mockResolvedValue(nextBoard);
     render(<PoolPanel onClose={() => {}} />);
@@ -165,7 +169,25 @@ describe('PoolPanel', () => {
     expect(stat('Your best this round')).toBe(best(nextProof.hash));
     // Mount, round one, its proof, round two, its proof.
     expect(getLeaderboard).toHaveBeenCalledTimes(5);
-    expect(screen.getByRole('heading', { name: `This round · Bitcoin block #${next.round.height}` })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: recentTitle(next.round) })).toBeTruthy();
+  });
+
+  it('keeps its round while a newer block still has it in the window', async () => {
+    const first = makeChallenge(roundOf(900250));
+    const [one, two] = proofsFrom(first, 2);
+    // The pool already names a newer block, but 900250 is still among its last 144.
+    const newer = makeChallenge(roundOf(900260));
+    vi.mocked(getChallenge).mockResolvedValueOnce(first).mockResolvedValueOnce(newer).mockResolvedValueOnce(newer)
+      .mockImplementation(parked);
+    vi.mocked(submitProof).mockImplementation(accept);
+    render(<PoolPanel onClose={() => {}} />);
+    join();
+    await waitFor(() => expect(getChallenge).toHaveBeenCalledTimes(3));
+    expect(vi.mocked(runSearch).mock.calls.every(([options]) => options.entrants[0].prefix === first.prefix)).toBe(true);
+    const sent = submitted().map(([challenge, nonce]) => [challenge.round.height, nonce]);
+    expect(sent[0]).toEqual([900250, one.nonce]);
+    if (two.hash < one.hash) expect(sent[1]).toEqual([900250, two.nonce]);
+    expect(stat('Round')).toBe('#900250');
   });
 
   it('asks for the round again after ROUND_CHECK_MS and keeps going in the same round', async () => {
@@ -241,7 +263,7 @@ describe('PoolPanel', () => {
     expect(submitted()).toEqual([[first, firstProofs[0].nonce], [second, secondNonce]]);
     await waitFor(() => expect(stat('Accepted proofs')).toBe('1'));
     await waitFor(() => expect(getChallenge).toHaveBeenCalledTimes(3));
-    expect(status()).toBe('Asking the pool for the current round…');
+    expect(status()).toBe('Asking the pool for a round…');
   });
 
   it('shows the unavailable state when the server is down and stops mining on 5xx or 429', async () => {
@@ -290,7 +312,7 @@ describe('PoolPanel', () => {
       bestZeros: leadingZeros(claimed.hash), difficulty: hashDifficulty(claimed.hash), proofs: 1, foundAt: 1_800_000_000_001 };
     const recomputed = sha256(forged.prefix + tampered.nonce);
     expect(recomputed).not.toBe(claimed.hash);
-    vi.mocked(getLeaderboard).mockResolvedValue({ round: { ...round, rows: [real, tampered] }, allTime: [real, tampered] });
+    vi.mocked(getLeaderboard).mockResolvedValue({ recent: recentOf(round, [real, tampered]), allTime: [real, tampered] });
     render(<PoolPanel onClose={() => {}} />);
     const allTime = await findRegion('All time · top 20');
 
@@ -304,7 +326,7 @@ describe('PoolPanel', () => {
     expect(within(check).getByText(proof.hash)).toBeTruthy();
     expect(within(check).getByText(
       `Matches the listed hash: ${real.bestZeros} zeros, mined by honest-miner in round 900700.`)).toBeTruthy();
-    expect(within(region('This round · Bitcoin block #900700')).queryByRole('status')).toBeNull();
+    expect(within(region(recentTitle(round))).queryByRole('status')).toBeNull();
 
     fireEvent.click(within(allTime).getByRole('button', { name: 'Verify the proof of forged-miner' }));
     expect(verifyReal.getAttribute('aria-expanded')).toBe('false');
@@ -313,6 +335,14 @@ describe('PoolPanel', () => {
     expect(within(check).getByText(recomputed)).toBeTruthy();
     expect(within(check).getByText('Does not match the listed hash.')).toBeTruthy();
     expect(within(check).queryByText(/^Matches/)).toBeNull();
+  });
+
+  it('names the genesis and says when a bridge genesis ends', async () => {
+    render(<PoolPanel onClose={() => {}} />);
+    await settle(20);
+    const line = document.querySelector('.pool-panel-genesis').textContent;
+    expect(line).toContain(`Genesis ${GENESIS.hash.slice(0, 16)}…, built on Bitcoin block ${GENESIS.anchor.height}.`);
+    expect(line.includes('the board starts again then')).toBe(GENESIS.status === 'bridge');
   });
 
   it('blocks Join for an invalid name and explains the rule', async () => {
@@ -342,7 +372,7 @@ describe('PoolPanel', () => {
     const input = screen.getByLabelText('Name on the leaderboard');
     expect(input.getAttribute('aria-invalid')).toBe('true');
     expect(input.getAttribute('aria-describedby')).toBe('pool-panel-name-error');
-    expect(status()).toBe('Choose a name, then join to mine proofs for this round.');
+    expect(status()).toBe('Choose a name, then join to mine proofs.');
     expect(screen.getByRole('button', { name: 'Join' })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Join' }));
     await settle(50);

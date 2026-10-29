@@ -81,7 +81,7 @@ describe('operator hides a name with src/admin.js', () => {
 
   const board = async () => {
     const body = await (await fetch(`${srv.base}/api/leaderboard`)).json();
-    return { round: body.round.rows.map((row) => row.name).sort(), allTime: body.allTime.map((row) => row.name).sort() };
+    return { round: body.recent.rows.map((row) => row.name).sort(), allTime: body.allTime.map((row) => row.name).sort() };
   };
 
   test('hide removes the name from both leaderboards and refuses challenges and shares; unhide restores', async () => {

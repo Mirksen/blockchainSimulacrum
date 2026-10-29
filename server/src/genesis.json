@@ -1,23 +1,22 @@
 {
-  "status": "draft",
+  "status": "bridge",
   "anchor": {
     "chain": "bitcoin",
-    "height": 973532,
-    "hash": "00000000000000000001a9c5048c6168dad1cca804b0980e584b240b2c6a7ae5",
-    "time": 1793180193
+    "height": 973700,
+    "hash": "000000000000000000000873038b9e19f073923de87b05b7872ca66771d3455a",
+    "time": 1793284355
   },
-  "timestamp": 1793180193000,
-  "targetZeros": 7,
-  "difficulty": 2,
+  "timestamp": 1793284355000,
+  "difficulty": 4,
   "coinbase": {
     "sender": null,
     "recipient": "satoshi",
     "amount": 3.125,
     "fee": 0,
-    "memo": "proofofwork.fyi 28/Oct/2026 · built on Bitcoin block 973532 · Chancellor still on brink, proof still of work"
+    "memo": "proofofwork.fyi bridge genesis 29/Oct/2026 · built on Bitcoin block 973700 · the real genesis follows on 31/Oct/2026"
   },
   "startNonce": 0,
-  "txRoot": "2806e827f3af69f2312852081984cbdae7754a0c34f4daa33a7ade36a57481bf",
-  "nonce": 106,
-  "hash": "0031a6efa1d6b926ff0920ba138a1459f358c786f93522155a7e03208b2e621f"
+  "txRoot": "4a2b94583471eb85bdd7d9da7c72d572e2fe5acfa3b94d33687e6904d9dc4d5c",
+  "nonce": 123494,
+  "hash": "000080634a9094da77ef54c95a708b9c1662ea16bef12ef9d41101dc2d953cf9"
 }

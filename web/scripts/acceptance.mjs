@@ -35,7 +35,7 @@ const FIXTURE_ROUND = { height: 900001, hash: `0000${'ab'.repeat(30)}` };
 const fixtureRow = (name, bestHash, bestZeros, difficulty) => ({ name, round: FIXTURE_ROUND, nonce: 7, bestHash, bestZeros, difficulty, proofs: 3, foundAt: 0 });
 const leaderboardFixture = () => {
  const rows = [fixtureRow('fixture-alpha', `000000${'1'.repeat(58)}`, 6, 1048576), fixtureRow('fixture-beta', `00000${'2'.repeat(59)}`, 5, 65536)];
- return { round: { ...FIXTURE_ROUND, rows }, allTime: rows };
+ return { recent: { from: FIXTURE_ROUND.height - 143, to: FIXTURE_ROUND.height, rows }, allTime: rows };
 };
 const leaderboardMock = async route => {
  const headers = { 'Access-Control-Allow-Origin': '*' };

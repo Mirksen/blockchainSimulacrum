@@ -13,7 +13,7 @@ export const isValidPoolName = name => typeof name === 'string' && NAME_PATTERN.
 const MESSAGES = {
   400: 'The pool did not accept this request.',
   409: 'This proof was already counted.',
-  410: 'This round is over: a new Bitcoin block arrived.',
+  410: 'This round is over: its Bitcoin block left the window.',
   413: 'The proof was too large to send.',
   422: 'This hash does not meet the target.',
   429: 'Too many requests to the pool. Please wait a minute.',
@@ -90,6 +90,7 @@ const isRow = row => Boolean(row) && isValidPoolName(row.name) && isRound(row.ro
 export async function getChallenge(name, { signal } = {}) {
   const challenge = await request(`/api/challenge?name=${encodeURIComponent(name)}`, { signal });
   if (!challenge || challenge.name !== name || !isRound(challenge.round) || !Number.isInteger(challenge.minZeros) ||
+    !Number.isSafeInteger(challenge.windowStart) || challenge.windowStart > challenge.round.height ||
     challenge.minZeros < 1 || challenge.minZeros > 64 || challenge.genesisHash !== GENESIS.hash ||
     challenge.prefix !== proofPrefix(GENESIS.hash, challenge.round, name)) throw invalidAnswer();
   return challenge;
@@ -100,14 +101,16 @@ export function submitProof(challenge, nonce, { signal } = {}) {
   return request('/api/shares', { method: 'POST', body: { name, round: { height: round.height, hash: round.hash }, nonce }, signal });
 }
 
-// { round: { height, hash, rows } | null, allTime: rows }; malformed rows are dropped.
+// { recent: { from, to, rows } | null, allTime: rows }; malformed rows are dropped.
 export async function getLeaderboard({ signal } = {}) {
   const board = await request('/api/leaderboard', { signal });
-  if (!board || !Array.isArray(board.allTime) || (board.round !== null && !(isRound(board.round) && Array.isArray(board.round.rows)))) {
+  const recentOk = board?.recent === null || (Number.isSafeInteger(board?.recent?.from) && Number.isSafeInteger(board.recent.to) &&
+    board.recent.from <= board.recent.to && Array.isArray(board.recent.rows));
+  if (!board || !Array.isArray(board.allTime) || !recentOk) {
     throw invalidAnswer();
   }
   return {
-    round: board.round ? { height: board.round.height, hash: board.round.hash, rows: board.round.rows.filter(isRow) } : null,
+    recent: board.recent ? { from: board.recent.from, to: board.recent.to, rows: board.recent.rows.filter(isRow) } : null,
     allTime: board.allTime.filter(isRow),
   };
 }

@@ -11,20 +11,22 @@ export const ROUND_B = Object.freeze({ height: 900002, hash: `${'0'.repeat(20)}$
 export const ROUND_C = Object.freeze({ height: 900003, hash: `${'0'.repeat(20)}${'c'.repeat(44)}` });
 
 /**
- * A tip with the same contract as createTipTracker(): round() is the current round,
- * accepts() takes the current and the previous one. Tests set the state directly.
+ * A tip with the same contract as createTipTracker(): round() is the newest block,
+ * windowStart() the oldest height a proof may name, accepts() takes every known block
+ * from there on. `window` is the number of blocks (the server uses 144; 2 keeps tests short).
  */
-export function fakeTip({ current = ROUND_A, previous = null } = {}) {
-  const state = { current, previous };
+export function fakeTip({ current = ROUND_A, previous = null, window = 2 } = {}) {
+  const state = { current, blocks: [previous, current].filter(Boolean), window };
+  const windowStart = () => (state.current ? state.current.height - state.window + 1 : null);
   return {
     state,
     round: () => state.current,
-    accepts: (round) => [state.current, state.previous].some(
-      (known) => known && round && known.height === round.height && known.hash === round.hash,
-    ),
-    /** A new Bitcoin block: the current round becomes the previous one. */
+    windowStart,
+    accepts: (round) => Boolean(state.current) && Boolean(round) && round.height >= windowStart() &&
+      state.blocks.some((known) => known.height === round.height && known.hash === round.hash),
+    /** A new Bitcoin block becomes the newest round. */
     advance(next) {
-      state.previous = state.current;
+      state.blocks.push(next);
       state.current = next;
     },
   };

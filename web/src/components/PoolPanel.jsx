@@ -5,7 +5,7 @@ import { runSearch } from '../lib/powSearch';
 import './PoolPanel.css';
 
 const NAME_KEY = 'proofofwork-pool-name';
-// How long one search runs before the panel asks whether a new Bitcoin block started a new round.
+// How long one search runs before the panel asks the pool again whether its round is still in the window.
 export const ROUND_CHECK_MS = 60_000;
 const UNAVAILABLE = 'The leaderboard server is unavailable right now. The simulator keeps working.';
 const NAME_HINT = 'Use 3–20 characters: letters, digits or hyphens.';
@@ -27,7 +27,6 @@ const isUnavailable = error => !error?.status || error.status >= 500 || error.st
 // Leaves room below Number.MAX_SAFE_INTEGER for the nonces this search will try.
 const randomStartNonce = () => Math.floor(Math.random() * 2 ** 52);
 const emptyStats = { attempts: 0, rate: 0, accepted: 0, bestHash: null };
-const sameRound = (a, b) => Boolean(a && b) && a.height === b.height && a.hash === b.hash;
 
 function zerosLabel(count) { return `${count} ${count === 1 ? 'zero' : 'zeros'}`; }
 
@@ -85,7 +84,7 @@ export function PoolPanel({ onClose }) {
   // The last name the server refused; its message stays until the name changes.
   const [refusedName, setRefusedName] = useState('');
   const [stats, setStats] = useState(emptyStats);
-  const [board, setBoard] = useState({ state: 'loading', round: null, allTime: [] });
+  const [board, setBoard] = useState({ state: 'loading', recent: null, allTime: [] });
   const [openRow, setOpenRow] = useState(null);
   const run = useRef(null);
   const nameValid = isValidPoolName(name);
@@ -131,16 +130,17 @@ export function PoolPanel({ onClose }) {
     let roundAttempts = 0;
     while (current()) {
       setPhase('connecting');
-      const challenge = await getChallenge(minerName, { signal });
+      const offer = await getChallenge(minerName, { signal });
       if (!current()) return;
-      // A new Bitcoin block starts a new round: new prefix, fresh nonces, new best.
-      if (!sameRound(active, challenge.round)) {
-        active = challenge.round;
+      // A round stays minable while its Bitcoin block is in the window (the last 144
+      // blocks, about a day); then the newest block starts a new round with fresh nonces.
+      if (!active || active.round.height < offer.windowStart) {
+        active = offer;
         nonce = randomStartNonce();
         best = null;
         roundAttempts = 0;
-        setRound(challenge.round);
-        setMinZeros(challenge.minZeros);
+        setRound(offer.round);
+        setMinZeros(offer.minZeros);
         setStats(previous => ({ ...previous, attempts: 0, rate: 0, bestHash: null }));
         if (!await refreshLeaderboard(signal)) return;
       }
@@ -150,6 +150,7 @@ export function PoolPanel({ onClose }) {
       const abortSearch = () => search.abort();
       signal.addEventListener('abort', abortSearch, { once: true });
       const recheck = setTimeout(abortSearch, ROUND_CHECK_MS);
+      const challenge = active;
       const started = performance.now();
       const rateAt = attempts => {
         const seconds = (performance.now() - started) / 1000;
@@ -183,7 +184,8 @@ export function PoolPanel({ onClose }) {
       try {
         await submitProof(challenge, result.nonce, { signal });
       } catch (error) {
-        if (!isAbort(error) && (error.status === 409 || error.status === 410)) continue;
+        if (!isAbort(error) && error.status === 410) { active = null; continue; }
+        if (!isAbort(error) && error.status === 409) continue;
         throw error;
       }
       if (!current()) return;
@@ -223,15 +225,15 @@ export function PoolPanel({ onClose }) {
     setPhase('stopped');
   }
 
-  let status = 'Choose a name, then join to mine proofs for this round.';
-  if (phase === 'connecting') status = 'Asking the pool for the current round…';
+  let status = 'Choose a name, then join to mine proofs.';
+  if (phase === 'connecting') status = 'Asking the pool for a round…';
   if (phase === 'searching') status = `Searching nonces for a hash starting with ${'0'.repeat(minZeros ?? 1)} in round ${round?.height}.`;
   if (phase === 'submitting') status = 'Found a better hash. Sending it to the pool for checking…';
   if (phase === 'stopped') status = 'Stopped. Accepted proofs stay on the leaderboard.';
   if (phase === 'unavailable') status = UNAVAILABLE;
   if (phase === 'error') status = `${errorMessage} Mining stopped; you can join again.`;
 
-  const boardRound = board.round;
+  const recent = board.recent;
   return <section className="pool-panel" aria-labelledby="pool-panel-title">
     <header className="pool-panel-header">
       <div><h2 id="pool-panel-title">Mine proofs with everyone</h2>
@@ -241,7 +243,7 @@ export function PoolPanel({ onClose }) {
 
     <ul className="pool-panel-explainer">
       <li>Your browser hashes <code>proofofwork.fyi | genesis | round | your name | nonce</code> until the hash starts with enough zeros.</li>
-      <li>The genesis hash ties the work to this chain. The round is the newest Bitcoin block, about every ten minutes, so nobody can mine ahead of time.</li>
+      <li>The genesis hash ties the work to this chain. The round is a recent Bitcoin block: a proof counts while its block is one of the last 144 (about a day), so nobody can mine further ahead.</li>
       <li>Most leading zeros wins. Among equal zeros, the higher difficulty (the smaller hash) is ahead.</li>
       <li>The server re-checks every proof with one SHA-256, and Verify recomputes it in your browser. Only the name you choose is stored; there is no account.</li>
     </ul>
@@ -273,13 +275,13 @@ export function PoolPanel({ onClose }) {
     </dl>
 
     <section className="pool-panel-board" aria-labelledby="pool-panel-round-title">
-      <h3 id="pool-panel-round-title">This round{boardRound ? <> · Bitcoin block <a href={blockLink(boardRound.height)} target="_blank" rel="noreferrer">#{boardRound.height}</a></> : ''}</h3>
+      <h3 id="pool-panel-round-title">Last 144 blocks{recent ? <> · Bitcoin #{recent.from}–<a href={blockLink(recent.to)} target="_blank" rel="noreferrer">#{recent.to}</a></> : ''}</h3>
       {board.state === 'loading' && <p className="pool-panel-help">Loading the leaderboard…</p>}
       {board.state === 'unavailable' && <p className="pool-panel-board-note">{UNAVAILABLE}</p>}
-      {board.state === 'ready' && (!boardRound || boardRound.rows.length === 0) &&
-        <p className="pool-panel-help">No proofs in this round yet. Join to find the first one.</p>}
-      {board.state === 'ready' && boardRound?.rows.length > 0 &&
-        <BoardTable id="pool-panel-round-title" rows={boardRound.rows} open={openRow} onToggle={setOpenRow} />}
+      {board.state === 'ready' && (!recent || recent.rows.length === 0) &&
+        <p className="pool-panel-help">No proofs in the last day. Join to find the first one.</p>}
+      {board.state === 'ready' && recent?.rows.length > 0 &&
+        <BoardTable id="pool-panel-round-title" rows={recent.rows} open={openRow} onToggle={setOpenRow} />}
     </section>
 
     <section className="pool-panel-board" aria-labelledby="pool-panel-board-title">
@@ -287,7 +289,8 @@ export function PoolPanel({ onClose }) {
       {board.state === 'ready' && board.allTime.length === 0 && <p className="pool-panel-help">No proofs yet.</p>}
       {board.state === 'ready' && board.allTime.length > 0 &&
         <BoardTable id="pool-panel-board-title" rows={board.allTime} open={openRow} onToggle={setOpenRow} />}
-      <p className="pool-panel-help pool-panel-genesis">Genesis <code>{GENESIS.hash.slice(0, 16)}…</code>, built on Bitcoin block {GENESIS.anchor.height}.</p>
+      <p className="pool-panel-help pool-panel-genesis">Genesis <code>{GENESIS.hash.slice(0, 16)}…</code>, built on Bitcoin block {GENESIS.anchor.height}.
+        {GENESIS.status === 'bridge' && ' A bridge until the final genesis is mined on 31 October 2026; the board starts again then.'}</p>
     </section>
   </section>;
 }

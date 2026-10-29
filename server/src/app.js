@@ -48,7 +48,7 @@ export function leadingHexZeros(hex) {
 }
 
 // The proof a miner searches: SHA-256 of this prefix plus the nonce in decimal. It names
-// the chain (genesis hash), the round (the newest Bitcoin block) and whose work it is.
+// the chain (genesis hash), the round (a recent Bitcoin block) and whose work it is.
 export function proofPrefix(genesisHash, round, name) {
   return `proofofwork.fyi|${genesisHash}|${round.height}:${round.hash}|${name}|`;
 }
@@ -157,7 +157,8 @@ function parseShare(raw) {
 
 export function createApp({
   db,
-  // The current round: { round() → {height, hash} | null, accepts({height, hash}) → boolean }.
+  // The Bitcoin rounds: { round() → newest {height, hash} | null, windowStart() → oldest accepted
+  // height | null, accepts({height, hash}) → boolean } (createTipTracker in bitcoinTip.js).
   tip,
   now = Date.now,
   allowedOrigins = ['https://proofofwork.fyi'],
@@ -169,7 +170,9 @@ export function createApp({
   nameLists,
 } = {}) {
   if (!db) throw new Error('createApp: db is required');
-  if (!tip || typeof tip.round !== 'function' || typeof tip.accepts !== 'function') throw new Error('createApp: tip is required');
+  if (!tip || typeof tip.round !== 'function' || typeof tip.accepts !== 'function' || typeof tip.windowStart !== 'function') {
+    throw new Error('createApp: tip is required');
+  }
   if (typeof genesisHash !== 'string' || !/^[0-9a-f]{64}$/.test(genesisHash)) throw new Error('createApp: genesisHash is required');
   if (!Number.isInteger(shareZeros) || shareZeros < MIN_SHARE_ZEROS || shareZeros > MAX_SHARE_ZEROS) {
     throw new Error(`createApp: shareZeros must be an integer from ${MIN_SHARE_ZEROS} to ${MAX_SHARE_ZEROS}`);
@@ -183,6 +186,7 @@ export function createApp({
   // untouched in old databases; nothing reads it any more.
   db.exec(`
     CREATE TABLE IF NOT EXISTS proofs (
+      genesis_hash TEXT NOT NULL,
       name TEXT NOT NULL,
       round_height INTEGER NOT NULL,
       round_hash TEXT NOT NULL,
@@ -190,25 +194,26 @@ export function createApp({
       hash TEXT NOT NULL,
       zeros INTEGER NOT NULL,
       created_at INTEGER NOT NULL,
-      UNIQUE (name, round_height, round_hash, nonce)
+      UNIQUE (genesis_hash, name, round_height, round_hash, nonce)
     );
-    CREATE INDEX IF NOT EXISTS proofs_round ON proofs (round_height, round_hash);
+    CREATE INDEX IF NOT EXISTS proofs_window ON proofs (genesis_hash, round_height);
   `);
   const hiddenNames = createHiddenNames(db);
   // Lets the leaderboard compare stored names with hidden_names.folded in SQL.
   db.function('fold_name', { deterministic: true }, (name) => foldName(name));
   const insertProof = db.prepare(
-    `INSERT INTO proofs (name, round_height, round_hash, nonce, hash, zeros, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?)
-     ON CONFLICT (name, round_height, round_hash, nonce) DO NOTHING`,
+    `INSERT INTO proofs (genesis_hash, name, round_height, round_hash, nonce, hash, zeros, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT (genesis_hash, name, round_height, round_hash, nonce) DO NOTHING`,
   );
   // Best proof per name: the smallest hash, which means the most leading zeros and,
   // among equal zeros, the higher difficulty. Fixed-length lowercase hex sorts by value.
-  // ?1 restricts to one round; NULL means all rounds.
+  // Only proofs for the current genesis count; ?2 restricts to rounds from that Bitcoin
+  // height on (the window), NULL means all rounds.
   const selectBest = db.prepare(`
     WITH scoped AS (
       SELECT * FROM proofs
-      WHERE (?1 IS NULL OR (round_height = ?1 AND round_hash = ?2))
+      WHERE genesis_hash = ?1 AND (?2 IS NULL OR round_height >= ?2)
         AND NOT EXISTS (SELECT 1 FROM hidden_names h WHERE h.folded = fold_name(proofs.name))
     ),
     ranked AS (
@@ -221,7 +226,7 @@ export function createApp({
     ORDER BY hash ASC, created_at ASC
     LIMIT ${LEADERBOARD_SIZE}
   `);
-  const leaderboardRows = (round) => selectBest.all(round?.height ?? null, round?.hash ?? null).map((row) => ({
+  const leaderboardRows = (fromHeight) => selectBest.all(genesisHash, fromHeight).map((row) => ({
     name: row.name,
     round: { height: row.round_height, hash: row.round_hash },
     nonce: row.nonce,
@@ -265,7 +270,8 @@ export function createApp({
     checkPoolName(name);
     const round = tip.round();
     if (!round) throw new HttpError(503, 'round unavailable');
-    send(res, 200, { name, round, prefix: proofPrefix(genesisHash, round, name), minZeros: shareZeros, genesisHash });
+    send(res, 200, { name, round, windowStart: tip.windowStart(), prefix: proofPrefix(genesisHash, round, name),
+      minZeros: shareZeros, genesisHash });
   }
 
   async function handleShare(req, res) {
@@ -282,14 +288,19 @@ export function createApp({
     const zeros = leadingHexZeros(hash);
     if (zeros < shareZeros) throw new HttpError(422, 'hash misses target');
 
-    const result = insertProof.run(name, round.height, round.hash, nonce, hash, zeros, now());
+    const result = insertProof.run(genesisHash, name, round.height, round.hash, nonce, hash, zeros, now());
     if (result.changes === 0) throw new HttpError(409, 'duplicate proof');
     send(res, 200, { accepted: true, hash, zeros, difficulty: hashDifficulty(hash), round });
   }
 
   function handleLeaderboard(res) {
     const round = tip.round();
-    send(res, 200, { genesisHash, round: round ? { ...round, rows: leaderboardRows(round) } : null, allTime: leaderboardRows(null) });
+    const from = tip.windowStart();
+    send(res, 200, {
+      genesisHash,
+      recent: round ? { from, to: round.height, rows: leaderboardRows(from) } : null,
+      allTime: leaderboardRows(null),
+    });
   }
 
   async function serveStatic(url, req, res) {

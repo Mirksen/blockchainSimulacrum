@@ -6,7 +6,9 @@ const BASE = 'https://api.proofofwork.fyi';
 const NAME = 'test-miner';
 const OTHER_GENESIS = 'e'.repeat(64);
 const ROUND = { height: 900001, hash: `0000${'ab'.repeat(30)}` };
-const challenge = { name: NAME, round: ROUND, prefix: proofPrefix(GENESIS.hash, ROUND, NAME), minZeros: 6, genesisHash: GENESIS.hash };
+const challenge = { name: NAME, round: ROUND, windowStart: ROUND.height - 143, prefix: proofPrefix(GENESIS.hash, ROUND, NAME), minZeros: 6,
+  genesisHash: GENESIS.hash };
+const RECENT = { from: ROUND.height - 143, to: ROUND.height };
 const row = (overrides = {}) => ({ name: NAME, round: ROUND, nonce: 4242, bestHash: `00000${'c'.repeat(59)}`, bestZeros: 5,
   difficulty: 65536, proofs: 3, foundAt: 1_800_000_000_000, ...overrides });
 const answer = (body, status = 200) => ({ ok: status >= 200 && status < 300, status, json: async () => body });
@@ -60,6 +62,13 @@ describe('pool API client', () => {
     await refusal(getChallenge('other-miner'));
   });
 
+  it('refuses a missing or impossible window start', async () => {
+    for (const windowStart of [undefined, '1', 1.5, ROUND.height + 1]) {
+      fetchMock.mockResolvedValue(answer({ ...challenge, windowStart }));
+      await refusal(getChallenge(NAME));
+    }
+  });
+
   it('refuses a bad round or minimum', async () => {
     const badRounds = [null, { height: -1, hash: ROUND.hash }, { height: 1.5, hash: ROUND.hash }, { height: '900001', hash: ROUND.hash },
       { height: ROUND.height, hash: 'ab' }, { height: ROUND.height, hash: ROUND.hash.toUpperCase() }];
@@ -88,17 +97,17 @@ describe('pool API client', () => {
     expect(JSON.parse(init.body)).toStrictEqual({ name: NAME, round: { height: ROUND.height, hash: ROUND.hash }, nonce: 42 });
   });
 
-  it('reads the leaderboard with GET: this round and all time', async () => {
+  it('reads the leaderboard with GET: the last 144 blocks and all time', async () => {
     const roundRows = [row(), row({ name: 'other-miner', nonce: 7, bestHash: `0000${'1'.repeat(60)}`, bestZeros: 4, difficulty: 4096.5, proofs: 1 })];
     const allTime = [row({ round: { height: 899990, hash: 'a'.repeat(64) }, bestHash: `0000000${'2'.repeat(57)}`, bestZeros: 7,
       difficulty: 2.5e9, proofs: 12 }), ...roundRows];
-    fetchMock.mockResolvedValue(answer({ genesisHash: GENESIS.hash, round: { ...ROUND, rows: roundRows }, allTime }));
-    expect(await getLeaderboard()).toEqual({ round: { ...ROUND, rows: roundRows }, allTime });
+    fetchMock.mockResolvedValue(answer({ genesisHash: GENESIS.hash, recent: { ...RECENT, rows: roundRows }, allTime }));
+    expect(await getLeaderboard()).toEqual({ recent: { ...RECENT, rows: roundRows }, allTime });
     expect(fetchMock.mock.calls[0][0]).toBe(`${BASE}/api/leaderboard`);
     expect(fetchMock.mock.calls[0][1].method).toBe('GET');
 
-    fetchMock.mockResolvedValue(answer({ genesisHash: GENESIS.hash, round: null, allTime: [] }));
-    expect(await getLeaderboard()).toEqual({ round: null, allTime: [] });
+    fetchMock.mockResolvedValue(answer({ genesisHash: GENESIS.hash, recent: null, allTime: [] }));
+    expect(await getLeaderboard()).toEqual({ recent: null, allTime: [] });
   });
 
   it('drops malformed rows and keeps the valid ones', async () => {
@@ -106,14 +115,14 @@ describe('pool API client', () => {
     const bad = [null, 'row', row({ name: 'x' }), row({ name: 'with space' }), row({ round: { height: -1, hash: ROUND.hash } }),
       row({ round: null }), row({ nonce: '4242' }), row({ nonce: 1.5 }), row({ bestHash: 'abc' }), row({ bestHash: undefined }),
       row({ bestZeros: '5' }), row({ difficulty: Infinity }), row({ difficulty: 'high' }), row({ proofs: 1.5 })];
-    fetchMock.mockResolvedValue(answer({ round: { ...ROUND, rows: [...bad, good] }, allTime: [good, ...bad] }));
-    expect(await getLeaderboard()).toEqual({ round: { ...ROUND, rows: [good] }, allTime: [good] });
+    fetchMock.mockResolvedValue(answer({ recent: { ...RECENT, rows: [...bad, good] }, allTime: [good, ...bad] }));
+    expect(await getLeaderboard()).toEqual({ recent: { ...RECENT, rows: [good] }, allTime: [good] });
   });
 
   it('refuses a malformed board', async () => {
-    const boards = [null, [row()], { round: null }, { round: null, allTime: 'rows' }, { allTime: [] },
-      { round: { ...ROUND }, allTime: [] }, { round: { height: ROUND.height, hash: 'bad', rows: [] }, allTime: [] },
-      { round: { hash: ROUND.hash, rows: [] }, allTime: [] }];
+    const boards = [null, [row()], { recent: null }, { recent: null, allTime: 'rows' }, { allTime: [] },
+      { recent: { ...RECENT }, allTime: [] }, { recent: { from: 'a', to: ROUND.height, rows: [] }, allTime: [] },
+      { recent: { from: ROUND.height + 1, to: ROUND.height, rows: [] }, allTime: [] }, { recent: { to: ROUND.height, rows: [] }, allTime: [] }];
     for (const board of boards) {
       fetchMock.mockResolvedValue(answer(board));
       await refusal(getLeaderboard());
@@ -140,7 +149,7 @@ describe('pool API client', () => {
     fetchMock.mockResolvedValue(answer({ error: 'duplicate proof' }, 409));
     expect((await submitProof(challenge, 1).catch(caught => caught)).message).toBe('This proof was already counted.');
     fetchMock.mockResolvedValue(answer({ error: 'round over' }, 410));
-    expect((await submitProof(challenge, 1).catch(caught => caught)).message).toBe('This round is over: a new Bitcoin block arrived.');
+    expect((await submitProof(challenge, 1).catch(caught => caught)).message).toBe('This round is over: its Bitcoin block left the window.');
   });
 
   it('turns a 400 "name unavailable" answer into a name-unavailable error', async () => {
