@@ -18,16 +18,7 @@ const FOCUSABLE = 'a[href], button:not([disabled]), summary, input:not([disabled
 
 function Logo() {
   return (
-    <svg className="top-bar-logo" width="22" height="22" viewBox="0 0 22 22" aria-hidden="true">
-      <defs>
-        <linearGradient id="top-bar-logo-gradient" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" className="top-bar-logo-a" />
-          <stop offset="1" className="top-bar-logo-b" />
-        </linearGradient>
-      </defs>
-      <rect x="2" y="5" width="12" height="12" rx="2" fill="url(#top-bar-logo-gradient)" />
-      <path className="top-bar-logo-side" d="M14 7.5l4-3v12l-4 3z" />
-    </svg>
+    <img src="/pixel-bridge.svg" className="top-bar-logo" width="22" height="22" alt="" aria-hidden="true" />
   );
 }
 

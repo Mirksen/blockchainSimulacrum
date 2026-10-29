@@ -1,9 +1,13 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { SelectedBlockCard } from '../components/workbench/SelectedBlockCard';
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+  vi.useRealTimers();
+});
 
 const HASH = '0080a3e897fb1e3839f43f95b033620ff7fb2f9739c8e415e5ce6e7df0726c4d';
 const PREV = '00e6130b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f708192a3b4c5d6e7f80912f8';
@@ -38,13 +42,93 @@ describe('SelectedBlockCard', () => {
     expect(screen.queryByRole('button', { name: /Undo edit/ })).toBeNull();
   });
 
-  it('copies the full hash and says so', () => {
-    const writeText = vi.fn(() => Promise.resolve());
-    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+  it('reports the full hash copied only after the clipboard confirms success', async () => {
+    let resolve;
+    const writeText = vi.fn(() => new Promise(done => { resolve = done; }));
+    vi.stubGlobal('navigator', { clipboard: { writeText } });
     render(<SelectedBlockCard block={block()} prevHash={PREV} />);
     fireEvent.click(screen.getByRole('button', { name: 'Copy hash' }));
-    expect(writeText).toHaveBeenCalledWith(HASH);
+    expect(writeText).toHaveBeenCalledExactlyOnceWith(HASH);
+    expect(screen.queryByRole('button', { name: 'hash copied' })).toBeNull();
+    await act(async () => resolve());
     expect(screen.getByRole('button', { name: 'hash copied' }).textContent).toBe('Copied');
+  });
+
+  it.each([
+    ['missing clipboard', {}],
+    ['missing writeText', { clipboard: {} }],
+    ['throwing write', { clipboard: { writeText: () => { throw new Error('fixture failure'); } } }],
+    ['rejected write', { clipboard: { writeText: () => Promise.reject(new Error('fixture denied')) } }],
+    ['throwing clipboard getter', { get clipboard() { throw new Error('fixture denied'); } }]
+  ])('does not report success with %s', async (_label, clipboardNavigator) => {
+    vi.stubGlobal('navigator', clipboardNavigator);
+    render(<SelectedBlockCard block={block()} />);
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Copy hash' })));
+    expect(screen.queryByRole('button', { name: 'hash copied' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Copy hash' }).textContent).toBe('Copy');
+  });
+
+  it('discards a completed copy when the selected hash changes', async () => {
+    vi.stubGlobal('navigator', { clipboard: { writeText: vi.fn().mockResolvedValue(undefined) } });
+    const { rerender } = render(<SelectedBlockCard block={block()} />);
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Copy hash' })));
+    expect(screen.getByRole('button', { name: 'hash copied' })).toBeTruthy();
+    rerender(<SelectedBlockCard block={block({ hash: PREV })} />);
+    expect(screen.queryByRole('button', { name: 'hash copied' })).toBeNull();
+  });
+
+  it('does not report a late write after switching away and back to the same hash', async () => {
+    let resolve;
+    vi.stubGlobal('navigator', { clipboard: { writeText: () => new Promise(done => { resolve = done; }) } });
+    const { rerender } = render(<SelectedBlockCard block={block()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Copy hash' }));
+    rerender(<SelectedBlockCard block={block({ index: 5, hash: PREV })} />);
+    rerender(<SelectedBlockCard block={block()} />);
+    await act(async () => resolve());
+    expect(screen.queryByRole('button', { name: 'hash copied' })).toBeNull();
+  });
+
+  it('resets feedback between blocks even when their displayed hashes match', async () => {
+    vi.stubGlobal('navigator', { clipboard: { writeText: vi.fn().mockResolvedValue(undefined) } });
+    const { rerender } = render(<SelectedBlockCard block={block()} />);
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Copy hash' })));
+    rerender(<SelectedBlockCard block={block({ index: 5 })} />);
+    expect(screen.queryByRole('button', { name: 'hash copied' })).toBeNull();
+  });
+
+  it('ignores a superseded write and confirms only the latest copy request', async () => {
+    const resolve = [];
+    const writeText = vi.fn(() => new Promise(done => resolve.push(done)));
+    vi.stubGlobal('navigator', { clipboard: { writeText } });
+    render(<SelectedBlockCard block={block()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Copy hash' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Copy hash' }));
+    await act(async () => resolve[0]());
+    expect(screen.queryByRole('button', { name: 'hash copied' })).toBeNull();
+    await act(async () => resolve[1]());
+    expect(screen.getByRole('button', { name: 'hash copied' })).toBeTruthy();
+  });
+
+  it('restarts the 1200 ms feedback period after another successful copy', async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal('navigator', { clipboard: { writeText: vi.fn().mockResolvedValue(undefined) } });
+    render(<SelectedBlockCard block={block()} />);
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Copy hash' })));
+    act(() => vi.advanceTimersByTime(1000));
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'hash copied' })));
+    act(() => vi.advanceTimersByTime(1000));
+    expect(screen.getByRole('button', { name: 'hash copied' })).toBeTruthy();
+    act(() => vi.advanceTimersByTime(200));
+    expect(screen.getByRole('button', { name: 'Copy hash' })).toBeTruthy();
+  });
+
+  it('copies the full recomputed hash of a tampered block', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal('navigator', { clipboard: { writeText } });
+    render(<SelectedBlockCard block={block()} status={{ status: 'hash-mismatch', computedHash: PREV }} />);
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Copy hash' })));
+    expect(writeText).toHaveBeenCalledExactlyOnceWith(PREV);
+    expect(screen.getByRole('button', { name: 'hash copied' })).toBeTruthy();
   });
 
   it('calls Open in Chain lab and Details with the block index', () => {

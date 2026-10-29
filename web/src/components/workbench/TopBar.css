@@ -11,9 +11,6 @@
 .top-bar-brand { display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 15px; white-space: nowrap; }
 .top-bar.is-compact .top-bar-brand { gap: var(--s-2); }
 .top-bar-logo { flex: none; }
-.top-bar-logo-a { stop-color: var(--blue); }
-.top-bar-logo-b { stop-color: var(--minas); }
-.top-bar-logo-side { fill: var(--blue-2); }
 
 .top-bar-tabs { display: flex; gap: var(--s-1); list-style: none; margin: 0; padding: 0; }
 .top-bar-tabs a {
