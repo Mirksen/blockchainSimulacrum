@@ -2,16 +2,16 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { MissionIntro } from '../components/workbench/MissionIntro';
-import { MISSIONS } from '../lib/missions';
 
 afterEach(cleanup);
 
 describe('MissionIntro', () => {
-  it('names the track and its first missions', () => {
+  it('invites voluntary learning and explains browser-local progress', () => {
     render(<MissionIntro onStart={() => {}} onDismiss={() => {}} />);
-    const card = screen.getByRole('region', { name: 'Learn proof of work by doing it' });
-    expect(card.textContent).toContain(`${MISSIONS.length} missions`);
-    for (const mission of MISSIONS.slice(0, 3)) expect(card.textContent).toContain(mission.title);
+    const card = screen.getByRole('region', { name: 'Curious? Try a mission.' });
+    expect(card.textContent).toContain('Or explore freely');
+    expect(card.textContent).toContain('missions are always here when you want them');
+    expect(card.textContent).toContain('Progress stays in this browser.');
   });
 
   it('starts or dismisses through its two actions, with no filled primary of its own', () => {
@@ -21,7 +21,7 @@ describe('MissionIntro', () => {
     expect(document.querySelectorAll('.btn-primary')).toHaveLength(0);
     fireEvent.click(screen.getByRole('button', { name: 'Start missions' }));
     expect(onStart).toHaveBeenCalledTimes(1);
-    fireEvent.click(screen.getByRole('button', { name: 'Not now' }));
+    fireEvent.click(screen.getByRole('button', { name: "Don't show again" }));
     expect(onDismiss).toHaveBeenCalledTimes(1);
   });
 });

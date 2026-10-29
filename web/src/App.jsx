@@ -27,7 +27,10 @@ const VIEW_LABELS = { workbench: 'Workbench', 'hash-lab': 'Hash lab', 'chain-lab
 
 const viewFromHash = () => VIEWS[(globalThis.location?.hash ?? '').replace(/^#\/?/, '')] ?? 'workbench';
 function readFlag(key, fallback = false) {
-  try { const value = globalThis.localStorage?.getItem(key); return value == null ? fallback : value === '1'; } catch { return fallback; }
+  try {
+    const stored = globalThis.localStorage?.getItem(key);
+    return stored === '1' ? true : stored === '0' ? false : fallback;
+  } catch { return fallback; }
 }
 function writeFlag(key, value) { try { globalThis.localStorage?.setItem(key, value ? '1' : '0'); } catch { /* storage may be blocked */ } }
 const browserStorage = () => { try { return globalThis.localStorage ?? null; } catch { return null; } };
@@ -80,10 +83,14 @@ function App() {
     createWallet, backMiner, toggleMiner, setMinerHashpower } = sim;
   const busy = isMining || isSettingUp;
   const fresh = blocks.length === 1 && memPool.length === 0;
-  const coach = coachOf(progress);
+  const coach = railCollapsed ? null : coachOf(progress);
   const activeMission = missions.activeMission(progress);
+  const showIntro = !introSeen && railCollapsed && progress.step === 0 && progress.completed.length === 0;
 
   useEffect(() => { document.documentElement.setAttribute('data-theme', theme); }, [theme]);
+  // Remember the first display, even when the visitor simply ignores the invitation.
+  // Keep it visible for this visit until dismissed, opened or navigated away from.
+  useEffect(() => { if (showIntro) writeFlag(INTRO_KEY, true); }, [showIntro]);
   useEffect(() => {
     const onHash = () => setView(viewFromHash());
     globalThis.addEventListener('hashchange', onHash);
@@ -98,6 +105,8 @@ function App() {
 
   const report = useCallback(event => setProgress(current => missions.reduce(current, event)), []);
   const navigate = useCallback(next => {
+    writeFlag(INTRO_KEY, true);
+    setIntroSeen(true);
     const hash = next === 'workbench' ? '#/' : `#/${next}`;
     if (globalThis.location.hash !== hash) globalThis.history.pushState(null, '', hash);
     setView(next);
@@ -214,16 +223,15 @@ function App() {
   };
   const dismissIntro = () => { writeFlag(INTRO_KEY, true); setIntroSeen(true); };
   const toggleRail = () => {
-    if (railCollapsed) dismissIntro();
-    setRailCollapsed(current => { writeFlag(RAIL_KEY, !current); return !current; });
+    dismissIntro();
+    writeFlag(RAIL_KEY, !railCollapsed);
+    setRailCollapsed(!railCollapsed);
   };
   const startMissions = () => {
     dismissIntro();
     writeFlag(RAIL_KEY, false);
     setRailCollapsed(false);
   };
-  // Only for someone who has not started a mission yet.
-  const showIntro = !introSeen && railCollapsed && progress.step === 0 && progress.completed.length === 0;
 
   const onCreateTransaction = (from, to, amount, reference) => {
     const result = createTransaction(from, to, Number(amount), undefined, reference);
@@ -262,10 +270,11 @@ function App() {
       <LeaderboardTicker onOpenPool={() => navigate('pool')} />
       <div className="wb-shell">
         <div className="wb-rail">
-          <MissionRail progress={progress} collapsed={railCollapsed} onToggle={toggleRail} onShowMe={showMe} />
+          <MissionRail progress={progress} collapsed={railCollapsed} onToggle={toggleRail} onShowMe={showMe} highlight={showIntro} />
         </div>
         <main id="workbench" className="wb-main" aria-label={VIEW_LABELS[view]}>
-          <div className="wb-mbar"><MissionRail progress={progress} variant="bar" onShowMe={showMe} /></div>
+          <div className="wb-mbar"><MissionRail progress={progress} variant="bar" collapsed={railCollapsed}
+            onToggle={toggleRail} onShowMe={showMe} highlight={showIntro} /></div>
           {showIntro && <MissionIntro onStart={startMissions} onDismiss={dismissIntro} />}
           {view === 'workbench' && <Workbench sim={sim} coinName={coinName} targetSeconds={targetBlockTime}
             autoMine={autoMining} onAutoMine={value => value ? setAutoMining(true) : pause()}

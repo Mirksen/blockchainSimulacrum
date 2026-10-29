@@ -89,34 +89,46 @@ describe('open rail', () => {
 });
 
 describe('collapsed rail', () => {
-  it('shows one icon per mission with its state, a ring on the active one and tooltips', () => {
+  it('hides the mission list, tasks and XP behind one clearly named entry', () => {
     const onToggle = vi.fn();
     render(<MissionRail progress={MISSION_4} collapsed onToggle={onToggle} />);
-    const list = screen.getByRole('list', { name: 'Missions, 3 of 8 done' });
-    const icons = within(list).getAllByRole('button');
-    expect(icons).toHaveLength(8);
-    expect(icons[0].getAttribute('aria-label')).toBe('Mission 1, Change a fingerprint, done');
-    expect(icons[3].getAttribute('aria-label')).toBe('Mission 4, Win a mining race, 1 of 3 steps, current step: Watch one full race.');
-    expect(icons[3].getAttribute('aria-current')).toBe('step');
-    expect(icons[3].querySelector('.mission-rail-ring-fill').getAttribute('stroke-dasharray')).toBe('29.3 88.0');
-    expect(icons[4].getAttribute('aria-label')).toBe('Mission 5, Change the past, locked');
-    expect(icons[3].querySelector('.mission-rail-tip').textContent).toBe('Mission 4 · Win a mining race · step 2: Watch one full race.');
-    expect(screen.getByLabelText('100 XP')).toBeTruthy();
+    const access = screen.getByRole('button', { name: 'Expand mission rail' });
+    expect(access.textContent).toBe('Missions');
+    expect(access.getAttribute('aria-expanded')).toBe('false');
+    expect(screen.getAllByRole('button')).toHaveLength(1);
+    expect(screen.queryByRole('list')).toBeNull();
     expect(screen.queryByRole('button', { name: 'Show me' })).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'Expand mission rail' }));
-    fireEvent.click(icons[3]);
-    expect(onToggle).toHaveBeenCalledTimes(2);
+    expect(screen.queryByLabelText('100 XP')).toBeNull();
+    expect(document.querySelector('.mission-rail-xp')).toBeNull();
+    fireEvent.click(access);
+    expect(onToggle).toHaveBeenCalledTimes(1);
   });
 
-  it('shows all icons as done when the track is complete', () => {
+  it('keeps the same entry when the track is complete', () => {
     render(<MissionRail progress={ALL_DONE} collapsed onToggle={() => {}} />);
-    const icons = within(screen.getByRole('list', { name: 'Missions, 8 of 8 done' })).getAllByRole('button');
-    expect(icons.every(icon => icon.classList.contains('is-done'))).toBe(true);
-    expect(document.querySelector('.mission-rail-ring')).toBeNull();
+    expect(screen.getAllByRole('button')).toHaveLength(1);
+    expect(screen.getByRole('button', { name: 'Expand mission rail' }).textContent).toBe('Missions');
+    expect(screen.queryByRole('list')).toBeNull();
   });
 });
 
 describe('mission bar', () => {
+  it('shows neutral access when collapsed, without the current task or progress', () => {
+    const onToggle = vi.fn();
+    const { rerender } = render(<MissionRail progress={MISSION_6} variant="bar" collapsed onToggle={onToggle} />);
+    const access = screen.getByRole('button', { name: 'Open missions' });
+    expect(access.textContent).toBe('Missions');
+    expect(document.querySelector('.mission-rail-bar-prog')).toBeNull();
+    fireEvent.click(access);
+    expect(onToggle).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('dialog', { name: 'Missions' })).toBeTruthy();
+    rerender(<MissionRail progress={MISSION_6} variant="bar" collapsed={false} onToggle={onToggle} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Close missions' }));
+    expect(onToggle).toHaveBeenCalledTimes(1); // Sheet close preserves guidance.
+    fireEvent.click(screen.getByRole('button', { name: 'Hide missions' }));
+    expect(onToggle).toHaveBeenCalledTimes(2);
+  });
+
   it('reads "Mission N · k of m steps" and opens the full list as a dialog', () => {
     const onShowMe = vi.fn();
     render(<MissionRail progress={MISSION_6} variant="bar" onShowMe={onShowMe} />);

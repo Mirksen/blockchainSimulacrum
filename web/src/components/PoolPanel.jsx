@@ -257,7 +257,7 @@ export function PoolPanel({ onClose }) {
           aria-describedby={showNameError || nameRefused ? 'pool-panel-name-error' : 'pool-panel-name-help'} />
         {showNameError || nameRefused
           ? <p id="pool-panel-name-error" className="pool-panel-error" role="alert">{nameRefused ? NAME_UNAVAILABLE_MESSAGE : NAME_HINT}</p>
-          : <p id="pool-panel-name-help" className="pool-panel-help">{NAME_HINT} Shown publicly and part of every proof.</p>}
+          : <p id="pool-panel-name-help" className="pool-panel-help">{NAME_HINT} Shown publicly and part of every proof. Names are not unique; others can mine using the same name.</p>}
       </div>
       {joined ? <button className="btn btn-negative" onClick={stop}>Stop</button>
         : <button className="btn btn-emphasized" onClick={join}>Join</button>}

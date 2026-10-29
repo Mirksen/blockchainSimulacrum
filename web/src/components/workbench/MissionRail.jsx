@@ -3,13 +3,12 @@ import { MISSIONS, activeStep, earnedBadges, missionStatus, totalXp } from '../.
 import './MissionRail.css';
 
 // Mission rail (web/DESIGN.md, "Mission rail").
-// variant="rail": open form (248 px) or, with `collapsed`, the 56 px icon form.
+// variant="rail": open form (248 px) or, with `collapsed`, one 56 px missions entry.
 // variant="bar": the slim mission bar for < 1024 px that opens the full list as a sheet.
 // onShowMe receives activeStep(progress) ({ mission, step, view, target }); the parent switches
 // to that view and scrolls to the coach target.
 
 const TOTAL = MISSIONS.length;
-const RING = 2 * Math.PI * 14;
 
 const Icon = {
   check: size => <svg width={size} height={size} viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 6.3l2.3 2.3 4.7-5" stroke="currentColor" strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round" /></svg>,
@@ -121,42 +120,13 @@ function Complete() {
   );
 }
 
-function IconForm({ progress, info, onToggle, onSelectMission }) {
-  const open = id => { onSelectMission?.(id); onToggle?.(); };
+function CollapsedAccess({ onToggle, highlight }) {
   return (
     <div className="mission-rail-mini">
-      <button type="button" className="mission-rail-icon-btn" aria-label="Expand mission rail" aria-expanded="false"
-        title="Expand missions" onClick={() => onToggle?.()}>{Icon.expand}</button>
-      <ol className="mission-rail-icons" aria-label={`Missions, ${info.done} of ${TOTAL} done`}>
-        {MISSIONS.map((mission, index) => {
-          const status = missionStatus(progress, mission.id);
-          const isActive = status === 'active';
-          const detail = isActive
-            ? `${info.stepsDone} of ${info.stepCount} steps, current step: ${info.current.step.text}`
-            : STATUS_WORD[status];
-          return (
-            <li key={mission.id}>
-              <button type="button" className={`mission-rail-icon is-${status}`} aria-current={isActive ? 'step' : undefined}
-                aria-label={`Mission ${index + 1}, ${mission.title}, ${detail}`} onClick={() => open(mission.id)}>
-                {isActive && (
-                  <svg className="mission-rail-ring" width="32" height="32" viewBox="0 0 32 32" aria-hidden="true">
-                    <circle cx="16" cy="16" r="14" className="mission-rail-ring-track" />
-                    {info.fraction > 0 && <circle cx="16" cy="16" r="14" className="mission-rail-ring-fill"
-                      strokeDasharray={`${(info.fraction * RING).toFixed(1)} ${RING.toFixed(1)}`} />}
-                  </svg>
-                )}
-                {status === 'done' ? Icon.check(12) : status === 'locked' ? Icon.lock : <b>{index + 1}</b>}
-                <span className="mission-rail-tip" aria-hidden="true">
-                  Mission {index + 1} · {mission.title} · <span className="mission-rail-tip-detail">
-                    {isActive ? `step ${info.stepsDone + 1}: ${info.current.step.text}` : STATUS_WORD[status]}
-                  </span>
-                </span>
-              </button>
-            </li>
-          );
-        })}
-      </ol>
-      <div className="mission-rail-xp-mini" aria-label={`${info.xp} XP`}><b>{info.xp}</b>XP</div>
+      <button type="button" className={`mission-rail-icon-btn mission-rail-access${highlight ? ' mission-rail-invitation' : ''}`}
+        aria-label="Expand mission rail" aria-expanded="false" title="Open missions" onClick={() => onToggle?.()}>
+        {Icon.flag}<span>Missions</span>
+      </button>
     </div>
   );
 }
@@ -191,18 +161,18 @@ function MissionSheet({ progress, info, onClose, onShowMe, onSelectMission }) {
   );
 }
 
-function Bar({ progress, info, onShowMe, onSelectMission }) {
+function Bar({ progress, info, onShowMe, onSelectMission, collapsed, onToggle, highlight }) {
   const [open, setOpen] = useState(false);
   const { current, index, stepsDone, stepCount } = info;
-  const label = current
+  const label = collapsed ? 'Open missions' : current
     ? `Mission ${index + 1}, ${current.mission.title}, ${stepsDone} of ${stepCount} steps. Open missions`
     : `All ${TOTAL} missions done. Open missions`;
   return (
-    <div className="mission-rail is-bar">
-      <button type="button" className="mission-rail-bar" aria-haspopup="dialog" aria-expanded={open} aria-label={label}
-        onClick={() => setOpen(true)}>
-        <span className={`mission-rail-bar-n${current ? '' : ' is-done'}`}>{current ? index + 1 : Icon.check(12)}</span>
-        {current ? (
+    <div className={`mission-rail is-bar${collapsed ? ' is-free-play' : ''}`}>
+      <button type="button" className={`mission-rail-bar${highlight ? ' mission-rail-invitation' : ''}`} aria-haspopup="dialog" aria-expanded={open} aria-label={label}
+        onClick={() => { if (collapsed) onToggle?.(); setOpen(true); }}>
+        <span className={`mission-rail-bar-n${!collapsed && !current ? ' is-done' : ''}`}>{collapsed ? Icon.flag : current ? index + 1 : Icon.check(12)}</span>
+        {collapsed ? <span className="mission-rail-bar-txt"><b>Missions</b></span> : current ? (
           <span className="mission-rail-bar-txt">
             <b>Mission {index + 1}</b>
             <span className="mission-rail-bar-title"> · {current.mission.title}</span>
@@ -211,22 +181,24 @@ function Bar({ progress, info, onShowMe, onSelectMission }) {
         ) : (
           <span className="mission-rail-bar-txt"><b>All {TOTAL} missions done</b> · {info.xp} XP</span>
         )}
-        {current && <span className="mission-rail-bar-prog" aria-hidden="true"><i style={{ width: `${info.fraction * 100}%` }} /></span>}
+        {!collapsed && current && <span className="mission-rail-bar-prog" aria-hidden="true"><i style={{ width: `${info.fraction * 100}%` }} /></span>}
         <span className="mission-rail-bar-chev">{Icon.chevron}</span>
       </button>
+      {!collapsed && <button type="button" className="mission-rail-hide" onClick={() => { setOpen(false); onToggle?.(); }}>Hide missions</button>}
       {open && <MissionSheet progress={progress} info={info} onClose={() => setOpen(false)}
         onShowMe={onShowMe} onSelectMission={onSelectMission} />}
     </div>
   );
 }
 
-export function MissionRail({ progress, collapsed = false, onToggle, onShowMe, onSelectMission, variant = 'rail' }) {
+export function MissionRail({ progress, collapsed = false, onToggle, onShowMe, onSelectMission, variant = 'rail', highlight = false }) {
   const info = summarize(progress);
-  if (variant === 'bar') return <Bar progress={progress} info={info} onShowMe={onShowMe} onSelectMission={onSelectMission} />;
+  if (variant === 'bar') return <Bar progress={progress} info={info} onShowMe={onShowMe} onSelectMission={onSelectMission}
+    collapsed={collapsed} onToggle={onToggle} highlight={highlight} />;
   return (
     <aside className={`mission-rail${collapsed ? ' is-collapsed' : ''}`} aria-label="Missions">
       {collapsed ? (
-        <IconForm progress={progress} info={info} onToggle={onToggle} onSelectMission={onSelectMission} />
+        <CollapsedAccess onToggle={onToggle} highlight={highlight} />
       ) : (
         <div className="mission-rail-full">
           <div className="mission-rail-head">

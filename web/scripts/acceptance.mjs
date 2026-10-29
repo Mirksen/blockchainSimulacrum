@@ -1,6 +1,7 @@
 import { verifyHashLab } from './hash-lab.acceptance.mjs';
 import { verifyChainLab } from './chain-lab.acceptance.mjs';
 import { verifyMissions } from './missions.acceptance.mjs';
+import { verifyMissionVisibility } from './missions-visibility.acceptance.mjs';
 import { verifyPool } from './pool.acceptance.mjs';
 import { menu, openTab, settle, snapshot, workbench } from './workbench.helpers.mjs';
 import { chromium } from 'playwright';
@@ -82,6 +83,7 @@ try {
   assert.ok(ready, `Preview did not start: ${serverLog}`);
  }
  browser = await chromium.launch({channel:'chrome',headless:true});
+ results.push(...await verifyMissionVisibility(browser, baseURL, output));
  page=await browser.newPage({viewport:{width:1440,height:1000},reducedMotion:'reduce'});
  // Install once before the app creates timers; all experiments share this clock.
  await page.clock.install();
@@ -92,12 +94,12 @@ try {
  await page.goto(baseURL);
  const wb = workbench(page);
 
- // First visit: the rail is collapsed and one card invites to the missions; Not now is remembered.
- const intro = page.getByRole('region',{name:'Learn proof of work by doing it'});
+ // First visit: the rail is collapsed and one card invites to the missions; dismissing it is remembered.
+ const intro = page.getByRole('region',{name:'Curious? Try a mission.'});
  await intro.waitFor();
  assert.equal(await page.locator('.mission-rail.is-collapsed').count(), 1);
  await page.screenshot({path:join(output,'view-intro-dark-1440.png')});
- await intro.getByRole('button',{name:'Not now'}).click();
+ await intro.getByRole('button',{name:"Don't show again"}).click();
  await intro.waitFor({state:'detached'});
  await page.reload();
  await wb.tile(0).waitFor();
@@ -282,7 +284,7 @@ try {
  await fitsWidths('Workbench after demo');
 
  // Labs in free play: the collapsed rail opens them without a mission lesson.
- // The rail is still collapsed from the start.
+ assert.equal(await page.locator('.app-shell.is-rail-collapsed').count(), 1);
  const before = await snapshot(page);
  results.push(...await verifyHashLab(page, output, before));
  results.push(...await verifyChainLab(page, output, before));
