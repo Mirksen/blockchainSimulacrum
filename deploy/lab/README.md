@@ -83,3 +83,13 @@ With an admitted environment, the operator may execute the image's admin command
 inside that environment's app container (`node src/admin.js hide <name>`, `unhide`,
 or `list-hidden`). This updates that environment's SQLite data, not another stack.
 Do not edit the read-only image or restore an old database while public writers run.
+
+### Image storage measurement
+
+Release publication and admission require the local Docker containerd image store.
+The declaration counts retained compressed content, unpacked ARM64 snapshots and
+available attestation content. Older `docker image inspect` versions report only
+packed bytes in `Size`; the bounded local Engine API query requests manifest
+summaries explicitly and rejects missing or incomplete allocation metadata. The
+existing 384 MiB combined app/tunnel ceiling remains unchanged. PR CI checks the
+same measurement on the actual built image before publication can be reached.

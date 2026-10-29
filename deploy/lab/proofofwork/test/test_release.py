@@ -2,12 +2,16 @@
 
 import copy
 import importlib.util
+import sys
 import unittest
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).parents[1]))
 
 spec = importlib.util.spec_from_file_location(
     "release", Path(__file__).parents[1] / "make-release.py"
 )
+assert spec is not None and spec.loader is not None
 release = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(release)
 
@@ -31,6 +35,19 @@ class ReleaseContract(unittest.TestCase):
             "RepoDigests": [release.TUNNEL_IMAGE],
         }
 
+        for metadata in (self.app, self.tunnel):
+            metadata["Manifests"] = [
+                {
+                    "Available": True,
+                    "Kind": "image",
+                    "ImageData": {
+                        "Platform": {"os": "linux", "architecture": "arm64"},
+                        "Size": {"Unpacked": metadata["Size"] - 10000000},
+                    },
+                    "Size": {"Content": 10000000, "Total": metadata["Size"]},
+                },
+            ]
+
     def test_exact_contract_uses_matching_digest(self):
         result = release.declaration(self.app, self.tunnel, self.revision, 123)
         self.assertEqual(result["image"], self.image)
@@ -46,9 +63,30 @@ class ReleaseContract(unittest.TestCase):
             {"Config": {"Labels": {"org.opencontainers.image.revision": "d" * 40}}},
         ):
             with self.subTest(change=change), self.assertRaises(ValueError):
-                release.declaration(
-                    {**self.app, **change}, self.tunnel, self.revision, 123
-                )
+                release.declaration({**self.app, **change}, self.tunnel, self.revision, 123)
+
+    def test_old_inspect_size_cannot_omit_unpacked_data(self):
+        app = copy.deepcopy(self.app)
+        # Synthetic response with the observed Docker29.1 accounting shape.
+        app["Size"] = 58678578
+        app["Manifests"] = [
+            {
+                "Available": True,
+                "Kind": "image",
+                "ImageData": {
+                    "Platform": {"os": "linux", "architecture": "arm64"},
+                    "Size": {"Unpacked": 171315200},
+                },
+                "Size": {"Content": 58674712, "Total": 229989912},
+            },
+            {
+                "Available": True,
+                "Kind": "attestation",
+                "Size": {"Content": 323277, "Total": 323277},
+            },
+        ]
+        result = release.declaration(app, self.tunnel, self.revision, 123)
+        self.assertEqual(result["image_bytes"], 330313189)
 
     def test_unpushed_or_wrong_tunnel_cannot_be_published(self):
         app = copy.deepcopy(self.app)
@@ -56,9 +94,7 @@ class ReleaseContract(unittest.TestCase):
         with self.assertRaises(ValueError):
             release.declaration(app, self.tunnel, self.revision, 123)
         with self.assertRaises(ValueError):
-            release.declaration(
-                self.app, {**self.tunnel, "RepoDigests": []}, self.revision, 123
-            )
+            release.declaration(self.app, {**self.tunnel, "RepoDigests": []}, self.revision, 123)
 
 
 if __name__ == "__main__":

@@ -42,6 +42,14 @@ jobs:
           docker build --build-arg SOURCE_REVISION="$SOURCE_REVISION" -t proofofwork-lab:checked -f deploy/lab/proofofwork/Dockerfile .
           test "$(docker image inspect --format '{{.Architecture}}' proofofwork-lab:checked)" = arm64
           test "$(docker image inspect --format '{{index .Config.Labels "org.opencontainers.image.revision"}}' proofofwork-lab:checked)" = "$SOURCE_REVISION"
+          python3 - <<'PYCODE'
+          import sys
+          sys.path.insert(0, "deploy/lab/proofofwork")
+          from lab_image import inspect_image, storage_bytes
+          size = storage_bytes(inspect_image("proofofwork-lab:checked"))
+          assert 0 < size <= 384 * 1024**2
+          print(f"complete ARM64 image allocation: {size} bytes")
+          PYCODE
           bash deploy/lab/proofofwork/test/image-check.sh proofofwork-lab:checked
           mkdir -p checked-image
           docker save proofofwork-lab:checked > checked-image/image.tar
