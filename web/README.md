@@ -4,6 +4,29 @@ See the [project README](../README.md) for local setup, simulation behavior, che
 
 From this directory: `npm ci`, then `npm run dev`. Run `npm run check` before release and `npm run deploy:check` to validate the production package without publishing it.
 
+## Optional missions and storage
+
+Missions start hidden behind the Missions entry on every screen size. A first-visit
+invitation points to it once; even ignoring it prevents another invitation on a later
+visit. Start missions opens the tasks. Collapse the desktop rail or use Hide missions
+on smaller screens to explore without coach marks. Closing the mobile task sheet
+keeps guidance enabled; Hide missions disables it. Existing explicit visibility
+choices are respected.
+
+The browser stores the visibility choice (`proofofwork-rail-collapsed`), seen invitation
+(`proofofwork-missions-intro-seen`) and mission progress (`proofofwork-missions`) in
+localStorage. Opening or hiding missions does not erase progress. Completed missions
+survive a reload; unfinished hash/chain-lab steps restart because the experiments'
+state is temporary. These values are
+local to this browser and site: clearing site data or using another browser/device
+does not recover them. If storage is blocked, controls still work for the current
+visit, but the choice and progress cannot survive a reload.
+
+The pool's public display name is entered in Mining pool and remembered separately
+as `proofofwork-pool-name`. Its server stores submitted shares in SQLite. That name
+is not a login or a protected account, and it does not identify or sync mission
+progress. Simulated wallets are separate from both.
+
 ## Demo wallet recovery
 
 Each participant receives a new English [BIP39](https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki) phrase: 128 bits from the browser's cryptographic random-number generator, encoded as 12 words with a checksum from the complete 2,048-word list. Missing secure randomness fails rather than falling back to `Math.random`.

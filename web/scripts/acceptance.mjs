@@ -1,6 +1,7 @@
 import { verifyHashLab } from './hash-lab.acceptance.mjs';
 import { verifyChainLab } from './chain-lab.acceptance.mjs';
 import { verifyMissions } from './missions.acceptance.mjs';
+import { verifyMissionVisibility } from './missions-visibility.acceptance.mjs';
 import { verifyPool } from './pool.acceptance.mjs';
 import { menu, openTab, settle, snapshot, workbench } from './workbench.helpers.mjs';
 import { chromium } from 'playwright';
@@ -77,6 +78,7 @@ try {
   assert.ok(ready, `Preview did not start: ${serverLog}`);
  }
  browser = await chromium.launch({channel:'chrome',headless:true});
+ results.push(...await verifyMissionVisibility(browser, baseURL, output));
  page=await browser.newPage({viewport:{width:1440,height:1000},reducedMotion:'reduce'});
  // Install once before the app creates timers; all experiments share this clock.
  await page.clock.install();
@@ -264,7 +266,7 @@ try {
  await fitsWidths('Workbench after demo');
 
  // Labs in free play: the collapsed rail opens them without a mission lesson.
- await page.getByRole('button',{name:'Collapse mission rail'}).click();
+ assert.equal(await page.locator('.app-shell.is-rail-collapsed').count(), 1);
  const before = await snapshot(page);
  results.push(...await verifyHashLab(page, output, before));
  results.push(...await verifyChainLab(page, output, before));

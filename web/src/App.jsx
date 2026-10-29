@@ -8,6 +8,7 @@ import { LeaderboardTicker } from './components/workbench/LeaderboardTicker';
 import { SettingsDialog } from './components/workbench/SettingsDialog';
 import { Workbench } from './components/workbench/Workbench';
 import { MissionRail } from './components/workbench/MissionRail';
+import { MissionIntro } from './components/workbench/MissionIntro';
 import { HashLab } from './components/HashLab';
 import { ChainLab } from './components/ChainLab';
 import { PoolPanel } from './components/PoolPanel';
@@ -21,10 +22,16 @@ const INITIAL_CONFIG = {
 };
 const VIEWS = { '': 'workbench', 'hash-lab': 'hash-lab', 'chain-lab': 'chain-lab', pool: 'pool' };
 const RAIL_KEY = 'proofofwork-rail-collapsed';
+const INTRO_KEY = 'proofofwork-missions-intro-seen';
 const VIEW_LABELS = { workbench: 'Workbench', 'hash-lab': 'Hash lab', 'chain-lab': 'Chain lab', pool: 'Mining pool' };
 
 const viewFromHash = () => VIEWS[(globalThis.location?.hash ?? '').replace(/^#\/?/, '')] ?? 'workbench';
-function readFlag(key) { try { return globalThis.localStorage?.getItem(key) === '1'; } catch { return false; } }
+function readFlag(key, fallback = false) {
+  try {
+    const stored = globalThis.localStorage?.getItem(key);
+    return stored === '1' ? true : stored === '0' ? false : fallback;
+  } catch { return fallback; }
+}
 function writeFlag(key, value) { try { globalThis.localStorage?.setItem(key, value ? '1' : '0'); } catch { /* storage may be blocked */ } }
 const browserStorage = () => { try { return globalThis.localStorage ?? null; } catch { return null; } };
 // Below 768 px the top bar folds its tabs into the menu.
@@ -62,7 +69,8 @@ function App() {
   const [remining, setRemining] = useState(null);
   const [details, setDetails] = useState(null);
   const [walletDetails, setWalletDetails] = useState(null);
-  const [railCollapsed, setRailCollapsed] = useState(() => readFlag(RAIL_KEY));
+  const [railCollapsed, setRailCollapsed] = useState(() => readFlag(RAIL_KEY, true));
+  const [introSeen, setIntroSeen] = useState(() => readFlag(INTRO_KEY));
   const [progress, setProgress] = useState(() => missions.load(browserStorage()));
   const compact = useSyncExternalStore(subscribePhone, isPhone, () => false);
   const lastAdjustedBlock = useRef(0);
@@ -73,10 +81,14 @@ function App() {
     createWallet, backMiner, toggleMiner, setMinerHashpower } = sim;
   const busy = isMining || isSettingUp;
   const fresh = blocks.length === 1 && memPool.length === 0;
-  const coach = coachOf(progress);
+  const coach = railCollapsed ? null : coachOf(progress);
   const activeMission = missions.activeMission(progress);
+  const showIntro = !introSeen && railCollapsed && progress.step === 0 && progress.completed.length === 0;
 
   useEffect(() => { document.documentElement.setAttribute('data-theme', theme); }, [theme]);
+  // Remember the first display, even when the visitor simply ignores the invitation.
+  // Keep it visible for this visit until dismissed, opened or navigated away from.
+  useEffect(() => { if (showIntro) writeFlag(INTRO_KEY, true); }, [showIntro]);
   useEffect(() => {
     const onHash = () => setView(viewFromHash());
     globalThis.addEventListener('hashchange', onHash);
@@ -91,6 +103,8 @@ function App() {
 
   const report = useCallback(event => setProgress(current => missions.reduce(current, event)), []);
   const navigate = useCallback(next => {
+    writeFlag(INTRO_KEY, true);
+    setIntroSeen(true);
     const hash = next === 'workbench' ? '#/' : `#/${next}`;
     if (globalThis.location.hash !== hash) globalThis.history.pushState(null, '', hash);
     setView(next);
@@ -203,7 +217,17 @@ function App() {
       element?.querySelector('button, input, select, textarea, a[href]')?.focus({ preventScroll: true });
     });
   };
-  const toggleRail = () => setRailCollapsed(current => { writeFlag(RAIL_KEY, !current); return !current; });
+  const dismissIntro = () => { writeFlag(INTRO_KEY, true); setIntroSeen(true); };
+  const toggleRail = () => {
+    dismissIntro();
+    writeFlag(RAIL_KEY, !railCollapsed);
+    setRailCollapsed(!railCollapsed);
+  };
+  const startMissions = () => {
+    dismissIntro();
+    writeFlag(RAIL_KEY, false);
+    setRailCollapsed(false);
+  };
 
   const onCreateTransaction = (from, to, amount, reference) => {
     const result = createTransaction(from, to, Number(amount), undefined, reference);
@@ -242,10 +266,12 @@ function App() {
       <LeaderboardTicker onOpenPool={() => navigate('pool')} />
       <div className="wb-shell">
         <div className="wb-rail">
-          <MissionRail progress={progress} collapsed={railCollapsed} onToggle={toggleRail} onShowMe={showMe} />
+          <MissionRail progress={progress} collapsed={railCollapsed} onToggle={toggleRail} onShowMe={showMe} highlight={showIntro} />
         </div>
         <main id="workbench" className="wb-main" aria-label={VIEW_LABELS[view]}>
-          <div className="wb-mbar"><MissionRail progress={progress} variant="bar" onShowMe={showMe} /></div>
+          <div className="wb-mbar"><MissionRail progress={progress} variant="bar" collapsed={railCollapsed}
+            onToggle={toggleRail} onShowMe={showMe} highlight={showIntro} /></div>
+          {showIntro && <MissionIntro onStart={startMissions} onDismiss={dismissIntro} />}
           {view === 'workbench' && <Workbench sim={sim} coinName={coinName} targetSeconds={targetBlockTime}
             autoMine={autoMining} onAutoMine={value => value ? setAutoMining(true) : pause()}
             selectedIndex={selectedIndex} onSelect={setSelectedIndex} healthOpen={healthOpen} onToggleHealth={() => setHealthOpen(open => !open)}

@@ -1,0 +1,18 @@
+.mission-intro {
+  display: flex; align-items: flex-start; gap: var(--s-3); margin: var(--s-4) var(--page-x) 0;
+  padding: var(--s-3) var(--s-4); border: 1px solid var(--coach); border-radius: var(--r-md);
+  background: var(--panel); color: var(--text); font: 13px/18px var(--ui);
+}
+.mission-intro-arrow { flex: none; margin-top: 1px; color: var(--coach); }
+.mission-intro-copy { flex: 1; min-width: 0; }
+.mission-intro h2 { margin: 0 0 var(--s-1); font-size: 14px; line-height: 20px; font-weight: 600; }
+.mission-intro p { margin: 0; color: var(--text-2); }
+.mission-intro .mission-intro-storage { margin-top: var(--s-1); font-size: 12px; color: var(--text-3); }
+.mission-intro-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); }
+.mission-intro button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+@media (max-width: 1023.98px) {
+  .mission-intro { flex-wrap: wrap; }
+  .mission-intro-arrow { transform: rotate(90deg); }
+  .mission-intro-copy { flex-basis: calc(100% - 40px); }
+  .mission-intro-actions { margin-left: 36px; }
+}

@@ -156,10 +156,17 @@ decision, 2026-10-27):
 
 - Lists the missions of the track with progress; the active mission is
   expanded with its steps, a hint and its reward.
-- The current step **marks the element it needs with a coach ring** and a
+- When missions are open, the current step **marks the element it needs with a coach ring** and a
   small label ("Step 3 · back Minas").
-- Collapsed, it becomes a 56 px icon rail with mission state and a progress
-  ring; it never disappears.
+- Missions start collapsed: one labelled Missions entry in the 56 px desktop
+  rail, or a neutral Missions bar on smaller screens. Tasks, XP and coach marks
+  stay hidden until opened. On smaller screens, Hide missions returns to free
+  play; closing the task sheet alone keeps guidance enabled.
+- A small first-visit invitation points to this entry, with one brief highlight
+  unless reduced motion is requested. It stays in the page flow and never takes
+  focus. Showing it marks it seen, so ignoring it, navigating away or choosing
+  Don't show again prevents future invitations in this browser. Explicitly
+  opening/closing missions persists separately and preserves progress.
 
 ## Interaction patterns
 
@@ -189,7 +196,7 @@ it; type size never changes with the viewport.
 | ≥ 1100 tall | The Activity card appears as row 3 and takes the height lists cannot fill. |
 | ≥ 2200 wide | Content capped at ~2160 px and centered; the background continues. |
 | < 830 tall (e.g. 1366 × 657) | The page scrolls vertically; cards keep their density instead of squeezing. |
-| 1024–1279 wide | Mission rail collapses to icons; tiles narrower (min ~150 px); earlier blocks behind a "‹ N earlier" control. |
+| 1024–1279 wide | Collapsed Missions entry unless explicitly opened; tiles narrower (min ~150 px); earlier blocks behind a "‹ N earlier" control. |
 | 768–1023 wide | Mission rail becomes a bar on top; the chain becomes a vertical timeline (newest on top, candidate first); then Next block, Mempool, then Selected block and Wallets side by side. |
 | < 768 wide | Phone: compact top bar, mission bar, vertical timeline, health line, key-figure line, then Next block, Mempool, Selected block, Wallets. The race sits directly under the chain. |
 
