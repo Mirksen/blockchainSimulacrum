@@ -13,7 +13,7 @@ import {
   loadTermFile,
   parseTermList,
 } from '../src/names.js';
-import { SECRET } from './helpers.js';
+import { fakeTip } from './helpers.js';
 
 // Synthetic placeholder terms only: no real blocked word appears in this file.
 const LONG = 'zorblax';
@@ -142,7 +142,7 @@ describe('term files', () => {
   });
 
   test('createApp loads the shipped term files by default', () => {
-    assert.doesNotThrow(() => createApp({ db: new DatabaseSync(':memory:'), secret: SECRET }));
+    assert.doesNotThrow(() => createApp({ db: new DatabaseSync(':memory:'), tip: fakeTip() }));
   });
 });
 

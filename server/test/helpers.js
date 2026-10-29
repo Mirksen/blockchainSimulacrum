@@ -1,22 +1,52 @@
 import http from 'node:http';
 import { DatabaseSync } from 'node:sqlite';
-import { createApp, sha256hex, leadingHexZeros } from '../src/app.js';
+import { createApp, sha256hex, leadingHexZeros, proofPrefix } from '../src/app.js';
 
-export const SECRET = 'synthetic-test-secret-0123456789abcdef0123456789abcdef';
 export const T0 = Date.UTC(2026, 0, 15, 12, 0, 0);
+
+// Synthetic genesis and Bitcoin rounds: no real block appears in the tests.
+export const TEST_GENESIS = 'a1'.repeat(32);
+export const ROUND_A = Object.freeze({ height: 900001, hash: `${'0'.repeat(20)}${'a'.repeat(44)}` });
+export const ROUND_B = Object.freeze({ height: 900002, hash: `${'0'.repeat(20)}${'b'.repeat(44)}` });
+export const ROUND_C = Object.freeze({ height: 900003, hash: `${'0'.repeat(20)}${'c'.repeat(44)}` });
+
+/**
+ * A tip with the same contract as createTipTracker(): round() is the newest block,
+ * windowStart() the oldest height a proof may name, accepts() takes every known block
+ * from there on. `window` is the number of blocks (the server uses 144; 2 keeps tests short).
+ */
+export function fakeTip({ current = ROUND_A, previous = null, window = 2 } = {}) {
+  const state = { current, blocks: [previous, current].filter(Boolean), window };
+  const windowStart = () => (state.current ? state.current.height - state.window + 1 : null);
+  return {
+    state,
+    round: () => state.current,
+    windowStart,
+    accepts: (round) => Boolean(state.current) && Boolean(round) && round.height >= windowStart() &&
+      state.blocks.some((known) => known.height === round.height && known.hash === round.hash),
+    /** A new Bitcoin block becomes the newest round. */
+    advance(next) {
+      state.blocks.push(next);
+      state.current = next;
+    },
+  };
+}
 
 export async function startServer(options = {}) {
   const clock = { t: options.startAt ?? T0 };
   const db = options.db ?? new DatabaseSync(':memory:');
+  const tip = options.tip ?? fakeTip();
+  const genesisHash = options.genesisHash ?? TEST_GENESIS;
   const lines = [];
   const handler = createApp({
     db,
-    secret: SECRET,
+    tip,
+    genesisHash,
     now: () => clock.t,
     allowedOrigins: options.allowedOrigins ?? ['https://proofofwork.fyi'],
     staticDir: options.staticDir,
-    // Low difficulty keeps in-test mining to a few hundred hashes, so the event loop
-    // shared with the server is never blocked for long. Production default stays 4.
+    // Low difficulty keeps in-test mining to a few dozen hashes, so the event loop
+    // shared with the server is never blocked for long. The production default is 5.
     shareZeros: options.shareZeros ?? 1,
     nameLists: options.nameLists,
     log: (line) => lines.push(line),
@@ -27,10 +57,13 @@ export async function startServer(options = {}) {
   const base = `http://127.0.0.1:${port}`;
   return {
     db,
+    tip,
+    genesisHash,
     clock,
     lines,
     base,
     port,
+    prefix: (name, round = tip.round()) => proofPrefix(genesisHash, round, name),
     async close() {
       server.closeAllConnections();
       await new Promise((resolve) => server.close(resolve));
@@ -39,7 +72,8 @@ export async function startServer(options = {}) {
 }
 
 export async function getChallenge(srv, name, headers = {}) {
-  const res = await fetch(`${srv.base}/api/challenge?name=${encodeURIComponent(name)}`, { headers });
+  const query = name === undefined ? '' : `?name=${encodeURIComponent(name)}`;
+  const res = await fetch(`${srv.base}/api/challenge${query}`, { headers });
   return { status: res.status, body: await res.json() };
 }
 
@@ -52,16 +86,17 @@ export async function postShare(srv, payload, headers = {}) {
   return { status: res.status, body: await res.json() };
 }
 
-export function stripChallenge({ id, name, zeros, expiresAt, sig }) {
-  return { id, name, zeros, expiresAt, sig };
+export async function getLeaderboard(srv) {
+  const res = await fetch(`${srv.base}/api/leaderboard`);
+  return { status: res.status, body: await res.json() };
 }
 
 /** Find a nonce whose hash has at least `min` (and, if given, exactly `exact`) leading hex zeros. */
-export function mine(prefix, { min = 1, exact, start = 0 } = {}) {
+export function mine(prefix, { min = 1, exact, start = 0, accept = () => true } = {}) {
   for (let nonce = start; ; nonce += 1) {
     const hash = sha256hex(prefix + String(nonce));
     const z = leadingHexZeros(hash);
-    if (z >= min && (exact === undefined || z === exact)) return { nonce, hash, zeros: z };
+    if (z >= min && (exact === undefined || z === exact) && accept(nonce, hash)) return { nonce, hash, zeros: z };
   }
 }
 
@@ -71,6 +106,13 @@ export function miss(prefix, zeros) {
     const hash = sha256hex(prefix + String(nonce));
     if (leadingHexZeros(hash) < zeros) return { nonce, hash };
   }
+}
+
+/** Mine a proof for `name` in `round` on this server and submit it. */
+export async function prove(srv, name, round = srv.tip.round(), options = {}) {
+  const proof = mine(srv.prefix(name, round), { min: options.min ?? 1, exact: options.exact, start: options.start ?? 0 });
+  const res = await postShare(srv, { name, round, nonce: proof.nonce }, options.headers ?? {});
+  return { ...proof, res };
 }
 
 export function rawGet(port, rawPath) {

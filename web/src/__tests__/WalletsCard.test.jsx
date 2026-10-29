@@ -14,9 +14,9 @@ const wallets = [
 describe('WalletsCard', () => {
   it('lists wallets with role, hash rate and balance, and opens one', () => {
     const onOpenWallet = vi.fn();
-    render(<WalletsCard wallets={wallets} coinName="powCoin" onOpenWallet={onOpenWallet} />);
+    render(<WalletsCard wallets={wallets} coinName="powfyicoin" onOpenWallet={onOpenWallet} />);
     const card = screen.getByRole('region', { name: 'Wallets' });
-    expect(card.textContent).toContain('3 wallets · powCoin · virtual');
+    expect(card.textContent).toContain('3 wallets · powfyicoin · virtual');
     const list = screen.getByRole('list', { name: 'Wallets' });
     expect(within(list).getAllByRole('listitem')).toHaveLength(3);
     const lars = screen.getByRole('button', { name: /^Open Lars/ });

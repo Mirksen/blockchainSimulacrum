@@ -4,8 +4,8 @@ import { CoachMark } from './workbench/CoachMark';
 import './HashLab.css';
 
 const INITIAL_MESSAGE = 'Hello, block!';
-const initialState = (difficulty = 2) => ({ message: INITIAL_MESSAGE, nonce: '0', difficulty,
-  trial: createTrial(INITIAL_MESSAGE, 0), previousHash: null, status: 'idle', attempts: 0, error: '' });
+const initialState = ({ difficulty = 2, comparison = null } = {}) => ({ message: INITIAL_MESSAGE, nonce: '0', difficulty,
+  trial: createTrial(INITIAL_MESSAGE, 0), previousHash: null, status: 'idle', attempts: 0, error: '', comparison });
 
 function withTrial(state, trial) {
   return { ...state, trial, previousHash: trial.hash === state.trial.hash ? state.previousHash : state.trial.hash };
@@ -25,16 +25,39 @@ function reducer(state, action) {
     case 'stopping': return { ...state, status: 'stopping' };
     case 'progress':
     case 'result': {
-      const next = { ...state, attempts: action.attempts, status: action.type === 'progress' ? 'searching' : action.status };
+      const next = { ...state, attempts: action.attempts, status: action.type === 'progress' ? 'searching' : action.status,
+        comparison: action.comparison ?? state.comparison };
       return action.trial ? withTrial({ ...next, nonce: String(action.trial.nonce) }, action.trial) : next;
     }
-    case 'reset': return initialState(action.difficulty);
+    case 'reset': return initialState({ difficulty: action.difficulty });
     default: return state;
   }
 }
 
-export function HashLab({ onClose, lesson, onLessonEvent, coach = null }) {
-  const [state, dispatch] = useReducer(reducer, lesson === 'work' ? 1 : 2, initialState);
+function SearchComparison({ comparison }) {
+  if (!comparison) return null;
+  return <section className="hash-lab-results" aria-label="Proof-of-work search comparison">
+    <h3>Your proof-of-work searches</h3>
+    <p>Recorded searches use the same message <code>{comparison.message}</code> and start at nonce {comparison.startNonce}.</p>
+    <table>
+      <caption>Successful searches in this experiment</caption>
+      <thead><tr><th scope="col">Target</th><th scope="col">Attempts</th><th scope="col">Winning nonce</th></tr></thead>
+      <tbody>{[1, 2].map(target => {
+        const result = comparison.results[target];
+        return <tr key={target}>
+          <th scope="row">{target === 1 ? 'One zero' : 'Two zeros'} <code>({'0'.repeat(target)})</code></th>
+          <td>{result ? result.attempts.toLocaleString() : 'Not found yet'}</td>
+          <td>{result ? <>{result.nonce.toLocaleString()}<details><summary>Hash</summary><code>{result.hash}</code></details></> : '—'}</td>
+        </tr>;
+      })}</tbody>
+    </table>
+    <p className="hash-lab-help">Each extra hex zero makes a match about 16 times less likely per attempt. A single pair of searches does not guarantee a particular time or attempt ratio.</p>
+    <p className="hash-lab-help">Results stay in this page until Reset lab or a reload. Free-play searches do not change this comparison.</p>
+  </section>;
+}
+
+export function HashLab({ onClose, lesson, onLessonEvent, coach = null, workComparison = null, onWorkComparison }) {
+  const [state, dispatch] = useReducer(reducer, { difficulty: lesson === 'work' ? 1 : 2, comparison: workComparison }, initialState);
   const activeSearch = useRef(null);
   useEffect(() => () => activeSearch.current?.abort(), []);
 
@@ -62,6 +85,7 @@ export function HashLab({ onClose, lesson, onLessonEvent, coach = null }) {
   function reset() {
     invalidateSearch();
     dispatch({ type: 'reset', difficulty: lesson === 'work' ? 1 : 2 });
+    onWorkComparison?.(null);
     onLessonEvent?.({ type: 'lesson_reset' });
   }
   async function search() {
@@ -76,8 +100,14 @@ export function HashLab({ onClose, lesson, onLessonEvent, coach = null }) {
     if (activeSearch.current === controller) {
       activeSearch.current = null;
       const accepted = controller.signal.aborted ? { ...result, status: 'stopped' } : result;
-      dispatch({ type: 'result', ...accepted });
+      const comparison = lesson === 'work' && accepted.status === 'found'
+        ? { message, startNonce: 0, results: { ...state.comparison?.results,
+          [difficulty]: { attempts: accepted.attempts, nonce: accepted.trial.nonce, hash: accepted.trial.hash } } }
+        : state.comparison;
+      dispatch({ type: 'result', ...accepted, comparison });
       if (lesson === 'work' && accepted.status === 'found') {
+        // Persist before the mission event can remount this lab in free play.
+        onWorkComparison?.(comparison);
         onLessonEvent?.({ type: 'work_found', difficulty, attempts: accepted.attempts });
       }
     }
@@ -145,6 +175,7 @@ export function HashLab({ onClose, lesson, onLessonEvent, coach = null }) {
     </div>}
     <p className="hash-lab-feedback" role="status">{feedback}</p>
     {lesson !== 'hash' && <p className="hash-lab-help">Search starts at {lesson === 'work' ? 'nonce 0' : 'the displayed nonce'} and checks up to {SEARCH_LIMIT.toLocaleString()} candidates. Editing an input cancels the search.</p>}
+    <SearchComparison comparison={state.comparison} />
 
     <details className="hash-lab-preimage"><summary>What exactly are we hashing?</summary>
       <p>The UTF-8 text below is a JSON object with the message and numeric nonce. Punctuation and spaces inside the message count too.</p>

@@ -50,9 +50,7 @@ export async function verifyMissionVisibility(browser, baseURL, output) {
     const context = await browser.newContext({ viewport: { width, height: width < 1024 ? 844 : 1000 }, reducedMotion });
     contexts.push(context);
     // All remote endpoints are synthetic/refused. These scenarios never write live data.
-    await context.route('https://api.proofofwork.fyi/**', route => route.fulfill({
-      status: 200, contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' }, body: '[]',
-    }));
+    await context.route('https://api.proofofwork.fyi/**', route => route.abort('connectionrefused'));
     await context.route('https://eu.i.posthog.com/**', route => route.abort('connectionrefused'));
     if (storageBlocked) await context.addInitScript(() => {
       Object.defineProperty(window, 'localStorage', { get() { throw new DOMException('Blocked', 'SecurityError'); } });

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { CoachMark } from './CoachMark';
 import './cardKit.css';
 import './SelectedBlockCard.css';
@@ -51,15 +51,24 @@ function ShortHash({ hash, struck = false }) {
 }
 
 function CopyButton({ value, label }) {
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState(null);
+  const latestRequest = useRef(null);
+  useEffect(() => () => { latestRequest.current = null; }, []);
   useEffect(() => {
     if (!copied) return undefined;
-    const timer = setTimeout(() => setCopied(false), 1200);
+    const timer = setTimeout(() => setCopied(null), 1200);
     return () => clearTimeout(timer);
   }, [copied]);
-  const copy = () => {
-    try { void navigator.clipboard?.writeText(value)?.catch?.(() => {}); } catch { /* clipboard unavailable */ }
-    setCopied(true);
+  const copy = async () => {
+    const request = {};
+    latestRequest.current = request;
+    setCopied(null);
+    try {
+      const clipboard = navigator.clipboard;
+      if (typeof clipboard?.writeText !== 'function') return;
+      await clipboard.writeText(value);
+      if (latestRequest.current === request) setCopied(request);
+    } catch { /* Clipboard refused: keep the Copy label. */ }
   };
   return (
     <button type="button" className="card-kit-copy" onClick={copy} aria-label={copied ? `${label} copied` : `Copy ${label}`}>
@@ -176,7 +185,7 @@ export function SelectedBlockCard({ block, status, prevHash, edit, onOpenDetails
   const hashRow = kind === 'hash-mismatch' ? (
     <>
       <div className="card-kit-kv"><dt>Hash now</dt><dd>
-        <ShortHash hash={computedHash} /><CopyButton value={computedHash} label="hash" />
+        <ShortHash hash={computedHash} /><CopyButton key={`${block.index}:${computedHash}`} value={computedHash} label="hash" />
         <span className="card-kit-bad">{Math.min(leadingZeros(computedHash), difficulty)}/{difficulty} zeros</span>
         <span className="card-kit-t3">· does not start with {target}</span>
       </dd></div>
@@ -187,14 +196,16 @@ export function SelectedBlockCard({ block, status, prevHash, edit, onOpenDetails
     </>
   ) : (
     <div className="card-kit-kv"><dt>Hash</dt><dd>
-      <ShortHash hash={block.hash} /><CopyButton value={block.hash} label="hash" />
+      <ShortHash hash={block.hash} /><CopyButton key={`${block.index}:${block.hash}`} value={block.hash} label="hash" />
       <span className="card-kit-t3">{target ? `starts with ${target}` : 'no target for Genesis'}</span>
     </dd></div>
   );
 
   const previousRow = (
     <div className="card-kit-kv"><dt>Previous</dt><dd>
-      {isGenesis ? <span className="card-kit-t3">none · Genesis is the first block</span> : linkIntact ? (
+      {isGenesis ? (block.anchor
+        ? <><ShortHash hash={block.anchor.hash} /><span className="card-kit-t3">= Bitcoin block #{block.anchor.height}</span></>
+        : <span className="card-kit-t3">none · Genesis is the first block</span>) : linkIntact ? (
         <>
           <ShortHash hash={block.previousHash} />
           <span className="card-kit-t3">= hash of #{block.index - 1}</span>

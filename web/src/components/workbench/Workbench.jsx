@@ -14,7 +14,10 @@ import './Workbench.css';
 // card grid; App frames it with the mission rail. It turns the simulation snapshot
 // into the view models of the presentational components; App owns state and effects.
 
-const nameOf = (participants, key) => key ? (participants.find(p => p.publicKey === key)?.name ?? 'Unknown') : null;
+// A key that belongs to no wallet stays "Unknown"; a plain name (the genesis coinbase's
+// recipient) is shown as written.
+const nameOf = (participants, key) => key
+  ? (participants.find(p => p.publicKey === key)?.name ?? (/^[0-9a-f]{64,}$/i.test(key) ? 'Unknown' : key)) : null;
 
 export function Workbench({
   sim, coinName, targetSeconds, autoMine, onAutoMine, selectedIndex, onSelect, healthOpen, onToggleHealth,
@@ -49,7 +52,7 @@ export function Workbench({
   const block = blocks[selected];
   const selectedView = views[selected];
   const selectedBlock = block ? {
-    index: selected, hash: block.hash, previousHash: block.previousHash, nonce: block.nonce, difficulty: block.difficulty,
+    index: selected, hash: block.hash, previousHash: block.previousHash, anchor: selectedView?.anchor ?? null, nonce: block.nonce, difficulty: block.difficulty,
     isNewest: selected === height && selected > 0, miner: selectedView?.isGenesis ? null : selectedView?.minerName,
     seconds: selectedView?.seconds, tries: lastRound?.index === selected ? lastRound.attempts : undefined,
     reward: block.transactions.find(tx => tx.sender === null)?.amount,

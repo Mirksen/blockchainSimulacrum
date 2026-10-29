@@ -17,7 +17,7 @@ import { ParticipantDetailsModal } from './components/ParticipantDetailsModal';
 import './index.css';
 
 const INITIAL_CONFIG = {
-  name: 'powCoin', miningDifficulty: 2, blockReward: 3.125, halvingEvent: 4,
+  name: 'powfyicoin', miningDifficulty: 2, blockReward: 3.125, halvingEvent: 4,
   participants: ['Alice', 'Bob', 'Chris', 'Lars', 'Minas'], miners: ['Minas', 'Lars'], startingBalance: 0
 };
 const VIEWS = { '': 'workbench', 'hash-lab': 'hash-lab', 'chain-lab': 'chain-lab', pool: 'pool' };
@@ -59,7 +59,7 @@ function App() {
   const [view, setView] = useState(viewFromHash);
   const [winner, setWinner] = useState(null);
   const [autoMining, setAutoMining] = useState(false);
-  const [coinName, setCoinName] = useState('powCoin');
+  const [coinName, setCoinName] = useState('powfyicoin');
   const [targetBlockTime, setTargetBlockTime] = useState(10);
   const [showSettings, setShowSettings] = useState(false);
   const [error, setError] = useState('');
@@ -69,6 +69,8 @@ function App() {
   const [remining, setRemining] = useState(null);
   const [details, setDetails] = useState(null);
   const [walletDetails, setWalletDetails] = useState(null);
+  const [workComparison, setWorkComparison] = useState(null);
+  // The rail starts collapsed (free play); a first-visit card invites to the missions once.
   const [railCollapsed, setRailCollapsed] = useState(() => readFlag(RAIL_KEY, true));
   const [introSeen, setIntroSeen] = useState(() => readFlag(INTRO_KEY));
   const [progress, setProgress] = useState(() => missions.load(browserStorage()));
@@ -145,7 +147,9 @@ function App() {
     if (height < 10 || height % 10 !== 0 || lastAdjustedBlock.current === height) return;
     lastAdjustedBlock.current = height;
     const current = sim.blockchain.miningDifficulty;
-    const seconds = (chainBlocks[height].timestamp - chainBlocks[height - 10].timestamp) / 10000;
+    // Measured from block #1 at the earliest: the genesis time is a fixed launch moment.
+    const from = Math.max(1, height - 10);
+    const seconds = (chainBlocks[height].timestamp - chainBlocks[from].timestamp) / 1000 / (height - from);
     let next = current;
     if (seconds < targetBlockTime * 0.7 && current < 5) next = current + 1;
     else if (seconds > targetBlockTime * 1.5 && current > 1) next = current - 1;
@@ -281,7 +285,8 @@ function App() {
             onOpenWallet={setWalletDetails} onOpenDetails={setDetails} onOpenChainLab={() => navigate('chain-lab')} error={error} />}
           {view === 'hash-lab' && <div className="wb-view">
             <HashLab key={hashLesson ?? 'free'} lesson={hashLesson} onLessonEvent={hashLesson ? report : undefined}
-              coach={hashLesson ? coach : null} onClose={() => navigate('workbench')} />
+              coach={hashLesson ? coach : null} onClose={() => navigate('workbench')}
+              workComparison={workComparison} onWorkComparison={setWorkComparison} />
           </div>}
           {view === 'chain-lab' && <div className="wb-view">
             <ChainLab key={chainLesson ? 'lesson' : 'free'} onLessonEvent={chainLesson ? report : undefined}

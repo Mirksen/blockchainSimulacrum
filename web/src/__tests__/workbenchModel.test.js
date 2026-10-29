@@ -4,8 +4,9 @@ import { keyFiguresOf, rateOf, repairOf } from '../components/workbench/workbenc
 const status = list => list.map((s, index) => ({ index, status: s }));
 
 describe('keyFiguresOf', () => {
-  it('averages the block times and names the next halving height', () => {
-    const blocks = [{ timestamp: 0 }, { timestamp: 2000 }, { timestamp: 6000 }];
+  it('averages the times between mined blocks and names the next halving height', () => {
+    // The genesis time is a fixed launch moment: the gap to block #1 does not count.
+    const blocks = [{ timestamp: -9e9 }, { timestamp: 0 }, { timestamp: 2000 }, { timestamp: 6000 }];
     expect(keyFiguresOf({ blocks, difficulty: 2, blockReward: 50, halvingInterval: 2, targetSeconds: 10 })).toEqual({
       avgSeconds: 3, targetSeconds: 10, difficulty: 2, reward: 50, nextHalving: 4
     });

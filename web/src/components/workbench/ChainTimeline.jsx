@@ -42,7 +42,7 @@ function Details({ view, views, id, onOpenChainLab }) {
   const zeros = view.difficulty > 0 ? '0'.repeat(view.difficulty) : null;
   const link = view.isGenesis ? null : linkInto(view, views[view.index - 1]);
   let foot;
-  if (view.isGenesis) foot = <>First block, no parent</>;
+  if (view.isGenesis) foot = view.anchor ? <>Built on Bitcoin block #{view.anchor.height}</> : <>First block, no parent</>;
   else if (mismatch) foot = <><b className="chain-band-bad">{Math.min(view.zerosNow, view.difficulty)}/{view.difficulty} zeros</b> · stored hash no longer matches</>;
   else if (view.status === 'built-on-broken') foot = <><b className="is-dep">Built on a broken block</b> · sits on #{brokenBefore(views, view.index)}</>;
   else if (view.status === 'signature-invalid') foot = <><b className="chain-band-bad">Signature invalid</b> · hash and link intact</>;

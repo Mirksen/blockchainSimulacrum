@@ -32,11 +32,16 @@ const telemetryMock = async route => {
  await route.fulfill({status:200,headers,contentType:'application/json',body:'{"status":1}'});
 };
 // Synthetic leaderboard for the ticker; no pool server is ever contacted.
+const FIXTURE_ROUND = { height: 900001, hash: `0000${'ab'.repeat(30)}` };
+const fixtureRow = (name, bestHash, bestZeros, difficulty) => ({ name, round: FIXTURE_ROUND, nonce: 7, bestHash, bestZeros, difficulty, proofs: 3, foundAt: 0 });
+const leaderboardFixture = () => {
+ const rows = [fixtureRow('fixture-alpha', `000000${'1'.repeat(58)}`, 6, 1048576), fixtureRow('fixture-beta', `00000${'2'.repeat(59)}`, 5, 65536)];
+ return { recent: { from: FIXTURE_ROUND.height - 143, to: FIXTURE_ROUND.height, rows }, allTime: rows };
+};
 const leaderboardMock = async route => {
  const headers = { 'Access-Control-Allow-Origin': '*' };
  if (new URL(route.request().url()).pathname !== '/api/leaderboard') { await route.abort('connectionrefused'); return; }
- await route.fulfill({status:200,headers,contentType:'application/json',body:JSON.stringify([
-  {name:'fixture-alpha',points:1200,shares:12,bestZeros:5},{name:'fixture-beta',points:800,shares:8,bestZeros:4}])});
+ await route.fulfill({status:200,headers,contentType:'application/json',body:JSON.stringify(leaderboardFixture())});
 };
 // The reference views of web/DESIGN.md for review: 1512 x 860 and 390 px, both themes.
 // Chain content is random per run, so they are compared by eye, not pixel by pixel.
@@ -89,6 +94,19 @@ try {
  await page.goto(baseURL);
  const wb = workbench(page);
 
+ // First visit: the rail is collapsed and one card invites to the missions; dismissing it is remembered.
+ const intro = page.getByRole('region',{name:'Curious? Try a mission.'});
+ await intro.waitFor();
+ assert.equal(await page.locator('.mission-rail.is-collapsed').count(), 1);
+ await page.screenshot({path:join(output,'view-intro-dark-1440.png')});
+ await intro.getByRole('button',{name:"Don't show again"}).click();
+ await intro.waitFor({state:'detached'});
+ await page.reload();
+ await wb.tile(0).waitFor();
+ assert.equal(await intro.count(), 0, 'The dismissed intro stays away after a reload');
+ assert.equal(await page.locator('.mission-rail.is-collapsed').count(), 1);
+ results.push('First visit: collapsed rail with a mission intro that stays away once dismissed');
+
  // Fresh start: only Genesis and the candidate; the single primary is Start demo.
  await wb.tile(0).waitFor();
  assert.equal(await wb.tiles().count(), 1);
@@ -112,7 +130,7 @@ try {
  const form = page.getByRole('form',{name:'New transaction'});
  await form.getByRole('combobox',{name:'From'}).selectOption('Alice');
  await form.getByRole('combobox',{name:'To'}).selectOption('Bob');
- await form.getByLabel('Amount (powCoin)',{exact:true}).fill('0.1');
+ await form.getByLabel('Amount (powfyicoin)',{exact:true}).fill('0.1');
  await form.getByLabel(/^Reference/).fill('Synthetic acceptance transfer');
  await form.getByRole('button',{name:'Add to mempool'}).click();
  await page.getByRole('list',{name:'Pending transactions'}).getByText('Synthetic acceptance transfer').waitFor();
@@ -227,7 +245,7 @@ try {
   await page.getByRole('button',{name:'New transaction',exact:true}).click();
   await form.getByRole('combobox',{name:'From'}).selectOption('Alice');
   await form.getByRole('combobox',{name:'To'}).selectOption('Bob');
-  await form.getByLabel('Amount (powCoin)',{exact:true}).fill('0.1');
+  await form.getByLabel('Amount (powfyicoin)',{exact:true}).fill('0.1');
   await form.getByLabel(/^Reference/).fill('private-fixture-memo');
   const transaction=responseFor('transaction_created');await form.getByRole('button',{name:'Add to mempool'}).click();await transaction;
   await menu(page, 'Settings');
@@ -253,7 +271,7 @@ try {
   await page.waitForTimeout(100);
   assert.equal(telemetryRequests.length,beforeOptOut,'No sends after opt-out');
   await menu(page, 'Settings');
-  await settings.getByLabel('Coin name',{exact:true}).fill('powCoin');
+  await settings.getByLabel('Coin name',{exact:true}).fill('powfyicoin');
   await settings.getByRole('button',{name:'Done'}).click();
   results.push('Mock PostHog: explicit consent, one event per operation, mining summaries, sanitized errors and opt-out');
  } else {

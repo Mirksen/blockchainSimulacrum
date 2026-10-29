@@ -3,6 +3,8 @@
 // No React, no simulation calls; everything comes from the snapshot
 // (blocks, blockStatus, participants, tamperedEdits) of useBlockchain.
 
+import { GENESIS } from '../../lib/poolProof';
+
 const BROKEN_STATUSES = new Set(['hash-mismatch', 'signature-invalid', 'link-broken']);
 const KNOWN_MINERS = new Set(['lars', 'minas', 'alice', 'bob', 'chris']);
 
@@ -53,7 +55,8 @@ export function buildBlockViews({ blocks = [], blockStatus = [], participants = 
     const minerName = isGenesis ? 'Genesis' : (miner?.name ?? 'Unknown miner');
     const minerKey = isGenesis ? 'genesis' : (KNOWN_MINERS.has(minerName.toLowerCase()) ? minerName.toLowerCase() : 'other');
     const previous = blocks[index - 1];
-    const seconds = !isGenesis && Number.isFinite(block.timestamp) && Number.isFinite(previous?.timestamp)
+    // The genesis block has a fixed launch time, so block #1 has no mining interval.
+    const seconds = index > 1 && Number.isFinite(block.timestamp) && Number.isFinite(previous?.timestamp)
       ? (block.timestamp - previous.timestamp) / 1000 : null;
     const storedHash = check.storedHash ?? block.hash ?? '';
     const computedHash = check.computedHash ?? storedHash;
@@ -72,6 +75,8 @@ export function buildBlockViews({ blocks = [], blockStatus = [], participants = 
       storedHash,
       computedHash,
       prevHash: isGenesis ? null : (block.previousHash ?? ''),
+      // The genesis block is built on a Bitcoin block of its launch day.
+      anchor: isGenesis && block.previousHash === GENESIS.anchor.hash ? { height: GENESIS.anchor.height, hash: block.previousHash } : null,
       difficulty,
       // zeros the hash as it is now shows, against the zeros its target needs
       zerosNow: zerosOf(computedHash),

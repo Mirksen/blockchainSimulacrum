@@ -23,7 +23,7 @@
   grid-template-columns: var(--rail-cur) minmax(0, 1fr);
 }
 .wb-rail { min-width: 0; min-height: 0; border-right: 1px solid var(--line); background: var(--bg-2); }
-.wb-main { min-width: 0; min-height: 0; display: flex; flex-direction: column; container: main / inline-size; }
+.wb-main { position: relative; min-width: 0; min-height: 0; display: flex; flex-direction: column; container: main / inline-size; }
 .wb-band { flex: none; }
 .wb-timeline { display: none; }
 .wb-mbar { display: none; }

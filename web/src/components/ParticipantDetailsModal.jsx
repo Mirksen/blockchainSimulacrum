@@ -38,7 +38,7 @@ export function ParticipantDetailsModal({
     toggleMiner,
     setMinerHashpower,
     isMining,
-    coinName = 'powCoin'
+    coinName = 'powfyicoin'
 }) {
     const [selectedTransaction, setSelectedTransaction] = useState(null);
     const [recoveryResult, setRecoveryResult] = useState(null);

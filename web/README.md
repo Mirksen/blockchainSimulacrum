@@ -23,9 +23,10 @@ does not recover them. If storage is blocked, controls still work for the curren
 visit, but the choice and progress cannot survive a reload.
 
 The pool's public display name is entered in Mining pool and remembered separately
-as `proofofwork-pool-name`. Its server stores submitted shares in SQLite. That name
-is not a login or a protected account, and it does not identify or sync mission
-progress. Simulated wallets are separate from both.
+as `proofofwork-pool-name`. Its server stores submitted proofs in SQLite.
+Names are not unique: people using the same name share a leaderboard entry.
+The name is not a login or a protected account, and it does not identify or sync
+mission progress. Simulated wallets are separate from both.
 
 ## Demo wallet recovery
 
