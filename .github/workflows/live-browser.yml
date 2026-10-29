@@ -1,0 +1,82 @@
+name: Live browser acceptance
+on:
+  workflow_dispatch:
+  pull_request:
+    paths: ['.github/workflows/live-browser.yml']
+  push:
+    branches: [master]
+    paths: ['.github/workflows/live-browser.yml']
+permissions:
+  contents: read
+jobs:
+  live_browser:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - run: google-chrome --version
+      # Exercise the existing browser contract without publishing or sending
+      # live proofs/analytics. The runner already mocks those remote endpoints.
+      - name: Accept the public site
+        run: node scripts/acceptance.mjs
+        env:
+          BASE_URL: https://proofofwork.fyi
+          EXPECT_POSTHOG: '1'
+          SCREENSHOT_DIR: ${{ github.workspace }}/web/live-report
+      - name: Capture a failed page startup
+        if: failure()
+        run: |
+          node --input-type=module <<'JS'
+          import { chromium } from 'playwright';
+          import { mkdir, writeFile } from 'node:fs/promises';
+          const output = 'live-report';
+          await mkdir(output, { recursive: true });
+          const report = { errors: [], assets: [], failedAssets: [] };
+          const browser = await chromium.launch({ channel: 'chrome', headless: true });
+          try {
+            const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
+            await context.route('https://api.proofofwork.fyi/**', route => route.abort('connectionrefused'));
+            await context.route('https://eu.i.posthog.com/**', route => route.abort('connectionrefused'));
+            const page = await context.newPage();
+            page.on('pageerror', error => report.errors.push({ name: error.name, message: error.message.slice(0, 500) }));
+            page.on('response', response => {
+              if (['document', 'script', 'stylesheet'].includes(response.request().resourceType())) {
+                const url = new URL(response.url());
+                if (url.origin === 'https://proofofwork.fyi') report.assets.push({ path: url.pathname, status: response.status(), type: response.headers()['content-type'] });
+              }
+            });
+            page.on('requestfailed', request => {
+              if (['document', 'script', 'stylesheet'].includes(request.resourceType())) {
+                const url = new URL(request.url());
+                if (url.origin === 'https://proofofwork.fyi') report.failedAssets.push({ path: url.pathname, error: request.failure()?.errorText });
+              }
+            });
+            const response = await page.goto('https://proofofwork.fyi/', { waitUntil: 'networkidle' });
+            report.documentStatus = response.status();
+            report.title = await page.title();
+            report.startDemoButtons = await page.getByRole('button', { name: 'Start demo', exact: true }).count();
+            await page.screenshot({ path: `${output}/startup.png`, fullPage: true });
+          } catch (error) {
+            report.diagnosticFailure = error.message.slice(0, 500);
+          } finally {
+            await browser.close();
+          }
+          await writeFile(`${output}/startup.json`, JSON.stringify(report, null, 2));
+          console.log(JSON.stringify(report));
+          JS
+      - uses: actions/upload-artifact@v7.0.2
+        if: always()
+        with:
+          name: live-browser-acceptance
+          path: web/live-report/
+          if-no-files-found: warn
+          retention-days: 7
