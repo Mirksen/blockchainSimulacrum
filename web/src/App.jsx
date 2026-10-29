@@ -62,6 +62,7 @@ function App() {
   const [remining, setRemining] = useState(null);
   const [details, setDetails] = useState(null);
   const [walletDetails, setWalletDetails] = useState(null);
+  const [workComparison, setWorkComparison] = useState(null);
   const [railCollapsed, setRailCollapsed] = useState(() => readFlag(RAIL_KEY));
   const [progress, setProgress] = useState(() => missions.load(browserStorage()));
   const compact = useSyncExternalStore(subscribePhone, isPhone, () => false);
@@ -255,7 +256,8 @@ function App() {
             onOpenWallet={setWalletDetails} onOpenDetails={setDetails} onOpenChainLab={() => navigate('chain-lab')} error={error} />}
           {view === 'hash-lab' && <div className="wb-view">
             <HashLab key={hashLesson ?? 'free'} lesson={hashLesson} onLessonEvent={hashLesson ? report : undefined}
-              coach={hashLesson ? coach : null} onClose={() => navigate('workbench')} />
+              coach={hashLesson ? coach : null} onClose={() => navigate('workbench')}
+              workComparison={workComparison} onWorkComparison={setWorkComparison} />
           </div>}
           {view === 'chain-lab' && <div className="wb-view">
             <ChainLab key={chainLesson ? 'lesson' : 'free'} onLessonEvent={chainLesson ? report : undefined}
