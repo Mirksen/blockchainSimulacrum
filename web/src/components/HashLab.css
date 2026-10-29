@@ -54,6 +54,15 @@
 .hash-lab-mining p { margin: 8px 0 0; }
 .hash-lab-search-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 .hash-lab-feedback { margin: 20px 0 6px; font-weight: 600; }
+.hash-lab-results { margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--line); }
+.hash-lab-results h3 { margin: 0; font-size: 16px; }
+.hash-lab-results p { font-size: 13px; }
+.hash-lab-results table { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 13px; }
+.hash-lab-results caption { text-align: left; margin-bottom: 8px; color: var(--text-2); }
+.hash-lab-results th, .hash-lab-results td { padding: 10px 8px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; overflow-wrap: anywhere; }
+.hash-lab-results th { font-weight: 600; }
+.hash-lab-results details { margin-top: 4px; }
+.hash-lab-results details code { display: block; margin-top: 6px; font-size: 11px; }
 .hash-lab-preimage { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--line); font-size: 13px; }
 .hash-lab-preimage code { display: block; padding: 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 4px; }
 .hash-lab summary { cursor: pointer; }
