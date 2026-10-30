@@ -184,6 +184,11 @@ describe('NextBlockCard', () => {
     mark = document.querySelector('[data-coach-target="workbench.back-miner"].is-active');
     expect(within(mark).getByRole('button', { name: 'Back Minas' })).toBeTruthy();
     expect(screen.getByRole('note').textContent).toContain('Step 3 · back Minas');
+    rerender(<NextBlockCard {...base} mode="mining" race={race} coach={{ target: 'workbench.mine', label: 'Watch the race' }} />);
+    const marks = document.querySelectorAll('[data-coach-target="workbench.mine"]');
+    expect(marks).toHaveLength(1);
+    expect(marks[0].contains(screen.getByRole('button', { name: 'Pause' }))).toBe(false);
+    expect(marks[0].textContent).toContain('nonce 3,218');
   });
 
   it('has exactly one filled primary in every mode', () => {

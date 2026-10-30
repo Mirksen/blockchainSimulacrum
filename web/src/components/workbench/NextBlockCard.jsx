@@ -138,7 +138,7 @@ export function NextBlockCard({
   const startsDemo = isFresh && !autoMine;
   // Keep the same button mounted so keyboard focus follows Play → Pause → Play.
   const action = (
-    <CoachMark target="workbench.mine" coach={running || isRepair || startsDemo ? null : coach} className="next-block-coach-inline">
+    <CoachMark target={running || isRepair || startsDemo ? undefined : "workbench.mine"} coach={running || isRepair || startsDemo ? null : coach} className="next-block-coach-inline">
       <button type="button" className={isRepair ? 'card-kit-btn is-lg' : 'btn-primary'}
         disabled={isRepair} title={isRepair ? 'Repair the chain first' : undefined}
         aria-keyshortcuts={!running && !startsDemo && !isRepair ? 'M' : undefined}
