@@ -203,6 +203,37 @@ describe('backing a miner', () => {
 });
 
 describe('halving and difficulty events', () => {
+  it('accepts difficulties through ten, rejects invalid values, and stops a running search before mining again', async () => {
+    const { result } = renderHook(() => useBlockchain(config));
+    for (let difficulty = 1; difficulty <= 10; difficulty++) {
+      act(() => result.current.setDifficulty(difficulty));
+      expect(result.current.difficulty).toBe(difficulty);
+    }
+    for (const invalid of [0, 11, -1, 1.5, NaN, Infinity, 'x']) {
+      act(() => result.current.setDifficulty(invalid));
+      expect(result.current.difficulty).toBe(10);
+    }
+    let pending;
+    act(() => { pending = result.current.mineBlock(); });
+    await act(async () => { await vi.advanceTimersByTimeAsync(1); });
+    expect(result.current.isMining).toBe(true);
+    expect(result.current.miningProgress.iterations).toBeGreaterThan(0);
+    act(() => result.current.setDifficulty(1));
+    expect(result.current.difficulty).toBe(10);
+    act(() => result.current.cancelMining());
+    await act(async () => {
+      await vi.runAllTimersAsync();
+      expect(await pending).toEqual({ success: false, aborted: true });
+    });
+    expect(result.current.isMining).toBe(false);
+    expect(result.current.blocks).toHaveLength(1);
+    expect(events('mining_cancelled')).toHaveLength(1);
+    expect(events('mining_completed')).toHaveLength(0);
+    act(() => result.current.setDifficulty(1));
+    expect((await mine(result)).success).toBe(true);
+    expect(result.current.blocks).toHaveLength(2);
+    expect(result.current.chainValid).toBe(true);
+  });
   it('reports the halving epoch of each mined block', async () => {
     const { result } = renderHook(() => useBlockchain(config));
     const epochs = [];
@@ -217,7 +248,7 @@ describe('halving and difficulty events', () => {
     expect(result.current.lastDifficultyChange).toEqual({ from: 1, to: 3, direction: 'up', height: 1, source: null });
     act(() => result.current.setDifficulty('2', { source: 'adjustment' }));
     expect(result.current.lastDifficultyChange).toEqual({ from: 3, to: 2, direction: 'down', height: 1, source: 'adjustment' });
-    act(() => { result.current.setDifficulty(2); result.current.setDifficulty(9); result.current.setDifficulty('x'); });
+    act(() => { result.current.setDifficulty(2); result.current.setDifficulty(11); result.current.setDifficulty('x'); });
     expect(result.current.lastDifficultyChange).toMatchObject({ from: 3, to: 2 });
   });
 });

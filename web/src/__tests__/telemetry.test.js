@@ -41,6 +41,17 @@ describe('explicit PostHog event transport', () => {
         await client.track('mining_completed',{difficulty:'synthetic marker',attempt_count:NaN,elapsed_ms:Infinity});
         expect(Object.keys(payloads()[1].properties)).toEqual(['event_id','app','schema_version','$process_person_profile','$geoip_disable']);
     });
+    it('keeps high difficulty metrics and rejects values outside the supported range', async () => {
+        const { client, payloads } = fixture(); client.setEnabled(true);
+        await client.track('difficulty_changed', { previous: 5, value: 10 });
+        await client.track('mining_cancelled', { difficulty: 10, elapsed_ms: 100, attempt_count: 200,
+            miner_count: 2, transaction_count: 0, reason: 'user_stop' });
+        expect(payloads()[0].properties).toMatchObject({ previous: 5, value: 10 });
+        expect(payloads()[1].properties).toMatchObject({ difficulty: 10, reason: 'user_stop' });
+        await client.track('difficulty_changed', { previous: 0, value: 11 });
+        expect(payloads()[2].properties.previous).toBeUndefined();
+        expect(payloads()[2].properties.value).toBeUndefined();
+    });
     it('drops unknown events, raw error reasons and free-text settings', async () => {
         const { client, request, payloads } = fixture(); client.setEnabled(true);
         await client.track('$identify',{email:'synthetic marker'});

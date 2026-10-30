@@ -63,7 +63,14 @@ describe('NextBlockCard', () => {
     expect(autoMine.getAttribute('aria-pressed')).toBe('false');
     fireEvent.click(autoMine);
     expect(onAutoMine).toHaveBeenCalledWith(true);
-    rerender(<NextBlockCard {...base} difficulty={5} mode="idle" onDifficulty={onDifficulty} />);
+    for (const difficulty of [5, 9]) {
+      rerender(<NextBlockCard {...base} difficulty={difficulty} mode="idle" onDifficulty={onDifficulty} />);
+      const raise = screen.getByRole('button', { name: 'Raise difficulty' });
+      expect(raise.disabled).toBe(false);
+      fireEvent.click(raise);
+      expect(onDifficulty).toHaveBeenLastCalledWith(difficulty + 1);
+    }
+    rerender(<NextBlockCard {...base} difficulty={10} mode="idle" onDifficulty={onDifficulty} />);
     expect(screen.getByRole('button', { name: 'Raise difficulty' }).disabled).toBe(true);
   });
 

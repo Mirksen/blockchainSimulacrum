@@ -38,6 +38,18 @@ describe('SettingsDialog', () => {
     expect(screen.getByText(/Difficulty adapts every 10 mined blocks/)).toBeTruthy();
   });
 
+  it('allows ten leading zeros and explains how to stop expensive mining', () => {
+    const handlers = renderDialog({ difficulty: 10 });
+    const slider = screen.getByLabelText('Mining difficulty');
+    expect(slider.min).toBe('1');
+    expect(slider.max).toBe('10');
+    expect(slider.value).toBe('10');
+    expect(screen.getByText('10 leading zeros')).toBeTruthy();
+    expect(screen.getByText(/Pause stops mining/)).toBeTruthy();
+    fireEvent.change(slider, { target: { value: '9' } });
+    expect(handlers.onDifficulty).toHaveBeenCalledWith(9);
+  });
+
   it('hands every change to its callback', () => {
     const handlers = renderDialog();
     fireEvent.change(screen.getByLabelText('Coin name'), { target: { value: 'labCoin' } });

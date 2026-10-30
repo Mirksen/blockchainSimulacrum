@@ -1,5 +1,6 @@
 import { useId, useLayoutEffect, useRef } from 'react';
 import './SettingsDialog.css';
+import { MIN_DIFFICULTY, MAX_DIFFICULTY } from '../../lib/difficulty';
 
 // "Settings" dialog of the overflow menu (web/DESIGN.md, "Existing features in the
 // workbench"): the experiment settings with the labels and help text of the former
@@ -46,7 +47,7 @@ function Dialog({ onClose, coinName, onCoinName, difficulty, onDifficulty, halvi
           <label className="settings-dialog-field">
             <span className="settings-dialog-label">Mining difficulty</span>
             <span className="settings-dialog-control">
-              <input aria-label="Mining difficulty" type="range" min="1" max="5" step="1" value={difficulty} disabled={busy}
+              <input aria-label="Mining difficulty" type="range" min={MIN_DIFFICULTY} max={MAX_DIFFICULTY} step="1" value={difficulty} disabled={busy}
                 aria-describedby={lockedBy} onChange={event => onDifficulty?.(Number(event.target.value))} />
               <span className="settings-dialog-unit">{difficulty} leading zeros</span>
             </span>
@@ -73,7 +74,7 @@ function Dialog({ onClose, coinName, onCoinName, difficulty, onDifficulty, halvi
         </div>
 
         {busy && <p className="settings-dialog-busy" id={busyId} role="status">Mining is running. Difficulty, halving interval and target block time unlock when it stops.</p>}
-        <p className="settings-dialog-help" id={helpId}>Higher difficulty takes longer. Difficulty adapts every 10 mined blocks. Halving reduces the reward for future blocks; it does not rewrite earlier rewards.</p>
+        <p className="settings-dialog-help" id={helpId}>Each extra leading zero takes about 16× more attempts on average. High settings may take longer than you can wait. Pause stops mining; lower the difficulty to try again. Difficulty adapts every 10 mined blocks. Halving reduces the reward for future blocks; it does not rewrite earlier rewards.</p>
 
         <div className="settings-dialog-foot">
           <button type="button" className="settings-dialog-done" onClick={() => onClose?.()}>Done</button>
