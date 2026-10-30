@@ -95,7 +95,9 @@ existing 384 MiB combined app/tunnel ceiling remains unchanged. PR CI checks the
 same measurement on the actual built image before publication can be reached.
 
 The publisher upgrades only its fresh hosted Docker daemon when it is older than
-28.2.2. Docker28.0.4 incorrectly tags every child manifest during a containerd
+28.2.2, using the runner’s existing Microsoft `moby-engine`/`moby-cli` packages
+(`28.2.2-ubuntu24.04u1`). No Docker CE repository is added. Docker28.0.4
+incorrectly tags every child manifest during a containerd
 push (upstream [moby/moby#49949](https://github.com/moby/moby/pull/49949)), which
 left the first release tag pointing at an attestation after a failed push. The
 checked archive, image/index ID and attestations remain unchanged. A subsequent
