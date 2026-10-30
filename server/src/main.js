@@ -1,7 +1,9 @@
 import http from 'node:http';
 import { DatabaseSync } from 'node:sqlite';
+import { fileURLToPath } from 'node:url';
 import { createApp, GENESIS, PROOF_ZEROS, MIN_SHARE_ZEROS, MAX_SHARE_ZEROS } from './app.js';
 import { createTipTracker } from './bitcoinTip.js';
+import { gitTreeId } from './sourceTree.js';
 
 const port = Number(process.env.PORT ?? 8080);
 const dbPath = process.env.DB_PATH || '/data/leaderboard.sqlite';
@@ -18,7 +20,7 @@ if (!/^\d*$/.test(shareZerosRaw) || !Number.isInteger(shareZeros) || shareZeros 
   process.exit(1);
 }
 
-if (GENESIS.status !== 'mined') console.log(`genesis is a ${GENESIS.status}, not the mined block: ${GENESIS.hash}`);
+if (GENESIS.status !== 'final') console.log(`genesis is a ${GENESIS.status}, not the final one: ${GENESIS.hash}`);
 if (!Number.isInteger(port) || port < 1 || port > 65535) {
   console.error('PORT must be an integer between 1 and 65535');
   process.exit(1);
@@ -39,6 +41,7 @@ const handler = createApp({
   staticDir,
   shareZeros,
   log: (line) => console.log(line),
+  source: gitTreeId(fileURLToPath(new URL('.', import.meta.url))),
 });
 
 const server = http.createServer(handler);

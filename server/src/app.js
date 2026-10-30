@@ -168,6 +168,8 @@ export function createApp({
   genesisHash = GENESIS.hash,
   // Folded blocked/reserved/allowed name lists; defaults to the term files in server/data/.
   nameLists,
+  // The git tree id of the running src/ (gitTreeId in sourceTree.js), reported by /api/health.
+  source,
 } = {}) {
   if (!db) throw new Error('createApp: db is required');
   if (!tip || typeof tip.round !== 'function' || typeof tip.accepts !== 'function' || typeof tip.windowStart !== 'function') {
@@ -356,7 +358,7 @@ export function createApp({
       }
       if (pathname === '/api/health') {
         if (req.method !== 'GET') throw new HttpError(405, 'method not allowed');
-        return send(res, 200, { ok: true });
+        return send(res, 200, source ? { ok: true, source } : { ok: true });
       }
       if (pathname === '/api/challenge') {
         if (req.method !== 'GET') throw new HttpError(405, 'method not allowed');
