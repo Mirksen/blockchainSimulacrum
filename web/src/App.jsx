@@ -15,6 +15,7 @@ import { PoolPanel } from './components/PoolPanel';
 import { BlockDetailsModal } from './components/BlockDetailsModal';
 import { ParticipantDetailsModal } from './components/ParticipantDetailsModal';
 import './index.css';
+import { MIN_DIFFICULTY, MAX_DIFFICULTY } from './lib/difficulty';
 
 const INITIAL_CONFIG = {
   name: 'powfyicoin', miningDifficulty: 2, blockReward: 3.125, halvingEvent: 4,
@@ -152,8 +153,8 @@ function App() {
     const from = Math.max(1, height - 10);
     const seconds = (chainBlocks[height].timestamp - chainBlocks[from].timestamp) / 1000 / (height - from);
     let next = current;
-    if (seconds < targetBlockTime * 0.7 && current < 5) next = current + 1;
-    else if (seconds > targetBlockTime * 1.5 && current > 1) next = current - 1;
+    if (seconds < targetBlockTime * 0.7 && current < MAX_DIFFICULTY) next = current + 1;
+    else if (seconds > targetBlockTime * 1.5 && current > MIN_DIFFICULTY) next = current - 1;
     if (next === current) return;
     setDifficulty(next, { source: 'auto' });
     report({ type: 'difficulty_changed', direction: next > current ? 'up' : 'down' });
