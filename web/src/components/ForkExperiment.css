@@ -1,0 +1,57 @@
+.fork-experiment { min-width: 0; color: var(--text); font-size: 13px; line-height: 1.5; }
+.fork-experiment *, .fork-experiment *::before, .fork-experiment *::after { box-sizing: border-box; }
+.fork-experiment-header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.fork-experiment .fork-experiment-header h2 { margin: 0; font-size: 20px; line-height: 1.3; }
+.fork-experiment-header p { margin: 6px 0 0; color: var(--text-2); }
+.fork-experiment-rounds { color: var(--text-2); font-variant-numeric: tabular-nums; }
+.fork-experiment-controls { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin: 24px 0 16px; }
+.fork-experiment-scenarios { display: flex; flex-wrap: wrap; gap: 12px 20px; min-width: 0; margin: 0; padding: 12px; border: 1px solid var(--line-3); border-radius: var(--r-md); }
+.fork-experiment-scenarios legend { padding: 0 4px; font-weight: 600; }
+.fork-experiment .fork-experiment-scenarios label { display: inline-flex; align-items: center; gap: 6px; margin: 0; cursor: pointer; }
+.fork-experiment-scenarios input[type="radio"] { width: 16px; height: 16px; margin: 0; padding: 0; accent-color: var(--blue); }
+.fork-experiment-power { min-width: 0; }
+.fork-experiment-power label { display: block; margin: 0 0 8px; font-weight: 600; }
+.fork-experiment-power input[type="range"] { display: block; width: 100%; height: 24px; margin: 0; padding: 0; border: 0; accent-color: var(--blue); }
+.fork-experiment-power-values { display: flex; justify-content: space-between; gap: 8px; font-variant-numeric: tabular-nums; }
+.fork-experiment-power p, .fork-experiment-scenario-note { margin: 8px 0 0; color: var(--text-2); font-size: 12px; }
+.fork-experiment-diagram { margin: 20px 0 16px; }
+.fork-experiment-ancestor { padding: 12px; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--panel-2); }
+.fork-experiment .fork-experiment-diagram h3 { margin: 0; font-size: 14px; }
+.fork-experiment-ancestor > p { margin: 6px 0 0; color: var(--text-2); }
+.fork-experiment-branches { position: relative; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; padding-top: 20px; }
+.fork-experiment-branch { position: relative; min-width: 0; padding: 12px; border: 1px solid var(--line-3); border-radius: var(--r-md); }
+.fork-experiment-branch::before { position: absolute; content: ''; width: 1px; height: 20px; top: -21px; left: 24px; background: var(--link-line); }
+.fork-experiment-branch.is-selected { border-color: var(--blue-line); background: var(--blue-bg); }
+.fork-experiment-branch > header { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 8px; }
+.fork-experiment-branch > header span { font-size: 11px; color: var(--text-2); }
+.fork-experiment-work { margin: 6px 0 12px; font-size: 12px; color: var(--text-2); font-variant-numeric: tabular-nums; }
+.fork-experiment-work strong { color: var(--text); }
+.fork-experiment-blocks { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(125px, 100%), 1fr)); gap: 8px; list-style: none; padding: 0; margin: 12px 0 0; }
+.fork-experiment-block { min-width: 0; padding: 10px; border: 1px solid var(--line-3); border-radius: var(--r-sm); background: var(--panel); }
+.fork-experiment-block > strong { font-size: 12px; }
+.fork-experiment-block > p { margin: 4px 0 8px; color: var(--text-2); font-size: 12px; overflow-wrap: anywhere; }
+.fork-experiment code { font: 11px/1.5 var(--mono); overflow-wrap: anywhere; white-space: normal; }
+.fork-experiment .fork-experiment-short-hash { display: block; color: var(--text-2); }
+.fork-experiment-short-hash strong { color: var(--green); }
+.fork-experiment-block details { margin-top: 8px; font-size: 11px; }
+.fork-experiment summary { cursor: pointer; }
+.fork-experiment-block dl { margin: 8px 0 0; }
+.fork-experiment-block dt { color: var(--text-2); margin-top: 6px; }
+.fork-experiment-block dd { margin: 0; font-family: var(--mono); overflow-wrap: anywhere; }
+.fork-experiment-selection { margin: 12px 0; }
+.fork-experiment-rewrite { padding: 10px 12px; border-left: 2px solid var(--blue); background: var(--blue-bg); }
+.fork-experiment-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 20px; }
+.fork-experiment .btn { white-space: normal; }
+.fork-experiment-feedback { margin: 16px 0 4px; font-weight: 600; }
+.fork-experiment-feedback.is-error { color: var(--red); }
+.fork-experiment-attempts { margin: 0 0 16px; color: var(--text-2); font-size: 12px; font-variant-numeric: tabular-nums; }
+.fork-experiment-note { color: var(--text-2); font-size: 12px; margin: 8px 0 0; }
+.fork-experiment :focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
+@media (max-width: 700px) {
+  .fork-experiment-controls { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  .fork-experiment-branches { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .fork-experiment-branch + .fork-experiment-branch::before { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fork-experiment *, .fork-experiment *::before, .fork-experiment *::after { animation: none; transition: none; }
+}

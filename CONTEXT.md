@@ -47,6 +47,15 @@ Terms used in code, tests and docs of proofofwork.fyi. Decisions that shape them
 - **Hash lab / chain lab / learning path** — isolated experiments with their own temporary state;
   they never change the simulator chain or wallets.
 
+- **Fork experiment** — isolated Chain Lab network model. Original and alternative
+  histories share a starting anchor. Whole-branch validity and fixed target work
+  determine local fork choice: only strictly greater work replaces the incumbent.
+  A **reorganization** is this model selecting the other valid history. At the
+  one-hex-zero target each block adds 16 expected-work units, independent of actual
+  attempts or lucky extra zeros. **Hash power** is a nominal per-attempt probability,
+  not measured hardware throughput. A rewrite changes a toy payment text record;
+  it does not forge signatures or move coins. Runs are capped at twelve new blocks.
+
 ## Pool and leaderboard
 
 - **Pool** — the shared, server-side part: the server issues signed, short-lived **challenges**

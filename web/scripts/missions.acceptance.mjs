@@ -6,7 +6,7 @@ import { menu, openTab, settle, workbench } from './workbench.helpers.mjs';
 // lab lessons and progress that survives a reload. Starts on the workbench after a demo.
 export async function verifyMissions(page, output) {
   const rail = page.getByRole('complementary', { name: 'Missions' });
-  const done = count => rail.locator('.mission-rail-xp').filter({ hasText: `${count} of 8 done` });
+  const done = count => rail.locator('.mission-rail-xp').filter({ hasText: `${count} of 9 done` });
   const showMe = () => rail.getByRole('button', { name: 'Show me' });
   const activeCoach = target => page.locator(`[data-coach-target="${target}"].is-active`);
   await done(0).waitFor();

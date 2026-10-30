@@ -2,9 +2,12 @@ import { useEffect, useRef, useState } from 'react';
 import { inspectChain, remineBlock, sampleChain } from '../lib/chainLab';
 import { SEARCH_LIMIT } from '../lib/hashLab';
 import { CoachMark } from './workbench/CoachMark';
+import { ForkExperiment } from './ForkExperiment';
 import './ChainLab.css';
 
-export function ChainLab({ onClose, embedded = false, onLessonEvent, coach = null }) {
+export function ChainLab({ onClose, embedded = false, onLessonEvent, coach = null, experiment, onExperimentChange }) {
+  const [localExperiment, setLocalExperiment] = useState(() => coach?.target?.startsWith('chain-lab.fork-') ? 'fork' : 'repair');
+  const shownExperiment = experiment ?? localExperiment;
   const [blocks, setBlocks] = useState(sampleChain);
   const [searching, setSearching] = useState(null);
   const initialData = useRef(blocks[0].data);
@@ -57,12 +60,27 @@ export function ChainLab({ onClose, embedded = false, onLessonEvent, coach = nul
     }
   }
 
+  function switchExperiment(next) {
+    if (next === shownExperiment) return;
+    cancel();
+    onLessonEvent?.({ type: 'fork_reset' });
+    setLocalExperiment(next);
+    onExperimentChange?.(next);
+  }
+
   return <section className="chain-lab" aria-labelledby="chain-lab-title">
     <header className="chain-lab-header">
-      <div><h2 id="chain-lab-title">Change the past. Follow the links.</h2>
-        <p>Each block includes the previous block’s stored hash. Repair one fingerprint and see what the next block still remembers.</p></div>
+      <div><h2 id="chain-lab-title">{shownExperiment === 'fork' ? 'Competing branches' : 'Change the past. Follow the links.'}</h2>
+        <p>{shownExperiment === 'fork' ? 'Explore which valid history this local network model follows, and why.' : 'Each block includes the previous block’s stored hash. Repair one fingerprint and see what the next block still remembers.'}</p></div>
       {!embedded && <button className="btn btn-transparent" onClick={() => { cancel(); onClose(); }}>Back to simulator</button>}
     </header>
+    <nav className="chain-lab-experiments" aria-label="Chain lab experiment">
+      <button type="button" className="btn btn-default" aria-pressed={shownExperiment === 'repair'}
+        onClick={() => switchExperiment('repair')}>Repair a chain</button>
+      <button type="button" className="btn btn-default" aria-pressed={shownExperiment === 'fork'}
+        onClick={() => switchExperiment('fork')}>Competing branches</button>
+    </nav>
+    {shownExperiment === 'fork' ? <ForkExperiment onLessonEvent={onLessonEvent} coach={coach} /> : <>
     <div className="chain-lab-summary">
       <p className={consistent ? 'chain-lab-positive' : 'chain-lab-negative'}><strong>{consistent ? 'Toy chain consistent' : 'Toy chain inconsistent'}</strong></p>
       <button className="btn btn-default" onClick={reset}>Reset chain lab</button>
@@ -111,5 +129,6 @@ export function ChainLab({ onClose, embedded = false, onLessonEvent, coach = nul
     <p className="chain-lab-feedback" role="status">{feedback}</p>
     <p className="chain-lab-help">Search checks up to {SEARCH_LIMIT.toLocaleString()} candidates and can be stopped. Editing, resetting or closing cancels pending work.</p>
     <p className="chain-lab-note">This separate text-only chain demonstrates hashes, links and proof of work. A consistent toy chain does not repair transaction signatures or balances, or gain agreement from a network. Your simulator stays unchanged.</p>
+    </>}
   </section>;
 }

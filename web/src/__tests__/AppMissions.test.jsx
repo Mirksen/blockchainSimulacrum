@@ -76,7 +76,7 @@ describe('optional missions in App', () => {
     expect(localStorage.getItem(RAIL)).toBe('0');
     reload();
     expect(collapsed()).toBe(false);
-    expect(document.querySelector('.wb-rail .mission-rail-xp').textContent).toBe('20 XP0 badges1 of 8 done');
+    expect(document.querySelector('.wb-rail .mission-rail-xp').textContent).toBe('20 XP0 badges1 of 9 done');
     fireEvent.click(rail().getByRole('button', { name: 'Show me' }));
     expect(screen.getByText('work')).toBeTruthy();
     expect(screen.getByText('hash-lab.search')).toBeTruthy();
@@ -96,7 +96,7 @@ describe('optional missions in App', () => {
     expect(collapsed()).toBe(false);
     fireEvent.click(rail().getByRole('button', { name: 'Show me' }));
     fireEvent.click(screen.getByRole('button', { name: 'Change message' }));
-    expect(document.querySelector('.wb-rail .mission-rail-xp').textContent).toBe('20 XP0 badges1 of 8 done');
+    expect(document.querySelector('.wb-rail .mission-rail-xp').textContent).toBe('20 XP0 badges1 of 9 done');
     fireEvent.click(rail().getByRole('button', { name: 'Collapse mission rail' }));
     reload();
     expect(collapsed()).toBe(true);
