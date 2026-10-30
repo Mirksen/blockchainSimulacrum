@@ -191,23 +191,33 @@ describe('mission track', () => {
 });
 
 describe('mission storage', () => {
-  it('round-trips versioned progress through the storage key', () => {
+  it('saves versioned progress and restores completed rewards with a fresh active mission', () => {
     const storage = memoryStorage();
     const progress = apply(reach('forge-a-block'), COMPLETE['forge-a-block'].slice(0, 2));
     expect(save(storage, progress)).toBe(true);
     expect(JSON.parse(storage.items[STORAGE_KEY])).toEqual({ version: PROGRESS_VERSION, completed: progress.completed, step: 2,
       data: { tampered: 2, next: 3 } });
-    expect(load(storage)).toEqual(progress);
+    expect(load(storage)).toEqual(reach('forge-a-block'));
+    expect(totalXp(load(storage))).toBe(totalXp(progress));
+    expect(earnedBadges(load(storage))).toEqual(earnedBadges(progress));
     const done = apply(initialProgress(), ALL_EVENTS);
     save(storage, done);
     expect(load(storage)).toEqual(done);
   });
 
-  it('restarts an unfinished lab mission after a reload because the lab state is gone', () => {
+  it.each(MISSIONS.map(mission => [mission.id]))('restarts unfinished %s steps after reload without losing rewards', id => {
     const storage = memoryStorage();
-    const midway = apply(reach('change-the-past'), COMPLETE['change-the-past'].slice(0, 1));
-    save(storage, midway);
-    expect(load(storage)).toEqual(reach('change-the-past'));
+    const started = reach(id);
+    for (let count = 0; count < COMPLETE[id].length; count += 1) {
+      const midway = apply(started, COMPLETE[id].slice(0, count));
+      save(storage, midway);
+      const restored = load(storage);
+      expect(restored).toEqual(started);
+      expect(totalXp(restored)).toBe(totalXp(midway));
+      expect(earnedBadges(restored)).toEqual(earnedBadges(midway));
+      // The mission is still completable through new evidence from the new run.
+      expect(missionStatus(apply(restored, COMPLETE[id]), id)).toBe('done');
+    }
   });
 
   it('starts fresh for missing, blocked or corrupt storage', () => {
@@ -223,14 +233,14 @@ describe('mission storage', () => {
     expect(save({ setItem() { throw new Error('QuotaExceededError'); } }, fresh)).toBe(false);
   });
 
-  it('keeps only a valid in-order prefix and a valid current step', () => {
+  it('keeps only a valid in-order prefix and discards saved active steps', () => {
     const stored = value => load(memoryStorage({ [STORAGE_KEY]: JSON.stringify({ version: PROGRESS_VERSION, ...value }) }));
     // Skipped missions do not count.
     expect(stored({ completed: ['change-fingerprint', 'send-first-coin'], step: 0, data: {} }).completed).toEqual(['change-fingerprint']);
     const twoDone = ['change-fingerprint', 'earn-proof-of-work'];
     expect(stored({ completed: twoDone, step: 5, data: {} })).toEqual(reach('send-first-coin'));
     expect(stored({ completed: [...twoDone, 'send-first-coin'], step: 1, data: {} })).toEqual(reach('win-mining-race'));
-    expect(stored({ completed: [...twoDone, 'send-first-coin'], step: 1, data: { backed: 'Lars' } })).toMatchObject({ step: 1, data: { backed: 'Lars' } });
+    expect(stored({ completed: [...twoDone, 'send-first-coin'], step: 1, data: { backed: 'fixture-miner' } })).toEqual(reach('win-mining-race'));
     const fiveDone = MISSIONS.slice(0, 5).map(mission => mission.id);
     expect(stored({ completed: fiveDone, step: 2, data: { tampered: 2, next: 1 } })).toEqual(reach('forge-a-block'));
     expect(stored({ completed: fiveDone, step: 1, data: 'x' })).toEqual(reach('forge-a-block'));

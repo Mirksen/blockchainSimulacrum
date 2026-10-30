@@ -124,8 +124,10 @@ decision, 2026-10-27):
   8. Beat the difficulty adjustment (Workbench)
   9. Follow the stronger chain (Chain lab)
   Missions unlock in order; free play never needs a mission. Progress stays
-  in the browser. Lab missions use the labs' own temporary state and never
-  change the simulator chain.
+  in the browser. Reloading retains completed missions and rewards; the active
+  mission restarts at its first step because simulator and lab state start fresh.
+  Opening or hiding missions within the page retains the active step. Lab missions
+  use the labs' own temporary state and never change the simulator chain.
 - **Experiment settings** (coin name, difficulty, halving interval, target
   block time) move into a "Settings" dialog in the overflow menu; difficulty
   also stays in the Next block card.
