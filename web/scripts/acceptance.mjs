@@ -112,6 +112,9 @@ try {
  await wb.tile(0).waitFor();
  assert.equal(await wb.tiles().count(), 1);
  assert.equal(await page.locator('.next-block .btn-primary').count(), 1);
+ const controls = page.getByRole('group',{name:'Mining controls'});
+ assert.equal(await controls.getByRole('button',{name:'Auto-mine',exact:true}).getAttribute('aria-pressed'), 'false', 'Manual mining is the default');
+ assert.equal(await controls.getByRole('button',{name:'Start demo',exact:true}).count(), 1, 'Play and Repeat share one control group');
  const ticker = page.getByRole('button',{name:/^Pool leaderboard, 2 miners, leader fixture-alpha/});
  await ticker.waitFor();
  await ticker.click();
@@ -195,13 +198,15 @@ try {
  // A hard target: the demo can be paused before any block is committed.
  for (let i = 0; i < 3; i++) await page.getByRole('button',{name:'Raise difficulty'}).click();
  assert.equal(await page.getByLabel('Difficulty',{exact:true}).innerText(),'5');
- await page.getByRole('button',{name:'Start demo',exact:true}).click();
- await page.getByRole('button',{name:/^Mining block #1/}).waitFor();
+ await page.getByRole('button',{name:'Start demo',exact:true}).press('Enter');
+ await page.getByText('Mining block #1…',{exact:true}).waitFor();
+ assert.ok(await page.getByRole('button',{name:'Pause',exact:true}).evaluate(el => el === document.activeElement), 'Play keeps keyboard focus as Pause');
  await fitsWidths('Running race');
  // A lucky miner may find a block before Pause; nothing is committed after it.
  const atPause = await wb.tiles().count();
- await page.getByRole('button',{name:'Pause',exact:true}).click();
- await page.getByRole('button',{name:/^Mining block #/}).waitFor({state:'detached'});
+ await page.getByRole('button',{name:'Pause',exact:true}).press('Enter');
+ assert.ok(await page.locator('.next-block .btn-primary').evaluate(el => el === document.activeElement), 'Pause keeps keyboard focus as Play');
+ await page.getByRole('button',{name:'Pause',exact:true}).waitFor({state:'detached'});
  await page.waitForTimeout(1000);
  assert.equal(await wb.tiles().count(), atPause, 'Pause commits no block');
  results.push('Expensive mining can be paused without a committed block; the race fits five widths');
@@ -209,9 +214,9 @@ try {
  const settings = page.getByRole('dialog',{name:'Settings'});
  await settings.getByLabel('Mining difficulty',{exact:true}).fill('1');
  await settings.getByRole('button',{name:'Done'}).click();
- await page.getByRole('switch',{name:'Auto-mine'}).click();
+ await page.getByRole('button',{name:'Auto-mine',exact:true}).click();
  await wb.tile(2).waitFor({timeout:30000});
- await page.getByRole('switch',{name:'Auto-mine'}).click();
+ await page.getByRole('button',{name:'Auto-mine',exact:true}).click();
  await menu(page, 'Reset');
  await page.getByRole('button',{name:'Start demo',exact:true}).waitFor();
  results.push('Settings change the difficulty; auto-mine runs and stops; reset clears the result');
