@@ -193,20 +193,27 @@ try {
  results.push('Reset returns to genesis; light and dark theme work');
 
  // A hard target: the demo can be paused before any block is committed.
- for (let i = 0; i < 3; i++) await page.getByRole('button',{name:'Raise difficulty'}).click();
- assert.equal(await page.getByLabel('Difficulty',{exact:true}).innerText(),'5');
+ for (let i = 0; i < 8; i++) await page.getByRole('button',{name:'Raise difficulty'}).click();
+ assert.equal(await page.getByLabel('Difficulty',{exact:true}).innerText(),'10');
+ assert.equal(await page.getByRole('button',{name:'Raise difficulty'}).isDisabled(),true);
  await page.getByRole('button',{name:'Start demo',exact:true}).click();
  await page.getByRole('button',{name:/^Mining block #1/}).waitFor();
  await fitsWidths('Running race');
- // A lucky miner may find a block before Pause; nothing is committed after it.
+ await page.screenshot({path:join(output,'difficulty-10-running.png')});
+ // Pause terminates the worker; nothing is committed after it.
  const atPause = await wb.tiles().count();
  await page.getByRole('button',{name:'Pause',exact:true}).click();
  await page.getByRole('button',{name:/^Mining block #/}).waitFor({state:'detached'});
  await page.waitForTimeout(1000);
  assert.equal(await wb.tiles().count(), atPause, 'Pause commits no block');
- results.push('Expensive mining can be paused without a committed block; the race fits five widths');
+ results.push('Difficulty 10 mines in a worker and can be paused without a committed block; the race fits five widths');
  await menu(page, 'Settings');
  const settings = page.getByRole('dialog',{name:'Settings'});
+ assert.equal(await settings.getByLabel('Mining difficulty',{exact:true}).getAttribute('max'),'10');
+ assert.equal(await settings.getByLabel('Mining difficulty',{exact:true}).inputValue(),'10');
+ await settings.getByLabel('Mining difficulty',{exact:true}).fill('9');
+ await settings.getByLabel('Mining difficulty',{exact:true}).fill('10');
+ await page.screenshot({path:join(output,'difficulty-10-settings.png')});
  await settings.getByLabel('Mining difficulty',{exact:true}).fill('1');
  await settings.getByRole('button',{name:'Done'}).click();
  await page.getByRole('switch',{name:'Auto-mine'}).click();

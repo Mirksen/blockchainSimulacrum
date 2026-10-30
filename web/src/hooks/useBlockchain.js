@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { createBlockchain } from '../lib/blockchain';
 import { runSearch } from '../lib/powSearch';
+import { MIN_DIFFICULTY, MAX_DIFFICULTY } from '../lib/difficulty';
 import { telemetry, failureCode } from '../lib/telemetry';
 
 function snapshot(chain) {
@@ -260,7 +261,7 @@ export function useBlockchain(config = {}) {
     const setDifficulty = useCallback((value, { source = null } = {}) => {
         if (controller.run || controller.setup) return;
         const n = Number(value);
-        if (!Number.isInteger(n) || n < 1 || n > 5) return;
+        if (!Number.isInteger(n) || n < MIN_DIFFICULTY || n > MAX_DIFFICULTY) return;
         const previous = controller.chain.miningDifficulty;
         if (n === previous) return;
         controller.chain.miningDifficulty = n;

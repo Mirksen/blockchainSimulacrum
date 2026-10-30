@@ -37,6 +37,12 @@ missing:
    reset starts over. The UI says so where it matters and never claims more
    than the simulation does.
 
+Workbench difficulty is selectable from 1 to 10 leading hexadecimal zeros in
+both the card stepper and Settings. The upper settings are experiments, even
+when a block is impractical to find. Each extra zero means 16 times the expected
+attempts. Pause stops the active search without committing an unfinished block;
+the user can then lower the difficulty and start a new search.
+
 ## Language and tone
 
 English, short sentences, plain words. Blockchain terms are welcome (hash,
