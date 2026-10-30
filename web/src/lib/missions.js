@@ -112,25 +112,20 @@ const isIndex = value => Number.isSafeInteger(value) && value >= 0;
 const isCount = value => Number.isSafeInteger(value) && value > 0;
 
 // Per mission: advance(stepIndex, data, event) returns the next {step, data} or null to
-// ignore the event. step === steps.length completes the mission. validData checks a
-// stored {step, data} pair so corrupt storage cannot leave a mission in a broken state.
+// ignore the event. step === steps.length completes the mission.
 const RULES = {
   'change-fingerprint': {
-    advance: (step, data, event) => event.type === 'hash_changed' ? { step: 1, data } : null,
-    validData: () => true
+    advance: (step, data, event) => event.type === 'hash_changed' ? { step: 1, data } : null
   },
   'earn-proof-of-work': {
     advance(step, data, event) {
       const difficulty = step + 1;
       if (event.type !== 'work_found' || event.difficulty !== difficulty || !isCount(event.attempts)) return null;
       return { step: step + 1, data: { attempts: { ...data.attempts, [difficulty]: event.attempts } } };
-    },
-    validData: (step, data) => step === 0 ? Object.keys(data).length === 0
-      : isObject(data.attempts) && isCount(data.attempts[1])
+    }
   },
   'send-first-coin': {
-    advance: (step, data, event) => event.type === 'transaction_created' ? { step: 1, data } : null,
-    validData: () => true
+    advance: (step, data, event) => event.type === 'transaction_created' ? { step: 1, data } : null
   },
   'win-mining-race': {
     advance(step, data, event) {
@@ -143,9 +138,7 @@ const RULES = {
       if (step === 1) return { step: 2, data };
       if (step === 2 && event.backedWon) return { step: 3, data };
       return null;
-    },
-    validData: (step, data) => step === 0 ? Object.keys(data).length === 0
-      : typeof data.backed === 'string' && data.backed.trim() !== ''
+    }
   },
   'change-the-past': {
     advance(step, data, event) {
@@ -153,8 +146,7 @@ const RULES = {
       if (step === 0 && event.consistent === false) return { step: 1, data };
       if (step === 1 && event.consistent === true) return { step: 2, data };
       return null;
-    },
-    validData: () => true
+    }
   },
   'forge-a-block': {
     advance(step, data, event) {
@@ -172,22 +164,18 @@ const RULES = {
       // The changed block was the newest one: re-mining it already repairs the chain.
       if (event.chainValid) return { step: 3, data };
       return { step: 2, data: { tampered: data.tampered, next: event.blockIndex + 1 } };
-    },
-    validData: (step, data) => step === 0 ? Object.keys(data).length === 0
-      : isIndex(data.tampered) && (step === 1 || (isIndex(data.next) && data.next > data.tampered))
+    }
   },
   'survive-halving': {
     advance(step, data, event) {
       if (event.type !== 'block_mined' || !isIndex(event.epoch)) return null;
       if (step === 0) return { step: 1, data: { epoch: event.epoch } };
       return event.epoch > data.epoch ? { step: 2, data } : null;
-    },
-    validData: (step, data) => step === 0 ? Object.keys(data).length === 0 : isIndex(data.epoch)
+    }
   },
   'beat-difficulty-adjustment': {
     advance: (step, data, event) => event.type === 'difficulty_changed' && event.manual !== true
-      && (event.direction === 'up' || event.direction === 'down') ? { step: 1, data: { direction: event.direction } } : null,
-    validData: () => true
+      && (event.direction === 'up' || event.direction === 'down') ? { step: 1, data: { direction: event.direction } } : null
   }
 };
 
@@ -253,13 +241,9 @@ function normalize(stored) {
   let count = 0;
   while (count < MISSIONS.length && stored.completed[count] === MISSIONS[count].id) count += 1;
   const completed = MISSIONS.slice(0, count).map(mission => mission.id);
-  const mission = MISSIONS[count];
-  // Lab missions use the labs' temporary state, which a reload has discarded.
-  if (!mission || mission.view !== 'workbench') return { ...fresh, completed };
-  const { step, data } = stored;
-  if (!Number.isSafeInteger(step) || step < 0 || step >= mission.steps.length || !isObject(data)
-    || !RULES[mission.id].validData(step, data)) return { ...fresh, completed };
-  return { ...fresh, completed, step, data: JSON.parse(JSON.stringify(data)) };
+  // Reload creates fresh labs and a fresh simulator. Backing, edited blocks and
+  // observed halving epochs no longer exist, so only completed missions survive.
+  return { ...fresh, completed };
 }
 
 /** Reads progress from a Storage-like object; missing, blocked or corrupt storage starts fresh. */

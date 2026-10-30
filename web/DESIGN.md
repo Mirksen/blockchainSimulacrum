@@ -104,7 +104,9 @@ decision, 2026-10-27):
   7. Survive a halving (Workbench)
   8. Beat the difficulty adjustment (Workbench)
   Missions unlock in order; free play never needs a mission. Progress stays
-  in the browser. Lab missions use the labs' own temporary state and never
+  in the browser. Reloading retains completed missions and rewards; the active
+  mission restarts at its first step because simulator and lab state start fresh.
+  Opening or hiding missions within the page retains the active step. Lab missions use the labs' own temporary state and never
   change the simulator chain.
 - **Experiment settings** (coin name, difficulty, halving interval, target
   block time) move into a "Settings" dialog in the overflow menu; difficulty

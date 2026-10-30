@@ -1,6 +1,6 @@
 import { verifyHashLab } from './hash-lab.acceptance.mjs';
 import { verifyChainLab } from './chain-lab.acceptance.mjs';
-import { verifyMissions } from './missions.acceptance.mjs';
+import { verifyMissions, verifyMissionReload } from './missions.acceptance.mjs';
 import { verifyMissionVisibility } from './missions-visibility.acceptance.mjs';
 import { verifyPool } from './pool.acceptance.mjs';
 import { menu, openTab, settle, snapshot, workbench } from './workbench.helpers.mjs';
@@ -84,6 +84,7 @@ try {
  }
  browser = await chromium.launch({channel:'chrome',headless:true});
  results.push(...await verifyMissionVisibility(browser, baseURL, output));
+ results.push(...await verifyMissionReload(browser, baseURL, output));
  page=await browser.newPage({viewport:{width:1440,height:1000},reducedMotion:'reduce'});
  // Install once before the app creates timers; all experiments share this clock.
  await page.clock.install();

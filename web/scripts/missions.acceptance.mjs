@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { join } from 'node:path';
 import { menu, openTab, settle, workbench } from './workbench.helpers.mjs';
+import { MISSIONS, earnedBadges, totalXp } from '../src/lib/missions.js';
 
 // The mission track with the rail open: the first three missions, coach marks,
 // lab lessons and progress that survives a reload. Starts on the workbench after a demo.
@@ -93,4 +94,80 @@ export async function verifyMissions(page, output) {
   return ['Missions: Show me switches tabs and marks the step; lab lessons complete missions 1 and 2',
     'Work comparison: actual one/two-zero counts survive target and mission changes, fit both themes/four widths, and Reset clears the recap',
     'Missions: progress survives a reload; sending a coin completes mission 3 and coaches the next step'];
+}
+
+// A real App and hook, with persisted snapshots from before a page reload.
+// Remote writes stay refused, including when this runs against the public domain.
+export async function verifyMissionReload(browser, baseURL, output) {
+  const cases = [
+    ['win-mining-race', 1, { backed: 'fixture-miner' }],
+    ['forge-a-block', 2, { tampered: 2, next: 3 }],
+    ['survive-halving', 1, { epoch: 3 }],
+  ];
+  const errors = [];
+  for (const width of [1440, 390]) {
+    for (const [id, step, data] of cases) {
+      const context = await browser.newContext({ viewport: { width, height: 1000 }, reducedMotion: 'reduce' });
+      try {
+        await context.route('https://api.proofofwork.fyi/**', route => route.abort('connectionrefused'));
+        await context.route('https://eu.i.posthog.com/**', route => route.abort('connectionrefused'));
+        const page = await context.newPage();
+        page.setDefaultTimeout(10000);
+        page.on('pageerror', error => errors.push(error.message));
+        await page.goto(baseURL);
+        const completed = MISSIONS.slice(0, MISSIONS.findIndex(mission => mission.id === id)).map(mission => mission.id);
+        const stored = { version: 1, completed, step, data };
+        await page.evaluate(progress => {
+          localStorage.setItem('proofofwork-missions', JSON.stringify(progress));
+          localStorage.setItem('proofofwork-rail-collapsed', '0');
+          localStorage.setItem('proofofwork-missions-intro-seen', '1');
+        }, stored);
+        await page.reload();
+        const wb = workbench(page);
+        await page.getByRole('button', { name: 'Start demo', exact: true }).waitFor();
+        assert.equal(await wb.tiles().count(), 1, 'Reload has a fresh genesis-only simulator');
+        await page.locator('.app-shell.is-rail-expanded').waitFor();
+        const readProgress = () => page.evaluate(() => JSON.parse(localStorage.getItem('proofofwork-missions')));
+        assert.deepEqual(await readProgress(), { version: 1, completed, step: 0, data: {} }, `${id} clears discarded runtime prerequisites`);
+        if (width < 1024) await page.getByRole('button', { name: /steps\. Open missions$/ }).click();
+        const tasks = width < 1024 ? page.getByRole('dialog', { name: 'Missions' }) : page.getByRole('complementary', { name: 'Missions' });
+        assert.ok((await tasks.locator('.mission-rail-step.is-current').innerText()).includes(MISSIONS[completed.length].steps[0].text));
+        const rewards = await tasks.locator('.mission-rail-xp').innerText();
+        assert.ok(rewards.includes(`${totalXp(stored)} XP`));
+        const badges = earnedBadges(stored).length;
+        assert.ok(rewards.includes(`${badges} ${badges === 1 ? 'badge' : 'badges'}`));
+        assert.ok(rewards.includes(`${completed.length} of 8 done`));
+        await tasks.getByRole('button', { name: 'Show me' }).click();
+        await page.getByRole('button', { name: 'Start demo', exact: true }).click();
+        await wb.mine(3).waitFor({ timeout: 30000 });
+        if (id === 'win-mining-race') {
+          await page.getByRole('button', { name: /^Back / }).first().click();
+        } else if (id === 'forge-a-block') {
+          await wb.tile(1).click();
+          await page.getByRole('button', { name: 'Tamper with this block', exact: true }).click();
+          const editor = page.getByRole('form', { name: 'Change a transaction amount in block 1' });
+          await editor.getByLabel('New amount').fill('99');
+          await editor.getByRole('button', { name: 'Change amount' }).click();
+          await page.getByRole('button', { name: 'Re-mine block #1', exact: true }).waitFor();
+        } else {
+          await wb.mine(3).click();
+          await wb.mine(4).waitFor({ timeout: 30000 });
+        }
+        await page.waitForFunction(() => JSON.parse(localStorage.getItem('proofofwork-missions')).step === 1);
+        const advanced = await readProgress();
+        const hide = width < 1024 ? 'Hide missions' : 'Collapse mission rail';
+        await page.getByRole('button', { name: hide, exact: true }).click();
+        assert.deepEqual(await readProgress(), advanced, 'Hiding preserves this run’s active progress');
+        await page.getByRole('button', { name: width < 1024 ? 'Open missions' : 'Expand mission rail', exact: true }).click();
+        if (width < 1024) await page.getByRole('button', { name: 'Close missions', exact: true }).click();
+        assert.deepEqual(await readProgress(), advanced, 'Reopening preserves this run’s active progress');
+        await page.screenshot({ path: join(output, `mission-reload-${id}-${width}.png`), fullPage: true });
+        await page.reload();
+        await page.getByRole('button', { name: 'Start demo', exact: true }).waitFor();
+        assert.deepEqual(await readProgress(), { version: 1, completed, step: 0, data: {} }, 'A second reload clears newly discarded prerequisites too');
+      } finally { await context.close(); }
+    }
+  }
+  assert.deepEqual(errors, []);
+  return ['Mission reload: race, forge and halving restart against the fresh simulator at desktop/phone widths; rewards and visibility survive, new evidence advances, hide/show preserves in-page steps'];
 }
