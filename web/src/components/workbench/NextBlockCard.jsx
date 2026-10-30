@@ -6,7 +6,7 @@ import './NextBlockCard.css';
 // Next block card (web/DESIGN.md, "Card grid" and "Interaction patterns").
 // One filled primary per mode:
 //   fresh   "Start demo"            idle   "Mine block #N"
-//   mining  "Mining block #N…" (disabled, Pause next to it)
+//   mining  "Pause" (replaces Play; repeat stays beside it)
 //   repair  "Re-mine block #K"      paused "Mine block #N" (a new search)
 //
 // miners:    [{ name, hashrate?, color? }]  (color: any CSS color, defaults to var(--<name>))
@@ -37,8 +37,8 @@ const PauseIcon = () => (
 const PlayIcon = () => (
   <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M5 3l8 5-8 5z" fill="currentColor" /></svg>
 );
-const Spinner = () => (
-  <svg className="next-block-spin" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" strokeOpacity=".3" strokeWidth="2" /><path d="M8 2a6 6 0 0 1 6 6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg>
+const RepeatIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 6V5a2 2 0 0 1 2-2h8m-2-2 2 2-2 2M13 10v1a2 2 0 0 1-2 2H3m2 2-2-2 2-2" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
 );
 const UndoIcon = () => (
   <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6h6a3.5 3.5 0 0 1 0 7H6M4 6l3-3M4 6l3 3" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>
@@ -104,16 +104,17 @@ export function NextBlockCard({
   const meta = isFresh ? '· Genesis only'
     : `· ${txCount} tx${isMining ? '' : ' waiting'}${reward != null ? ` · reward ${formatAmount(reward)}` : ''}`;
   let headStatus = null;
-  if (isMining) headStatus = <span className="card-kit-pill is-live"><i aria-hidden="true" />Mining</span>;
+  if (isMining) headStatus = <span className="card-kit-pill is-live"><i aria-hidden="true" />Mining block #{index}…</span>;
   if (isPaused) headStatus = <span className="card-kit-pill is-none"><PauseIcon />Paused</span>;
   const headAside = isRepair
     ? <span className="next-block-paused" role="status"><PauseIcon />Paused while the chain is invalid</span>
     : <span className="card-kit-aside">{index > 0 ? `builds on #${index - 1}` : ''}</span>;
 
-  const autoSwitch = (
-    <button type="button" role="switch" className="card-kit-switch" aria-checked={autoMine ? 'true' : 'false'}
+  const repeatToggle = (
+    <button type="button" className="next-block-repeat" aria-label="Auto-mine" aria-pressed={autoMine}
+      title={autoMine ? 'Stop auto-mining' : 'Auto-mine: keep mining blocks with sample transactions'}
       disabled={isRepair} onClick={() => onAutoMine?.(!autoMine)}>
-      <i aria-hidden="true" />Auto-mine
+      <RepeatIcon /><span>Auto-mine{autoMine ? ' on' : ''}</span>
     </button>
   );
   const stepper = (
@@ -132,29 +133,20 @@ export function NextBlockCard({
     </CoachMark>
   );
 
-  let action;
-  if (isFresh) {
-    action = (
-      <button type="button" className="btn-primary" onClick={() => onStartDemo?.()}><PlayIcon />Start demo</button>
-    );
-  } else if (isMining) {
-    action = (
-      <span className="next-block-run">
-        <button type="button" className="card-kit-btn is-lg" onClick={() => onPause?.()}><PauseIcon />Pause</button>
-        <button type="button" className="btn-primary is-running" disabled aria-busy="true"><Spinner />Mining block #{index}…</button>
-      </span>
-    );
-  } else if (isRepair) {
-    action = (
-      <button type="button" className="card-kit-btn is-lg" disabled title="Repair the chain first"><BoltIcon size={14} />Mine block #{index}</button>
-    );
-  } else {
-    action = (
-      <CoachMark target="workbench.mine" coach={coach} className="next-block-coach-inline">
-        <button type="button" className="btn-primary" aria-keyshortcuts="M" onClick={() => onMine?.()}><BoltIcon />Mine block #{index}</button>
-      </CoachMark>
-    );
-  }
+  const running = isMining || (autoMine && !isRepair);
+  const startsDemo = isFresh && !autoMine;
+  // Keep the same button mounted so keyboard focus follows Play → Pause → Play.
+  const action = (
+    <CoachMark target={running || isRepair || startsDemo ? undefined : "workbench.mine"} coach={running || isRepair || startsDemo ? null : coach} className="next-block-coach-inline">
+      <button type="button" className={isRepair ? 'card-kit-btn is-lg' : 'btn-primary'}
+        disabled={isRepair} title={isRepair ? 'Repair the chain first' : undefined}
+        aria-keyshortcuts={!running && !startsDemo && !isRepair ? 'M' : undefined}
+        onClick={() => running ? onPause?.() : startsDemo ? onStartDemo?.() : onMine?.()}>
+        {running ? <PauseIcon /> : <PlayIcon />}
+        {running ? 'Pause' : startsDemo ? 'Start demo' : `Mine block #${index}`}
+      </button>
+    </CoachMark>
+  );
 
   return (
     <section className={`next-block is-${mode}`} aria-label={`Next block ${index}${isMining ? ', being mined' : isRepair ? ', paused while the chain is invalid' : ''}`}
@@ -166,9 +158,11 @@ export function NextBlockCard({
         {headAside}
       </div>
       <div className="next-block-actions">
-        {autoSwitch}
         {stepper}
-        <span className="next-block-action">{action}</span>
+        <div className="next-block-action" role="group" aria-label="Mining controls">
+          {action}
+          {repeatToggle}
+        </div>
       </div>
       {isRepair
         ? <RepairBody repair={repair} difficulty={difficulty} target={target} onRemine={onRemine} coach={coach} />

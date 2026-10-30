@@ -1,4 +1,4 @@
-/* Next block card — the dashed candidate surface; buttons, pills and the switch come from cardKit.css */
+/* Next block card — the dashed candidate surface; buttons and pills come from cardKit.css */
 .next-block {
   container: next-block / inline-size;
   position: relative; height: 100%; min-height: 0; min-width: 0; box-sizing: border-box;
@@ -18,9 +18,23 @@
 .next-block-paused { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-2); }
 
 .next-block-actions { display: flex; align-items: center; gap: var(--s-5); margin-top: var(--s-3); white-space: nowrap; }
-.next-block-action { margin-left: auto; display: inline-flex; }
-.next-block-run { display: inline-flex; align-items: center; gap: var(--s-2); }
-.next-block.is-repair .card-kit-switch, .next-block.is-repair .next-block-stepper { opacity: .55; }
+.next-block-action {
+  margin-left: auto; display: inline-flex; align-items: stretch; flex: none;
+  border: 1px solid var(--blue-line); border-radius: var(--r-md);
+  background: var(--panel); padding: 3px; gap: 3px;
+}
+.next-block-action .btn-primary, .next-block-action > .card-kit-btn { height: 32px; }
+.next-block-repeat {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  min-height: 32px; padding: 0 10px; border: 1px solid transparent; border-radius: var(--r-sm);
+  background: transparent; color: var(--text-2); cursor: pointer; font: 500 12px/1 var(--ui);
+}
+.next-block-repeat:hover:not(:disabled) { color: var(--text); background: var(--panel-2); }
+.next-block-repeat[aria-pressed="true"] { background: var(--blue-bg); border-color: var(--blue-line); color: var(--text); }
+.next-block-repeat[aria-pressed="true"] svg { color: var(--blue); }
+.next-block-repeat:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.next-block-repeat:disabled { opacity: .55; cursor: not-allowed; }
+.next-block.is-repair .next-block-stepper { opacity: .55; }
 
 .next-block-stepper { display: inline-flex; align-items: center; gap: var(--s-2); font-size: 12px; color: var(--text-2); white-space: nowrap; }
 .next-block-stepper-box {
@@ -115,20 +129,15 @@
 }
 .next-block-repair-row small { font-size: 12px; line-height: 16px; color: var(--text-2); }
 
-.next-block-spin { animation: next-block-spin 1.1s linear infinite; }
-@keyframes next-block-spin { to { transform: rotate(360deg); } }
-@media (prefers-reduced-motion: reduce) { .next-block-spin { animation: none; } }
-
 /* ---------- narrow card (phone): the primary takes the full width, lanes stack ---------- */
 @container next-block (max-width: 560px) {
   .next-block-head .card-kit-aside { display: none; }
   .next-block-actions { flex-wrap: wrap; gap: var(--s-3) var(--s-4); justify-content: space-between; }
   .next-block-action { order: -1; flex: 1 0 100%; margin-left: 0; }
   .next-block-action > .btn-primary, .next-block-action > .card-kit-btn,
-  .next-block-action > .coach-mark, .next-block-action .next-block-run { flex: 1; width: 100%; }
-  .next-block-action .coach-mark > .btn-primary, .next-block-run .coach-mark { flex: 1; }
+  .next-block-action > .coach-mark { flex: 1; min-width: 0; }
   .next-block-action .btn-primary { width: 100%; height: 40px; }
-  .next-block-run .card-kit-btn { height: 40px; }
+  .next-block-repeat { min-height: 40px; }
   .next-block-head { flex-wrap: wrap; row-gap: 2px; }
   .next-block-paused { margin-left: 0; flex-basis: 100%; }
   .next-block-lane { grid-template-columns: minmax(0, 1fr) auto; column-gap: 10px; row-gap: 4px; padding: 6px var(--s-2) var(--s-2) 10px; }

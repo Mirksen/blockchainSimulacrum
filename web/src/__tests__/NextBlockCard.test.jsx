@@ -59,8 +59,8 @@ describe('NextBlockCard', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Raise difficulty' }));
     fireEvent.click(screen.getByRole('button', { name: 'Lower difficulty' }));
     expect(onDifficulty.mock.calls).toEqual([[3], [1]]);
-    const autoMine = screen.getByRole('switch', { name: 'Auto-mine' });
-    expect(autoMine.getAttribute('aria-checked')).toBe('false');
+    const autoMine = screen.getByRole('button', { name: 'Auto-mine' });
+    expect(autoMine.getAttribute('aria-pressed')).toBe('false');
     fireEvent.click(autoMine);
     expect(onAutoMine).toHaveBeenCalledWith(true);
     for (const difficulty of [5, 9]) {
@@ -74,12 +74,45 @@ describe('NextBlockCard', () => {
     expect(screen.getByRole('button', { name: 'Raise difficulty' }).disabled).toBe(true);
   });
 
-  it('mining: running primary is disabled, Pause works, the live race shows checked hashes and time', () => {
+  it('keeps Play and Repeat together, with repeat off by default', () => {
+    render(<NextBlockCard {...base} mode="idle" />);
+    const controls = screen.getByRole('group', { name: 'Mining controls' });
+    expect(within(controls).getByRole('button', { name: 'Mine block #5' })).toBeTruthy();
+    expect(within(controls).getByRole('button', { name: 'Auto-mine' }).getAttribute('aria-pressed')).toBe('false');
+  });
+
+  it.each(['fresh', 'idle', 'mining'])('auto-mine in %s stays visibly on and can be paused', mode => {
+    const onPause = vi.fn();
+    const onAutoMine = vi.fn();
+    render(<NextBlockCard {...base} mode={mode} autoMine onPause={onPause} onAutoMine={onAutoMine} />);
+    const repeat = screen.getByRole('button', { name: 'Auto-mine' });
+    expect(repeat.getAttribute('aria-pressed')).toBe('true');
+    expect(repeat.textContent).toContain('Auto-mine on');
+    expect(screen.queryByRole('button', { name: 'Mine block #5' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Pause' }));
+    expect(onPause).toHaveBeenCalledTimes(1);
+    fireEvent.click(repeat);
+    expect(onAutoMine).toHaveBeenCalledWith(false);
+  });
+
+  it('preserves keyboard focus when Play becomes Pause and back', () => {
+    const { rerender } = render(<NextBlockCard {...base} mode="idle" />);
+    const play = screen.getByRole('button', { name: 'Mine block #5' });
+    play.focus();
+    rerender(<NextBlockCard {...base} mode="mining" race={race} />);
+    expect(screen.getByRole('button', { name: 'Pause' })).toBe(play);
+    expect(document.activeElement).toBe(play);
+    rerender(<NextBlockCard {...base} mode="idle" />);
+    expect(screen.getByRole('button', { name: 'Mine block #5' })).toBe(play);
+    expect(document.activeElement).toBe(play);
+  });
+
+  it('mining: Play becomes Pause, the live race shows checked hashes and time', () => {
     const onPause = vi.fn();
     render(<NextBlockCard {...base} mode="mining" race={race} backedMiner="Minas" onPause={onPause} />);
     expect(filledPrimaries()).toHaveLength(1);
-    const running = screen.getByRole('button', { name: 'Mining block #5…' });
-    expect(running.disabled).toBe(true);
+    expect(screen.queryByRole('button', { name: 'Mine block #5' })).toBeNull();
+    expect(card().textContent).toContain('Mining block #5…');
     fireEvent.click(screen.getByRole('button', { name: 'Pause' }));
     expect(onPause).toHaveBeenCalledTimes(1);
     expect(screen.getByRole('button', { name: 'Raise difficulty' }).disabled).toBe(true);
@@ -115,7 +148,7 @@ describe('NextBlockCard', () => {
     const mine = screen.getByRole('button', { name: 'Mine block #5' });
     expect(mine.disabled).toBe(true);
     expect(mine.classList.contains('btn-primary')).toBe(false);
-    expect(screen.getByRole('switch', { name: 'Auto-mine' }).disabled).toBe(true);
+    expect(screen.getByRole('button', { name: 'Auto-mine' }).disabled).toBe(true);
     expect(screen.getByLabelText('Re-mine order, 1 of 3 done')).toBeTruthy();
     expect(card().textContent).toContain('Then #4.');
     const remine = screen.getByRole('button', { name: 'Re-mine block #3' });
@@ -158,6 +191,11 @@ describe('NextBlockCard', () => {
     mark = document.querySelector('[data-coach-target="workbench.back-miner"].is-active');
     expect(within(mark).getByRole('button', { name: 'Back Minas' })).toBeTruthy();
     expect(screen.getByRole('note').textContent).toContain('Step 3 · back Minas');
+    rerender(<NextBlockCard {...base} mode="mining" race={race} coach={{ target: 'workbench.mine', label: 'Watch the race' }} />);
+    const marks = document.querySelectorAll('[data-coach-target="workbench.mine"]');
+    expect(marks).toHaveLength(1);
+    expect(marks[0].contains(screen.getByRole('button', { name: 'Pause' }))).toBe(false);
+    expect(marks[0].textContent).toContain('nonce 3,218');
   });
 
   it('has exactly one filled primary in every mode', () => {
