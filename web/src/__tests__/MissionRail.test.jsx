@@ -28,8 +28,8 @@ describe('open rail', () => {
   it('mission 1: nothing done, first mission active with its single step', () => {
     const onShowMe = vi.fn();
     render(<MissionRail progress={MISSION_1} onShowMe={onShowMe} onToggle={() => {}} />);
-    expect(stats()).toBe('0 XP0 badges0 of 8 done');
-    expect(statuses()).toEqual(['active', ...Array(7).fill('locked')]);
+    expect(stats()).toBe('0 XP0 badges0 of 9 done');
+    expect(statuses()).toEqual(['active', ...Array(8).fill('locked')]);
     expect(screen.getByText('Mission 1 · in progress')).toBeTruthy();
     expect(screen.getByText('0 of 1 steps')).toBeTruthy();
     expect(screen.getByText(MISSIONS[0].hint)).toBeTruthy();
@@ -42,8 +42,8 @@ describe('open rail', () => {
     const onShowMe = vi.fn();
     render(<MissionRail progress={MISSION_4} onShowMe={onShowMe} />);
     const rail = screen.getByRole('complementary', { name: 'Missions' });
-    expect(stats()).toBe('100 XP1 badge3 of 8 done');
-    expect(statuses()).toEqual(['done', 'done', 'done', 'active', 'locked', 'locked', 'locked', 'locked']);
+    expect(stats()).toBe('100 XP1 badge3 of 9 done');
+    expect(statuses()).toEqual(['done', 'done', 'done', 'active', 'locked', 'locked', 'locked', 'locked', 'locked']);
     expect(screen.getByText('Mission 3 · done')).toBeTruthy();
     expect(screen.getByText('Mission 5 · locked')).toBeTruthy();
     const steps = [...rail.querySelectorAll('.mission-rail-step')];
@@ -58,8 +58,8 @@ describe('open rail', () => {
 
   it('mission 6: forge a block at the re-mine step', () => {
     render(<MissionRail progress={MISSION_6} onShowMe={() => {}} />);
-    expect(statuses()).toEqual(['done', 'done', 'done', 'done', 'done', 'active', 'locked', 'locked']);
-    expect(stats()).toBe('220 XP3 badges5 of 8 done');
+    expect(statuses()).toEqual(['done', 'done', 'done', 'done', 'done', 'active', 'locked', 'locked', 'locked']);
+    expect(stats()).toBe('220 XP3 badges5 of 9 done');
     const active = missionItems()[5];
     expect(within(active).getByText('Forge a block without getting caught')).toBeTruthy();
     expect(within(active).getByText('1 of 3 steps')).toBeTruthy();
@@ -70,10 +70,10 @@ describe('open rail', () => {
 
   it('all done: every mission done, no Show me, completion note', () => {
     render(<MissionRail progress={ALL_DONE} onShowMe={() => {}} />);
-    expect(statuses()).toEqual(Array(8).fill('done'));
+    expect(statuses()).toEqual(Array(9).fill('done'));
     expect(screen.queryByRole('button', { name: 'Show me' })).toBeNull();
-    expect(screen.getByRole('status').textContent).toBe('All 8 missions done. Free play is open.');
-    expect(stats()).toBe('460 XP6 badges8 of 8 done');
+    expect(screen.getByRole('status').textContent).toBe('All 9 missions done. Free play is open.');
+    expect(stats()).toBe('540 XP7 badges9 of 9 done');
   });
 
   it('collapses through onToggle and selects missions when asked', () => {
@@ -156,6 +156,6 @@ describe('mission bar', () => {
 
   it('says when the whole track is done', () => {
     render(<MissionRail progress={ALL_DONE} variant="bar" />);
-    expect(screen.getByRole('button', { name: 'All 8 missions done. Open missions' }).textContent).toContain('460 XP');
+    expect(screen.getByRole('button', { name: 'All 9 missions done. Open missions' }).textContent).toContain('540 XP');
   });
 });

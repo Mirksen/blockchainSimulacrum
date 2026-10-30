@@ -3,11 +3,14 @@
 //
 //   node shared/mine-genesis.mjs --anchor <bitcoin height> --zeros <n> --status bridge|final
 //                                [--memo "<text>"] [--recipient <name>] [--amount <n>] [--threads <n>]
+//                                [--print-header | --nonce <n>]
 //
 // Unset options keep the values in shared/genesis.json. The anchor's hash and time are
 // read once from mempool.space and checked like the server checks rounds (its header hashes
 // to its id with real proof of work); the genesis time is the anchor's time, so the block
 // cannot predate it. The search runs on several threads, each taking every n-th nonce.
+// A faster external search can take over: --print-header prints the string the nonce is
+// appended to and writes nothing; --nonce checks a nonce found that way and writes the block.
 //
 // The block uses the app's own format (web/src/lib/blockchain.js): the header hash is
 // SHA256(previousHash + txRoot + timestamp + difficulty + nonce); with one coinbase
@@ -30,8 +33,13 @@ export function genesisTxRoot({ coinbase }) {
   return sha256(`${coinbase.sender}${coinbase.recipient}${coinbase.amount}${coinbase.fee}${coinbase.memo}`);
 }
 
+// Everything the header hash covers except the nonce, which is appended in decimal.
+export function genesisHeader(genesis) {
+  return `${genesis.anchor.hash}${genesisTxRoot(genesis)}${genesis.timestamp}${genesis.difficulty}`;
+}
+
 export function genesisHash(genesis, nonce = genesis.nonce) {
-  return sha256(`${genesis.anchor.hash}${genesisTxRoot(genesis)}${genesis.timestamp}${genesis.difficulty}${nonce}`);
+  return sha256(`${genesisHeader(genesis)}${nonce}`);
 }
 
 // Worker: nonces start, start + stride, … until one meets the target.
@@ -58,7 +66,7 @@ export async function anchorAt(height) {
 }
 
 function mine(genesis, threads) {
-  const header = `${genesis.anchor.hash}${genesisTxRoot(genesis)}${genesis.timestamp}${genesis.difficulty}`;
+  const header = genesisHeader(genesis);
   const target = '0'.repeat(genesis.difficulty);
   const started = Date.now();
   const tried = new Array(threads).fill(0);
@@ -87,6 +95,7 @@ if (isMainThread && import.meta.url === `file://${process.argv[1]}`) {
   const { values } = parseArgs({ options: {
     anchor: { type: 'string' }, zeros: { type: 'string' }, status: { type: 'string' }, memo: { type: 'string' },
     recipient: { type: 'string' }, amount: { type: 'string' }, threads: { type: 'string' },
+    'print-header': { type: 'boolean' }, nonce: { type: 'string' },
   } });
   const genesis = JSON.parse(readFileSync(SHARED, 'utf8'));
   if (values.anchor) {
@@ -99,9 +108,22 @@ if (isMainThread && import.meta.url === `file://${process.argv[1]}`) {
   if (values.recipient) genesis.coinbase.recipient = values.recipient;
   if (values.amount) genesis.coinbase.amount = Number(values.amount);
   if (!['bridge', 'final'].includes(genesis.status)) throw new Error('--status must be bridge or final');
-  const threads = Number(values.threads ?? Math.max(1, availableParallelism() - 1));
-  console.error(`mining ${genesis.status} genesis on Bitcoin ${genesis.anchor.height} for ${genesis.difficulty} zeros on ${threads} threads`);
-  const found = await mine(genesis, threads);
+  if (values['print-header']) {
+    console.log(genesisHeader(genesis));
+    process.exit(0);
+  }
+  let found;
+  if (values.nonce !== undefined) {
+    const nonce = Number(values.nonce);
+    if (!/^\d+$/.test(values.nonce) || !Number.isSafeInteger(nonce)) throw new Error('--nonce must be a non-negative integer');
+    const hash = genesisHash(genesis, nonce);
+    if (!hash.startsWith('0'.repeat(genesis.difficulty))) throw new Error(`nonce ${nonce} gives ${hash}, fewer than ${genesis.difficulty} zeros`);
+    found = { nonce, hash, seconds: 0 };
+  } else {
+    const threads = Number(values.threads ?? Math.max(1, availableParallelism() - 1));
+    console.error(`mining ${genesis.status} genesis on Bitcoin ${genesis.anchor.height} for ${genesis.difficulty} zeros on ${threads} threads`);
+    found = await mine(genesis, threads);
+  }
   const result = { status: genesis.status, anchor: genesis.anchor, timestamp: genesis.timestamp, difficulty: genesis.difficulty,
     coinbase: genesis.coinbase, startNonce: genesis.startNonce, txRoot: genesisTxRoot(genesis), nonce: found.nonce, hash: found.hash };
   if (genesisHash(result) !== found.hash) throw new Error('rebuilt hash differs');

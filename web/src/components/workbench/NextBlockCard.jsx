@@ -1,4 +1,5 @@
 import { CoachMark } from './CoachMark';
+import { MIN_DIFFICULTY, MAX_DIFFICULTY } from '../../lib/difficulty';
 import './cardKit.css';
 import './NextBlockCard.css';
 
@@ -14,8 +15,6 @@ import './NextBlockCard.css';
 // repair:    { next, order }  order = the re-mine path in order, `next` the block to re-mine now;
 //            blocks before `next` in `order` count as done
 
-const MIN_DIFFICULTY = 1;
-const MAX_DIFFICULTY = 5;
 const KNOWN_COLORS = ['lars', 'minas', 'alice', 'bob', 'chris'];
 
 function formatAmount(value) {

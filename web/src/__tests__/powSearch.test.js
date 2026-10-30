@@ -164,15 +164,16 @@ describe('worker adapter', () => {
     worker.emit({ type: 'result', result: { status: 'found' } });
   });
 
-  it('the worker module runs the same search and paces its messages', async () => {
+  it.each(['round-robin', 'weighted-random'])('the real worker module runs %s and paces its messages', async scheduling => {
     const posted = [];
     vi.stubGlobal('self', { postMessage: message => posted.push(message) });
+    vi.resetModules();
     await import('../lib/powSearch.worker.js');
-    await self.onmessage({ data: { entrants: [{ id: 'a', prefix: 'synthetic-a|', startNonce: 7 }, { id: 'b', prefix: 'synthetic-b|', suffix: '}' }], target: '00' } });
+    await self.onmessage({ data: { entrants: [{ id: 'a', prefix: 'synthetic-a|', startNonce: 7 }, { id: 'b', prefix: 'synthetic-b|', suffix: '}' }], target: '00', scheduling, seed: 123456789 } });
     const final = posted.at(-1);
     expect(final.type).toBe('result');
     expect(final.result).toEqual(await search({ entrants: [{ id: 'a', prefix: 'synthetic-a|', startNonce: 7 }, { id: 'b', prefix: 'synthetic-b|', suffix: '}' }],
-      target: '00', yieldControl: noWait }));
+      target: '00', scheduling, seed: 123456789, yieldControl: noWait }));
     expect(posted.filter(message => message.type === 'progress').length).toBeLessThanOrEqual(Math.ceil(final.result.attempts / 100));
   });
 });
@@ -200,5 +201,48 @@ describe('bounded lab adapters', () => {
       expect(result.attempts).toBe(result.block.nonce + 1);
       expect(Object.keys(result.block)).toEqual(Object.keys(blocks[index]));
     }
+  });
+});
+
+describe('per-attempt weighted allocation for easy targets', () => {
+  it('keeps nonce cursors and reproduces a seeded allocation without first-entrant batches', async () => {
+    const options = { entrants: [{ id: 'first', weight: 25, prefix: 'synthetic-first|' },
+      { id: 'second', weight: 75, prefix: 'synthetic-second|', startNonce: 50 }],
+    scheduling: 'weighted-random', seed: 123456789, target: NEVER, limit: 4000, yieldControl: noWait };
+    const result = await search(options);
+    expect(await search(options)).toEqual(result);
+    expect(result.entrants.first.attempts).toBeGreaterThan(850);
+    expect(result.entrants.first.attempts).toBeLessThan(1150);
+    expect(result.entrants.first.nonce).toBe(result.entrants.first.attempts - 1);
+    expect(result.entrants.second.nonce).toBe(result.entrants.second.attempts + 49);
+  });
+
+  it.each([1, 10, 50, 90, 99])('does not turn %i%% into a first-position batch advantage', async power => {
+    // Independent synthetic headers/nonces, fixed scheduling seeds. Broad bounds
+    // test the mechanism, not whether one twelve-block experiment matches a ratio.
+    let wins = 0;
+    const trials = 400;
+    for (let index = 0; index < trials; index++) {
+      const result = await search({ entrants: [{ id: 'first', weight: power, prefix: `synthetic-a-${index}|`, startNonce: index * 100 },
+        { id: 'second', weight: 100 - power, prefix: `synthetic-b-${index}|`, startNonce: index * 100 }],
+      scheduling: 'weighted-random', seed: index * 7919 + 17, target: '0', limit: 1000, yieldControl: noWait });
+      expect(result.status).toBe('found');
+      wins += Number(result.winner === 'first');
+    }
+    expect(Math.abs(wins / trials - power / 100)).toBeLessThan(0.08);
+  });
+
+  it('forwards scheduling to a worker and produces the same seeded proof', async () => {
+    class AllocationWorker {
+      constructor() { this.terminate = () => {}; }
+      postMessage(options) { void search({ ...options, yieldControl: noWait })
+        .then(result => this.onmessage({ data: { type: 'result', result } })); }
+    }
+    vi.stubGlobal('Worker', AllocationWorker);
+    const options = { entrants: [{ id: 'a', weight: 1, prefix: 'synthetic-a|' }, { id: 'b', weight: 99, prefix: 'synthetic-b|' }],
+      scheduling: 'weighted-random', seed: 15, target: '0' };
+    expect(await runSearch(options, { mode: 'worker' })).toEqual(await search({ ...options, yieldControl: noWait }));
+    await expect(search({ ...options, scheduling: 'unknown' })).rejects.toThrow(RangeError);
+    for (const seed of [-1, 2 ** 32, 1.5]) await expect(search({ ...options, seed })).rejects.toThrow(RangeError);
   });
 });

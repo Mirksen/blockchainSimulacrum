@@ -31,11 +31,27 @@ function snapshot(states) {
     { nonce: state.lastNonce, hash: state.hash, attempts: state.attempts, zeros: leadingZeros(state.hash) }]));
 }
 
-// Round-robin race: each entrant tries `weight` consecutive nonces per round.
+// The existing simulator keeps its consecutive round-robin schedule. The fork lab
+// opts into a seeded per-attempt lottery: percentage-sized consecutive batches
+// strongly favor the first entrant when the target is as easy as one hex zero.
+// This PRNG schedules nominal simulated hash power, never keys or proof validity.
+function allocationRandom(seed) {
+  if (!Number.isInteger(seed) || seed < 0 || seed > 0xffffffff) throw new RangeError('Allocation seed must be an unsigned 32-bit integer.');
+  let value = seed;
+  return () => {
+    value = (value + 0x6d2b79f5) >>> 0;
+    let mixed = Math.imul(value ^ (value >>> 15), value | 1);
+    mixed ^= mixed + Math.imul(mixed ^ (mixed >>> 7), mixed | 61);
+    return ((mixed ^ (mixed >>> 14)) >>> 0) / 0x100000000;
+  };
+}
+
 export async function search({ entrants, target, limit = Infinity, signal, onProgress = () => {},
-  batch = 100, yieldControl = nextTick }) {
+  batch = 100, yieldControl = nextTick, scheduling = 'round-robin', seed = 0 }) {
   if (!Array.isArray(entrants) || !entrants.length) throw new RangeError('A search needs at least one entrant.');
   if (typeof target !== 'string' || !/^0*$/.test(target)) throw new RangeError('The target must be leading zeros.');
+  if (!['round-robin', 'weighted-random'].includes(scheduling)) throw new RangeError('Unknown search scheduling.');
+  const random = scheduling === 'weighted-random' ? allocationRandom(seed) : null;
   const states = entrants.map(({ id, weight = 1, prefix, suffix = '', startNonce = 0 }) => {
     if (!Number.isSafeInteger(weight) || weight < 1) throw new RangeError('Weight must be a positive whole number.');
     if (!Number.isSafeInteger(startNonce) || startNonce < 0) throw new RangeError('Start nonce must be a safe whole number.');
@@ -45,35 +61,48 @@ export async function search({ entrants, target, limit = Infinity, signal, onPro
   let attempts = 0;
   let recent = [];
   let active = states.length;
+  let cursor = 0;
+  let remaining = states[0].weight;
   const finish = (status, winner = null) => ({ status, winner: winner?.id ?? null,
     nonce: winner ? winner.lastNonce : null, hash: winner ? winner.hash : null, attempts, entrants: snapshot(states) });
 
-  // Let the caller paint its Stop control, even when the first attempt succeeds.
-  await yieldControl();
-  for (;;) {
-    for (const state of states) {
-      for (let tried = 0; tried < state.weight && !state.done; tried++) {
-        if (signal?.aborted) return finish('stopped');
-        if (attempts >= limit) return finish('exhausted');
-        const nonce = state.nonce;
-        state.hash = state.hasher(nonce);
-        state.lastNonce = nonce;
-        state.attempts++;
-        attempts++;
-        recent.push({ id: state.id, nonce, hash: state.hash });
-        if (recent.length > RECENT_LIMIT) recent.shift();
-        if (state.hash.startsWith(target)) return finish('found', state);
-        // Nonces stay exact: an entrant stops instead of rounding past the safe range.
-        if (nonce === Number.MAX_SAFE_INTEGER) { state.done = true; active--; } else state.nonce = nonce + 1;
-        if (attempts % batch === 0) {
-          onProgress({ attempts, entrants: snapshot(states), recent });
-          recent = [];
-          await yieldControl();
-        }
+  await yieldControl(); // Paint Stop before even a first-attempt match.
+  while (active) {
+    if (signal?.aborted) return finish('stopped');
+    if (attempts >= limit) return finish('exhausted');
+    let state;
+    if (random) {
+      const eligible = states.filter(entrant => !entrant.done);
+      let draw = random() * eligible.reduce((sum, entrant) => sum + entrant.weight, 0);
+      state = eligible.at(-1);
+      for (const entrant of eligible) {
+        draw -= entrant.weight;
+        if (draw < 0) { state = entrant; break; }
       }
+    } else {
+      while (states[cursor].done || remaining === 0) {
+        cursor = (cursor + 1) % states.length;
+        remaining = states[cursor].weight;
+      }
+      state = states[cursor];
+      remaining--;
     }
-    if (!active) return signal?.aborted ? finish('stopped') : finish('exhausted');
+    const nonce = state.nonce;
+    state.hash = state.hasher(nonce);
+    state.lastNonce = nonce;
+    state.attempts++;
+    attempts++;
+    recent.push({ id: state.id, nonce, hash: state.hash });
+    if (recent.length > RECENT_LIMIT) recent.shift();
+    if (state.hash.startsWith(target)) return finish('found', state);
+    if (nonce === Number.MAX_SAFE_INTEGER) { state.done = true; active--; } else state.nonce = nonce + 1;
+    if (attempts % batch === 0) {
+      onProgress({ attempts, entrants: snapshot(states), recent });
+      recent = [];
+      await yieldControl();
+    }
   }
+  return signal?.aborted ? finish('stopped') : finish('exhausted');
 }
 
 const inTestEnvironment = () => import.meta.env?.MODE === 'test';
@@ -104,8 +133,8 @@ function searchInWorker({ signal, onProgress = () => {}, ...options }) {
     worker.onerror = event => { event.preventDefault?.(); settle(reject, new Error(event.message || 'Search worker failed.')); };
     if (signal?.aborted) return stop();
     signal?.addEventListener('abort', stop, { once: true });
-    const { entrants, target, limit, batch } = options;
-    worker.postMessage({ entrants, target, limit, batch });
+    const { entrants, target, limit, batch, scheduling, seed } = options;
+    worker.postMessage({ entrants, target, limit, batch, ...(scheduling === undefined ? {} : { scheduling, seed }) });
   });
 }
 

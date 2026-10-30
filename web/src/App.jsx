@@ -15,6 +15,7 @@ import { PoolPanel } from './components/PoolPanel';
 import { BlockDetailsModal } from './components/BlockDetailsModal';
 import { ParticipantDetailsModal } from './components/ParticipantDetailsModal';
 import './index.css';
+import { MIN_DIFFICULTY, MAX_DIFFICULTY } from './lib/difficulty';
 
 const INITIAL_CONFIG = {
   name: 'powfyicoin', miningDifficulty: 2, blockReward: 3.125, halvingEvent: 4,
@@ -74,6 +75,7 @@ function App() {
   const [railCollapsed, setRailCollapsed] = useState(() => readFlag(RAIL_KEY, true));
   const [introSeen, setIntroSeen] = useState(() => readFlag(INTRO_KEY));
   const [progress, setProgress] = useState(() => missions.load(browserStorage()));
+  const [chainExperiment, setChainExperiment] = useState(() => missions.activeMission(progress)?.id === 'follow-stronger-chain' ? 'fork' : 'repair');
   const compact = useSyncExternalStore(subscribePhone, isPhone, () => false);
   const lastAdjustedBlock = useRef(0);
   const sim = useBlockchain(INITIAL_CONFIG);
@@ -151,8 +153,8 @@ function App() {
     const from = Math.max(1, height - 10);
     const seconds = (chainBlocks[height].timestamp - chainBlocks[from].timestamp) / 1000 / (height - from);
     let next = current;
-    if (seconds < targetBlockTime * 0.7 && current < 5) next = current + 1;
-    else if (seconds > targetBlockTime * 1.5 && current > 1) next = current - 1;
+    if (seconds < targetBlockTime * 0.7 && current < MAX_DIFFICULTY) next = current + 1;
+    else if (seconds > targetBlockTime * 1.5 && current > MIN_DIFFICULTY) next = current - 1;
     if (next === current) return;
     setDifficulty(next, { source: 'auto' });
     report({ type: 'difficulty_changed', direction: next > current ? 'up' : 'down' });
@@ -214,6 +216,7 @@ function App() {
   };
   const showMe = active => {
     if (!active) return;
+    if (active.view === 'chain-lab') setChainExperiment(active.target.startsWith('chain-lab.fork-') ? 'fork' : 'repair');
     navigate(active.view);
     requestAnimationFrame(() => {
       const element = document.querySelector(`[data-coach-target="${active.target}"]`);
@@ -260,7 +263,7 @@ function App() {
   const wallet = walletDetails && participants.find(p => p.name === walletDetails);
   // A collapsed rail means free play: the labs open without the mission lesson.
   const hashLesson = !railCollapsed && activeMission ? HASH_LESSONS[activeMission.id] : undefined;
-  const chainLesson = !railCollapsed && activeMission?.id === 'change-the-past';
+  const chainLesson = !railCollapsed && ['change-the-past', 'follow-stronger-chain'].includes(activeMission?.id);
 
   return (
     <div className={`app-shell${view === 'workbench' ? ' is-workbench' : ''}${railCollapsed ? ' is-rail-collapsed' : ' is-rail-expanded'}`}>
@@ -289,7 +292,7 @@ function App() {
               workComparison={workComparison} onWorkComparison={setWorkComparison} />
           </div>}
           {view === 'chain-lab' && <div className="wb-view">
-            <ChainLab key={chainLesson ? 'lesson' : 'free'} onLessonEvent={chainLesson ? report : undefined}
+            <ChainLab key={railCollapsed ? 'free' : 'guided'} experiment={chainExperiment} onExperimentChange={setChainExperiment} onLessonEvent={chainLesson ? report : undefined}
               coach={chainLesson ? coach : null} onClose={() => navigate('workbench')} />
           </div>}
           {view === 'pool' && <div className="wb-view"><PoolPanel onClose={() => navigate('workbench')} /></div>}

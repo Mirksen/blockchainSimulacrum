@@ -7,7 +7,7 @@ import { MISSIONS, earnedBadges, totalXp } from '../src/lib/missions.js';
 // lab lessons and progress that survives a reload. Starts on the workbench after a demo.
 export async function verifyMissions(page, output) {
   const rail = page.getByRole('complementary', { name: 'Missions' });
-  const done = count => rail.locator('.mission-rail-xp').filter({ hasText: `${count} of 8 done` });
+  const done = count => rail.locator('.mission-rail-xp').filter({ hasText: `${count} of 9 done` });
   const showMe = () => rail.getByRole('button', { name: 'Show me' });
   const activeCoach = target => page.locator(`[data-coach-target="${target}"].is-active`);
   await done(0).waitFor();
@@ -136,7 +136,7 @@ export async function verifyMissionReload(browser, baseURL, output) {
         assert.ok(rewards.includes(`${totalXp(stored)} XP`));
         const badges = earnedBadges(stored).length;
         assert.ok(rewards.includes(`${badges} ${badges === 1 ? 'badge' : 'badges'}`));
-        assert.ok(rewards.includes(`${completed.length} of 8 done`));
+        assert.ok(rewards.includes(`${completed.length} of ${MISSIONS.length} done`));
         await tasks.getByRole('button', { name: 'Show me' }).click();
         await page.getByRole('button', { name: 'Start demo', exact: true }).click();
         await wb.mine(3).waitFor({ timeout: 30000 });

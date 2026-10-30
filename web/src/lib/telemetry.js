@@ -1,9 +1,11 @@
+import { MIN_DIFFICULTY, MAX_DIFFICULTY } from './difficulty';
+
 // PostHog's public Capture API: no autocapture, replay, remote scripts or retry queue.
 // https://posthog.com/docs/api/capture
 export const INGEST_URL = 'https://eu.i.posthog.com/i/v0/e/';
 export const CONSENT_KEY = 'pow.analytics.enabled';
 const count = value => Number.isSafeInteger(value) && value >= 0;
-const difficulty = value => Number.isInteger(value) && value >= 1 && value <= 5;
+const difficulty = value => Number.isInteger(value) && value >= MIN_DIFFICULTY && value <= MAX_DIFFICULTY;
 const oneOf = (...values) => value => values.includes(value);
 const source = oneOf('manual', 'auto', 'demo', 'random');
 const reason = oneOf('busy', 'invalid_amount', 'invalid_fee', 'same_wallet', 'wallet_not_found', 'insufficient_funds', 'no_miners', 'no_transactions', 'cancelled', 'invalid_state', 'reward_too_small', 'unexpected');

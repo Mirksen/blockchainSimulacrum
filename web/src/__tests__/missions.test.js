@@ -17,7 +17,11 @@ const COMPLETE = {
     { type: 'block_remined', blockIndex: 3, chainValid: false }, { type: 'block_remined', blockIndex: 4, chainValid: true }],
   'survive-halving': [{ type: 'block_mined', backedWon: false, epoch: 0 }, { type: 'block_mined', backedWon: true, epoch: 0 },
     { type: 'block_mined', backedWon: false, epoch: 1 }],
-  'beat-difficulty-adjustment': [{ type: 'difficulty_changed', direction: 'up' }]
+  'beat-difficulty-adjustment': [{ type: 'difficulty_changed', direction: 'up' }],
+  'follow-stronger-chain': [
+    { type: 'fork_round', scenario: 'rewrite', rounds: 1, originalWork: 48, alternativeWork: 32, selected: 'original', reorganized: false },
+    { type: 'fork_round', scenario: 'rewrite', rounds: 3, originalWork: 48, alternativeWork: 64, selected: 'alternative', reorganized: true }
+  ]
 };
 const ALL_EVENTS = Object.values(COMPLETE).flat();
 const NOISE = [null, undefined, 42, 'hash_changed', {}, { type: 7 }, { type: 'unknown' }, { type: 'reset' }, { type: 'lesson_reset' }];
@@ -31,13 +35,13 @@ const memoryStorage = (initial = {}) => {
 };
 
 describe('mission track', () => {
-  it('lists the eight missions in the design order with steps, targets and rewards', () => {
+  it('lists the nine missions in the design order with steps, targets and rewards', () => {
     expect(MISSIONS.map(mission => mission.title)).toEqual([
       'Change a fingerprint', 'Earn a proof of work', 'Send your first coin', 'Win a mining race', 'Change the past',
-      'Forge a block without getting caught', 'Survive a halving', 'Beat the difficulty adjustment'
+      'Forge a block without getting caught', 'Survive a halving', 'Beat the difficulty adjustment', 'Follow the stronger chain'
     ]);
     expect(MISSIONS.map(mission => mission.view)).toEqual(['hash-lab', 'hash-lab', 'workbench', 'workbench', 'chain-lab',
-      'workbench', 'workbench', 'workbench']);
+      'workbench', 'workbench', 'workbench', 'chain-lab']);
     for (const mission of MISSIONS) {
       expect(mission.steps.length).toBeGreaterThan(0);
       expect(mission.hint).toMatch(/\S/);
@@ -62,7 +66,7 @@ describe('mission track', () => {
   it('starts at mission 1 and unlocks missions only in order', () => {
     const progress = initialProgress();
     expect(activeMission(progress).id).toBe('change-fingerprint');
-    expect(MISSIONS.map(mission => missionStatus(progress, mission.id))).toEqual(['active', ...Array(7).fill('locked')]);
+    expect(MISSIONS.map(mission => missionStatus(progress, mission.id))).toEqual(['active', ...Array(8).fill('locked')]);
     // Events for later missions do nothing while mission 1 is active.
     expect(apply(progress, ALL_EVENTS.filter(event => event.type !== 'hash_changed'))).toBe(progress);
     const second = reduce(progress, { type: 'hash_changed' });
@@ -240,5 +244,34 @@ describe('mission storage', () => {
     const fiveDone = MISSIONS.slice(0, 5).map(mission => mission.id);
     expect(stored({ completed: fiveDone, step: 2, data: { tampered: 2, next: 1 } })).toEqual(reach('forge-a-block'));
     expect(stored({ completed: fiveDone, step: 1, data: 'x' })).toEqual(reach('forge-a-block'));
+  });
+});
+
+describe('fork mission evidence and compatibility', () => {
+  it('preserves eight completed missions and unlocks the new one without a storage migration', () => {
+    const old = { version: 1, completed: MISSIONS.slice(0, 8).map(mission => mission.id), step: 0, data: {} };
+    const restored = load(memoryStorage({ [STORAGE_KEY]: JSON.stringify(old) }));
+    expect(restored.completed).toEqual(old.completed);
+    expect(activeMission(restored).id).toBe('follow-stronger-chain');
+  });
+
+  it('requires an actual later greater-work rewrite switch in the same experiment', () => {
+    const fresh = reach('follow-stronger-chain');
+    const [start, switched] = COMPLETE['follow-stronger-chain'];
+    const midway = reduce(fresh, start);
+    expect(midway.step).toBe(1);
+    for (const event of [
+      { ...switched, scenario: 'competition' }, { ...switched, reorganized: false },
+      { ...switched, selected: 'original' }, { ...switched, rounds: 1 },
+      { ...switched, alternativeWork: 48, rounds: 2 }, { ...switched, originalWork: 0 }
+    ]) expect(reduce(midway, event)).toBe(midway);
+    expect(missionStatus(reduce(midway, switched), 'follow-stronger-chain')).toBe('done');
+    // A reset discards the causal start; a switch alone can only start a new step.
+    const reset = reduce(midway, { type: 'fork_reset' });
+    expect(reset).toEqual(fresh);
+    expect(reduce(reset, switched).completed).toEqual(fresh.completed);
+    const storage = memoryStorage();
+    save(storage, midway);
+    expect(load(storage)).toEqual(fresh);
   });
 });
