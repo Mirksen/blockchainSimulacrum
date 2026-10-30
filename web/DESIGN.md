@@ -162,27 +162,25 @@ decision, 2026-10-27):
 
 - **Starts collapsed for free play.** The learner can expand it at any
   time; the browser remembers the expanded or collapsed state. With the
-  rail collapsed, Hash lab and Chain lab open without the mission lesson.
+  rail collapsed, Hash lab and Chain lab open without the mission lesson;
+  tasks, XP and coach marks stay hidden. The entry is labelled Missions in
+  the 56 px desktop rail, or shown as a neutral Missions bar on smaller
+  screens. On smaller screens, Hide missions returns to free play; closing
+  the task sheet alone keeps guidance enabled. Opening or closing missions
+  preserves progress.
 - **First-visit invitation:** while the rail is collapsed and no mission
   progress has been made, a non-modal card introduces the track. "Start
-  missions" expands the rail; "Not now" dismisses only the card. Either
-  action, or manually expanding the rail, marks the invitation as seen in
-  this browser, so it stays away on later visits when browser storage is
-  available. The invitation adds no filled primary action and never blocks
-  free play.
-- Lists the missions of the track with progress; the active mission is
-  expanded with its steps, a hint and its reward.
-- When missions are open, the current step **marks the element it needs with a coach ring** and a
-  small label ("Step 3 · back Minas").
-- Missions start collapsed: one labelled Missions entry in the 56 px desktop
-  rail, or a neutral Missions bar on smaller screens. Tasks, XP and coach marks
-  stay hidden until opened. On smaller screens, Hide missions returns to free
-  play; closing the task sheet alone keeps guidance enabled.
-- A small first-visit invitation points to this entry, with one brief highlight
-  unless reduced motion is requested. It stays in the page flow and never takes
-  focus. Showing it marks it seen, so ignoring it, navigating away or choosing
-  Don't show again prevents future invitations in this browser. Explicitly
-  opening/closing missions persists separately and preserves progress.
+  missions" expands the rail; "Don't show again" dismisses only the card.
+  Showing it marks it seen in this browser, so it stays away on later
+  visits when browser storage is available, even if ignored. Navigating
+  away or toggling missions dismisses it. It points at the Missions entry
+  with one brief highlight unless reduced motion is requested. The card
+  stays in the page flow, never takes focus, adds no filled primary action
+  and never blocks free play.
+- When expanded, the rail lists the missions of the track with progress;
+  the active mission is expanded with its steps, a hint and its reward.
+- When missions are open, the current step **marks the element it needs
+  with a coach ring** and a small label ("Step 3 · back Minas").
 
 ## Interaction patterns
 
