@@ -59,3 +59,6 @@
 @media (prefers-reduced-motion: reduce) {
   .chain-lab *, .chain-lab *::before, .chain-lab *::after { transition: none; animation: none; }
 }
+
+.chain-lab-experiments { display: flex; flex-wrap: wrap; gap: 8px; margin: 20px 0; }
+.chain-lab-experiments [aria-pressed="true"] { border-color: var(--blue); background: var(--blue-bg); }

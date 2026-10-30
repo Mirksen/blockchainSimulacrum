@@ -74,6 +74,7 @@ function App() {
   const [railCollapsed, setRailCollapsed] = useState(() => readFlag(RAIL_KEY, true));
   const [introSeen, setIntroSeen] = useState(() => readFlag(INTRO_KEY));
   const [progress, setProgress] = useState(() => missions.load(browserStorage()));
+  const [chainExperiment, setChainExperiment] = useState(() => missions.activeMission(progress)?.id === 'follow-stronger-chain' ? 'fork' : 'repair');
   const compact = useSyncExternalStore(subscribePhone, isPhone, () => false);
   const lastAdjustedBlock = useRef(0);
   const sim = useBlockchain(INITIAL_CONFIG);
@@ -214,6 +215,7 @@ function App() {
   };
   const showMe = active => {
     if (!active) return;
+    if (active.view === 'chain-lab') setChainExperiment(active.target.startsWith('chain-lab.fork-') ? 'fork' : 'repair');
     navigate(active.view);
     requestAnimationFrame(() => {
       const element = document.querySelector(`[data-coach-target="${active.target}"]`);
@@ -260,7 +262,7 @@ function App() {
   const wallet = walletDetails && participants.find(p => p.name === walletDetails);
   // A collapsed rail means free play: the labs open without the mission lesson.
   const hashLesson = !railCollapsed && activeMission ? HASH_LESSONS[activeMission.id] : undefined;
-  const chainLesson = !railCollapsed && activeMission?.id === 'change-the-past';
+  const chainLesson = !railCollapsed && ['change-the-past', 'follow-stronger-chain'].includes(activeMission?.id);
 
   return (
     <div className={`app-shell${view === 'workbench' ? ' is-workbench' : ''}${railCollapsed ? ' is-rail-collapsed' : ' is-rail-expanded'}`}>
@@ -289,7 +291,7 @@ function App() {
               workComparison={workComparison} onWorkComparison={setWorkComparison} />
           </div>}
           {view === 'chain-lab' && <div className="wb-view">
-            <ChainLab key={chainLesson ? 'lesson' : 'free'} onLessonEvent={chainLesson ? report : undefined}
+            <ChainLab key={railCollapsed ? 'free' : 'guided'} experiment={chainExperiment} onExperimentChange={setChainExperiment} onLessonEvent={chainLesson ? report : undefined}
               coach={chainLesson ? coach : null} onClose={() => navigate('workbench')} />
           </div>}
           {view === 'pool' && <div className="wb-view"><PoolPanel onClose={() => navigate('workbench')} /></div>}

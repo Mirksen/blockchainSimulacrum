@@ -103,6 +103,16 @@ export const MISSIONS = freeze([
     hint: 'Lower difficulty mines faster, higher difficulty slower. The target block time is in Settings.',
     result: 'The difficulty adjusted to pull block times back toward the target. Real networks adjust the same way, over many more blocks.',
     reward: { xp: 100, badge: 'Pace setter' }
+  },
+  {
+    id: 'follow-stronger-chain', title: 'Follow the stronger chain', view: 'chain-lab',
+    steps: [
+      { id: 'start-rewrite', text: 'Choose Rewrite history and mine a block.', target: 'chain-lab.fork-scenario' },
+      { id: 'overtake-history', text: 'Let the rewritten branch overtake the original.', target: 'chain-lab.fork-mine' }
+    ],
+    hint: 'Change the alternative branch’s hash power. Equal work keeps the current branch; only strictly more work switches it.',
+    result: 'The rewritten branch became the selected history because its valid blocks accumulated more work. This local text model does not forge signatures or move money, and more hash power never guarantees a win within twelve blocks.',
+    reward: { xp: 80, badge: 'Fork watcher' }
   }
 ]);
 
@@ -184,6 +194,19 @@ const RULES = {
     },
     validData: (step, data) => step === 0 ? Object.keys(data).length === 0 : isIndex(data.epoch)
   },
+  'follow-stronger-chain': {
+    advance(step, data, event) {
+      if (event.type !== 'fork_round' || event.scenario !== 'rewrite' || !isCount(event.rounds) || event.rounds > 12 ||
+        !isCount(event.originalWork) || event.originalWork < 48 || event.originalWork % 16 !== 0 ||
+        !isCount(event.alternativeWork) || event.alternativeWork < 16 || event.alternativeWork % 16 !== 0 ||
+        event.originalWork + event.alternativeWork !== (4 + event.rounds) * 16 ||
+        !['original', 'alternative'].includes(event.selected) || typeof event.reorganized !== 'boolean') return null;
+      if (step === 0) return { step: 1, data: { rounds: event.rounds } };
+      return event.rounds > data.rounds && event.reorganized && event.selected === 'alternative' &&
+        event.alternativeWork > event.originalWork ? { step: 2, data } : null;
+    },
+    validData: (step, data) => step === 0 ? Object.keys(data).length === 0 : isCount(data.rounds)
+  },
   'beat-difficulty-adjustment': {
     advance: (step, data, event) => event.type === 'difficulty_changed' && event.manual !== true
       && (event.direction === 'up' || event.direction === 'down') ? { step: 1, data: { direction: event.direction } } : null,
@@ -234,6 +257,7 @@ export function reduce(progress, event) {
   if (!mission || !isObject(event) || typeof event.type !== 'string') return progress;
   const lab = mission.view !== 'workbench';
   const restart = { ...progress, step: 0, data: {} };
+  if (event.type === 'fork_reset' && mission.id === 'follow-stronger-chain') return progress.step > 0 ? restart : progress;
   // A lab reset only restarts a lab mission; a simulator reset only a workbench mission.
   if (event.type === 'lesson_reset') return lab && (progress.step !== 0 || Object.keys(progress.data).length) ? restart : progress;
   if (event.type === 'reset') return !lab && (progress.step !== 0 || Object.keys(progress.data).length) ? restart : progress;

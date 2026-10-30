@@ -1,3 +1,4 @@
+import { verifyForkLab, verifyForkMission } from './fork-lab.acceptance.mjs';
 import { verifyHashLab } from './hash-lab.acceptance.mjs';
 import { verifyChainLab } from './chain-lab.acceptance.mjs';
 import { verifyMissions } from './missions.acceptance.mjs';
@@ -288,12 +289,14 @@ try {
  const before = await snapshot(page);
  results.push(...await verifyHashLab(page, output, before));
  results.push(...await verifyChainLab(page, output, before));
+ results.push(...await verifyForkLab(page, output, before));
  results.push(...await verifyPool(page, output, before));
  await page.getByRole('button',{name:'Expand mission rail'}).click();
  const beforeMissionTelemetry=telemetryRequests.length;
  results.push(...await verifyMissions(page, output));
  assert.equal(telemetryRequests.length,beforeMissionTelemetry,'Missions add no telemetry while sharing is off');
 
+ results.push(...await verifyForkMission(browser, baseURL, output));
  assert.deepEqual(errors,[]);
  results.push('No page errors or horizontal overflow at five widths');
  await page.close();

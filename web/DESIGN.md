@@ -70,6 +70,19 @@ use the monospace font.
   block card; missions live in the rail and point at the part of the
   workbench they need.
 - Hash lab and Chain lab stay separate tools.
+- Chain lab offers **Repair a chain** and **Competing branches** within the same
+  view. The fork experiment has Competition and Rewrite history scenarios, a
+  nominal hash-power split, two labelled histories and a visible selected branch.
+  Keep Run/Stop and one-block stepping above the growing history. Runs stop after
+  twelve new blocks. Shared ancestry is shown once; each branch states its valid
+  block count and accumulated expected target work. At the fixed one-zero target,
+  every valid block adds 16 work units. Extra zeros and observed attempts add no
+  extra work. A tie retains the incumbent; strictly more valid work can switch it.
+  Changing power cancels unfinished work and keeps history; scenario/reset starts
+  fresh. Leaving cancels pending work. Explain the altered payment as text, not a
+  forged signature, real ledger or measured attack probability. Mission completion
+  leaves the observed outcome visible. Closing guidance cancels pending lesson work
+  and hides coaching; completed mission rewards remain.
 
 ### Existing features in the workbench
 
@@ -103,6 +116,7 @@ decision, 2026-10-27):
   6. Forge a block without getting caught (Workbench)
   7. Survive a halving (Workbench)
   8. Beat the difficulty adjustment (Workbench)
+  9. Follow the stronger chain (Chain lab)
   Missions unlock in order; free play never needs a mission. Progress stays
   in the browser. Lab missions use the labs' own temporary state and never
   change the simulator chain.
