@@ -1,99 +1,95 @@
-# Lab zone
+# Reviewed Lab releases
 
-The lab zone holds small, public-facing experiments that run as self-contained Docker
-Compose stacks. Each stack lives in its own directory, `/opt/lab/<app>/`, containing
-`compose.yaml`, a local `.env` and `tunnel.env` (created from the `*.example` files, never
-committed). Host rules for the CAX21 lab zone `172.28.0.0/16`: hausbot-bob
-`ops/hetzner-app/SOLL.md`, section "Lab-Zone".
+This repository supplies one complete runtime image for its own application.
+The host operator owns isolation, budgets, secrets, data mounts and release admission.
+Application repository files are never downloaded and executed as root on the host.
 
-## Rules
+## Build and publication
 
-1. **Isolated network per stack.** Every stack declares its own bridge network with a
-   dedicated subnet (for example `172.28.1.0/24` for `lab-proofofwork`) and IPv6 disabled.
-   Stacks never join another stack's network or any shared Docker network.
-2. **No reach into private infrastructure.** Lab containers must never reach the private
-   network, the tailnet, the host's management services or other Docker networks. The host
-   enforces this with firewall rules on the lab subnets (deny to private/RFC 1918, CGNAT and
-   tailnet ranges; allow only the public internet). Do not weaken those rules for a lab app;
-   an app that needs private access does not belong in the lab zone.
-3. **No published ports.** Services do not use `ports:`. Inbound traffic arrives only through
-   the stack's own Cloudflare tunnel container (`cloudflared ... run` with a per-stack
-   token in `tunnel.env`, which only that container reads), which connects outbound.
-4. **Hardened containers.** `read_only: true` (writable state only in named volumes and
-   `tmpfs`, data in a bind-mounted `data/` directory), `cap_drop: [ALL]`, `no-new-privileges:true`, non-root user, and explicit
-   `mem_limit`, `cpus` and `pids_limit`.
-5. **Pinned images.** Images are pinned to explicit versions (or digests); no `latest`.
-6. **Secrets stay local.** Real values live only in `/opt/lab/<app>/.env` and `tunnel.env`
-   (0600) on the host. Repositories contain `*.example` files with placeholders only.
-7. **Portable by construction.** Nothing in a stack depends on host-specific paths, host
-   networking or provider runtime services. State lives in the stack's `data/` directory.
+`server.yml` checks the server, builds and checks the web bundle, and builds a native
+Linux ARM64 image containing `server/src`, `server/data`, `server/package.json` and
+`web/dist`. A credential-free container with no external network must serve both
+`/api/health` and every built static asset, compared with independent SHA-256 values
+from the checked web build. The checked image is saved with its
+image ID and checksums. Publication loads that same archive; it never rebuilds it.
 
-## Updating a stack (`lab-proofofwork`)
+A successful push run on `master` publishes
+`ghcr.io/mirksen/proofofwork-lab:<full revision>` and the immutable artifact
+`lab-release-<run_id>-<run_attempt>/release.json`. The image has an OCI revision label;
+the declaration binds its repository digest, full revision, complete retained app+tunnel allocation,
+ARM64 platform, data version and exact successful workflow run. PRs only check and
+produce the short-lived checked-image artifact; they do not publish a release.
+The package is intended for public anonymous pulls, matching this public source
+repository. Confirm package visibility and anonymous digest access before admission.
 
-A merge to `master` goes live on its own. On the host, `lab-proofofwork-deploy.timer` runs
-`bin/pull-deploy.sh` every five minutes: it fetches `master` with a read-only GitHub deploy key and
-hands a new commit to `bin/apply.sh`, which
-
-1. runs the server tests on that commit in a throwaway container without network,
-2. swaps in `server/` and the stack files (previous ones kept as `*.prev`),
-3. restarts the app and waits until it is healthy, and otherwise rolls back to the previous files.
-
-`DEPLOYED` holds the running commit and a fingerprint of its files; a commit that changes nothing
-here only updates `DEPLOYED`. `.env`, `tunnel.env`, `data/` and `static/` are never touched. The host
-needs no inbound access and GitHub holds no credentials for it. Check a run with
-`journalctl -u lab-proofofwork-deploy -n 50`; a failed deploy leaves the unit failed and the old
-version running.
-
-To put a commit live by hand (not on `master`, or with the timer stopped), from a checkout:
+Local checks (Node 24):
 
 ```sh
-git fetch origin
-SSH_OPTS="-F <ssh_config>" deploy/lab/proofofwork/deploy.sh <ssh-target> [<commit>]   # default origin/master
+npm --prefix server test
+npm --prefix web ci
+npm --prefix web run check
+python3 -m unittest discover -s deploy/lab/proofofwork/test -p test_release.py -v
+docker build --build-arg SOURCE_REVISION="$(git rev-parse HEAD)" -t proofofwork-lab:checked -f deploy/lab/proofofwork/Dockerfile .
+bash deploy/lab/proofofwork/test/image-check.sh proofofwork-lab:checked
 ```
 
-While the timer runs, its next run puts `master` back. Stop it first with
-`systemctl stop lab-proofofwork-deploy.timer` if a non-master commit has to stay live.
+## Operator admission and updates
 
-One-time host setup (root on the host; the private key never leaves it):
+A merge produces a candidate artifact. The installed host operator independently
+verifies the exact successful `server.yml` push run on `master`, its revision and
+artifact bytes. An operator-protected receipt is required for admission or update.
+Neither a mutable image tag nor a green unrelated workflow authorizes a release.
+No GitHub job receives host SSH access, tunnel tokens or application secrets.
 
-```sh
-install -d -m 700 /etc/lab/proofofwork
-ssh-keygen -q -t ed25519 -N '' -C lab-proofofwork-deploy -f /etc/lab/proofofwork/github_deploy_ed25519
-ssh-keyscan -t ed25519 github.com > /etc/lab/proofofwork/known_hosts   # compare with GitHub's published fingerprint
-# add github_deploy_ed25519.pub as a read-only deploy key of the repository, then:
-install -m 644 <checkout>/deploy/lab/proofofwork/systemd/lab-proofofwork-deploy.* /etc/systemd/system/
-systemctl daemon-reload && systemctl enable --now lab-proofofwork-deploy.timer
-```
+The host's `hausbot-lab` interface accepts a reviewed release ID and an environment
+identity consisting of project, purpose and run. The operator generates container
+configuration; this repository supplies no executable host deploy script or Compose
+file. Each environment has its own network, bounded data filesystem, expiry and
+root-protected `app.env`, plus a separate `tunnel.env` only when public ingress is
+explicitly admitted. Example values are in `proofofwork/*.env.example`.
 
-## Moving a stack
+Stop the previous pull-deploy timer and let an already running deployment finish
+before merging the removal of that legacy interface. The healthy old container may
+remain available while the checked image is published. Cut over only after the
+operator, verified artifact, capacity, consistent backup and recovery path are ready.
+A repository merge is not proof of host admission or live installation.
 
-1. Stop it: `docker compose down` in `/opt/lab/<app>/`.
-2. Copy `/opt/lab/<app>/` (including `.env`, `tunnel.env` and `data/`) to the new host.
-3. On the new host, apply the same lab-zone firewall rules for the stack's subnet.
-4. Start it: `docker compose up -d` in `/opt/lab/<app>/`. The tunnel reconnects with the same
-   token, so DNS does not change.
-5. For `lab-proofofwork`, repeat the one-time host setup above (new deploy key, timer) and remove
-   the old host's deploy key from the repository.
+For subsequent releases, pass the verified declaration to the operator and run its
+controlled update. There is no application-owned root timer. The operator closes
+public ingress before the candidate writes, checks health, and restores the prior
+code/data pair if that candidate fails before ingress opens. After public writes,
+a code rollback does not imply that older code understands newer data.
 
-## Moderating pool names (`lab-proofofwork`)
+## Data version 1
 
-The server refuses names that contain a blocked term or equal a reserved name (term files in
-`server/data/`; matching folds case, accents, leetspeak, hyphens and repeated letters). For a
-name that slips through, hide it in `/opt/lab/proofofwork/`:
+State is SQLite at `/data/leaderboard.sqlite`, using WAL and a bounded filesystem.
+The image contains name moderation lists in `/app/data`; it contains no database,
+secrets, host paths or runtime environment files. `ALLOWED_ORIGINS` allows the
+intended browser origins; outgoing HTTPS to `mempool.space` supplies public round
+data. `CHALLENGE_SECRET` is no longer read.
 
-```sh
-docker compose exec app node src/admin.js hide <name>     # off the leaderboard, no new targets or shares
-docker compose exec app node src/admin.js unhide <name>   # show it again
-docker compose exec app node src/admin.js list-hidden     # one line per hidden name
-```
+The genesis proof server creates `proofs` and its index if absent. The previous
+`shares` table is preserved but not read. Admission must preserve the original
+SQLite files under a writer stop; an empty leaderboard is not a backup. A snapshot
+captures the whole filesystem after every writer stops and the filesystem unmounts.
+Transfer the immutable release, snapshot, data-version receipt and hashes. Restore
+into a stopped bounded target, verify integrity and retained data, then move ingress.
+A version number alone does not prove downgrade compatibility: restores require the
+same immutable release; a future schema change needs a new reviewed data contract.
 
-Hiding stores the folded name, so every spelling that folds to it is hidden too. Shares stay in the
-database; nothing is deleted. Editing a term file in `server/` takes effect after
-`docker compose restart app`; an empty blocked or reserved list stops the server at startup (the
-allow list may be empty).
+## Moderation
 
-## Stacks
+With an admitted environment, the operator may execute the image's admin command
+inside that environment's app container (`node src/admin.js hide <name>`, `unhide`,
+or `list-hidden`). This updates that environment's SQLite data, not another stack.
+Do not edit the read-only image or restore an old database while public writers run.
 
-| Stack | Directory | Subnet |
-| --- | --- | --- |
-| `lab-proofofwork` | `proofofwork/` | `172.28.1.0/24` |
+### Image storage measurement
+
+Release publication and admission require the local Docker containerd image store.
+The declaration counts retained compressed content, unpacked ARM64 snapshots and
+available attestation content. Older `docker image inspect` versions report only
+packed bytes in `Size`; the bounded local Engine API query requests manifest
+summaries explicitly and rejects missing or incomplete allocation metadata. The
+existing 384 MiB combined app/tunnel ceiling remains unchanged. PR CI checks the
+same measurement on the actual built image before publication can be reached.
