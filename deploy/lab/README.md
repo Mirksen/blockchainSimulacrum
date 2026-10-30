@@ -16,7 +16,7 @@ image ID and checksums. Publication loads that same archive; it never rebuilds i
 A successful push run on `master` publishes
 `ghcr.io/mirksen/proofofwork-lab:<full revision>` and the immutable artifact
 `lab-release-<run_id>-<run_attempt>/release.json`. The image has an OCI revision label;
-the declaration binds its repository digest, full revision, unpacked app+tunnel size,
+the declaration binds its repository digest, full revision, complete retained app+tunnel allocation,
 ARM64 platform, data version and exact successful workflow run. PRs only check and
 produce the short-lived checked-image artifact; they do not publish a release.
 The package is intended for public anonymous pulls, matching this public source
