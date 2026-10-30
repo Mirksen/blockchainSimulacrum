@@ -5,11 +5,16 @@
 //
 // The explorer is not trusted: every block it reports must pass blockProblem() (its header
 // hashes to its id with real proof of work) and link to the block below it, so a wrong or
-// compromised explorer can only make the pool unavailable, not invent rounds.
+// compromised explorer can only make the pool unavailable, not invent rounds. That makes a
+// second explorer safe: each page comes from the first one that answers with valid blocks.
 
 import { blockProblem, MIN_WORK_BITS } from './bitcoinHeader.js';
 
-export const TIP_API = 'https://mempool.space/api';
+// Both serve Esplora block pages, newest first: mempool.space 15 blocks, blockstream.info 10.
+export const TIP_SOURCES = [
+  { api: 'https://mempool.space/api', blocks: '/v1/blocks' },
+  { api: 'https://blockstream.info/api', blocks: '/blocks' },
+];
 export const TIP_POLL_MS = 60 * 1000;
 export const TIP_TIMEOUT_MS = 10 * 1000;
 export const WINDOW_BLOCKS = 144;
@@ -21,15 +26,15 @@ export function isRound(round) {
     typeof round.hash === 'string' && HASH_RE.test(round.hash);
 }
 
-export function createTipTracker({ fetchImpl = fetch, api = TIP_API, pollMs = TIP_POLL_MS, windowBlocks = WINDOW_BLOCKS, minWorkBits = MIN_WORK_BITS, log } = {}) {
+export function createTipTracker({ fetchImpl = fetch, sources = TIP_SOURCES, pollMs = TIP_POLL_MS, windowBlocks = WINDOW_BLOCKS, minWorkBits = MIN_WORK_BITS, log } = {}) {
   // height → { hash, prev } of the last `windowBlocks` blocks, each checked and linked.
   const known = new Map();
   let tip = null;
   let timer = null;
 
-  // A page of up to 15 consecutive blocks, newest first, from `start` (the tip when omitted).
-  async function page(start) {
-    const path = start === undefined ? '/v1/blocks' : `/v1/blocks/${start}`;
+  // A page of consecutive blocks from one source, newest first, from `start` (the tip when omitted).
+  async function pageFrom({ api, blocks: blocksPath }, start) {
+    const path = start === undefined ? blocksPath : `${blocksPath}/${start}`;
     const res = await fetchImpl(`${api}${path}`, { signal: AbortSignal.timeout(TIP_TIMEOUT_MS) });
     if (!res.ok) throw new Error(`${path} answered ${res.status}`);
     const blocks = await res.json();
@@ -43,6 +48,21 @@ export function createTipTracker({ fetchImpl = fetch, api = TIP_API, pollMs = TI
       }
     });
     return blocks.map(block => ({ height: block.height, hash: block.id, prev: block.previousblockhash }));
+  }
+
+  // The page from the first source that answers with valid blocks.
+  async function page(start) {
+    const failures = [];
+    for (const source of sources) {
+      try {
+        const blocks = await pageFrom(source, start);
+        if (failures.length) log?.(`bitcoin blocks from ${source.api} after ${failures.join('; ')}`);
+        return blocks;
+      } catch (error) {
+        failures.push(`${source.api}: ${error?.message ?? error}`);
+      }
+    }
+    throw new Error(failures.join('; '));
   }
 
   // Forgets every block below the first broken link under the tip; true if it found one.

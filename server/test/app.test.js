@@ -522,6 +522,13 @@ describe('CORS', () => {
     assert.equal(res.headers.get('access-control-allow-origin'), 'https://proofofwork.fyi');
   });
 
+  test('health reports the source tree when the server knows it', async () => {
+    const source = 'ab'.repeat(20);
+    await withApp({ tip: fakeTip(), source }, async (base) => {
+      assert.deepEqual(await (await fetch(`${base}/api/health`)).json(), { ok: true, source });
+    });
+  });
+
   test('foreign origin gets no Access-Control-Allow-Origin', async () => {
     const res = await fetch(`${srv.base}/api/health`, { headers: { origin: 'https://attacker.example' } });
     assert.equal(res.headers.get('access-control-allow-origin'), null);
