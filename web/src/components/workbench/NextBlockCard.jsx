@@ -1,13 +1,14 @@
 import { CoachMark } from './CoachMark';
+import { usePeakHold } from '../../hooks/usePeakHold';
 import { MIN_DIFFICULTY, MAX_DIFFICULTY } from '../../lib/difficulty';
 import './cardKit.css';
 import './NextBlockCard.css';
 
 // Next block card (web/DESIGN.md, "Card grid" and "Interaction patterns").
 // One filled primary per mode:
-//   fresh   "Start demo"            idle   "Mine block #N"
+//   fresh   "Start demo"            idle   "Mining"
 //   mining  "Pause" (replaces Play; repeat stays beside it)
-//   repair  "Re-mine block #K"      paused "Mine block #N" (a new search)
+//   repair  "Re-mine block #K"      paused "Mining" (a new search)
 //
 // miners:    [{ name, hashrate?, color? }]  (color: any CSS color, defaults to var(--<name>))
 // race:      { perMiner: { [name]: { nonce, hash, zeros, iterations } }, attempts, elapsedMs, targetSeconds, winner }
@@ -112,9 +113,9 @@ export function NextBlockCard({
 
   const repeatToggle = (
     <button type="button" className="next-block-repeat" aria-label="Auto-mine" aria-pressed={autoMine}
-      title={autoMine ? 'Stop auto-mining' : 'Auto-mine: keep mining blocks with sample transactions'}
+      title={autoMine ? 'Turn off repeat; let the current block finish' : 'Automatically mine one block after another. Use Auto-transact to fill sample transfers.'}
       disabled={isRepair} onClick={() => onAutoMine?.(!autoMine)}>
-      <RepeatIcon /><span>Auto-mine{autoMine ? ' on' : ''}</span>
+      <RepeatIcon /><span>Auto-mine</span>
     </button>
   );
   const stepper = (
@@ -143,7 +144,7 @@ export function NextBlockCard({
         aria-keyshortcuts={!running && !startsDemo && !isRepair ? 'M' : undefined}
         onClick={() => running ? onPause?.() : startsDemo ? onStartDemo?.() : onMine?.()}>
         {running ? <PauseIcon /> : <PlayIcon />}
-        {running ? 'Pause' : startsDemo ? 'Start demo' : `Mine block #${index}`}
+        {running ? 'Pause' : startsDemo ? 'Start demo' : 'Mining'}
       </button>
     </CoachMark>
   );
@@ -228,6 +229,24 @@ function LastRound({ miners, lastRound, race, difficulty, backedMiner, onBack, c
   );
 }
 
+function LiveMinerLane({ miner, p, difficulty, isWinner, backed }) {
+  const zeros = Math.min(p?.zeros ?? 0, difficulty);
+  const peak = usePeakHold(Math.min(p?.peakZeros ?? zeros, difficulty), p?.iterations ?? -1);
+  const st = zeroStatus(zeros, difficulty, isWinner);
+  return (
+    <div className={`next-block-lane is-live${isWinner ? ' is-winner' : ''}${backed ? ' is-backed' : ''}`}
+      style={{ '--miner-color': minerColor(miner) }} data-miner={miner.name}>
+      <div className="next-block-who"><Avatar miner={miner} /><span className="next-block-nm"><b>{miner.name}</b>
+        <small>nonce {p ? count(p.nonce) : '–'}{backed && <> · <em className="is-backed">backed</em></>}</small></span></div>
+      <div className="next-block-live" title="Recent peak: holds the highest leading-zero count for one second, then settles to the highest newer result.">
+        <CheckedHash hash={p?.hash} difficulty={difficulty} />
+        <Track zeros={peak} difficulty={difficulty} label={`${miner.name} recent peak ${peak} of ${difficulty} leading zeros`} />
+      </div>
+      <div className="next-block-lane-end"><span className={`card-kit-pill ${st.cls}`}>{st.dot && <i aria-hidden="true" />}{st.text}</span></div>
+    </div>
+  );
+}
+
 function LiveRace({ miners, race, index, difficulty, target, backedMiner, coach }) {
   const targetSeconds = race?.targetSeconds;
   const elapsed = race?.elapsedMs ?? 0;
@@ -239,27 +258,8 @@ function LiveRace({ miners, race, index, difficulty, target, backedMiner, coach 
       <CoachMark target="workbench.mine" coach={coach} className="next-block-coach-block">
       <CoachMark target="workbench.back-miner" coach={coach} className="next-block-coach-block">
         <div className="next-block-lanes">
-          {miners.map(miner => {
-            const p = race?.perMiner?.[miner.name] ?? null;
-            const isWinner = race?.winner === miner.name;
-            const backed = backedMiner === miner.name;
-            const st = zeroStatus(p?.zeros, difficulty, isWinner);
-            const zeros = Math.min(p?.zeros ?? 0, difficulty);
-            return (
-              <div key={miner.name} className={`next-block-lane is-live${isWinner ? ' is-winner' : ''}${backed ? ' is-backed' : ''}`}
-                style={{ '--miner-color': minerColor(miner) }} data-miner={miner.name}>
-                <div className="next-block-who"><Avatar miner={miner} /><span className="next-block-nm"><b>{miner.name}</b>
-                  <small>nonce {p ? count(p.nonce) : '–'}{backed && <> · <em className="is-backed">backed</em></>}</small></span></div>
-                <div className="next-block-live">
-                  <CheckedHash hash={p?.hash} difficulty={difficulty} />
-                  <Track zeros={zeros} difficulty={difficulty} label={`${miner.name} has ${zeros} of ${difficulty} leading zeros`} />
-                </div>
-                <div className="next-block-lane-end">
-                  <span className={`card-kit-pill ${st.cls}`}>{st.dot && <i aria-hidden="true" />}{st.text}</span>
-                </div>
-              </div>
-            );
-          })}
+          {miners.map(miner => <LiveMinerLane key={miner.name} miner={miner} p={race?.perMiner?.[miner.name]}
+            difficulty={difficulty} isWinner={race?.winner === miner.name} backed={backedMiner === miner.name} />)}
         </div>
       </CoachMark>
       </CoachMark>

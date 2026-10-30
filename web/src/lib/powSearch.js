@@ -26,9 +26,9 @@ const leadingZeros = hash => {
   return count;
 };
 
-function snapshot(states) {
+function snapshot(states, includePeaks = false) {
   return Object.fromEntries(states.map(state => [state.id,
-    { nonce: state.lastNonce, hash: state.hash, attempts: state.attempts, zeros: leadingZeros(state.hash) }]));
+    { nonce: state.lastNonce, hash: state.hash, attempts: state.attempts, zeros: leadingZeros(state.hash), ...(includePeaks ? { peakZeros: state.peakZeros } : {}) }]));
 }
 
 // The existing simulator keeps its consecutive round-robin schedule. The fork lab
@@ -56,7 +56,7 @@ export async function search({ entrants, target, limit = Infinity, signal, onPro
     if (!Number.isSafeInteger(weight) || weight < 1) throw new RangeError('Weight must be a positive whole number.');
     if (!Number.isSafeInteger(startNonce) || startNonce < 0) throw new RangeError('Start nonce must be a safe whole number.');
     return { id, weight, hasher: createHasher(String(prefix), String(suffix)), nonce: startNonce,
-      lastNonce: null, hash: '', attempts: 0, done: false };
+      lastNonce: null, hash: '', attempts: 0, peakZeros: 0, done: false };
   });
   let attempts = 0;
   let recent = [];
@@ -89,6 +89,7 @@ export async function search({ entrants, target, limit = Infinity, signal, onPro
     }
     const nonce = state.nonce;
     state.hash = state.hasher(nonce);
+    state.peakZeros = Math.max(state.peakZeros, leadingZeros(state.hash));
     state.lastNonce = nonce;
     state.attempts++;
     attempts++;
@@ -97,7 +98,11 @@ export async function search({ entrants, target, limit = Infinity, signal, onPro
     if (state.hash.startsWith(target)) return finish('found', state);
     if (nonce === Number.MAX_SAFE_INTEGER) { state.done = true; active--; } else state.nonce = nonce + 1;
     if (attempts % batch === 0) {
-      onProgress({ attempts, entrants: snapshot(states), recent });
+      // A throttled adapter returns false so a rare peak survives until the
+      // next delivered progress event rather than vanishing between frames.
+      if (onProgress({ attempts, entrants: snapshot(states, true), recent }) !== false) {
+        for (const entrant of states) entrant.peakZeros = 0;
+      }
       recent = [];
       await yieldControl();
     }

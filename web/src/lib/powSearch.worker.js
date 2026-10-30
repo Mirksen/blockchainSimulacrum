@@ -12,7 +12,7 @@ self.onmessage = async ({ data }) => {
       ...data,
       onProgress: progress => {
         const now = performance.now();
-        if (now - lastPost < PACE_MS) return;
+        if (now - lastPost < PACE_MS) return false;
         lastPost = now;
         self.postMessage({ type: 'progress', progress });
       },

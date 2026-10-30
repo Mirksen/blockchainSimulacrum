@@ -20,7 +20,7 @@ const nameOf = (participants, key) => key
   ? (participants.find(p => p.publicKey === key)?.name ?? (/^[0-9a-f]{64,}$/i.test(key) ? 'Unknown' : key)) : null;
 
 export function Workbench({
-  sim, coinName, targetSeconds, autoMine, onAutoMine, selectedIndex, onSelect, healthOpen, onToggleHealth,
+  sim, coinName, targetSeconds, autoMine, onAutoMine, autoTransact, onAutoTransact, selectedIndex, onSelect, healthOpen, onToggleHealth,
   lastRound, remining, coach,
   onStartDemo, onMine, onPause, onRemine, onTamper, onUndo, onDifficulty, onBack,
   onCreateTransaction, onCreateWallet, onOpenWallet, onOpenDetails, onOpenChainLab, error
@@ -111,6 +111,7 @@ export function Workbench({
       <div className="wb-mempool">
         <MempoolCard transactions={pending} nextIndex={nextIndex} mining={busy} participants={participants.map(p => p.name)}
           coinName={coinName} reward={blockReward} onCreateTransaction={onCreateTransaction}
+          autoTransact={autoTransact} onAutoTransact={onAutoTransact}
           newTxGlow={!busy && !repair && !fresh} coach={workbenchCoach} />
       </div>
       <div className="wb-activity">
