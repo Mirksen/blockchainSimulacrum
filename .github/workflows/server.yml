@@ -104,8 +104,8 @@ jobs:
           if dpkg --compare-versions "$(docker version --format '{{.Server.Version}}')" lt 28.2.2; then
             sudo apt-get update
             sudo apt-get install --yes \
-              docker-ce=5:28.2.2-1~ubuntu.24.04~noble \
-              docker-ce-cli=5:28.2.2-1~ubuntu.24.04~noble
+              moby-engine=28.2.2-ubuntu24.04u1 \
+              moby-cli=28.2.2-ubuntu24.04u1
           fi
           dpkg --compare-versions "$(docker version --format '{{.Server.Version}}')" ge 28.2.2
       - name: Prepare complete image accounting in this fresh hosted job
