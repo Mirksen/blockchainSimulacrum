@@ -5,8 +5,9 @@
 //                                [--memo "<text>"] [--recipient <name>] [--amount <n>] [--threads <n>]
 //
 // Unset options keep the values in shared/genesis.json. The anchor's hash and time are
-// read once from mempool.space; the genesis time is the anchor's time, so the block cannot
-// predate it. The search runs on several threads, each taking every n-th nonce.
+// read once from mempool.space and checked like the server checks rounds (its header hashes
+// to its id with real proof of work); the genesis time is the anchor's time, so the block
+// cannot predate it. The search runs on several threads, each taking every n-th nonce.
 //
 // The block uses the app's own format (web/src/lib/blockchain.js): the header hash is
 // SHA256(previousHash + txRoot + timestamp + difficulty + nonce); with one coinbase
@@ -17,6 +18,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { availableParallelism } from 'node:os';
 import { parseArgs } from 'node:util';
 import { isMainThread, parentPort, Worker, workerData } from 'node:worker_threads';
+import { blockProblem } from '../server/src/bitcoinHeader.js';
 
 const SHARED = new URL('./genesis.json', import.meta.url);
 const SERVER_COPY = new URL('../server/src/genesis.json', import.meta.url);
@@ -45,11 +47,13 @@ if (!isMainThread) {
   }
 }
 
-async function anchorAt(height) {
+export async function anchorAt(height) {
   const hash = (await (await fetch(`${API}/block-height/${height}`)).text()).trim();
   if (!/^[0-9a-f]{64}$/.test(hash)) throw new Error(`no block at height ${height}`);
   const block = await (await fetch(`${API}/block/${hash}`)).json();
-  if (block.height !== height || !Number.isSafeInteger(block.timestamp)) throw new Error('unreadable block');
+  if (block.height !== height || block.id !== hash) throw new Error('unreadable block');
+  const problem = blockProblem(block);
+  if (problem) throw new Error(`anchor ${height}: ${problem}`);
   return { chain: 'bitcoin', height, hash, time: block.timestamp };
 }
 
