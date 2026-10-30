@@ -30,6 +30,20 @@ describe('midstate hashing', () => {
 });
 
 describe('round-robin search', () => {
+  it('preserves rare zero peaks through throttled frames and resets only after delivery', async () => {
+    let attempt = 0;
+    vi.spyOn(CryptoJS.algo.SHA256, 'finalize').mockImplementation(() => ({ toString: () => ++attempt === 1 ? `000a${'f'.repeat(60)}` : 'f'.repeat(64) }));
+    const frames = [];
+    await search({ entrants: [{ id: 'synthetic-miner', prefix: 'synthetic-header' }], target: NEVER,
+      limit: 300, batch: 100, yieldControl: noWait, onProgress: progress => {
+        frames.push(progress);
+        return progress.attempts >= 200;
+      } });
+    expect(frames.map(frame => frame.entrants['synthetic-miner'].peakZeros)).toEqual([3, 3, 0]);
+    expect(frames.every(frame => frame.entrants['synthetic-miner'].zeros === 0)).toBe(true);
+    expect(frames[0].recent.every(item => item.hash.startsWith('f'))).toBe(true);
+  });
+
   it('gives each entrant `weight` consecutive nonces per round', async () => {
     const seen = [];
     const result = await search({ entrants: [{ id: 'heavy', weight: 3, prefix: 'h' }, { id: 'light', prefix: 'l', startNonce: 50 }],

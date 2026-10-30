@@ -202,6 +202,21 @@ describe('backing a miner', () => {
   });
 });
 
+describe('automatic sample transfers', () => {
+  it('selects a funded sender even when random picks would repeatedly hit an unfunded wallet', async () => {
+    const { result } = renderHook(() => useBlockchain(config));
+    act(() => result.current.toggleMiner('Miner2'));
+    expect((await mine(result)).success).toBe(true);
+    vi.mocked(Math.random).mockReturnValue(0.999);
+    let generated;
+    act(() => { generated = result.current.generateRandomTransactions(); });
+    expect(generated).toEqual({ success: true, count: 10 });
+    expect(result.current.memPool).toHaveLength(10);
+    expect(result.current.memPool.every(tx => tx.amount >= 0.05 && tx.amount <= 0.1)).toBe(true);
+    expect(result.current.chainValid).toBe(true);
+  });
+});
+
 describe('halving and difficulty events', () => {
   it('accepts difficulties through ten, rejects invalid values, and stops a running search before mining again', async () => {
     const { result } = renderHook(() => useBlockchain(config));

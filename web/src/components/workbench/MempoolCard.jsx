@@ -75,7 +75,7 @@ function NewTransactionForm({ names, coinName, onCreate, onClose }) {
 
 export function MempoolCard({
   transactions = [], nextIndex, mining = false, participants = [], coinName = 'powfyicoin', reward,
-  onCreateTransaction, newTxGlow = false, coach = null
+  onCreateTransaction, autoTransact = false, onAutoTransact, newTxGlow = false, coach = null
 }) {
   const [open, setOpen] = useState(false);
   const names = participants.map(p => (typeof p === 'string' ? p : p.name)).filter(Boolean);
@@ -88,6 +88,12 @@ export function MempoolCard({
           ? <span className={`card-kit-pill ${mining ? 'is-live' : 'is-pending'}`}><i aria-hidden="true" />{mining ? `${pending} in #${nextIndex}` : `${pending} pending`}</span>
           : <span className="card-kit-pill is-none">Empty</span>}
         <span className="card-kit-aside mempool-card-aside">{mining ? `candidate #${nextIndex}` : `goes into #${nextIndex}`}</span>
+        <button type="button" className="mempool-card-repeat" aria-label="Auto-transact" aria-pressed={autoTransact}
+          title="Automatically fill an empty mempool with sample transfers between funded wallets. Waits while mining; turn off to stop filling. Existing transfers stay."
+          onClick={() => onAutoTransact?.(!autoTransact)}>
+          <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><path d="M12 3.5H5a3 3 0 0 0-3 3M10 1.5l2 2-2 2M4 12.5h7a3 3 0 0 0 3-3M6 10.5l-2 2 2 2" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+          Auto-transact
+        </button>
         <CoachMark target="workbench.new-transaction" coach={coach} className="mempool-card-coach">
           <button type="button" className={`btn-tinted${open ? ' is-open' : newTxGlow ? '' : ' is-quiet'}`}
             aria-expanded={open ? 'true' : 'false'} aria-controls={open ? 'mempool-card-form' : undefined}

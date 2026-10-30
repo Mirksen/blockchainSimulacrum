@@ -94,6 +94,8 @@ export function useBlockchain(config = {}) {
         const isCurrent = () => !run.aborted && controller.run === run && controller.chain === chain;
         setIsMining(true);
         setRaceWinner(null);
+        setMinerProgress({});
+        setMiningProgress(null);
         setHashAttempts([]);
         // Each miner tries `hashpower` consecutive nonces per round from its own random start.
         const entrants = miners.map(miner => ({ id: miner.name, weight: miner.hashpower,
@@ -107,7 +109,7 @@ export function useBlockchain(config = {}) {
             setMinerProgress(Object.fromEntries(miners.map(miner => {
                 const entrant = entrantProgress[miner.name];
                 return [miner.name, { nonce: entrant.nonce, hash: entrant.hash, iterations: entrant.attempts,
-                    zeros: entrant.zeros, elapsedMs }];
+                    zeros: entrant.zeros, peakZeros: entrant.peakZeros ?? entrant.zeros, elapsedMs }];
             })));
             const lead = entrantProgress[featured];
             setMiningProgress({ nonce: lead.nonce, hash: lead.hash, iterations: total, elapsedMs });
@@ -327,12 +329,18 @@ export function useBlockchain(config = {}) {
         const chain = controller.chain;
         let count = 0;
         for (let i = 0; i < 10; i++) {
-            const sender = chain.participants[Math.floor(Math.random() * chain.participants.length)];
+            // Pick a sender who can actually fund a sample transfer. Choosing
+            // only unfunded wallets must not strand an enabled empty refill.
+            const funded = chain.participants.map(participant => ({ participant,
+                available: Math.round(chain.calculateBalance(participant.publicKey) * 1e8) - 1 }))
+                .filter(sender => sender.available >= 5_000_000);
+            if (!funded.length) break;
+            const { participant: sender, available } = funded[Math.floor(Math.random() * funded.length)];
             const recipients = chain.participants.filter(p => p !== sender);
             if (!recipients.length) break;
             const recipient = recipients[Math.floor(Math.random() * recipients.length)];
-            const amount = Math.round((0.05 + Math.random() * 0.05) * 1e8) / 1e8;
-            if (chain.calculateBalance(sender.publicKey) < amount + 0.00000001) continue;
+            const maximum = Math.min(10_000_000, available);
+            const amount = (5_000_000 + Math.floor(Math.random() * (maximum - 5_000_000 + 1))) / 1e8;
             chain.createTransaction(sender.name, recipient.name, amount, 0.00000001, 'Demo transfer');
             count++;
         }

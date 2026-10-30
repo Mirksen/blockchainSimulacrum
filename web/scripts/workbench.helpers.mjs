@@ -6,7 +6,7 @@ export function workbench(page) {
   return {
     tiles: () => page.getByRole('button', { name: TILE }),
     tile: index => page.getByRole('button', { name: index === 0 ? /^Genesis block 0(,|$)/ : new RegExp(`^Block ${index}(,|$)`) }),
-    mine: index => page.getByRole('button', { name: `Mine block #${index}`, exact: true }),
+    mine: index => page.getByRole('region', { name: new RegExp(`^Next block ${index}(,|$)`) }).getByRole('button', { name: 'Mining', exact: true }),
     chainPill: () => page.locator('.top-bar-chain')
   };
 }

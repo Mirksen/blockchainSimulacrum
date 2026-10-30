@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { useBlockchain } from './hooks/useBlockchain';
-import { playMiningSuccessSound } from './lib/sound';
+import { playMiningSuccessSound, unlockMiningAudio } from './lib/sound';
 import { telemetry } from './lib/telemetry';
 import * as missions from './lib/missions';
 import { TopBar } from './components/workbench/TopBar';
@@ -18,7 +18,7 @@ import './index.css';
 import { MIN_DIFFICULTY, MAX_DIFFICULTY } from './lib/difficulty';
 
 const INITIAL_CONFIG = {
-  name: 'powfyicoin', miningDifficulty: 2, blockReward: 3.125, halvingEvent: 4,
+  name: 'powfyicoin', miningDifficulty: 4, blockReward: 3.125, halvingEvent: 4,
   participants: ['Alice', 'Bob', 'Chris', 'Lars', 'Minas'], miners: ['Minas', 'Lars'], startingBalance: 0
 };
 const VIEWS = { '': 'workbench', 'hash-lab': 'hash-lab', 'chain-lab': 'chain-lab', pool: 'pool' };
@@ -56,10 +56,12 @@ function coachOf(progress) {
 
 function App() {
   const [theme, setTheme] = useState('dark');
-  const [muted, setMuted] = useState(true);
+  const [muted, setMuted] = useState(false);
+  const soundEnabled = useRef(true);
   const [view, setView] = useState(viewFromHash);
   const [winner, setWinner] = useState(null);
   const [autoMining, setAutoMining] = useState(false);
+  const [autoTransact, setAutoTransact] = useState(false);
   const [coinName, setCoinName] = useState('powfyicoin');
   const [targetBlockTime, setTargetBlockTime] = useState(10);
   const [showSettings, setShowSettings] = useState(false);
@@ -84,7 +86,6 @@ function App() {
     setDifficulty, setHalvingInterval, tamperBlock, undoTamper, remineBlock, resetBlockchain, cancelMining,
     createWallet, backMiner, toggleMiner, setMinerHashpower } = sim;
   const busy = isMining || isSettingUp;
-  const fresh = blocks.length === 1 && memPool.length === 0;
   const coach = railCollapsed ? null : coachOf(progress);
   const activeMission = missions.activeMission(progress);
   const showIntro = !introSeen && railCollapsed && progress.step === 0 && progress.completed.length === 0;
@@ -118,7 +119,7 @@ function App() {
     if (result.success) {
       setWinner(result.winner || result.winners?.at(-1));
       setError('');
-      playMiningSuccessSound(!muted);
+      playMiningSuccessSound(soundEnabled.current);
       return true;
     }
     if (!result.aborted) {
@@ -126,7 +127,7 @@ function App() {
       setAutoMining(false);
     }
     return false;
-  }, [muted]);
+  }, []);
 
   // The hook keeps each miner's final progress after a race; keep it as the last round.
   const rememberRound = useCallback((index, result) => {
@@ -190,13 +191,23 @@ function App() {
   useEffect(() => {
     if (!autoMining || busy) return;
     const timer = setTimeout(async () => {
-      if (fresh) await handleSetup();
-      else { generateRandomTransactions(); await handleMine(); }
+      // One block per iteration, even from Genesis. Turning Repeat off never
+      // leaves a two-block demo sequence queued behind the active search.
+      await handleMine();
     }, 1500);
     return () => clearTimeout(timer);
-  }, [autoMining, busy, fresh, blocks.length, generateRandomTransactions, handleMine, handleSetup]);
+  }, [autoMining, busy, blocks.length, handleMine]);
+
+  // Refill only an empty mempool. An active candidate and existing transfers
+  // stay untouched, and idle filling cannot grow an unbounded pending queue.
+  useEffect(() => {
+    if (!autoTransact || busy || !chainValid || memPool?.length) return;
+    const timer = setTimeout(generateRandomTransactions, 750);
+    return () => clearTimeout(timer);
+  }, [autoTransact, busy, chainValid, blocks.length, memPool?.length, generateRandomTransactions]);
 
   const reset = () => {
+    setAutoTransact(false);
     setAutoMining(false);
     resetBlockchain();
     lastAdjustedBlock.current = 0;
@@ -208,7 +219,13 @@ function App() {
   };
   const pause = () => { setAutoMining(false); cancelMining(); setRemining(null); };
   const changeTheme = next => { setTheme(next); void telemetry.track('settings_changed', { setting: 'theme', value: next }); };
-  const changeMuted = next => { setMuted(next); void telemetry.track('settings_changed', { setting: 'sound', value: !next }); };
+  const prepareSound = () => { if (soundEnabled.current) void unlockMiningAudio(); };
+  const changeMuted = next => {
+    soundEnabled.current = !next; // Also applies to a search already in flight.
+    setMuted(next);
+    if (!next) void unlockMiningAudio(); // Resume while the Sound click is trusted.
+    void telemetry.track('settings_changed', { setting: 'sound', value: !next });
+  };
   const changeTarget = value => {
     if (value === targetBlockTime) return;
     setTargetBlockTime(value);
@@ -266,7 +283,8 @@ function App() {
   const chainLesson = !railCollapsed && ['change-the-past', 'follow-stronger-chain'].includes(activeMission?.id);
 
   return (
-    <div className={`app-shell${view === 'workbench' ? ' is-workbench' : ''}${railCollapsed ? ' is-rail-collapsed' : ' is-rail-expanded'}`}>
+    <div className={`app-shell${view === 'workbench' ? ' is-workbench' : ''}${railCollapsed ? ' is-rail-collapsed' : ' is-rail-expanded'}`}
+      onClickCapture={prepareSound} onKeyDownCapture={prepareSound}>
       <a className="skip-link" href="#workbench">Skip to workbench</a>
       <TopBar view={view} onNavigate={navigate} coinName={coinName} chainValid={chainValid} theme={theme} onTheme={changeTheme}
         muted={muted} onMuted={changeMuted} onReset={reset} onOpenSettings={() => setShowSettings(true)} compact={compact} />
@@ -280,7 +298,7 @@ function App() {
             onToggle={toggleRail} onShowMe={showMe} highlight={showIntro} /></div>
           {showIntro && <MissionIntro onStart={startMissions} onDismiss={dismissIntro} />}
           {view === 'workbench' && <Workbench sim={sim} coinName={coinName} targetSeconds={targetBlockTime}
-            autoMine={autoMining} onAutoMine={value => value ? setAutoMining(true) : pause()}
+            autoMine={autoMining} onAutoMine={setAutoMining} autoTransact={autoTransact} onAutoTransact={setAutoTransact}
             selectedIndex={selectedIndex} onSelect={setSelectedIndex} healthOpen={healthOpen} onToggleHealth={() => setHealthOpen(open => !open)}
             lastRound={lastRound} remining={remining} coach={coach}
             onStartDemo={handleSetup} onMine={handleMine} onPause={pause} onRemine={handleRemine} onTamper={onTamper} onUndo={onUndo}

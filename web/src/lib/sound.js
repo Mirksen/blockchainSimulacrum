@@ -1,67 +1,74 @@
-export const playMiningSuccessSound = (enabled = true) => {
-    if (!enabled) return;
+let miningAudioContext;
+
+// Call directly from a trusted user gesture, before mining yields to async work.
+export const unlockMiningAudio = async () => {
     try {
-        const AudioContext = window.AudioContext || window.webkitAudioContext;
-        if (!AudioContext) return;
-
-        const ctx = new AudioContext();
-        const t = ctx.currentTime;
-
-        // 1. Heavy Thud (Low frequency impact/kick)
-        const thudOsc = ctx.createOscillator();
-        thudOsc.type = 'triangle';
-        thudOsc.frequency.setValueAtTime(80, t);
-        thudOsc.frequency.exponentialRampToValueAtTime(10, t + 0.4);
-
-        const thudGain = ctx.createGain();
-        thudGain.gain.setValueAtTime(1.0, t);
-        thudGain.gain.exponentialRampToValueAtTime(0.01, t + 0.4);
-
-        thudOsc.connect(thudGain);
-        thudGain.connect(ctx.destination);
-        thudOsc.start(t);
-        thudOsc.stop(t + 0.5);
-
-        // 2. Metallic Clank (Bandpass filtered noise + Ring)
-        // Create noise buffer
-        const bufferSize = ctx.sampleRate * 0.5; // 0.5 seconds
-        const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-        const data = buffer.getChannelData(0);
-        for (let i = 0; i < bufferSize; i++) {
-            data[i] = Math.random() * 2 - 1;
+        if (!miningAudioContext || miningAudioContext.state === 'closed') {
+            const AudioContext = globalThis.AudioContext || globalThis.webkitAudioContext;
+            if (!AudioContext) return false;
+            miningAudioContext = new AudioContext();
         }
-        const noise = ctx.createBufferSource();
-        noise.buffer = buffer;
+        const context = miningAudioContext;
+        if (context.state === 'suspended' || context.state === 'interrupted') {
+            // resume() must run before the first await to retain user activation.
+            await context.resume();
+        }
+        return context.state === 'running';
+    } catch {
+        return false;
+    }
+};
 
-        const noiseFilter = ctx.createBiquadFilter();
-        noiseFilter.type = 'bandpass';
-        noiseFilter.frequency.value = 1000;
-        noiseFilter.Q.value = 10;
+const disconnectVoice = ({ oscillator, gain }) => {
+    oscillator.onended = null;
+    for (const node of [oscillator, gain]) {
+        try { node?.disconnect(); } catch { /* Cleanup must never interrupt mining. */ }
+    }
+};
 
-        const noiseGain = ctx.createGain();
-        noiseGain.gain.setValueAtTime(0.5, t);
-        noiseGain.gain.exponentialRampToValueAtTime(0.01, t + 0.3);
+export const playMiningSuccessSound = (enabled = true) => {
+    const context = miningAudioContext;
+    if (!enabled || !context || context.state !== 'running') return false;
 
-        noise.connect(noiseFilter);
-        noiseFilter.connect(noiseGain);
-        noiseGain.connect(ctx.destination);
-        noise.start(t);
-
-        // 3. Resonant Ring (High metal ping)
-        const ringOsc = ctx.createOscillator();
-        ringOsc.type = 'sine';
-        ringOsc.frequency.setValueAtTime(600, t); // Base tone
-
-        const ringGain = ctx.createGain();
-        ringGain.gain.setValueAtTime(0.3, t);
-        ringGain.gain.exponentialRampToValueAtTime(0.001, t + 1.5); // Long decay
-
-        ringOsc.connect(ringGain);
-        ringGain.connect(ctx.destination);
-        ringOsc.start(t);
-        ringOsc.stop(t + 2.0);
-
-    } catch (e) {
-        console.error("Audio error", e);
+    const voices = [];
+    try {
+        const now = context.currentTime;
+        // A soft impact followed by a bright C-major reward; summed peaks < 0.4.
+        const tones = [
+            { frequency: 180, endFrequency: 70, delay: 0, duration: 0.18, peak: 0.10, type: 'triangle' },
+            { frequency: 523.25, delay: 0, duration: 0.40, peak: 0.10, type: 'sine' },
+            { frequency: 659.25, delay: 0.09, duration: 0.45, peak: 0.085, type: 'sine' },
+            { frequency: 783.99, delay: 0.18, duration: 0.50, peak: 0.075, type: 'sine' },
+        ];
+        for (const tone of tones) {
+            const oscillator = context.createOscillator();
+            const voice = { oscillator, gain: null };
+            voices.push(voice);
+            const gain = context.createGain();
+            voice.gain = gain;
+            const start = now + tone.delay;
+            const end = start + tone.duration;
+            oscillator.type = tone.type;
+            oscillator.frequency.setValueAtTime(tone.frequency, start);
+            if (tone.endFrequency) {
+                oscillator.frequency.exponentialRampToValueAtTime(tone.endFrequency, end);
+            }
+            gain.gain.setValueAtTime(0, start);
+            gain.gain.linearRampToValueAtTime(tone.peak, start + 0.012);
+            gain.gain.exponentialRampToValueAtTime(0.0001, end - 0.01);
+            gain.gain.linearRampToValueAtTime(0, end);
+            oscillator.onended = () => disconnectVoice(voice);
+            oscillator.connect(gain);
+            gain.connect(context.destination);
+            oscillator.start(start);
+            oscillator.stop(end);
+        }
+        return true;
+    } catch {
+        for (const voice of voices) {
+            try { voice.oscillator.stop(); } catch { /* A source may not have started. */ }
+            disconnectVoice(voice);
+        }
+        return false;
     }
 };

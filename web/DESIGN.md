@@ -51,7 +51,7 @@ show stays out.
 
 | Rule | Instead of | Better |
 |---|---|---|
-| Buttons are verb plus object where the context is not unique | "Mine", "Add" | "Mine block #5", "New transaction" |
+| Buttons are verb plus object where the context is not unique | "Add" | "New transaction" |
 | Status says what holds, with its basis | "OK" | "Chain valid · 5 of 5 hashes start with 00 · 4 of 4 links intact" |
 | Invalid states name the cause and never overclaim | "Chain broken from #2 on" | #2 "Hash mismatch"; #3 "Built on a broken block" (its own link is intact) |
 | The coin is virtual, not "not real" | "no real coins" | "powfyicoin · virtual" |
@@ -139,9 +139,26 @@ decision, 2026-10-27):
   Genesis and the candidate, and the single primary in the Next block card
   is "Start demo".
 - **Stop mining** is the Pause action of the running race; Auto-mine is the Repeat toggle joined to Play/Pause in the Next block card.
-  Repeat starts off; enabling it starts continuous mining with sample transactions.
-  Its pressed state and “Auto-mine on” label stay visible between blocks.
-  Pause stops both the current search and repeat, including between rounds.
+  Repeat starts off; enabling it starts continuous mining. Auto-transact separately
+  fills the empty mempool with sample transactions between rounds.
+  Its label stays “Auto-mine”; a filled blue pressed state and an inset seam
+  distinguish it from the adjacent “Mining”/Pause primary, including between blocks.
+  Turning Repeat off lets the active block finish and schedules no further blocks,
+  including the first automatic block after Genesis. Pause stops both the current
+  search and repeat, including between rounds.
+- **Auto-transact** starts off. Its Repeat toggle sits in the Mempool header and
+  explains its behavior on hover. It fills only an empty mempool, waits while a
+  candidate is being mined, and keeps existing transfers when switched off.
+  A fresh unfunded chain waits for a mining reward. Reset turns both repeats off.
+- **Live zero bars** show the highest observed zero count from the last second,
+  including peaks between rendered frames. New highs rise promptly; older highs
+  settle to the highest younger result with a 360 ms ease-out. The current hash
+  and exact zero count remain instantaneous. Reduced motion retains the one-second
+  observation window and removes the interpolation.
+- **Difficulty** starts at 4; the selectable range remains 1–10.
+- **Sound** starts on. A short, warm impact and bright success chime mark a completed
+  mining operation. The first click or keyboard action unlocks browser audio;
+  enabling Sound also unlocks it. A mute change during mining applies to its result.
 
 ### Chain band
 
@@ -169,7 +186,7 @@ decision, 2026-10-27):
 - **Selected block:** hash with Copy, previous hash, nonce, miner with time,
   tries and reward, transactions; "Open in Chain lab", "Tamper with this
   block".
-- **Next block:** the one primary action "Mine block #N" with Play, an adjacent Repeat toggle for Auto-mine,
+- **Next block:** the one primary action "Mining" with Play, an adjacent Repeat toggle for Auto-mine,
   difficulty stepper, and the last round as two lanes (Lars, Minas) with
   "Back Lars / Back Minas". While mining it becomes the **live race** in
   place.
@@ -212,7 +229,7 @@ Every flow covers its states, not only the success path.
 
 | State | Pattern |
 |---|---|
-| Idle | Mine block #N is the only filled button; New transaction glows as the second invitation. |
+| Idle | Mining is the primary action; New transaction glows as the second invitation. |
 | Mining | The Next block card becomes the live race: per miner the current nonce and hash, leading characters checked against the target, attempts and elapsed time against the target time. The Play primary becomes Pause in the same place; the header says "Mining block #N…". The adjacent Repeat toggle stays available, and Pause also stays available between automatic rounds. The candidate tile says "mining". Mempool rows read "being mined into #N". New transaction stays available without glow. |
 | Block found | The new tile appears on the right with a short calm highlight; the race line becomes "Last round". No confetti. |
 | Tampered | The changed block turns red with "Hash mismatch" and its new hash (the stored one struck through). Descendants turn amber with "Built on a broken block"; their own links are intact and say so. The chain pill says "Chain invalid", health opens, Mine pauses with "Paused while the chain is invalid", and the single primary becomes "Re-mine block #2". Red only for the broken block and its direct status. |

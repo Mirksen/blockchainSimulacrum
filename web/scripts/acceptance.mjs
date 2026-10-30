@@ -1,3 +1,4 @@
+import { verifyMiningControlsAndSound } from './mining-controls.acceptance.mjs';
 import { verifyForkLab, verifyForkMission } from './fork-lab.acceptance.mjs';
 import { verifyHashLab } from './hash-lab.acceptance.mjs';
 import { verifyChainLab } from './chain-lab.acceptance.mjs';
@@ -84,6 +85,7 @@ try {
   assert.ok(ready, `Preview did not start: ${serverLog}`);
  }
  browser = await chromium.launch({channel:'chrome',headless:true});
+ results.push(...await verifyMiningControlsAndSound(browser, baseURL, output));
  results.push(...await verifyMissionVisibility(browser, baseURL, output));
  results.push(...await verifyMissionReload(browser, baseURL, output));
  page=await browser.newPage({viewport:{width:1440,height:1000},reducedMotion:'reduce'});
@@ -175,7 +177,7 @@ try {
  await wb.chainPill().filter({hasText:'Chain invalid'}).waitFor();
  assert.match(await wb.tile(1).getAttribute('aria-label'), /hash mismatch/i);
  assert.match(await wb.tile(2).getAttribute('aria-label'), /built on a broken block/i);
- assert.ok(await page.getByRole('button',{name:'Mine block #4',exact:true}).isDisabled());
+ assert.ok(await wb.mine(4).isDisabled());
  await referenceViews('tampered');
  for (const index of [1, 2, 3]) {
   await page.getByRole('button',{name:`Re-mine block #${index}`,exact:true}).click();
@@ -197,7 +199,7 @@ try {
  results.push('Reset returns to genesis; light and dark theme work');
 
  // A hard target: the demo can be paused before any block is committed.
- for (let i = 0; i < 8; i++) await page.getByRole('button',{name:'Raise difficulty'}).click();
+ for (let i = 0; i < 6; i++) await page.getByRole('button',{name:'Raise difficulty'}).click();
  assert.equal(await page.getByLabel('Difficulty',{exact:true}).innerText(),'10');
  assert.equal(await page.getByRole('button',{name:'Raise difficulty'}).isDisabled(),true);
  await page.getByRole('button',{name:'Start demo',exact:true}).press('Enter');
@@ -318,7 +320,7 @@ try {
  await mobile.route(`${POOL_API}/**`, leaderboardMock);
  await mobile.goto(baseURL);
  await mobile.getByRole('button',{name:'Start demo',exact:true}).click();
- await mobile.getByRole('button',{name:'Mine block #3',exact:true}).waitFor({timeout:30000});
+ await workbench(mobile).mine(3).waitFor({timeout:30000});
  await mobile.screenshot({path:join(output,'mobile.png')});
  await mobile.screenshot({path:join(output,'mobile-full.png'),fullPage:true});
  const mobileLayout = await mobile.evaluate(()=>({width:innerWidth,scroll:document.documentElement.scrollWidth,height:document.documentElement.scrollHeight}));
