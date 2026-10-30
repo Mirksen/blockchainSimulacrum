@@ -96,6 +96,18 @@ jobs:
           git fetch --depth=1 origin "$SOURCE_REVISION"
           git checkout --detach FETCH_HEAD
           test "$(git rev-parse HEAD)" = "$SOURCE_REVISION"
+      - name: Correct the hosted Docker multi-manifest push defect
+        run: |
+          # Docker28.0.4 tags child manifests separately (moby/moby#49949).
+          # Upgrade only this fresh publisher; retain the exact checked archive,
+          # index and attestations. Skip once hosted Docker already has the fix.
+          if dpkg --compare-versions "$(docker version --format '{{.Server.Version}}')" lt 28.2.2; then
+            sudo apt-get update
+            sudo apt-get install --yes \
+              docker-ce=5:28.2.2-1~ubuntu.24.04~noble \
+              docker-ce-cli=5:28.2.2-1~ubuntu.24.04~noble
+          fi
+          dpkg --compare-versions "$(docker version --format '{{.Server.Version}}')" ge 28.2.2
       - name: Prepare complete image accounting in this fresh hosted job
         run: |
           # This job owns its ephemeral daemon; never reconfigure a shared pool host.
@@ -128,6 +140,12 @@ jobs:
           docker tag proofofwork-lab:checked "ghcr.io/mirksen/proofofwork-lab:$SOURCE_REVISION"
           docker push "ghcr.io/mirksen/proofofwork-lab:$SOURCE_REVISION"
           docker logout ghcr.io
+          # The registry must return the same tested image/index anonymously.
+          # This rejects a tag accidentally left pointing at an attestation.
+          anonymous_config="$(mktemp -d)"
+          DOCKER_CONFIG="$anonymous_config" docker pull --platform linux/arm64 "ghcr.io/mirksen/proofofwork-lab:$SOURCE_REVISION"
+          test "$(docker image inspect --format '{{.Id}}' "ghcr.io/mirksen/proofofwork-lab:$SOURCE_REVISION")" = "$(cat checked-image/image.id)"
+          rm -r "$anonymous_config"
           docker pull --platform linux/arm64 cloudflare/cloudflared@sha256:c6c7ae1d5dfdcb094ad344ed68ccffc26635c9c6be80965664c33baf064b0515
           mkdir -p lab-release
           python3 deploy/lab/proofofwork/make-release.py --revision "$SOURCE_REVISION" --run-id "$RELEASE_RUN_ID" --output lab-release/release.json

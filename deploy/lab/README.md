@@ -93,3 +93,11 @@ packed bytes in `Size`; the bounded local Engine API query requests manifest
 summaries explicitly and rejects missing or incomplete allocation metadata. The
 existing 384 MiB combined app/tunnel ceiling remains unchanged. PR CI checks the
 same measurement on the actual built image before publication can be reached.
+
+The publisher upgrades only its fresh hosted Docker daemon when it is older than
+28.2.2. Docker28.0.4 incorrectly tags every child manifest during a containerd
+push (upstream [moby/moby#49949](https://github.com/moby/moby/pull/49949)), which
+left the first release tag pointing at an attestation after a failed push. The
+checked archive, image/index ID and attestations remain unchanged. A subsequent
+anonymous registry pull must return that exact checked ID before a release
+declaration can be published. This does not reconfigure any pool or application host.
