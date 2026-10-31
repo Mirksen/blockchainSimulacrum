@@ -4,7 +4,7 @@ import { headerHash, labHeader, openTab, settle, snapshot } from './workbench.he
 
 const nonceLabel = 'Nonce a number you can change';
 const TWO_ZEROS = 0x2000ffff;
-const initialHash = headerHash(labHeader({ data: 'Hello, block!', bits: TWO_ZEROS, nonce: 0 }));
+const initialHash = headerHash(labHeader({ data: 'Hello, block.', bits: TWO_ZEROS, nonce: 0 }));
 const hashName = async lab => lab.getByRole('img', { name: /^Double SHA-256 hash:/ }).getAttribute('aria-label');
 
 // Run in the app's browser acceptance session in free play, with mining stopped.
@@ -18,15 +18,15 @@ export async function verifyHashLab(page, output, before) {
   const edited = headerHash(labHeader({ data: 'Hello, block?', bits: TWO_ZEROS, nonce: 0 }));
   assert.equal(await hashName(lab), `Double SHA-256 hash: ${edited}`);
   assert.ok(await lab.locator('.hash-lab-changed').count() > 0);
-  await lab.getByLabel('Message', { exact: true }).fill('Hello, block!');
+  await lab.getByLabel('Message', { exact: true }).fill('Hello, block.');
   assert.equal(await hashName(lab), `Double SHA-256 hash: ${initialHash}`);
   await lab.getByLabel(nonceLabel, { exact: true }).fill('1.5');
   await lab.getByRole('alert').waitFor();
   assert.ok(await lab.getByRole('button', { name: 'Find a nonce', exact: true }).isDisabled());
   await lab.getByRole('button', { name: 'Reset lab' }).click();
   await lab.getByRole('button', { name: 'Find a nonce', exact: true }).click();
-  await lab.getByRole('status').filter({ hasText: 'Target found after 264 attempts' }).waitFor();
-  assert.equal(await lab.getByLabel(nonceLabel, { exact: true }).inputValue(), '263');
+  await lab.getByRole('status').filter({ hasText: 'Target found after 188 attempts' }).waitFor();
+  assert.equal(await lab.getByLabel(nonceLabel, { exact: true }).inputValue(), '187');
   assert.ok((await hashName(lab)).startsWith('Double SHA-256 hash: 00'));
 
   // This deterministic message has no three-zero match in its first 25,000 candidates.

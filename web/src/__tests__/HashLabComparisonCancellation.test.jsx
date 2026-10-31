@@ -8,7 +8,7 @@ vi.mock('../lib/hashLab', async importOriginal => ({ ...await importOriginal(), 
 afterEach(() => { cleanup(); vi.clearAllMocks(); });
 
 const success = (difficulty = 1) => ({ status: 'found', attempts: difficulty === 1 ? 4 : 72,
-  trial: createTrial('Hello, block!', difficulty === 1 ? 3 : 71, difficulty) });
+  trial: createTrial('Hello, block.', difficulty === 1 ? 3 : 71, difficulty) });
 const start = () => fireEvent.click(screen.getByRole('button', { name: 'Find a nonce' }));
 
 describe('work comparison accepts completed searches only', () => {

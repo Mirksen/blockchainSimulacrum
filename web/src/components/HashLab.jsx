@@ -1,10 +1,9 @@
 import { useEffect, useReducer, useRef } from 'react';
-import { changedPositions, createTrial, findNonce, meetsTarget, parseNonce, SEARCH_LIMIT } from '../lib/hashLab';
+import { changedPositions, createTrial, findNonce, INITIAL_MESSAGE, meetsTarget, parseNonce, SEARCH_LIMIT } from '../lib/hashLab';
 import { CoachMark } from './workbench/CoachMark';
 import { HeaderBytes } from './HeaderBytes';
 import './HashLab.css';
 
-const INITIAL_MESSAGE = 'Hello, block!';
 const initialState = ({ difficulty = 2, comparison = null } = {}) => ({ message: INITIAL_MESSAGE, nonce: '0', difficulty,
   trial: createTrial(INITIAL_MESSAGE, 0, difficulty), previousHash: null, status: 'idle', attempts: 0, error: '', comparison });
 
@@ -165,7 +164,7 @@ export function HashLab({ onClose, lesson, onLessonEvent, coach = null, workComp
         <select id="hash-lab-difficulty" value={difficulty} onChange={event => edit({ difficulty: Number(event.target.value), ...(lesson === 'work' ? { nonce: '0' } : {}) })}>
           <option value="1">0 — one zero</option><option value="2">00 — two zeros</option>{lesson !== 'work' && <option value="3">000 — three zeros</option>}
         </select>
-        <p className="hash-lab-help">Each extra zero makes a match about 16 times less likely per attempt. The target is part of the header, so changing it changes the hash.</p></div>
+        <p className="hash-lab-help">Each extra zero makes a match about 16 times less likely per attempt. The target is part of the header, so each target tests different hashes and a stricter one can occasionally get lucky.</p></div>
       <CoachMark target="hash-lab.search" coach={coach}>
         <div className="hash-lab-search-actions">
           {searching ? <button className="btn btn-negative" onClick={() => { activeSearch.current?.abort(); dispatch({ type: 'stopping' }); }}>Stop search</button>

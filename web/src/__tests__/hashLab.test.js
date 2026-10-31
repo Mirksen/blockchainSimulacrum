@@ -2,7 +2,7 @@ import { Buffer } from 'node:buffer';
 import { createHash } from 'node:crypto';
 import { describe, expect, it, vi } from 'vitest';
 import CryptoJS from 'crypto-js/core.js';
-import { changedPositions, createTrial, findNonce, meetsTarget, parseNonce, SEARCH_LIMIT } from '../lib/hashLab';
+import { changedPositions, createTrial, findNonce, INITIAL_MESSAGE, meetsTarget, parseNonce, SEARCH_LIMIT } from '../lib/hashLab';
 
 // 50,000 real midstate attempts take seconds on an idle machine, far more through a
 // spy; keep headroom for loaded CI runners instead of the 5 s default.
@@ -27,16 +27,16 @@ const instantYield = () => Promise.resolve();
 
 describe('hash-lab inputs and fingerprints', () => {
   it('hashes the exact displayed 80-byte header, with the message as merkle root', () => {
-    for (const message of ['', 'Hello, block!', 'café 🧪', '"nonce":123']) {
+    for (const message of ['', 'Hello, block.', 'café 🧪', '"nonce":123']) {
       const trial = createTrial(message, 7, 2);
       expect(trial.header).toBe(header(message, 7, TWO_ZEROS).toString('hex'));
       expect(trial.hash).toBe(display(header(message, 7, TWO_ZEROS)));
     }
-    expect(createTrial('Hello, block!', 0, 2).hash).toBe('e43537cca138e1ac370afadc0e801af77556d00303d6892344cba067740e24b0');
+    expect(createTrial('Hello, block.', 0, 2).hash).toBe('1a0d7b15184c53f422b0b436486d66286eddeb4cbce03a1a4a8c0329fbdda6ec');
     expect(createTrial('x1', 23, 2).hash).not.toBe(createTrial('x12', 3, 2).hash);
   });
   it('hashes the chosen target, because bits are part of the header', () => {
-    expect(createTrial('Hello, block!', 0, 1).hash).not.toBe(createTrial('Hello, block!', 0, 2).hash);
+    expect(createTrial('Hello, block.', 0, 1).hash).not.toBe(createTrial('Hello, block.', 0, 2).hash);
   });
   it('restores a fingerprint and changes it with either field', () => {
     const original = createTrial('Synthetic block', 2, 1);
@@ -68,20 +68,29 @@ describe('hash-lab inputs and fingerprints', () => {
 
 describe('bounded nonce search', () => {
   it('returns the real first match and exact inclusive attempt count', async () => {
-    const result = await findNonce({ message: 'Hello, block!', startNonce: 0, difficulty: 2, yieldControl: instantYield });
+    const result = await findNonce({ message: 'Hello, block.', startNonce: 0, difficulty: 2, yieldControl: instantYield });
     expect(result.status).toBe('found');
-    expect(result.attempts).toBe(263 + 1);
-    expect(result.trial.nonce).toBe(263);
-    expect(result.trial.hash).toBe(display(header('Hello, block!', 263, TWO_ZEROS)));
+    expect(result.attempts).toBe(187 + 1);
+    expect(result.trial.nonce).toBe(187);
+    expect(result.trial.hash).toBe(display(header('Hello, block.', 187, TWO_ZEROS)));
     expect(result.trial.hash.startsWith('00')).toBe(true);
-    for (let nonce = 0; nonce < 263; nonce++) expect(display(header('Hello, block!', nonce, TWO_ZEROS)).startsWith('00')).toBe(false);
-    const repeat = await findNonce({ message: 'Hello, block!', startNonce: 263, difficulty: 2, yieldControl: instantYield });
+    for (let nonce = 0; nonce < 187; nonce++) expect(display(header('Hello, block.', nonce, TWO_ZEROS)).startsWith('00')).toBe(false);
+    const repeat = await findNonce({ message: 'Hello, block.', startNonce: 187, difficulty: 2, yieldControl: instantYield });
     expect(repeat.attempts).toBe(1);
     expect(repeat.trial).toEqual(result.trial);
   });
+  it('needs more attempts for each stricter target on the default message', async () => {
+    const attempts = [];
+    for (const difficulty of [1, 2, 3]) {
+      const result = await findNonce({ message: INITIAL_MESSAGE, startNonce: 0, difficulty, yieldControl: instantYield });
+      expect(result.status).toBe('found');
+      attempts.push(result.attempts);
+    }
+    expect(attempts).toEqual([12, 188, 6122]);
+  }, LIMIT_TEST_TIMEOUT_MS);
   it('does no work when stopped before the initial yield settles', async () => {
     const controller = new AbortController();
-    const pending = findNonce({ message: 'Hello, block!', startNonce: 0, difficulty: 3, signal: controller.signal, yieldControl: instantYield });
+    const pending = findNonce({ message: 'Hello, block.', startNonce: 0, difficulty: 3, signal: controller.signal, yieldControl: instantYield });
     controller.abort();
     expect(await pending).toEqual({ status: 'stopped', attempts: 0, trial: null });
   });
