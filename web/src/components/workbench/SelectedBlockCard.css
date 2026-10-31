@@ -16,7 +16,7 @@
 
 .selected-block-editor { flex: none; border-top: 1px solid var(--line-2); border-bottom: 0; }
 .selected-block-editor-fields { display: grid; grid-template-columns: minmax(0, 1fr) 128px; gap: var(--s-2); }
-.selected-block-editor-hint { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.selected-block-editor-hint { flex: 1 1 100%; min-width: 0; }
 
 /* narrow card (phone, tablet side by side): explanations wrap under their value */
 @container selected-block (max-width: 520px) {
@@ -26,5 +26,5 @@
   .selected-block .card-kit-kv > dd { flex-wrap: wrap; white-space: normal; row-gap: 2px; }
   .selected-block .card-kit-head .card-kit-aside { display: none; }
   .selected-block-editor-fields { grid-template-columns: minmax(0, 1fr); }
-  .selected-block-editor-hint { display: none; }
+  .selected-block-editor .card-kit-form-actions { flex-wrap: wrap; }
 }

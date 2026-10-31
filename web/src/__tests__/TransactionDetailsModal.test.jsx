@@ -36,7 +36,7 @@ describe('TransactionDetailsModal', () => {
     const outputs = list('Outputs').getAllByRole('listitem').map(item => item.textContent);
     expect(outputs[0]).toMatch(/^PaymentBob5\.00000000/);
     expect(outputs[1]).toMatch(/^ChangeMiner1\.00000000/);
-    expect(outputs[2]).toMatch(/^MemoCoffee0\.00000000/);
+    expect(outputs[2]).toMatch(/^Memo0\.00000000Coffee · cannot be spent/);
     expect(screen.getByRole('group', { name: 'Fee' }).textContent).toContain('6.25000000 − 6.00000000 = 0.25000000');
     expect(screen.getByText('Every input passes its script')).toBeTruthy();
     expect(screen.getByText('Mempool')).toBeTruthy();
