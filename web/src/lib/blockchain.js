@@ -4,10 +4,12 @@
  * Ported for modern React web application
  */
 
+import CryptoJS from 'crypto-js/core';
 import SHA256 from 'crypto-js/sha256';
 import { ec as EC } from 'elliptic';
 import { deriveWallet } from './wallet';
 import genesis from '../../../shared/genesis.json';
+import { coinbaseParts, displayHash, headerHex, zerosOfTarget } from '../../../shared/bitcoin-block.mjs';
 
 const ec = new EC('secp256k1');
 
@@ -139,12 +141,39 @@ export class Block {
 
 export const GENESIS = genesis;
 
+// Double SHA-256 over hex bytes, in internal byte order (shared/bitcoin-block.mjs).
+const sha256d = hex => SHA256(SHA256(CryptoJS.enc.Hex.parse(hex))).toString();
+
+// The genesis coinbase is a real Bitcoin transaction (shared/genesis.json): its hash is
+// the Bitcoin txid, rebuilt from the current amount and memo, so editing it shows.
+class GenesisCoinbase extends Transaction {
+  createHash() {
+    const coinbase = { ...genesis.coinbase, value: Math.round(Number(this.amount) * 1e8), memo: String(this.referenceNumber) };
+    try {
+      return displayHash(coinbaseParts({ bits: genesis.header.bits, ...coinbase }).hex, sha256d);
+    } catch {
+      return 'f'.repeat(64);  // an edit the Bitcoin format cannot encode never matches
+    }
+  }
+}
+
+// The genesis block hashes its 80-byte Bitcoin header with double SHA-256, like
+// Satoshi's block 0; every later block uses the app's own header format.
+class GenesisBlock extends Block {
+  createHash() {
+    const { version, time, bits } = genesis.header;
+    return displayHash(headerHex({ version, previousHash: this.previousHash, merkleRoot: transactionRoot(this.transactions),
+      time, bits, nonce: this.nonce }), sha256d);
+  }
+}
+
 export function createGenesisBlock() {
-  const { coinbase } = genesis;
-  const tx = new Transaction(coinbase.sender, coinbase.recipient, coinbase.amount, coinbase.fee, coinbase.memo);
-  tx.timestamp = new Date(genesis.timestamp).toISOString();
-  const block = new Block(genesis.timestamp, [tx], genesis.anchor.hash, genesis.difficulty);
-  block.nonce = genesis.nonce;
+  const { coinbase, header } = genesis;
+  const timestamp = header.time * 1000;
+  const tx = new GenesisCoinbase(null, coinbase.recipient, coinbase.amount, 0, coinbase.memo);
+  tx.timestamp = new Date(timestamp).toISOString();
+  const block = new GenesisBlock(timestamp, [tx], genesis.anchor.hash, zerosOfTarget(header.bits));
+  block.nonce = header.nonce;
   block.hash = block.createHash();
   return block;
 }
