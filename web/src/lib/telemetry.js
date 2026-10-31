@@ -8,7 +8,7 @@ const count = value => Number.isSafeInteger(value) && value >= 0;
 const difficulty = value => Number.isInteger(value) && value >= MIN_DIFFICULTY && value <= MAX_DIFFICULTY;
 const oneOf = (...values) => value => values.includes(value);
 const source = oneOf('manual', 'auto', 'demo', 'random');
-const reason = oneOf('busy', 'invalid_amount', 'invalid_fee', 'same_wallet', 'wallet_not_found', 'insufficient_funds', 'no_miners', 'no_transactions', 'cancelled', 'invalid_state', 'reward_too_small', 'unexpected');
+const reason = oneOf('busy', 'invalid_amount', 'invalid_fee', 'same_wallet', 'wallet_not_found', 'insufficient_funds', 'invalid_reference', 'no_miners', 'no_transactions', 'cancelled', 'invalid_state', 'reward_too_small', 'unexpected');
 const metrics = { difficulty, elapsed_ms: count, attempt_count: count, miner_count: count, transaction_count: count };
 const SCHEMAS = {
     app_opened: {},
@@ -40,6 +40,7 @@ export function failureCode(error) {
     if (message.startsWith('Sender and recipient must')) return 'same_wallet';
     if (message.startsWith('Sender or recipient not found')) return 'wallet_not_found';
     if (message.startsWith('Insufficient funds')) return 'insufficient_funds';
+    if (message.startsWith('Reference must')) return 'invalid_reference';
     return 'unexpected';
 }
 function readStorage(storage) {

@@ -127,6 +127,8 @@ function TipMeta({ view, views }) {
       return <><b className="chain-band-bad">{Math.min(view.zerosNow, view.difficulty)}/{view.difficulty} zeros</b> · {next ? `#${next.index} still stores the hash as mined` : 'the stored hash no longer matches'}</>;
     case 'signature-invalid':
       return <>{starts} · <b className="chain-band-bad">a signature no longer matches</b></>;
+    case 'transaction-invalid':
+      return <>{starts} · <b className="chain-band-bad">a transaction breaks a rule</b></>;
     case 'link-broken':
       return <><b className="chain-band-bad">prev is not the hash of #{view.index - 1}</b></>;
     case 'built-on-broken':
@@ -267,6 +269,9 @@ function cellFor(view, views, twoLine) {
     case 'signature-invalid':
       return { cls: 'is-broken', label: `Block ${view.index}: signature invalid; its hash and link are intact`,
         st: `#${view.index} · signature invalid`, dt: <>a transaction signature fails</> };
+    case 'transaction-invalid':
+      return { cls: 'is-broken', label: `Block ${view.index}: transaction invalid; its hash and link are intact`,
+        st: `#${view.index} · transaction invalid`, dt: <>a transaction breaks a rule</> };
     case 'link-broken':
       return { cls: 'is-broken', label: `Block ${view.index}: link broken, it does not store the hash of block ${view.index - 1}`,
         st: `#${view.index} · link broken`, dt: <>prev is not the hash of #{view.index - 1}</> };

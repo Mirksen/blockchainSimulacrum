@@ -1,6 +1,6 @@
 # ADR 0002: Blocks and transactions move to Bitcoin's byte format
 
-Status: accepted, 2026-10-31 (Mirko). Package 1 done; packages 2 and 3 in progress.
+Status: accepted, 2026-10-31 (Mirko). Package 1 done; package 3 built on it; package 2 in progress.
 
 ## Context
 
@@ -40,7 +40,27 @@ Three packages.
    coins and returns change; the fee is inputs minus outputs; the coinbase carries the reward.
    Covers wallets, mempool and double-spend checks, transaction details UI, tamper/edit
    features, mission texts and acceptance scripts. Pin serialisation, txid and signature
-   hashing with real Bitcoin test vectors.
+   hashing with real Bitcoin test vectors (`web/src/__tests__/fixtures/bitcoin-transactions.json`:
+   mainnet transactions and Bitcoin Core's `sighash.json`).
+
+   Details decided while building it (`web/src/lib/tx/`):
+
+   - Wallets use compressed keys and pay to mainnet-format `1…` addresses. The simulator's
+     transactions are valid legacy Bitcoin transactions; only their coins are simulated.
+   - The coinbase is transaction 0. Its scriptSig is the BIP34 height, an 8-byte extraNonce and a
+     tag, so two coinbases of one miner never share a txid. It may claim at most the block's
+     subsidy (stored on the block, so later settings do not rewrite history) plus its fees.
+   - The genesis output is not in the UTXO set: like Satoshi's, it cannot be spent.
+   - A reference is an OP_RETURN output of 0 value, at most 80 bytes, so it stays part of the txid.
+   - Validation is one pure walk over blocks and mempool (`validateChain`), so an edit of history
+     cannot leave a stale UTXO set. An edited transaction has a new txid, and spends of the old id
+     then point at nothing: tampering can only be repaired by re-mining when the edit lowers an
+     unspent coinbase. Every other edit breaks a ledger rule that re-mining cannot fix, so the UI
+     offers Undo as soon as the edit is made.
+
+   Deliberate differences from Bitcoin, because the simulator teaches with a handful of blocks:
+   no coinbase maturity (100 blocks would stop the demo after block 1), no dust or minimum relay
+   fee, a fixed 1 satoshi fee, one address per wallet, and only SIGHASH_ALL.
 
 ## Seam between packages 2 and 3
 

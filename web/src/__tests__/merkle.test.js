@@ -4,25 +4,26 @@ import { createElement } from 'react';
 import { cleanup, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { BlockDetailsModal } from '../components/BlockDetailsModal';
-import { Block, Transaction, candidateHash, createBlockchain, transactionRoot } from '../lib/blockchain';
+import { Block, candidateHash, createBlockchain, transactionRoot } from '../lib/blockchain';
+import { createCoinbase } from '../lib/tx/transaction';
 
 // Independent reference: node:crypto, not the code under test.
 const sha = value => createHash('sha256').update(value, 'utf8').digest('hex');
-const leaf = tx => sha(`${tx.sender}${tx.recipient}${tx.amount}${tx.transactionFee}${tx.referenceNumber}`);
 const pair = (left, right) => sha(left + right);
 const ZERO_ROOT = '0'.repeat(64);
 
 const T0 = Date.parse('2026-01-02T12:00:00Z');
-const synthetic = [
-  { sender: 'wallet-a', recipient: 'wallet-b', amount: 1.5, transactionFee: 0.01, referenceNumber: 'synthetic one' },
-  { sender: 'wallet-b', recipient: 'wallet-c', amount: 0.25, transactionFee: 0, referenceNumber: 'synthetic two' },
-  { sender: null, recipient: 'wallet-c', amount: 3.125, transactionFee: 0, referenceNumber: 'Mining Reward' }
-];
-const asTransactions = list => list.map(t => new Transaction(t.sender, t.recipient, t.amount, t.transactionFee, t.referenceNumber));
+const script = '76a914' + 'ab'.repeat(20) + '88ac';
+const synthetic = [1, 2, 3].map(height => createCoinbase({ height, value: 312500000, recipientScript: script }));
 
-const setup = () => createBlockchain({
-  participants: ['Miner One', 'Wallet Two', 'Wallet Three'], miners: ['Miner One'], startingBalance: 2, miningDifficulty: 1
+const emptyChain = () => createBlockchain({
+  participants: ['Miner One', 'Wallet Two', 'Wallet Three'], miners: ['Miner One'], miningDifficulty: 1
 });
+function setup() {
+  const chain = emptyChain();
+  mineNext(chain);
+  return chain;
+}
 function mineNext(chain, timestamp = T0 + chain.blockArray.length) {
   const candidate = chain.prepareCandidate(chain.getActiveMiner(), { timestamp });
   let nonce = 0;
@@ -51,24 +52,22 @@ afterEach(() => { cleanup(); vi.useRealTimers(); });
 
 describe('transactionRoot', () => {
   it('matches independently computed Merkle roots for 0, 1, 2 and 3 transactions', () => {
-    const [a, b, c] = synthetic.map(leaf);
+    const [a, b, c] = synthetic.map(tx => tx.createHash());
     const expected = [ZERO_ROOT, a, pair(a, b), pair(pair(a, b), pair(c, c))];
     for (let count = 0; count <= 3; count++) {
-      expect(transactionRoot(asTransactions(synthetic.slice(0, count)))).toBe(expected[count]);
-      // Plain objects without createHash hash the same fields.
       expect(transactionRoot(synthetic.slice(0, count))).toBe(expected[count]);
     }
   });
 
   it('uses each transaction hash as its leaf', () => {
-    const [tx] = asTransactions(synthetic);
+    const [tx] = synthetic;
     expect(transactionRoot([tx])).toBe(tx.createHash());
   });
 });
 
 describe('block header with a transaction root', () => {
   it('keeps a fresh chain with its genesis block valid', () => {
-    const chain = setup();
+    const chain = emptyChain();
     const [coinbase] = chain.blockArray[0].transactions;
     expect(chain.blockArray[0].txRoot).toBe(coinbase.createHash());
     expect(chain.isChainValid()).toBe(true);
@@ -90,7 +89,7 @@ describe('block header with a transaction root', () => {
   it('detects tampering with the first transaction amount through the recomputed root', () => {
     const { chain, block } = chainWithThreeTransactionBlock();
     const rootBefore = transactionRoot(block.transactions);
-    expect(chain.tamperTransaction(1, 0, 1.75)).toBe(true);
+    expect(chain.tamperTransaction(2, 0, 1.75)).toBe(true);
     expect(transactionRoot(block.transactions)).not.toBe(rootBefore);
     expect(block.txRoot).toBe(rootBefore);
     expect(block.isValid()).toBe(false);
@@ -115,7 +114,7 @@ describe('block header with a transaction root', () => {
   });
 
   it('builds a standalone block with the stored root and a zero default difficulty', () => {
-    const transactions = asTransactions(synthetic);
+    const transactions = synthetic;
     const block = new Block(T0, transactions, 'f'.repeat(64));
     expect(block.difficulty).toBe(0);
     expect(block.txRoot).toBe(transactionRoot(transactions));
@@ -124,7 +123,8 @@ describe('block header with a transaction root', () => {
 
 describe('block details transaction root row', () => {
   const renderDetails = chain => render(createElement(BlockDetailsModal, {
-    block: chain.blockArray[1], blockIndex: 1, blocks: chain.blockArray, participants: chain.participants, onClose: () => {}
+    block: chain.blockArray[2], blockIndex: 2, blocks: chain.blockArray, participants: chain.participants,
+    describeTx: chain.describer(), onClose: () => {}
   }));
 
   it('shows the stored root and labels a recomputed root in text after tampering', () => {
@@ -137,7 +137,7 @@ describe('block details transaction root row', () => {
     expect(dialog.queryByText(/Changed after mining/)).toBeNull();
     first.unmount();
 
-    chain.tamperTransaction(1, 0, 1.75);
+    chain.tamperTransaction(2, 0, 1.75);
     const recomputed = transactionRoot(block.transactions);
     expect(recomputed).not.toBe(stored);
     renderDetails(chain);

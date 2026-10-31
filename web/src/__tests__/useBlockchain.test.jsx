@@ -17,11 +17,14 @@ vi.mock('crypto-js/sha256', async (importOriginal) => {
 });
 const config = { participants: ['Miner One', 'Wallet Two'], miners: ['Miner One'], miningDifficulty: 1, halvingEvent: 2 };
 // Nonce searches hash through the SHA-256 midstate (finalize), block checks
-// through the SHA256 helper; both are forced to the same synthetic digest.
+// through the SHA256 helper; both are forced to the same synthetic digest for text
+// preimages. Transaction hashes run on bytes and stay real, so txids and addresses differ.
 let finalize;
+const realSha256 = await vi.importActual('crypto-js/sha256');
+const realFinalize = CryptoJS.algo.SHA256.finalize;
 const forceHash = hex => {
-  vi.mocked(SHA256).mockImplementation(() => ({ toString: () => hex }));
-  finalize.mockImplementation(() => ({ toString: () => hex }));
+  vi.mocked(SHA256).mockImplementation(message => (typeof message === 'string' ? { toString: () => hex } : realSha256.default(message)));
+  finalize.mockImplementation(function (message) { return typeof message === 'object' ? realFinalize.call(this, message) : { toString: () => hex }; });
 };
 beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(new Date('2026-01-02T12:00:00Z')); finalize = vi.spyOn(CryptoJS.algo.SHA256, 'finalize'); forceHash('0'.repeat(64)); });
 afterEach(() => { cleanup(); vi.useRealTimers(); vi.clearAllMocks(); vi.restoreAllMocks(); telemetry.track.mockReset(); telemetry.reportError.mockReset(); });

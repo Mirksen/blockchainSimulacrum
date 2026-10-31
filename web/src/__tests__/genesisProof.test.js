@@ -44,13 +44,14 @@ describe('genesis block', () => {
 
   it('carries one unspendable coinbase with the memo', () => {
     const [coinbase] = createGenesisBlock().transactions;
-    expect(coinbase).toMatchObject({ sender: null, recipient: GENESIS.coinbase.recipient, amount: GENESIS.coinbase.amount,
-      referenceNumber: GENESIS.coinbase.memo });
+    expect(coinbase).toMatchObject({ isCoinbase: true, memo: GENESIS.coinbase.memo });
+    expect(coinbase.outputs[0].value).toBe(GENESIS.coinbase.value);
+    expect(new Blockchain('synthetic', 1).ledger().confirmed.size).toBe(0);
   });
 
   it('changes its txid and hash when the coinbase amount is edited', () => {
     const block = createGenesisBlock();
-    block.transactions[0].amount = 50;
+    block.transactions[0].outputs[0].value = 5000000000;
     expect(block.transactions[0].createHash()).not.toBe(GENESIS.txid);
     expect(block.isValid()).toBe(false);
   });

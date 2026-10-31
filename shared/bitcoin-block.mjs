@@ -24,14 +24,15 @@ export const reverseHex = hex => hex.match(/../g).reverse().join('');
 
 const utf8Hex = text => Array.from(new TextEncoder().encode(text), hexByte).join('');
 
-function varint(n) {
+/** Bitcoin's variable-length integer, up to 32 bits. */
+export function varint(n) {
   if (n < 0xfd) return hexByte(n);
   if (n <= 0xffff) return `fd${le(n, 2)}`;
   return `fe${le(n, 4)}`;
 }
 
 /** A script data push of the given hex bytes (direct push or OP_PUSHDATA1). */
-function push(hex) {
+export function push(hex) {
   const length = hex.length / 2;
   if (length <= 75) return hexByte(length) + hex;
   if (length <= 255) return `4c${hexByte(length)}${hex}`;

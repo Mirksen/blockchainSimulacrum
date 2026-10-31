@@ -54,13 +54,13 @@ describe('block status and tamper bookkeeping', () => {
     const { result } = await minedHook();
     expect(statuses(result)).toEqual(['valid', 'valid', 'valid', 'valid', 'valid']);
     expect(result.current.tamperedEdits).toEqual([]);
-    const original = result.current.blocks[2].transactions[0].amount; // Halved coinbase: 1.5625
+    const original = result.current.blocks[2].transactions[0].outputs[0].value / 1e8; // Halved coinbase: 1.5625
     expect(original).toBe(1.5625);
-    act(() => { result.current.tamperBlock(2, 0, 999); result.current.tamperBlock(2, 0, 500); });
+    act(() => { result.current.tamperBlock(2, 0, 1); result.current.tamperBlock(2, 0, 0.5); });
     expect(result.current.chainValid).toBe(false);
     expect(statuses(result)).toEqual(['valid', 'valid', 'hash-mismatch', 'built-on-broken', 'built-on-broken']);
     expect(result.current.blockStatus[3].linkIntact).toBe(true);
-    expect(result.current.tamperedEdits).toEqual([{ blockIndex: 2, txIndex: 0, from: original, to: 500 }]);
+    expect(result.current.tamperedEdits).toEqual([{ blockIndex: 2, txIndex: 0, from: original, to: 0.5 }]);
     let undone;
     act(() => { undone = result.current.undoTamper(2); });
     expect(undone).toEqual({ success: true, restored: 1 });
@@ -71,7 +71,7 @@ describe('block status and tamper bookkeeping', () => {
 
   it('refuses to mine a new block while the chain is invalid', async () => {
     const { result } = await minedHook(2);
-    act(() => result.current.tamperBlock(1, 0, 999));
+    act(() => result.current.tamperBlock(1, 0, 1));
     telemetry.track.mockClear();
     const outcome = await mine(result);
     expect(outcome).toMatchObject({ success: false, code: 'chain_invalid' });
@@ -87,7 +87,7 @@ describe('block status and tamper bookkeeping', () => {
 describe('remineBlock', () => {
   it('refuses out of order and names the block to repair first', async () => {
     const { result } = await minedHook();
-    act(() => result.current.tamperBlock(2, 0, 999));
+    act(() => result.current.tamperBlock(2, 0, 1));
     const outcome = await remine(result, 3);
     expect(outcome).toEqual({ success: false, code: 'repair_first', repairFirst: 2, error: 'Re-mine block #2 first.' });
     expect((await remine(result, 0)).code).toBe('invalid_block');
@@ -96,7 +96,7 @@ describe('remineBlock', () => {
 
   it('runs the miner race block by block until the chain is valid again', async () => {
     const { result } = await minedHook();
-    act(() => result.current.tamperBlock(2, 0, 999));
+    act(() => result.current.tamperBlock(2, 0, 1));
     const transactions = result.current.blocks[2].transactions;
     telemetry.track.mockClear();
     const first = await remine(result, 2);
@@ -125,7 +125,7 @@ describe('remineBlock', () => {
 
   it('can be stopped and then leaves the block unchanged', async () => {
     const { result } = await minedHook(2);
-    act(() => result.current.tamperBlock(1, 0, 999));
+    act(() => result.current.tamperBlock(1, 0, 1));
     const before = result.current.blocks[1].hash;
     let pending;
     act(() => { pending = result.current.remineBlock(1); });
@@ -148,7 +148,7 @@ describe('remineBlock', () => {
     await act(async () => { await vi.runAllTimersAsync(); expect((await mining).success).toBe(true); });
     expect(await blocked).toMatchObject({ success: false, code: 'busy' });
     // A re-mine is running: a second re-mine, mining and undo are refused.
-    act(() => result.current.tamperBlock(1, 0, 999));
+    act(() => result.current.tamperBlock(1, 0, 1));
     let remining, second, undo;
     act(() => {
       remining = result.current.remineBlock(1);
@@ -212,7 +212,7 @@ describe('automatic sample transfers', () => {
     act(() => { generated = result.current.generateRandomTransactions(); });
     expect(generated).toEqual({ success: true, count: 10 });
     expect(result.current.memPool).toHaveLength(10);
-    expect(result.current.memPool.every(tx => tx.amount >= 0.05 && tx.amount <= 0.1)).toBe(true);
+    expect(result.current.memPool.every(tx => tx.outputs[0].value >= 5_000_000 && tx.outputs[0].value <= 10_000_000)).toBe(true);
     expect(result.current.chainValid).toBe(true);
   });
 });

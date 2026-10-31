@@ -143,12 +143,13 @@ export async function verifyMissionReload(browser, baseURL, output) {
         if (id === 'win-mining-race') {
           await page.getByRole('button', { name: /^Back / }).first().click();
         } else if (id === 'forge-a-block') {
-          await wb.tile(1).click();
+          // Block #2's coinbase is the unspent one after the demo.
+          await wb.tile(2).click();
           await page.getByRole('button', { name: 'Tamper with this block', exact: true }).click();
-          const editor = page.getByRole('form', { name: 'Change a transaction amount in block 1' });
-          await editor.getByLabel('New amount').fill('99');
+          const editor = page.getByRole('form', { name: 'Change a transaction amount in block 2' });
+          await editor.getByLabel('New amount').fill('1');
           await editor.getByRole('button', { name: 'Change amount' }).click();
-          await page.getByRole('button', { name: 'Re-mine block #1', exact: true }).waitFor();
+          await page.getByRole('button', { name: 'Re-mine block #2', exact: true }).waitFor();
         } else {
           await wb.mine(3).click();
           await wb.mine(4).waitFor({ timeout: 30000 });

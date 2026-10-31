@@ -35,16 +35,14 @@ beforeEach(() => { vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(T0);
 afterEach(() => { vi.useRealTimers(); });
 
 describe('addWallet', () => {
-  it('adds a non-miner wallet whose balance follows the starting balance rule', () => {
+  it('adds a non-miner wallet that starts without coins', () => {
     const chain = setup();
     const result = chain.addWallet('Dana7');
     expect(result).toMatchObject({ success: true, error: null });
     expect(result.participant.isMiner).toBe(false);
     expect(chain.getAllBalances().at(-1)).toMatchObject({ name: 'Dana7', balance: 0, isMiner: false });
     expect(chain.getActiveMiners().map(p => p.name)).toEqual(['Miner1']);
-    const funded = setup({ startingBalance: 2 });
-    funded.addWallet('Dana7');
-    expect(funded.calculateConfirmedBalance(funded.getParticipantByName('Dana7').publicKey)).toBe(2);
+    expect(chain.calculateConfirmedBalance(chain.getParticipantByName('Dana7').publicKey)).toBe(0);
   });
 
   it('accepts exactly 2 and 16 letters or digits and trims surrounding spaces', () => {
@@ -77,7 +75,7 @@ describe('inspectBlocks', () => {
   it('reports genesis alone as valid with an intact link and met target', () => {
     const [genesis] = setup().inspectBlocks();
     expect(genesis).toEqual({ index: 0, storedHash: genesis.computedHash, computedHash: genesis.computedHash,
-      hashMatches: true, meetsTarget: true, linkIntact: true, signaturesValid: true, builtOnBroken: false, status: 'valid' });
+      hashMatches: true, meetsTarget: true, linkIntact: true, signaturesValid: true, builtOnBroken: false, status: 'valid', issue: null });
   });
 
   it('reports every block of an untouched chain as valid', () => {
@@ -152,7 +150,7 @@ describe('tamper bookkeeping', () => {
     chain.tamperTransaction(2, 0, 999);
     chain.tamperTransaction(4, 0, 1);
     expect(chain.undoTamper(2)).toEqual({ success: true, restored: 1 });
-    expect(chain.blockArray[2].transactions[0].amount).toBe(3.125);
+    expect(chain.blockArray[2].transactions[0].outputs[0].value).toBe(312500000);
     expect(chain.getTamperedEdits()).toEqual([{ blockIndex: 4, txIndex: 0, from: 3.125, to: 1 }]);
     expect(statuses(chain)).toEqual(['valid', 'valid', 'valid', 'valid', 'hash-mismatch']);
     expect(chain.undoTamper(4)).toEqual({ success: true, restored: 1 });
@@ -178,7 +176,7 @@ describe('re-mining a historical block', () => {
 
   it('refuses a block when an earlier block is broken and names the block to repair first', () => {
     const chain = minedChain();
-    chain.tamperTransaction(2, 0, 999);
+    chain.tamperTransaction(2, 0, 1);
     expect(chain.prepareRemine(3)).toEqual({ success: false, code: 'repair_first', repairFirst: 2, error: 'Re-mine block #2 first.' });
     expect(chain.prepareRemine(4)).toMatchObject({ repairFirst: 2 });
     remine(chain, 2);
@@ -187,7 +185,7 @@ describe('re-mining a historical block', () => {
 
   it('re-links the block, keeps its transactions and leaves the next link broken until that block is re-mined', () => {
     const chain = minedChain();
-    chain.tamperTransaction(2, 0, 999);
+    chain.tamperTransaction(2, 0, 1);
     const block = chain.blockArray[2];
     const { transactions, timestamp } = block;
     const state = () => JSON.stringify({ memPool: chain.memPool, reward: chain.blockReward, log: chain.miningLog,
@@ -196,7 +194,7 @@ describe('re-mining a historical block', () => {
     const { block: remined } = remine(chain, 2);
     expect(remined).toBe(block);
     expect(block.transactions).toBe(transactions);
-    expect(block.transactions[0].amount).toBe(999);
+    expect(block.transactions[0].outputs[0].value).toBe(100000000);
     expect(block.timestamp).toBe(timestamp);
     expect(block.previousHash).toBe(chain.blockArray[1].hash);
     expect(block.hash).toBe(block.createHash());
@@ -218,7 +216,7 @@ describe('re-mining a historical block', () => {
     chain.createTransaction('Miner1', 'Wallet2', 1, 0);
     mineNext(chain);
     const index = chain.blockArray.length - 1;
-    const transfer = chain.blockArray[index].transactions.findIndex(tx => tx.sender !== null);
+    const transfer = chain.blockArray[index].transactions.findIndex(tx => !tx.isCoinbase);
     chain.tamperTransaction(index, transfer, 2);
     expect(statuses(chain).at(-1)).toBe('hash-mismatch');
     remine(chain, index);
@@ -231,7 +229,7 @@ describe('re-mining a historical block', () => {
 
   it('meets the current target and records it as the block difficulty', () => {
     const chain = minedChain();
-    chain.tamperTransaction(1, 0, 999);
+    chain.tamperTransaction(1, 0, 1);
     chain.miningDifficulty = 2;
     const { block } = remine(chain, 1);
     expect(block.difficulty).toBe(2);
