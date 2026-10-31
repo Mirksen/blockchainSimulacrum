@@ -12,7 +12,7 @@ describe('HashLab independent interaction', () => {
     const original = fingerprint();
     fireEvent.change(screen.getByLabelText('Message'), { target: { value: 'Hello, block?' } });
     expect(fingerprint()).not.toBe(original);
-    fireEvent.change(screen.getByLabelText('Message'), { target: { value: 'Hello, block!' } });
+    fireEvent.change(screen.getByLabelText('Message'), { target: { value: 'Hello, block.' } });
     expect(fingerprint()).toBe(original);
     fireEvent.change(screen.getByLabelText(/Nonce/), { target: { value: '1.5' } });
     expect(screen.getByRole('alert').textContent).toContain('whole number');
@@ -28,8 +28,8 @@ describe('HashLab independent interaction', () => {
     render(<HashLab onClose={() => {}} />);
     fireEvent.click(screen.getByRole('button', { name: 'Find a nonce' }));
     await act(async () => { await vi.runAllTimersAsync(); });
-    expect(screen.getByRole('status').textContent).toContain('264 attempts');
-    expect(screen.getByLabelText(/Nonce/).value).toBe('263');
+    expect(screen.getByRole('status').textContent).toContain('188 attempts');
+    expect(screen.getByLabelText(/Nonce/).value).toBe('187');
     expect(screen.getByText('Target met')).toBeTruthy();
   });
   it('stops before the first attempt and can search again', async () => {

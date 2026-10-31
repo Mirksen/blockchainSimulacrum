@@ -4,6 +4,10 @@ import { search } from './powSearch';
 
 export const SEARCH_LIMIT = 50_000;
 
+// The target is part of the header, so each target searches different hashes and a stricter one
+// can win by luck. This message keeps the lesson's order: 12, 188 and 6122 attempts from nonce 0.
+export const INITIAL_MESSAGE = 'Hello, block.';
+
 export function parseNonce(value) {
   if ((typeof value !== 'number' && typeof value !== 'string') ||
       (typeof value === 'string' && !/^\d+$/.test(value)) ||
