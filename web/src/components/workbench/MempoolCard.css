@@ -10,13 +10,13 @@
 .mempool-card-list { list-style: none; margin: 0; padding: 0; flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; }
 .mempool-card-tx {
   display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: var(--s-3);
-  flex: 1 1 44px; min-height: 36px; max-height: 96px; padding: 0 var(--s-4); border-bottom: 1px solid var(--line-2);
+  flex: 1 1 44px; min-height: 36px; max-height: 96px; padding: 4px var(--s-4); border-bottom: 1px solid var(--line-2);
 }
 .mempool-card-tx.is-mining { grid-template-columns: minmax(0, 1fr) auto auto; }
 .mempool-card-what { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mempool-card-what b { font-weight: 500; }
 .mempool-card-what small { font-size: 12px; color: var(--text-3); margin-left: var(--s-2); }
-.mempool-card-what small.mempool-card-spend { display: block; margin-left: 0; font-size: 11px; line-height: 14px; font-family: var(--mono); overflow: hidden; text-overflow: ellipsis; }
+.mempool-card-what small.mempool-card-spend { display: block; margin-left: 0; font-size: 11px; line-height: 14px; font-family: var(--mono); white-space: normal; }
 .mempool-card-open { padding: 0; border: 0; background: none; color: inherit; font: inherit; cursor: pointer; }
 .mempool-card-open:hover b { text-decoration: underline; }
 .mempool-card-open:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }

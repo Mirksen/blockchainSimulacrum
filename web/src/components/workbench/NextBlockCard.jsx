@@ -281,7 +281,7 @@ function RepairBody({ repair, difficulty, target, onRemine, coach }) {
   const then = rest.length ? ` Then ${rest.map(i => `#${i}`).join(', then ')}.` : '';
   return (
     <div className="next-block-body" data-round="repair">
-      <div className="next-block-repair-head"><span><b>Repair first</b> · re-mine in order</span>
+      <div className="next-block-repair-head"><span><b>Repair first</b> · {repair?.undoOnly ? 'undo the edit' : 're-mine in order'}</span>
         {order.length > 0 && (
           <span className="next-block-order" aria-label={`Re-mine order, ${done} of ${order.length} done`}>
             {order.map((blockIndex, i) => (

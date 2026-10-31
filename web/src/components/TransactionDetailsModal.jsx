@@ -26,13 +26,13 @@ function InputRow({ input }) {
 }
 
 function OutputRow({ output }) {
-    const state = output.kind === 'memo' ? 'data only, cannot be spent'
+    const state = output.kind === 'memo' ? `${output.memo ?? 'binary data'} · cannot be spent`
         : output.spent ? (output.spentIn === null ? 'spent in the mempool' : `spent in block #${output.spentIn}`) : 'unspent';
     return (
         <li className="details-modal-coin is-flow">
             <div className="details-modal-flow-main">
                 <span className="details-modal-pill">{OUTPUT_KINDS[output.kind]}</span>
-                <b>{output.kind === 'memo' ? output.memo : (output.owner ?? 'Unknown')}</b>
+                <b>{output.kind === 'memo' ? '' : (output.owner ?? 'Unknown')}</b>
                 <span className="details-modal-row-amount">{coins(output.value)}</span>
             </div>
             <div className="details-modal-flow-meta">{[shortAddress(output.address), state].filter(Boolean).join(' · ')}</div>
