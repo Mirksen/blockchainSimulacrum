@@ -148,6 +148,9 @@ export class Blockchain {
     this.miningLog = [];
     // Script verification results by "txid:input"; a txid commits to everything they depend on.
     this.verified = new Map();
+    // Bumped by every change to blocks or mempool, so one state is walked once.
+    this.revision = 0;
+    this.walked = { revision: -1, ledger: null };
     // Original values of tampered outputs, keyed "block:tx"; set once per edit.
     this.tamperedOriginals = new Map();
     // Set by every change to an already mined block (tamper, undo, re-mine).
@@ -233,7 +236,10 @@ export class Blockchain {
 
   // The UTXO set and every rule check, computed from the blocks and the mempool (./tx/utxo.js).
   ledger() {
-    return validateChain(this.blockArray, this.memPool, this.verified);
+    if (this.walked.revision !== this.revision) {
+      this.walked = { revision: this.revision, ledger: validateChain(this.blockArray, this.memPool, this.verified) };
+    }
+    return this.walked.ledger;
   }
 
   // Unspent outputs a key can spend; `pending` includes the mempool, which also spends coins.
@@ -282,6 +288,7 @@ export class Blockchain {
     const check = validateChain(this.blockArray, [...this.memPool, tx], this.verified).memPool.at(-1);
     if (!check.valid) return { success: false, reason: check.issues[0].reason };
     this.memPool.push(tx);
+    this.revision++;
     return { success: true, reason: null };
   }
 
@@ -364,9 +371,11 @@ export class Blockchain {
     block.halved = candidate.halved;
     block.subsidy = candidate.subsidy;
     this.blockArray.push(block);
+    this.revision++;
     // Everything the block spent, and every entry it invalidated, leaves the mempool.
     const { memPool } = this.ledger();
     this.memPool = this.memPool.filter((_, i) => memPool[i].valid);
+    this.revision++;
     this.blockReward = candidate.reward;
     this.incrementBlocksWon(candidate.minerPublicKey);
     this.miningLog.push({ blockNumber: candidate.height, nonce, hash });
@@ -419,6 +428,7 @@ export class Blockchain {
     block.nonce = nonce;
     block.hash = hash;
     this.historyEdited = true;
+    this.revision++;
     return { status: 'accepted', block };
   }
 
@@ -496,6 +506,7 @@ export class Blockchain {
     if (!this.tamperedOriginals.has(key)) this.tamperedOriginals.set(key, { blockIndex, txIndex, value: output.value });
     output.value = value;
     this.historyEdited = true;
+    this.revision++;
     if (this.tamperedOriginals.get(key).value === value) this.tamperedOriginals.delete(key);
     return true;
   }
@@ -508,6 +519,7 @@ export class Blockchain {
       this.blockArray[edit.blockIndex].transactions[edit.txIndex].outputs[0].value = edit.value;
       this.tamperedOriginals.delete(key);
       this.historyEdited = true;
+      this.revision++;
       restored++;
     }
     return { success: restored > 0, restored };

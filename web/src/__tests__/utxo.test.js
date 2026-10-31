@@ -59,6 +59,8 @@ describe('spending', () => {
     expect(tx.memo).toBe('Coffee');
     const view = chain.describer()(tx);
     expect(view).toMatchObject({ from: 'Miner', to: 'Bob', amount: 1, fee: 0.001, change: 2.124, memo: 'Coffee', signed: true });
+    const coins = [...chain.ledger().pending.values()];
+    expect(coins.map(coin => coin.value).sort((a, b) => a - b)).toEqual([100000000, 212400000]);
     expect(view.outputs.map(output => output.kind)).toEqual(['payment', 'change', 'memo']);
     expect(tx.verifyInput(0, named(chain, 'Miner').scriptPubKey)).toBe(true);
   });
@@ -115,6 +117,22 @@ describe('spending', () => {
     expect(chain.previewTransaction('Miner', 1)).toMatchObject({ funded: true, amount: 100000000, fee: 1, change: 212499999 });
     expect(chain.previewTransaction('Bob', 1)).toMatchObject({ funded: false, balance: 0 });
     expect(chain.memPool).toEqual([]);
+  });
+});
+
+describe('signatures', () => {
+  it('always uses low S, as Bitcoin relay policy requires', () => {
+    const chain = setup();
+    const miner = named(chain, 'Miner');
+    const halfOrder = BigInt('0x7fffffffffffffffffffffffffffffff5d576e7357a4501ddfe92f46681b20a0');
+    for (let value = 1; value <= 16; value++) {
+      const tx = new Transaction({ inputs: [{ txid: 'ab'.repeat(32), vout: 0 }], outputs: [{ value, scriptPubKey: miner.scriptPubKey }] });
+      tx.signInput(0, miner.keyPair, miner.scriptPubKey);
+      const der = tx.inputs[0].scriptSig.slice(2, -70);
+      const rLength = parseInt(der.slice(6, 8), 16) * 2;
+      const s = der.slice(12 + rLength);
+      expect(BigInt(`0x${s}`) <= halfOrder).toBe(true);
+    }
   });
 });
 
@@ -210,6 +228,7 @@ describe('tampering under the ledger rules', () => {
   it('refuses an overclaimed coinbase at once, and re-mining cannot fix it', () => {
     const chain = setup();
     mine(chain);
+    expect(chain.isChainValid()).toBe(true);
     chain.tamperTransaction(1, 0, 99);
     expect(chain.inspectBlocks()[1]).toMatchObject({ status: 'hash-mismatch', issue: { reason: 'coinbase-overclaim', txIndex: 0 } });
     remine(chain, 1);
