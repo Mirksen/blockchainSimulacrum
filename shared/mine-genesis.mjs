@@ -1,59 +1,32 @@
-// Mines the proofofwork.fyi genesis block and writes it to shared/genesis.json and the
-// server's copy (the server container sees only server/).
+// Builds the proofofwork.fyi genesis block in Bitcoin's byte format and writes it to
+// shared/genesis.json and the server's copy (the server container sees only server/).
 //
-//   node shared/mine-genesis.mjs --anchor <bitcoin height> --zeros <n> --status bridge|final
-//                                [--memo "<text>"] [--recipient <name>] [--amount <n>] [--threads <n>]
-//                                [--print-header | --nonce <n>]
+//   node shared/mine-genesis.mjs --anchor <bitcoin height|tip> --memo "<text>" --template
+//   node shared/mine-genesis.mjs --anchor <bitcoin height> --memo "<text>" --extra-nonce <n> --nonce <n>
 //
-// Unset options keep the values in shared/genesis.json. The anchor's hash and time are
-// read once from mempool.space and checked like the server checks rounds (its header hashes
-// to its id with real proof of work); the genesis time is the anchor's time, so the block
-// cannot predate it. The search runs on several threads, each taking every n-th nonce.
-// A faster external search can take over: --print-header prints the string the nonce is
-// appended to and writes nothing; --nonce checks a nonce found that way and writes the block.
+// The anchor's hash and time are read once from mempool.space and checked like the server
+// checks rounds (its header hashes to its id with real proof of work). The genesis header
+// takes the anchor as previous block and the anchor's time, so the block cannot predate it;
+// bits are 0x1d00ffff (difficulty 1), like Satoshi's block 0. The coinbase pays 3.125 BTC to
+// Hal Finney's key from block 170 and carries the memo in its scriptSig (shared/bitcoin-block.mjs).
 //
-// The block uses the app's own format (web/src/lib/blockchain.js): the header hash is
-// SHA256(previousHash + txRoot + timestamp + difficulty + nonce); with one coinbase
-// transaction the txRoot is that transaction's hash,
-// SHA256(sender + recipient + amount + fee + memo), where a null sender reads "null".
+// --template prints the coinbase split around its extraNonce and the header fields, the input
+// of the GPU best-hash search; --extra-nonce/--nonce rebuild a found block, check it meets its
+// bits target and write it.
 import { createHash } from 'node:crypto';
-import { readFileSync, writeFileSync } from 'node:fs';
-import { availableParallelism } from 'node:os';
+import { writeFileSync } from 'node:fs';
 import { parseArgs } from 'node:util';
-import { isMainThread, parentPort, Worker, workerData } from 'node:worker_threads';
 import { blockProblem } from '../server/src/bitcoinHeader.js';
+import { buildBlock, coinbaseParts, leadingZeroBits, targetOf } from './bitcoin-block.mjs';
 
 const SHARED = new URL('./genesis.json', import.meta.url);
 const SERVER_COPY = new URL('../server/src/genesis.json', import.meta.url);
 const API = 'https://mempool.space/api';
 
-const sha256 = text => createHash('sha256').update(text, 'utf8').digest('hex');
+export const HAL_FINNEY = '04ae1a62fe09c5f51b13905f07f06b99a2f7159b2225f374cd378d71302fa28414e7aab37397f554a7df5f142c21c1b7303b8a0626f1baded5c72a704f7e6cd84c';
+const BITS = 0x1d00ffff;
 
-export function genesisTxRoot({ coinbase }) {
-  return sha256(`${coinbase.sender}${coinbase.recipient}${coinbase.amount}${coinbase.fee}${coinbase.memo}`);
-}
-
-// Everything the header hash covers except the nonce, which is appended in decimal.
-export function genesisHeader(genesis) {
-  return `${genesis.anchor.hash}${genesisTxRoot(genesis)}${genesis.timestamp}${genesis.difficulty}`;
-}
-
-export function genesisHash(genesis, nonce = genesis.nonce) {
-  return sha256(`${genesisHeader(genesis)}${nonce}`);
-}
-
-// Worker: nonces start, start + stride, … until one meets the target.
-if (!isMainThread) {
-  const { header, target, start, stride } = workerData;
-  for (let nonce = start, tried = 0; ; nonce += stride, tried += 1) {
-    const hash = sha256(header + nonce);
-    if (hash.startsWith(target)) {
-      parentPort.postMessage({ nonce, hash, tried: tried + 1 });
-      break;
-    }
-    if (tried % 5_000_000 === 0 && tried) parentPort.postMessage({ tried });
-  }
-}
+export const sha256d = hex => createHash('sha256').update(createHash('sha256').update(Buffer.from(hex, 'hex')).digest()).digest('hex');
 
 export async function anchorAt(height) {
   const hash = (await (await fetch(`${API}/block-height/${height}`)).text()).trim();
@@ -65,70 +38,39 @@ export async function anchorAt(height) {
   return { chain: 'bitcoin', height, hash, time: block.timestamp };
 }
 
-function mine(genesis, threads) {
-  const header = genesisHeader(genesis);
-  const target = '0'.repeat(genesis.difficulty);
-  const started = Date.now();
-  const tried = new Array(threads).fill(0);
-  return new Promise((resolve, reject) => {
-    const workers = Array.from({ length: threads }, (_, index) => {
-      const worker = new Worker(new URL(import.meta.url), {
-        workerData: { header, target, start: genesis.startNonce + index, stride: threads },
-      });
-      worker.on('message', message => {
-        tried[index] = message.tried;
-        if (message.hash === undefined) {
-          const total = tried.reduce((a, b) => a + b, 0);
-          if (index === 0) console.error(`… ${total.toLocaleString('en-US')} attempts, ${Math.round(total / ((Date.now() - started) / 1000)).toLocaleString('en-US')} H/s`);
-          return;
-        }
-        for (const other of workers) void other.terminate();
-        resolve({ nonce: message.nonce, hash: message.hash, seconds: (Date.now() - started) / 1000 });
-      });
-      worker.on('error', reject);
-      return worker;
-    });
-  });
+/** The genesis fields for an anchor and memo, before extraNonce and nonce are known. */
+export function genesisFields(anchor, memo) {
+  return {
+    status: 'final',
+    format: 'bitcoin',
+    anchor,
+    header: { version: 1, time: anchor.time, bits: BITS, nonce: 0 },
+    coinbase: { recipient: 'Hal Finney', amount: 3.125, value: 312500000, pubkey: HAL_FINNEY, memo, extraNonce: 0, extraNonceBytes: 8 },
+  };
 }
 
-if (isMainThread && import.meta.url === `file://${process.argv[1]}`) {
+if (import.meta.url === `file://${process.argv[1]}`) {
   const { values } = parseArgs({ options: {
-    anchor: { type: 'string' }, zeros: { type: 'string' }, status: { type: 'string' }, memo: { type: 'string' },
-    recipient: { type: 'string' }, amount: { type: 'string' }, threads: { type: 'string' },
-    'print-header': { type: 'boolean' }, nonce: { type: 'string' },
+    anchor: { type: 'string' }, memo: { type: 'string' }, template: { type: 'boolean' },
+    'extra-nonce': { type: 'string' }, nonce: { type: 'string' },
   } });
-  const genesis = JSON.parse(readFileSync(SHARED, 'utf8'));
-  if (values.anchor) {
-    genesis.anchor = await anchorAt(Number(values.anchor));
-    genesis.timestamp = genesis.anchor.time * 1000;
-  }
-  if (values.zeros) genesis.difficulty = Number(values.zeros);
-  if (values.status) genesis.status = values.status;
-  if (values.memo) genesis.coinbase.memo = values.memo;
-  if (values.recipient) genesis.coinbase.recipient = values.recipient;
-  if (values.amount) genesis.coinbase.amount = Number(values.amount);
-  if (!['bridge', 'final'].includes(genesis.status)) throw new Error('--status must be bridge or final');
-  if (values['print-header']) {
-    console.log(genesisHeader(genesis));
+  if (!values.anchor || !values.memo) throw new Error('--anchor and --memo are required');
+  const height = values.anchor === 'tip'
+    ? Number((await (await fetch(`${API}/blocks/tip/height`)).text()).trim()) : Number(values.anchor);
+  const genesis = genesisFields(await anchorAt(height), values.memo);
+  if (values.template) {
+    const { prefix, suffix } = coinbaseParts({ bits: BITS, ...genesis.coinbase });
+    console.log(JSON.stringify({ anchor: genesis.anchor, ...genesis.header, extraNonceBytes: 8, prefix, suffix }, null, 2));
     process.exit(0);
   }
-  let found;
-  if (values.nonce !== undefined) {
-    const nonce = Number(values.nonce);
-    if (!/^\d+$/.test(values.nonce) || !Number.isSafeInteger(nonce)) throw new Error('--nonce must be a non-negative integer');
-    const hash = genesisHash(genesis, nonce);
-    if (!hash.startsWith('0'.repeat(genesis.difficulty))) throw new Error(`nonce ${nonce} gives ${hash}, fewer than ${genesis.difficulty} zeros`);
-    found = { nonce, hash, seconds: 0 };
-  } else {
-    const threads = Number(values.threads ?? Math.max(1, availableParallelism() - 1));
-    console.error(`mining ${genesis.status} genesis on Bitcoin ${genesis.anchor.height} for ${genesis.difficulty} zeros on ${threads} threads`);
-    found = await mine(genesis, threads);
-  }
-  const result = { status: genesis.status, anchor: genesis.anchor, timestamp: genesis.timestamp, difficulty: genesis.difficulty,
-    coinbase: genesis.coinbase, startNonce: genesis.startNonce, txRoot: genesisTxRoot(genesis), nonce: found.nonce, hash: found.hash };
-  if (genesisHash(result) !== found.hash) throw new Error('rebuilt hash differs');
+  for (const key of ['extra-nonce', 'nonce']) if (!/^\d+$/.test(values[key] ?? '')) throw new Error(`--${key} must be a non-negative integer`);
+  genesis.coinbase.extraNonce = Number(values['extra-nonce']);
+  genesis.header.nonce = Number(values.nonce);
+  const block = buildBlock(genesis, sha256d);
+  if (BigInt(`0x${block.hash}`) > targetOf(BITS)) throw new Error(`hash ${block.hash} misses its bits target`);
+  const result = { ...genesis, txid: block.txid, coinbaseHex: block.coinbaseHex, headerHex: block.headerHex, hash: block.hash };
   const text = `${JSON.stringify(result, null, 2)}\n`;
   writeFileSync(SHARED, text);
   writeFileSync(SERVER_COPY, text);
-  console.log(`${result.status}: nonce ${found.nonce}, hash ${found.hash} (${found.seconds.toFixed(1)} s)`);
+  console.log(`genesis on Bitcoin ${height}: hash ${block.hash} (${leadingZeroBits(block.hash)} leading zero bits)`);
 }

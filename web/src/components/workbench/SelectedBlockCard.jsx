@@ -197,7 +197,8 @@ export function SelectedBlockCard({ block, status, prevHash, edit, onOpenDetails
   ) : (
     <div className="card-kit-kv"><dt>Hash</dt><dd>
       <ShortHash hash={block.hash} /><CopyButton key={`${block.index}:${block.hash}`} value={block.hash} label="hash" />
-      <span className="card-kit-t3">{target ? `starts with ${target}` : 'no target for Genesis'}</span>
+      <span className="card-kit-t3">{isGenesis ? `${leadingZeros(block.hash)} zeros · Bitcoin block format, double SHA-256`
+        : target ? `starts with ${target}` : 'no target'}</span>
     </dd></div>
   );
 
@@ -224,7 +225,7 @@ export function SelectedBlockCard({ block, status, prevHash, edit, onOpenDetails
   const nonceRow = kind === 'hash-mismatch' ? null : (
     <div className="card-kit-kv"><dt>Nonce</dt><dd>
       <span>{Number(block.nonce ?? 0).toLocaleString('en-US')}</span>
-      <span className="card-kit-t3">{target ? `· makes the hash start with ${target}` : '· Genesis needs no proof of work'}</span>
+      <span className="card-kit-t3">{target ? `· makes the hash start with ${target}` : '· no proof of work needed'}</span>
     </dd></div>
   );
 
@@ -237,7 +238,7 @@ export function SelectedBlockCard({ block, status, prevHash, edit, onOpenDetails
     <div className="card-kit-kv"><dt>Miner</dt><dd>
       {minerName ? (
         <><Avatar name={minerName} /><span>{minerName}</span>{minerFacts.length > 0 && <span className="card-kit-t3">· {minerFacts.join(' · ')}</span>}</>
-      ) : <span className="card-kit-t3">none · Genesis was not mined</span>}
+      ) : <span className="card-kit-t3">{isGenesis ? 'none · Genesis was mined once before launch' : 'unknown'}</span>}
     </dd></div>
   );
 
