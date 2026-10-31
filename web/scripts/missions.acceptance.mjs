@@ -172,3 +172,52 @@ export async function verifyMissionReload(browser, baseURL, output) {
   assert.deepEqual(errors, []);
   return ['Mission reload: race, forge and halving restart against the fresh simulator at desktop/phone widths; rewards and visibility survive, new evidence advances, hide/show preserves in-page steps'];
 }
+
+// The forge mission on real ledger rules: an overclaim is a dead end that only Undo leaves and
+// restarts the mission; lowering an unspent coinbase and redoing the work completes it.
+export async function verifyForgeMission(browser, baseURL, output) {
+  const context = await browser.newContext({ viewport: { width: 1440, height: 1000 }, reducedMotion: 'reduce' });
+  const errors = [];
+  try {
+    await context.route('https://api.proofofwork.fyi/**', route => route.abort('connectionrefused'));
+    await context.route('https://eu.i.posthog.com/**', route => route.abort('connectionrefused'));
+    const page = await context.newPage();
+    page.setDefaultTimeout(30000);
+    page.on('pageerror', error => errors.push(error.message));
+    await page.goto(baseURL);
+    const completed = MISSIONS.slice(0, MISSIONS.findIndex(mission => mission.id === 'forge-a-block')).map(mission => mission.id);
+    await page.evaluate(progress => {
+      localStorage.setItem('proofofwork-missions', JSON.stringify(progress));
+      localStorage.setItem('proofofwork-rail-collapsed', '0');
+      localStorage.setItem('proofofwork-missions-intro-seen', '1');
+    }, { version: 1, completed, step: 0, data: {} });
+    await page.reload();
+    const wb = workbench(page);
+    const progress = () => page.evaluate(() => JSON.parse(localStorage.getItem('proofofwork-missions')));
+    const tamper = async (index, amount) => {
+      await wb.tile(index).click();
+      await page.getByRole('button', { name: 'Tamper with this block', exact: true }).click();
+      const editor = page.getByRole('form', { name: `Change a transaction amount in block ${index}` });
+      await editor.getByLabel('New amount').fill(amount);
+      await editor.getByRole('button', { name: 'Change amount' }).click();
+    };
+    await page.getByRole('button', { name: 'Start demo', exact: true }).click();
+    await wb.mine(3).waitFor();
+    await wb.mine(3).click();
+    await wb.mine(4).waitFor();
+
+    await tamper(2, '99');
+    await page.getByRole('button', { name: 'Undo edit in block #2', exact: true }).click();
+    await wb.chainPill().filter({ hasText: 'Chain valid' }).waitFor();
+    assert.equal((await progress()).step, 0, 'Undo starts the mission over');
+
+    await tamper(2, '1');
+    await page.getByRole('button', { name: 'Re-mine block #2', exact: true }).click();
+    await page.getByRole('button', { name: 'Re-mine block #3', exact: true }).click();
+    await wb.chainPill().filter({ hasText: 'Chain valid' }).waitFor();
+    await page.waitForFunction(id => JSON.parse(localStorage.getItem('proofofwork-missions')).completed.includes(id), 'forge-a-block');
+    await page.screenshot({ path: join(output, 'mission-forge-done.png'), fullPage: true });
+  } finally { await context.close(); }
+  assert.deepEqual(errors, []);
+  return ['Forge mission: an overclaimed coinbase is a dead end that Undo leaves; lowering an unspent coinbase and re-mining completes it'];
+}

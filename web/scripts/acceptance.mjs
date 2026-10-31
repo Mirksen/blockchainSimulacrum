@@ -2,7 +2,7 @@ import { verifyMiningControlsAndSound } from './mining-controls.acceptance.mjs';
 import { verifyForkLab, verifyForkMission } from './fork-lab.acceptance.mjs';
 import { verifyHashLab } from './hash-lab.acceptance.mjs';
 import { verifyChainLab } from './chain-lab.acceptance.mjs';
-import { verifyMissions, verifyMissionReload } from './missions.acceptance.mjs';
+import { verifyForgeMission, verifyMissions, verifyMissionReload } from './missions.acceptance.mjs';
 import { verifyMissionVisibility } from './missions-visibility.acceptance.mjs';
 import { verifyPool } from './pool.acceptance.mjs';
 import { headerHash, menu, openTab, settle, snapshot, workbench } from './workbench.helpers.mjs';
@@ -88,6 +88,7 @@ try {
  results.push(...await verifyMiningControlsAndSound(browser, baseURL, output));
  results.push(...await verifyMissionVisibility(browser, baseURL, output));
  results.push(...await verifyMissionReload(browser, baseURL, output));
+ results.push(...await verifyForgeMission(browser, baseURL, output));
  page=await browser.newPage({viewport:{width:1440,height:1000},reducedMotion:'reduce'});
  // Install once before the app creates timers; all experiments share this clock.
  await page.clock.install();
