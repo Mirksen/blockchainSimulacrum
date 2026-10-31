@@ -1,14 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { candidateHash, createBlockchain, DEFAULT_FEE, Transaction } from '../lib/blockchain';
 import { selectCoins } from '../lib/tx/utxo';
+import { meetsTarget } from '../../../shared/bitcoin-block.mjs';
 
-const T0 = Date.parse('2026-01-02T12:00:00Z');
 const setup = () => createBlockchain({ participants: ['Miner', 'Other', 'Bob'], miners: ['Miner', 'Other'], miningDifficulty: 1 });
 const named = (chain, name) => chain.getParticipantByName(name);
 function mine(chain, who = 'Miner') {
-  const candidate = chain.prepareCandidate(named(chain, who), { timestamp: T0 + chain.blockArray.length });
+  const candidate = chain.prepareCandidate(named(chain, who));
   let nonce = 0;
-  while (!candidateHash(candidate, nonce).startsWith(candidate.target)) nonce++;
+  while (!meetsTarget(candidateHash(candidate, nonce), candidate.bits)) nonce++;
   const outcome = chain.acceptBlock(candidate, nonce, candidateHash(candidate, nonce));
   expect(outcome.status).toBe('accepted');
   return outcome.block;
@@ -17,7 +17,7 @@ function remine(chain, index) {
   const { candidate, success } = chain.prepareRemine(index);
   expect(success).toBe(true);
   let nonce = 0;
-  while (!candidateHash(candidate, nonce).startsWith(candidate.target)) nonce++;
+  while (!meetsTarget(candidateHash(candidate, nonce), candidate.bits)) nonce++;
   expect(chain.acceptRemine(candidate, nonce, candidateHash(candidate, nonce)).status).toBe('accepted');
 }
 const balance = (chain, name) => chain.calculateConfirmedBalance(named(chain, name).publicKey);
@@ -190,7 +190,7 @@ describe('the mempool refuses', () => {
 describe('a block breaking the rules', () => {
   // Blocks with hand-placed transactions; the proof is real, so only the ledger rule can fail.
   function force(chain, tx) {
-    const candidate = chain.prepareCandidate(named(chain, 'Miner'), { timestamp: T0 + chain.blockArray.length });
+    const candidate = chain.prepareCandidate(named(chain, 'Miner'));
     const block = mine(chain);
     block.transactions.push(tx);
     expect(candidate.height).toBe(chain.blockArray.length - 1);
@@ -284,6 +284,7 @@ describe('tampering under the ledger rules', () => {
     expect(chain.tamperTransaction(1, 0, 21_000_001)).toBe(false);
     expect(chain.tamperTransaction(1, 0, -1)).toBe(false);
     expect(chain.tamperTransaction(1, 0, Number.NaN)).toBe(false);
+    expect(chain.tamperTransaction(1, 0, 3.125000001)).toBe(false);
     expect(chain.getTamperedEdits()).toEqual([]);
   });
 

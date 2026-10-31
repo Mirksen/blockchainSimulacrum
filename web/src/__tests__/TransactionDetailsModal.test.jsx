@@ -4,14 +4,15 @@ import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { ParticipantDetailsModal } from '../components/ParticipantDetailsModal';
 import { TransactionDetailsModal } from '../components/TransactionDetailsModal';
 import { candidateHash, createBlockchain } from '../lib/blockchain';
+import { meetsTarget } from '../../../shared/bitcoin-block.mjs';
 
 vi.mock('../components/Modal', () => ({ Modal: ({ children }) => <div role="dialog">{children}</div> }));
 afterEach(cleanup);
 
 function mine(chain, name = 'Miner') {
-  const candidate = chain.prepareCandidate(chain.getParticipantByName(name), { timestamp: Date.UTC(2026, 0, 2) + chain.blockArray.length });
+  const candidate = chain.prepareCandidate(chain.getParticipantByName(name));
   let nonce = 0;
-  while (!candidateHash(candidate, nonce).startsWith(candidate.target)) nonce++;
+  while (!meetsTarget(candidateHash(candidate, nonce), candidate.bits)) nonce++;
   return chain.acceptBlock(candidate, nonce, candidateHash(candidate, nonce)).block;
 }
 

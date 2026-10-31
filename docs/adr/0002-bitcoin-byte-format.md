@@ -93,9 +93,7 @@ missions.
   the header's tail is short and needs no string parsing.
 - `bitsOfZeros` keeps zeros as the unit a learner chooses; 8 zeros is `0x1d00ffff`, Bitcoin's
   difficulty 1.
-- A block's coinbase comes first, as in Bitcoin. Until package 3 replaces `rewardCoinbase`,
-  rewards are P2PK coinbases in the genesis layout with the height in the memo, so two rewards
-  never share a txid.
+- A block's coinbase comes first, as in Bitcoin.
 - When 2^32 nonces are exhausted a new block moves to the next extraNonce, while a re-mine moves
   the header's time one second: it must not change a transaction, and later blocks may spend the
   coinbase's outputs.

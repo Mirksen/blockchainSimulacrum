@@ -127,6 +127,7 @@ function TamperEditor({ block, onSubmit, onCancel }) {
     if (!trimmed || !Number.isFinite(value)) return setError('Enter an amount, for example 2.00.');
     if (value < 0) return setError('Enter an amount of 0 or more.');
     if (value > MAX_MONEY) return setError('Enter at most 21000000, every coin there will ever be.');
+    if (Number(value.toFixed(8)) !== value) return setError('Use at most 8 decimal places: one satoshi is the smallest amount.');
     if (value === tx.amount) return setError('That is the current amount. Enter a different one.');
     onSubmit(Number(txIndex), value);
   };

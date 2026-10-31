@@ -497,7 +497,7 @@ export class Blockchain {
   tamperTransaction(blockIndex, txIndex, newAmount) {
     const output = this.blockArray[blockIndex]?.transactions[txIndex]?.outputs[0];
     const value = satoshis(newAmount);
-    if (!output || !Number.isSafeInteger(value) || value < 0 || value > MAX_MONEY) return false;
+    if (!output || !Number.isSafeInteger(value) || value < 0 || value > MAX_MONEY || value / 1e8 !== newAmount) return false;
     const key = `${blockIndex}:${txIndex}`;
     if (!this.tamperedOriginals.has(key)) this.tamperedOriginals.set(key, { blockIndex, txIndex, value: output.value });
     output.value = value;
