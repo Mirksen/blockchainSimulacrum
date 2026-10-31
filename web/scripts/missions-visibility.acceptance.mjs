@@ -97,7 +97,7 @@ export async function verifyMissionVisibility(browser, baseURL, output) {
       await page.waitForURL(/#\/hash-lab$/);
       await page.locator('[data-coach-target="hash-lab.message"].is-active').waitFor();
       await page.getByLabel('Message', { exact: true }).fill('Hello, block?');
-      await page.getByRole('heading', { name: 'Same input. A stricter target.' }).waitFor();
+      await page.getByRole('heading', { name: 'Same message. A stricter target.' }).waitFor();
       const progress = await page.evaluate(key => JSON.parse(localStorage.getItem(key)), PROGRESS);
       assert.deepEqual(progress.completed, ['change-fingerprint']);
       await hide(page).click();

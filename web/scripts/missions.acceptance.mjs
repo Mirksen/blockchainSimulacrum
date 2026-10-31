@@ -22,7 +22,7 @@ export async function verifyMissions(page, output) {
   await done(1).waitFor();
 
   // Mission 2 runs in the same tab: a fixed message and two searches from nonce 0.
-  await page.getByRole('heading', { name: 'Same input. A stricter target.' }).waitFor();
+  await page.getByRole('heading', { name: 'Same message. A stricter target.' }).waitFor();
   await activeCoach('hash-lab.search').waitFor();
   const lab = page.locator('section.hash-lab');
   await lab.getByRole('button', { name: 'Find a nonce', exact: true }).click();

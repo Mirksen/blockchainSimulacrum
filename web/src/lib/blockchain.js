@@ -8,7 +8,7 @@ import SHA256 from 'crypto-js/sha256';
 import { ec as EC } from 'elliptic';
 import { deriveWallet } from './wallet';
 import genesis from '../../../shared/genesis.json';
-import { bitsOfZeros, coinbaseParts, displayHash, headerHex, meetsTarget, merkleRoot, zerosOfTarget } from '../../../shared/bitcoin-block.mjs';
+import { bitsOfZeros, coinbaseParts, displayHash, headerHex, meetsTarget, merkleRoot, utf8Hex, zerosOfTarget } from '../../../shared/bitcoin-block.mjs';
 import { BLOCK_VERSION, hashAtNonce, headerPrefix, isNonce, sha256d } from './blockHeader';
 
 const ec = new EC('secp256k1');
@@ -127,7 +127,8 @@ export const GENESIS = genesis;
 
 // A coinbase in Bitcoin's byte format: the scriptSig pushes bits, extraNonce and memo, the
 // output pays `value` to a public key. Its hash is the txid, rebuilt from the current
-// amount and memo, so an edit shows.
+// amount and memo, so an edit shows. An edit the format cannot encode, such as a fraction
+// of a satoshi, hashes its text instead: no real txid, but a different one for every edit.
 class Coinbase extends Transaction {
   constructor({ recipient, pubkey, amount, memo, bits, extraNonce = 0, extraNonceBytes = 8 }) {
     super(null, recipient, amount, 0, memo);
@@ -136,11 +137,14 @@ class Coinbase extends Transaction {
 
   createHash() {
     const { pubkey, bits, extraNonce, extraNonceBytes } = this;
-    const fields = { pubkey, bits, extraNonce, extraNonceBytes, memo: String(this.referenceNumber), value: Math.round(Number(this.amount) * 1e8) };
+    const memo = String(this.referenceNumber);
+    const amount = Number(this.amount);
+    const value = Math.round(amount * 1e8);
     try {
-      return displayHash(coinbaseParts(fields).hex, sha256d);
+      if (value / 1e8 !== amount) throw new RangeError('Not a whole number of satoshis.');
+      return displayHash(coinbaseParts({ pubkey, bits, extraNonce, extraNonceBytes, memo, value }).hex, sha256d);
     } catch {
-      return 'f'.repeat(64);  // an edit the Bitcoin format cannot encode never matches
+      return displayHash(utf8Hex(`${this.amount}|${memo}`), sha256d);
     }
   }
 }

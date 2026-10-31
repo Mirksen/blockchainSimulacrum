@@ -76,7 +76,8 @@ export async function mineForkRound(state, alternativePower, { signal, onProgres
   if (seed === undefined || startNonce === undefined) {
     const entropy = globalThis.crypto.getRandomValues(new Uint32Array(2));
     seed ??= entropy[0];
-    startNonce ??= entropy[1];
+    // Stay a full search below the 32-bit ceiling, so a round cannot run out of nonces.
+    startNonce ??= entropy[1] % (2 ** 32 - SEARCH_LIMIT);
   }
   const candidates = Object.fromEntries(IDS.map(id => [id, candidateFor(state, id)]));
   const entrants = IDS.map(id => ({ id, weight: id === 'original' ? 100 - alternativePower : alternativePower,
