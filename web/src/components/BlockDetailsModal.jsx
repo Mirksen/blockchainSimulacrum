@@ -1,7 +1,9 @@
 import { Modal } from './Modal';
 import { useState } from 'react';
 import { TransactionDetailsModal } from './TransactionDetailsModal';
+import { HeaderBytes } from './HeaderBytes';
 import { transactionRoot } from '../lib/blockchain';
+import { headerHex } from '../../../shared/bitcoin-block.mjs';
 
 const CloseIcon = () => (
     <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M3.5 3.5l7 7M10.5 3.5l-7 7" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg>
@@ -102,7 +104,7 @@ export function BlockDetailsModal({
                     </div>
 
                     <div className="details-modal-section">
-                        <div className="details-modal-label">Transaction Root</div>
+                        <div className="details-modal-label">Merkle root</div>
                         <div className="details-modal-hash is-small">
                             {block.txRoot}
                         </div>
@@ -135,10 +137,15 @@ export function BlockDetailsModal({
                         </div>
                         <div className="details-modal-stat">
                             <div className="details-modal-stat-value">
-                                {blockIndex === 0 ? '-' : new Date(block.timestamp).toLocaleTimeString()}
+                                {blockIndex === 0 ? '-' : new Date(block.time * 1000).toLocaleTimeString()}
                             </div>
                             <div className="details-modal-stat-label">Mined at</div>
                         </div>
+                    </div>
+
+                    <div className="details-modal-section">
+                        <div className="details-modal-label">80-byte header</div>
+                        <HeaderBytes header={headerHex(block.header())} hash={block.hash} />
                     </div>
 
                     {isInvalid && (

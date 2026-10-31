@@ -1,8 +1,22 @@
+import { Buffer } from 'node:buffer';
 import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
-import { blockTrial, inspectChain, remineBlock, ROOT_HASH, sampleChain } from '../lib/chainLab';
+import { meetsTarget } from '../../../shared/bitcoin-block.mjs';
+import { blockTrial, CHAIN_BITS, inspectChain, remineBlock, ROOT_HASH, sampleChain } from '../lib/chainLab';
 
 const noWait = async () => {};
+const sha256d = bytes => createHash('sha256').update(createHash('sha256').update(bytes).digest()).digest();
+// Independent reference: the 80 header bytes of a toy block.
+function header({ number, data, previousHash, nonce }) {
+  const bytes = Buffer.alloc(80);
+  bytes.writeUInt32LE(1, 0);
+  Buffer.from(previousHash, 'hex').reverse().copy(bytes, 4);
+  sha256d(Buffer.from(data, 'utf8')).copy(bytes, 36);
+  bytes.writeUInt32LE(1231006505 + number * 600, 68);
+  bytes.writeUInt32LE(0x200fffff, 72);
+  bytes.writeUInt32LE(nonce, 76);
+  return bytes;
+}
 const repair = async (blocks, index) => {
   const result = await remineBlock(blocks, index, { yieldControl: noWait });
   expect(result.status).toBe('found');
@@ -10,16 +24,16 @@ const repair = async (blocks, index) => {
 };
 
 describe('isolated linked-block experiment', () => {
-  it('starts with three reproducible linked real SHA-256 proofs', () => {
+  it('starts with three reproducible linked proofs over real 80-byte headers', () => {
     const blocks = sampleChain();
     expect(blocks).toEqual(sampleChain());
     expect(blocks).toHaveLength(3);
     expect(blocks[0].previousHash).toBe(ROOT_HASH);
     for (const [index, block] of blocks.entries()) {
       const trial = blockTrial(block);
-      expect(trial.hash).toBe(createHash('sha256').update(trial.preimage).digest('hex'));
-      expect(JSON.parse(trial.preimage)).toEqual({ number: index + 1, data: block.data,
-        previousHash: block.previousHash, nonce: block.nonce });
+      expect(block.number).toBe(index + 1);
+      expect(trial.header).toBe(header(block).toString('hex'));
+      expect(trial.hash).toBe(Buffer.from(sha256d(header(block))).reverse().toString('hex'));
       expect(trial.hash).toBe(block.hash);
       expect(block.hash).toMatch(/^0[0-9a-f]{63}$/);
       if (index > 0) expect(block.previousHash).toBe(blocks[index - 1].hash);
@@ -27,11 +41,11 @@ describe('isolated linked-block experiment', () => {
     expect(inspectChain(blocks).map(check => check.valid)).toEqual([true, true, true]);
   });
 
-  it('preserves data boundaries and requires a safe integer nonce', () => {
+  it('preserves data boundaries and requires a 32-bit nonce', () => {
     const block = sampleChain()[0];
     expect(blockTrial({ ...block, data: 'a", "nonce":9' }).hash).not.toBe(blockTrial({ ...block, data: 'a', nonce: 9 }).hash);
     expect(blockTrial({ ...block, nonce: String(block.nonce) })).toEqual(blockTrial(block));
-    for (const nonce of ['', '-1', '1.5', 'Infinity', '9007199254740992']) {
+    for (const nonce of ['', '-1', '1.5', 'Infinity', '4294967296']) {
       expect(inspectChain([{ ...block, nonce }])[0].error).toContain('whole number');
       expect(inspectChain([{ ...block, nonce }])[0].valid).toBe(false);
     }
@@ -68,7 +82,7 @@ describe('isolated linked-block experiment', () => {
   it('does not confuse matching input, work and valid ancestry', async () => {
     const blocks = sampleChain();
     let block = { ...blocks[0], nonce: 0 };
-    while (blockTrial(block).hash.startsWith('0')) block.nonce++;
+    while (meetsTarget(blockTrial(block).hash, CHAIN_BITS)) block.nonce++;
     block = { ...block, hash: blockTrial(block).hash };
     expect(inspectChain([block])[0]).toMatchObject({ hashMatches: true, workValid: false, valid: false });
     const edited = blocks.map((item, index) => index === 0 ? { ...item, data: 'Earlier input changed.' } : item);

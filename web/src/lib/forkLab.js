@@ -1,4 +1,5 @@
-import { blockTrial, inspectChain, ROOT_HASH, CHAIN_TARGET } from './chainLab';
+import { meetsTarget } from '../../../shared/bitcoin-block.mjs';
+import { blockHeader, blockTrial, inspectChain, ROOT_HASH, CHAIN_BITS } from './chainLab';
 import { SEARCH_LIMIT } from './hashLab';
 import { runSearch } from './powSearch';
 
@@ -17,12 +18,12 @@ export function createForkExperiment(scenario = 'competition') {
   if (!['competition', 'rewrite'].includes(scenario)) throw new RangeError('Unknown fork experiment.');
   const original = [];
   for (const [index, data] of RECORDS.entries()) {
-    original.push(exampleBlock(index + 1, data, original.at(-1)?.hash ?? ROOT_HASH, [0, 27, 9][index]));
+    original.push(exampleBlock(index + 1, data, original.at(-1)?.hash ?? ROOT_HASH, [5, 6, 5][index]));
   }
   const alternative = scenario === 'competition'
     ? [...original.slice(0, 2).map(block => ({ ...block })),
-      exampleBlock(3, 'A different later record confirms the order.', original[1].hash, 7)]
-    : [exampleBlock(1, 'Payment: demo wallet A keeps the virtual coin.', ROOT_HASH, 72)];
+      exampleBlock(3, 'A different later record confirms the order.', original[1].hash, 5)]
+    : [exampleBlock(1, 'Payment: demo wallet A keeps the virtual coin.', ROOT_HASH, 2)];
   const state = { scenario, branches: { original, alternative }, selected: 'original', rounds: 0,
     reorganizations: 0, rewriteSucceeded: false };
   if (!IDS.every(id => inspectFork(state).branches[id].valid)) throw new Error('Invalid fork example.');
@@ -79,14 +80,14 @@ export async function mineForkRound(state, alternativePower, { signal, onProgres
   }
   const candidates = Object.fromEntries(IDS.map(id => [id, candidateFor(state, id)]));
   const entrants = IDS.map(id => ({ id, weight: id === 'original' ? 100 - alternativePower : alternativePower,
-    prefix: blockTrial(candidates[id]).preimage.slice(0, -2), suffix: '}', startNonce })).filter(entrant => entrant.weight > 0);
-  const result = await searcher({ entrants, target: CHAIN_TARGET, limit: SEARCH_LIMIT, signal, onProgress,
+    header: blockHeader(candidates[id]), startNonce })).filter(entrant => entrant.weight > 0);
+  const result = await searcher({ entrants, bits: CHAIN_BITS, limit: SEARCH_LIMIT, signal, onProgress,
     scheduling: 'weighted-random', seed, ...(yieldControl ? { yieldControl } : {}) });
   if (signal?.aborted || result.status !== 'found') return unchanged(signal?.aborted ? 'stopped' : result.status, result.attempts);
   if (!entrants.some(entrant => entrant.id === result.winner)) throw new Error('Unexpected mining branch.');
   const block = { ...candidates[result.winner], nonce: result.nonce, hash: result.hash };
   if (!Number.isSafeInteger(block.nonce) || block.nonce < startNonce ||
-    blockTrial(block).hash !== block.hash || !block.hash.startsWith(CHAIN_TARGET)) throw new Error('The fork proof is invalid.');
+    blockTrial(block).hash !== block.hash || !meetsTarget(block.hash, CHAIN_BITS)) throw new Error('The fork proof is invalid.');
   const branches = { ...state.branches, [result.winner]: [...state.branches[result.winner], block] };
   const check = inspectFork({ ...state, branches });
   if (!check.branches[result.winner].valid) throw new Error('The mined branch is invalid.');

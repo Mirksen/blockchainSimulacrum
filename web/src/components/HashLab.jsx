@@ -1,11 +1,12 @@
 import { useEffect, useReducer, useRef } from 'react';
 import { changedPositions, createTrial, findNonce, meetsTarget, parseNonce, SEARCH_LIMIT } from '../lib/hashLab';
 import { CoachMark } from './workbench/CoachMark';
+import { HeaderBytes } from './HeaderBytes';
 import './HashLab.css';
 
 const INITIAL_MESSAGE = 'Hello, block!';
 const initialState = ({ difficulty = 2, comparison = null } = {}) => ({ message: INITIAL_MESSAGE, nonce: '0', difficulty,
-  trial: createTrial(INITIAL_MESSAGE, 0), previousHash: null, status: 'idle', attempts: 0, error: '', comparison });
+  trial: createTrial(INITIAL_MESSAGE, 0, difficulty), previousHash: null, status: 'idle', attempts: 0, error: '', comparison });
 
 function withTrial(state, trial) {
   return { ...state, trial, previousHash: trial.hash === state.trial.hash ? state.previousHash : state.trial.hash };
@@ -16,7 +17,7 @@ function reducer(state, action) {
     case 'edit': {
       const next = { ...state, ...action.patch, status: 'idle', attempts: 0 };
       try {
-        return withTrial({ ...next, error: '' }, createTrial(next.message, next.nonce));
+        return withTrial({ ...next, error: '' }, createTrial(next.message, next.nonce, next.difficulty));
       } catch (error) {
         return { ...next, error: error.message };
       }
@@ -76,7 +77,7 @@ export function HashLab({ onClose, lesson, onLessonEvent, coach = null, workComp
     dispatch({ type: 'edit', patch });
     if (lesson === 'hash' && typeof patch.message === 'string' && patch.message !== INITIAL_MESSAGE) {
       try {
-        if (createTrial(patch.message, nonce).hash !== createTrial(INITIAL_MESSAGE, nonce).hash) {
+        if (createTrial(patch.message, nonce, difficulty).hash !== createTrial(INITIAL_MESSAGE, nonce, difficulty).hash) {
           onLessonEvent?.({ type: 'hash_changed' });
         }
       } catch { /* An invalid nonce is not a completed experiment. */ }
@@ -148,9 +149,9 @@ export function HashLab({ onClose, lesson, onLessonEvent, coach = null, workComp
       </div>
 
       <div className="hash-lab-output">
-        <div className="hash-lab-hash-label"><h3>SHA-256 fingerprint</h3>
+        <div className="hash-lab-hash-label"><h3>Double SHA-256 fingerprint</h3>
           <span className={targetMet ? 'hash-lab-target-met' : ''}>{error ? 'Waiting for valid input' : targetMet ? 'Target met' : 'Target not met'}</span></div>
-        <div className="hash-lab-fingerprint" role="img" aria-label={`SHA-256 hash: ${trial.hash}`}>
+        <div className="hash-lab-fingerprint" role="img" aria-label={`Double SHA-256 hash: ${trial.hash}`}>
           {[...trial.hash].map((character, index) => <span key={index} aria-hidden="true"
             className={changed[index] ? 'hash-lab-changed' : undefined}>{character}</span>)}
         </div>
@@ -164,7 +165,7 @@ export function HashLab({ onClose, lesson, onLessonEvent, coach = null, workComp
         <select id="hash-lab-difficulty" value={difficulty} onChange={event => edit({ difficulty: Number(event.target.value), ...(lesson === 'work' ? { nonce: '0' } : {}) })}>
           <option value="1">0 — one zero</option><option value="2">00 — two zeros</option>{lesson !== 'work' && <option value="3">000 — three zeros</option>}
         </select>
-        <p className="hash-lab-help">Each extra zero makes a match about 16 times less likely per attempt.</p></div>
+        <p className="hash-lab-help">Each extra zero makes a match about 16 times less likely per attempt. The target is part of the header, so changing it changes the hash.</p></div>
       <CoachMark target="hash-lab.search" coach={coach}>
         <div className="hash-lab-search-actions">
           {searching ? <button className="btn btn-negative" onClick={() => { activeSearch.current?.abort(); dispatch({ type: 'stopping' }); }}>Stop search</button>
@@ -178,9 +179,9 @@ export function HashLab({ onClose, lesson, onLessonEvent, coach = null, workComp
     <SearchComparison comparison={state.comparison} />
 
     <details className="hash-lab-preimage"><summary>What exactly are we hashing?</summary>
-      <p>The UTF-8 text below is a JSON object with the message and numeric nonce. Punctuation and spaces inside the message count too.</p>
-      <code>{trial.preimage}</code>
-      <p>This lab uses a simple input. Blocks in the simulator also include transactions, a timestamp and the previous block’s hash. Your lab experiments never change the chain.</p>
+      <p>These 80 bytes are a Bitcoin block header. Your message stands in for the transactions: its double SHA-256 is the merkle root, so punctuation and spaces count too. The target fills the bits field, which is why choosing another target changes the hash.</p>
+      <HeaderBytes header={trial.header} hash={trial.hash} />
+      <p>Blocks in the simulator use the same 80 bytes with a real merkle root and the previous block’s hash. Your lab experiments never change the chain.</p>
     </details>
   </section>;
 }

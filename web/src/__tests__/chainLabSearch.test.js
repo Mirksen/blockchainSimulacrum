@@ -2,9 +2,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import CryptoJS from 'crypto-js/core.js';
 import { remineBlock, ROOT_HASH } from '../lib/chainLab';
 
-// 50,000 real midstate attempts take ~1.7 s on an idle machine; keep headroom
-// for loaded CI runners instead of the 5 s default.
-const LIMIT_TEST_TIMEOUT_MS = 15_000;
+// 50,000 real midstate attempts take seconds on an idle machine, far more through a
+// spy; keep headroom for loaded CI runners instead of the 5 s default.
+const LIMIT_TEST_TIMEOUT_MS = 60_000;
 
 // Synthetic hash outcomes exercise search limits; real hashing is checked separately.
 // The search hashes each nonce through the SHA-256 midstate, so its finalize step is forced.
@@ -16,20 +16,20 @@ const noWait = async () => {};
 
 describe('bounded chain-lab search', () => {
   it('stops at exactly 50,000 unsuccessful candidates without a partial commit', async () => {
-    finalize.mockReturnValue({ toString: () => 'f'.repeat(64) });
+    finalize.mockReturnValue(CryptoJS.enc.Hex.parse('f'.repeat(64)));
     const progress = vi.fn();
     const result = await remineBlock(blocks, 0, { onProgress: progress, yieldControl: noWait });
     expect(result).toEqual({ status: 'exhausted', attempts: 50_000 });
-    expect(finalize).toHaveBeenCalledTimes(50_000);
+    expect(finalize).toHaveBeenCalledTimes(2 + 100_000); // the data's merkle root, then two per attempt
     expect(progress).toHaveBeenLastCalledWith(50_000);
     expect(blocks[0].hash).toBe(ROOT_HASH);
   }, LIMIT_TEST_TIMEOUT_MS);
   it('cancels between batches after actual work and returns no candidate block', async () => {
-    finalize.mockReturnValue({ toString: () => 'f'.repeat(64) });
+    finalize.mockReturnValue(CryptoJS.enc.Hex.parse('f'.repeat(64)));
     const controller = new AbortController();
     const result = await remineBlock(blocks, 0, { signal: controller.signal, yieldControl: noWait,
       onProgress: () => controller.abort() });
     expect(result).toEqual({ status: 'stopped', attempts: 100 });
-    expect(finalize).toHaveBeenCalledTimes(100);
+    expect(finalize).toHaveBeenCalledTimes(2 + 200);
   });
 });

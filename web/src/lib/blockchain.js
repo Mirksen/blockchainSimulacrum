@@ -4,12 +4,12 @@
  * Ported for modern React web application
  */
 
-import CryptoJS from 'crypto-js/core';
 import SHA256 from 'crypto-js/sha256';
 import { ec as EC } from 'elliptic';
 import { deriveWallet } from './wallet';
 import genesis from '../../../shared/genesis.json';
-import { coinbaseParts, displayHash, headerHex, zerosOfTarget } from '../../../shared/bitcoin-block.mjs';
+import { bitsOfZeros, coinbaseParts, displayHash, headerHex, meetsTarget, merkleRoot, zerosOfTarget } from '../../../shared/bitcoin-block.mjs';
+import { BLOCK_VERSION, hashAtNonce, headerPrefix, isNonce, sha256d } from './blockHeader';
 
 const ec = new EC('secp256k1');
 
@@ -84,54 +84,38 @@ export class Transaction {
   }
 }
 
-// Merkle root of a transaction list (Bitcoin-style): each leaf is the
-// transaction hash, each parent is SHA256(left + right), an odd level repeats
-// its last hash, and an empty list has an all-zero root.
-const EMPTY_ROOT = '0'.repeat(64);
-
-function transactionLeaf(tx) {
-  if (typeof tx.createHash === 'function') return tx.createHash();
-  return SHA256(tx.sender + tx.recipient + tx.amount + tx.transactionFee + tx.referenceNumber).toString();
-}
-
+// Bitcoin's merkle root over the transactions' txids. A transaction's `createHash()` in
+// display order is all the block reads from it.
 export function transactionRoot(transactions) {
-  if (transactions.length === 0) return EMPTY_ROOT;
-  let level = transactions.map(transactionLeaf);
-  while (level.length > 1) {
-    const next = [];
-    for (let i = 0; i < level.length; i += 2) {
-      const left = level[i];
-      const right = i + 1 < level.length ? level[i + 1] : left;
-      next.push(SHA256(left + right).toString());
-    }
-    level = next;
-  }
-  return level[0];
+  return merkleRoot(transactions.map(tx => tx.createHash()), sha256d);
 }
 
-// Block class - a header (previous hash, transaction root, timestamp,
-// difficulty, nonce) committing to its transactions through the root
+// A block: an 80-byte Bitcoin header (version, previous hash, merkle root, time in seconds,
+// compact bits, nonce) committing to its transactions through the root. `difficulty` is
+// the number of leading hex zeros `bits` demands, the unit the UI speaks in.
 export class Block {
-  constructor(timestamp, transactions, previousHash = '', difficulty = 0) {
-    this.timestamp = timestamp;
+  constructor(time, transactions, previousHash, bits) {
+    this.version = BLOCK_VERSION;
+    this.time = time;
     this.transactions = transactions;
     this.previousHash = previousHash;
-    this.difficulty = difficulty;
+    this.bits = bits;
+    this.difficulty = zerosOfTarget(bits);
     this.txRoot = transactionRoot(transactions);
     this.nonce = 0;
     this.hash = this.createHash();
   }
 
+  // The header as mined, with the stored root.
+  header() {
+    return { version: this.version, previousHash: this.previousHash, merkleRoot: this.txRoot,
+      time: this.time, bits: this.bits, nonce: this.nonce };
+  }
+
   // Recomputes the root from the current transactions, so editing any
   // transaction after mining changes this hash.
   createHash() {
-    return SHA256(
-      this.previousHash +
-      transactionRoot(this.transactions) +
-      this.timestamp +
-      this.difficulty +
-      this.nonce
-    ).toString();
+    return displayHash(headerHex({ ...this.header(), merkleRoot: transactionRoot(this.transactions) }), sha256d);
   }
 
   isValid() {
@@ -141,38 +125,38 @@ export class Block {
 
 export const GENESIS = genesis;
 
-// Double SHA-256 over hex bytes, in internal byte order (shared/bitcoin-block.mjs).
-const sha256d = hex => SHA256(SHA256(CryptoJS.enc.Hex.parse(hex))).toString();
+// A coinbase in Bitcoin's byte format: the scriptSig pushes bits, extraNonce and memo, the
+// output pays `value` to a public key. Its hash is the txid, rebuilt from the current
+// amount and memo, so an edit shows.
+class Coinbase extends Transaction {
+  constructor({ recipient, pubkey, amount, memo, bits, extraNonce = 0, extraNonceBytes = 8 }) {
+    super(null, recipient, amount, 0, memo);
+    Object.assign(this, { pubkey, bits, extraNonce, extraNonceBytes });
+  }
 
-// The genesis coinbase is a real Bitcoin transaction (shared/genesis.json): its hash is
-// the Bitcoin txid, rebuilt from the current amount and memo, so editing it shows.
-class GenesisCoinbase extends Transaction {
   createHash() {
-    const coinbase = { ...genesis.coinbase, value: Math.round(Number(this.amount) * 1e8), memo: String(this.referenceNumber) };
+    const { pubkey, bits, extraNonce, extraNonceBytes } = this;
+    const fields = { pubkey, bits, extraNonce, extraNonceBytes, memo: String(this.referenceNumber), value: Math.round(Number(this.amount) * 1e8) };
     try {
-      return displayHash(coinbaseParts({ bits: genesis.header.bits, ...coinbase }).hex, sha256d);
+      return displayHash(coinbaseParts(fields).hex, sha256d);
     } catch {
       return 'f'.repeat(64);  // an edit the Bitcoin format cannot encode never matches
     }
   }
 }
 
-// The genesis block hashes its 80-byte Bitcoin header with double SHA-256, like
-// Satoshi's block 0; every later block uses the app's own header format.
-class GenesisBlock extends Block {
-  createHash() {
-    const { version, time, bits } = genesis.header;
-    return displayHash(headerHex({ version, previousHash: this.previousHash, merkleRoot: transactionRoot(this.transactions),
-      time, bits, nonce: this.nonce }), sha256d);
-  }
+// The one place a block's reward is built. The height in the memo keeps two rewards of
+// one miner from sharing a txid.
+function rewardCoinbase({ height, value, pubkey, extraNonce, bits }) {
+  return new Coinbase({ recipient: pubkey, pubkey, amount: value, memo: `Mining Reward #${height}`, bits, extraNonce });
 }
 
 export function createGenesisBlock() {
   const { coinbase, header } = genesis;
-  const timestamp = header.time * 1000;
-  const tx = new GenesisCoinbase(null, coinbase.recipient, coinbase.amount, 0, coinbase.memo);
-  tx.timestamp = new Date(timestamp).toISOString();
-  const block = new GenesisBlock(timestamp, [tx], genesis.anchor.hash, zerosOfTarget(header.bits));
+  const tx = new Coinbase({ ...coinbase, bits: header.bits });
+  tx.timestamp = new Date(header.time * 1000).toISOString();
+  const block = new Block(header.time, [tx], genesis.anchor.hash, header.bits);
+  block.version = header.version;
   block.nonce = header.nonce;
   block.hash = block.createHash();
   return block;
@@ -181,7 +165,13 @@ export function createGenesisBlock() {
 // Hash of a candidate block at a given nonce; equals Block.createHash for the
 // block that acceptBlock builds from the same candidate and nonce.
 export function candidateHash(candidate, nonce) {
-  return SHA256(candidate.prefix + nonce).toString();
+  return hashAtNonce(candidate.header, nonce);
+}
+
+// Why a claimed proof for `candidate` fails, or null.
+function proofProblem(candidate, nonce, hash) {
+  if (!isNonce(nonce) || hash !== candidateHash(candidate, nonce)) return 'hash-mismatch';
+  return meetsTarget(hash, candidate.bits) ? null : 'target-miss';
 }
 
 const WALLET_NAME = /^[A-Za-z0-9]{2,16}$/;
@@ -379,44 +369,49 @@ export class Blockchain {
     return tx;
   }
 
-  // Freeze the work for one miner: everything except the nonce is fixed here,
-  // so a search only varies the nonce appended to `prefix`.
-  prepareCandidate(miner, { timestamp = Date.now() } = {}) {
+  // A header's time may equal its predecessor's, never run behind it.
+  nextBlockTime() {
+    return Math.max(Math.floor(Date.now() / 1000), this.blockArray.at(-1).time);
+  }
+
+  // Freeze the work for one miner: everything except the nonce is fixed here, so a
+  // search only varies the last four header bytes. A further extraNonce changes the
+  // coinbase and with it the root, which opens a fresh nonce space.
+  prepareCandidate(miner, { time = this.nextBlockTime(), extraNonce = 0 } = {}) {
     const height = this.blockArray.length;
     const reward = height % this.halvingEvent === 0 ? this.blockReward / 2 : this.blockReward;
     const fees = this.memPool.reduce((sum, tx) => sum + tx.transactionFee, 0);
-    const transactions = Object.freeze([
-      ...this.memPool,
-      new Transaction(null, miner.publicKey, reward + fees, 0, 'Mining Reward')
-    ]);
-    const previousHash = this.blockArray[height - 1].hash;
     const difficulty = this.miningDifficulty;
+    const bits = bitsOfZeros(difficulty);
+    const coinbase = rewardCoinbase({ height, value: reward + fees, pubkey: miner.publicKey, extraNonce, bits });
+    const transactions = Object.freeze([coinbase, ...this.memPool]);
+    const previousHash = this.blockArray[height - 1].hash;
     const txRoot = transactionRoot(transactions);
     return Object.freeze({
       previousHash,
-      timestamp,
+      time,
       difficulty,
-      target: '0'.repeat(difficulty),
+      bits,
+      extraNonce,
       reward,
       halved: reward !== this.blockReward,
       transactions,
       minerPublicKey: miner.publicKey,
       height,
       txRoot,
-      // Fixed-size header: the root stands in for every transaction.
-      prefix: previousHash + txRoot + timestamp + difficulty
+      header: headerPrefix({ version: BLOCK_VERSION, previousHash, merkleRoot: txRoot, time, bits })
     });
   }
 
   // Append a solved candidate. Nothing changes unless the proof is valid and
   // the candidate still extends the current tip.
   acceptBlock(candidate, nonce, hash) {
-    if (hash !== candidateHash(candidate, nonce)) return { status: 'rejected', reason: 'hash-mismatch' };
-    if (!hash.startsWith(candidate.target)) return { status: 'rejected', reason: 'target-miss' };
+    const problem = proofProblem(candidate, nonce, hash);
+    if (problem) return { status: 'rejected', reason: problem };
     if (this.blockArray.length !== candidate.height || this.blockArray.at(-1).hash !== candidate.previousHash) {
       return { status: 'stale' };
     }
-    const block = new Block(candidate.timestamp, [...candidate.transactions], candidate.previousHash, candidate.difficulty);
+    const block = new Block(candidate.time, [...candidate.transactions], candidate.previousHash, candidate.bits);
     block.nonce = nonce;
     block.hash = hash;
     block.halved = candidate.halved;
@@ -436,8 +431,10 @@ export class Blockchain {
 
   // Freeze the work to re-mine historical block `index`: it is re-linked to its
   // predecessor's current stored hash and needs the current target; its
-  // transactions and timestamp stay as they are. Every earlier block must be valid.
-  prepareRemine(index, { difficulty = this.miningDifficulty } = {}) {
+  // transactions stay as they are, so the coinbase cannot open a fresh nonce space; a
+  // positive `timeRoll` moves the header's time forward instead. Every earlier block must
+  // be valid.
+  prepareRemine(index, { difficulty = this.miningDifficulty, timeRoll = 0 } = {}) {
     if (!Number.isInteger(index) || index < 1 || index >= this.blockArray.length) {
       return { success: false, code: 'invalid_block', error: 'Choose a mined block after Genesis to re-mine.' };
     }
@@ -448,11 +445,13 @@ export class Blockchain {
     const block = this.blockArray[index];
     const previousHash = this.blockArray[index - 1].hash;
     const txRoot = transactionRoot(block.transactions);
+    const bits = bitsOfZeros(difficulty);
+    const time = block.time + timeRoll;
     return {
       success: true,
       candidate: Object.freeze({
-        index, previousHash, timestamp: block.timestamp, difficulty, target: '0'.repeat(difficulty), txRoot,
-        prefix: previousHash + txRoot + block.timestamp + difficulty
+        index, previousHash, time, difficulty, bits, txRoot,
+        header: headerPrefix({ version: block.version, previousHash, merkleRoot: txRoot, time, bits })
       })
     };
   }
@@ -460,8 +459,8 @@ export class Blockchain {
   // Store a re-mining proof. Nothing changes unless the proof is valid and the
   // block, its predecessor and every earlier block are as they were prepared.
   acceptRemine(candidate, nonce, hash) {
-    if (hash !== candidateHash(candidate, nonce)) return { status: 'rejected', reason: 'hash-mismatch' };
-    if (!hash.startsWith(candidate.target)) return { status: 'rejected', reason: 'target-miss' };
+    const problem = proofProblem(candidate, nonce, hash);
+    if (problem) return { status: 'rejected', reason: problem };
     const block = this.blockArray[candidate.index];
     const broken = this.firstBrokenBlock();
     if (!block || this.blockArray[candidate.index - 1].hash !== candidate.previousHash ||
@@ -470,6 +469,8 @@ export class Blockchain {
     }
     block.previousHash = candidate.previousHash;
     block.txRoot = candidate.txRoot;
+    block.time = candidate.time;
+    block.bits = candidate.bits;
     block.difficulty = candidate.difficulty;
     block.nonce = nonce;
     block.hash = hash;
@@ -506,17 +507,17 @@ export class Blockchain {
       const storedHash = block.hash;
       const computedHash = block.createHash();
       const hashMatches = storedHash === computedHash;
-      const meetsTarget = storedHash.startsWith('0'.repeat(block.difficulty));
+      const hashMeetsTarget = meetsTarget(storedHash, block.bits);
       // Genesis has no predecessor; its link is intact by definition.
       const linkIntact = index === 0 || block.previousHash === this.blockArray[index - 1].hash;
       const signaturesValid = block.transactions.every(tx => { try { return tx.isValid(); } catch { return false; } });
       const builtOnBroken = brokenBefore;
-      const status = !hashMatches || !meetsTarget ? 'hash-mismatch'
+      const status = !hashMatches || !hashMeetsTarget ? 'hash-mismatch'
         : !linkIntact ? 'link-broken'
           : !signaturesValid ? 'signature-invalid'
             : builtOnBroken ? 'built-on-broken' : 'valid';
       if (status !== 'valid') brokenBefore = true;
-      return { index, storedHash, computedHash, hashMatches, meetsTarget, linkIntact, signaturesValid, builtOnBroken, status };
+      return { index, storedHash, computedHash, hashMatches, meetsTarget: hashMeetsTarget, linkIntact, signaturesValid, builtOnBroken, status };
     });
   }
 

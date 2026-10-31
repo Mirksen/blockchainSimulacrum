@@ -30,15 +30,15 @@ describe('measured work-lesson comparison', () => {
     await find(1);
     const one = Number(screen.getByLabelText(/Nonce/).value);
     expect(within(row('One zero')).getAllByRole('cell')[0].textContent).toBe((one + 1).toLocaleString());
-    expect(row('One zero').textContent).toContain(createTrial('Hello, block!', one).hash);
+    expect(row('One zero').textContent).toContain(createTrial('Hello, block!', one, 1).hash);
     fireEvent.change(screen.getByLabelText('Find a hash starting with'), { target: { value: '2' } });
     fireEvent.click(screen.getByRole('button', { name: 'Find a nonce' }));
-    expect(row('One zero').textContent).toContain(createTrial('Hello, block!', one).hash);
+    expect(row('One zero').textContent).toContain(createTrial('Hello, block!', one, 1).hash);
     expect(row('Two zeros').textContent).toContain('Not found yet');
     await act(async () => { await vi.runAllTimersAsync(); });
     const two = Number(screen.getByLabelText(/Nonce/).value);
     expect(within(row('Two zeros')).getAllByRole('cell')[0].textContent).toBe((two + 1).toLocaleString());
-    expect(row('Two zeros').textContent).toContain(createTrial('Hello, block!', two).hash);
+    expect(row('Two zeros').textContent).toContain(createTrial('Hello, block!', two, 2).hash);
     expect(comparison().textContent).toContain('Hello, block!');
     expect(comparison().textContent).toContain('nonce 0');
     expect(comparison().textContent).toContain('does not guarantee');

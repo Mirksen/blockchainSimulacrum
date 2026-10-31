@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { join } from 'node:path';
-import { menu, openTab, settle, snapshot } from './workbench.helpers.mjs';
+import { headerHash, labHeader, menu, openTab, settle, snapshot } from './workbench.helpers.mjs';
 
 // Real browser proofs, local state only. No challenge or proof is sent to the pool.
 export async function verifyForkLab(page, output, before) {
@@ -36,25 +36,25 @@ export async function verifyForkLab(page, output, before) {
   await step(5);
   await selected('Original').waitFor();
 
-  const proofChecks = await lab.evaluate(async element => {
+  const branches = await lab.evaluate(element => {
     const parse = record => {
       const values = [...record.querySelectorAll('dd')].map(dd => dd.textContent);
       return { number: Number(record.querySelector(':scope > strong').textContent.replace('Block ', '')),
         data: record.querySelector(':scope > p').textContent, previousHash: values[2], nonce: Number(values[0]), hash: values[1] };
     };
     const shared = [...element.querySelectorAll('.fork-experiment-ancestor .fork-experiment-block')].map(parse);
-    return Promise.all([...element.querySelectorAll('.fork-experiment-branch')].map(async branch => {
-      const blocks = [...shared, ...[...branch.querySelectorAll('.fork-experiment-block')].map(parse)];
-      const checks = await Promise.all(blocks.map(async (block, index) => {
-        const preimage = JSON.stringify({ number: block.number, data: block.data, previousHash: block.previousHash, nonce: block.nonce });
-        const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(preimage));
-        const hash = [...new Uint8Array(digest)].map(byte => byte.toString(16).padStart(2, '0')).join('');
-        return block.number === index + 1 && hash === block.hash && hash.startsWith('0') &&
-          block.previousHash === (index ? blocks[index - 1].hash : '0'.repeat(64));
-      }));
-      const work = Number(branch.querySelector('.fork-experiment-work strong').textContent.split(' ')[0]);
-      return { valid: checks.every(Boolean), count: blocks.length, work };
+    return [...element.querySelectorAll('.fork-experiment-branch')].map(branch => ({
+      blocks: [...shared, ...[...branch.querySelectorAll('.fork-experiment-block')].map(parse)],
+      work: Number(branch.querySelector('.fork-experiment-work strong').textContent.split(' ')[0])
     }));
+  });
+  const proofChecks = branches.map(({ blocks, work }) => {
+    const checks = blocks.map((block, index) => {
+      const hash = headerHash(labHeader({ ...block, bits: 0x200fffff }));
+      return block.number === index + 1 && hash === block.hash && hash.startsWith('0') &&
+        block.previousHash === (index ? blocks[index - 1].hash : '0'.repeat(64));
+    });
+    return { valid: checks.every(Boolean), count: blocks.length, work };
   });
   for (const proof of proofChecks) { assert.ok(proof.valid, JSON.stringify(proof)); assert.equal(proof.work, proof.count * 16); }
 
@@ -89,7 +89,7 @@ export async function verifyForkLab(page, output, before) {
   await lab.getByRole('status').filter({ hasText: 'Experiment stopped' }).waitFor();
   await page.locator('section.chain-lab').getByRole('button', { name: 'Back to simulator' }).click();
   assert.deepEqual(await snapshot(page), before, 'Fork lab never changes the simulator');
-  return ['Fork lab: real SHA-256 proofs, strict-work switches in both directions and incumbent preserved on ties',
+  return ['Fork lab: real double SHA-256 proofs, strict-work switches in both directions and incumbent preserved on ties',
     'Fork lab: twelve-block cap, Stop, simulator isolation, both themes and four viewport widths'];
 }
 

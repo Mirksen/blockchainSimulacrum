@@ -1,7 +1,7 @@
 import { useEffect, useId, useState } from 'react';
 import { CoachMark } from './CoachMark';
 import {
-  bandWindow, brokenBefore, candidateCopy, formatSeconds, healthSummary, linkInto, ordinal, pendingLink,
+  bandWindow, brokenBefore, candidateCopy, formatInterval, formatSeconds, healthSummary, linkInto, ordinal, pendingLink,
   shortHash, stateOf, statusLabel, zerosOf
 } from './blockView';
 import './ChainBand.css';
@@ -155,7 +155,7 @@ function Tile({ view, views, newest, selected, repairPosition, shade, onSelect, 
   const classes = ['chain-band-tile', newest && 'is-newest', selected && 'is-selected',
     state === 'broken' && 'is-broken', state === 'dependent' && 'is-dependent'].filter(Boolean).join(' ');
   const tag = view.isGenesis ? 'genesis' : state === 'broken' ? statusLabel(view.status) : newest ? 'newest' : null;
-  const time = view.isGenesis ? 'start' : formatSeconds(view.seconds);
+  const time = view.isGenesis ? 'start' : formatInterval(view.seconds);
   const shownHash = mismatch ? view.computedHash : view.storedHash;
   const miss = mismatch ? view.difficulty : 0;
   return (
