@@ -22,7 +22,7 @@ export async function verifyMissions(page, output) {
   await done(1).waitFor();
 
   // Mission 2 runs in the same tab: a fixed message and two searches from nonce 0.
-  await page.getByRole('heading', { name: 'Same input. A stricter target.' }).waitFor();
+  await page.getByRole('heading', { name: 'Same message. A stricter target.' }).waitFor();
   await activeCoach('hash-lab.search').waitFor();
   const lab = page.locator('section.hash-lab');
   await lab.getByRole('button', { name: 'Find a nonce', exact: true }).click();
@@ -31,14 +31,14 @@ export async function verifyMissions(page, output) {
   const comparison = page.getByRole('region', { name: 'Proof-of-work search comparison' });
   const row = target => comparison.getByRole('row', { name: new RegExp(`^${target} `) });
   const first = await row('One zero').innerText();
-  assert.equal(await row('One zero').getByRole('cell').first().innerText(), '4');
+  assert.equal(await row('One zero').getByRole('cell').first().innerText(), '21');
   await lab.getByLabel('Find a hash starting with').selectOption('2');
   assert.equal(await row('One zero').innerText(), first, 'Changing target retains the real first result');
   await lab.getByRole('button', { name: 'Find a nonce', exact: true }).click();
   await done(2).waitFor({ timeout: 30000 });
   await lab.getByRole('button', { name: 'Back to simulator' }).waitFor();
   assert.equal(await row('One zero').innerText(), first, 'Mission completion retains the first result');
-  assert.equal(await row('Two zeros').getByRole('cell').first().innerText(), '72');
+  assert.equal(await row('Two zeros').getByRole('cell').first().innerText(), '264');
   assert.match(await comparison.innerText(), /does not guarantee/);
   // Inspect the actual full hashes and comparison at each responsive breakpoint.
   for (const details of await comparison.locator('details').all()) await details.locator('summary').click();

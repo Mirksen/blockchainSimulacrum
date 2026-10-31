@@ -5,7 +5,7 @@ const REPAIRABLE = new Set(['hash-mismatch', 'link-broken']);
 // The quiet stat line in the band header.
 export function keyFiguresOf({ blocks, difficulty, blockReward, halvingInterval, targetSeconds }) {
   // Intervals between mined blocks; the fixed genesis time does not count as mining.
-  const times = blocks.slice(2).map((block, i) => (block.timestamp - blocks[i + 1].timestamp) / 1000).filter(Number.isFinite);
+  const times = blocks.slice(2).map((block, i) => block.time - blocks[i + 1].time).filter(Number.isFinite);
   const height = blocks.length - 1;
   return {
     avgSeconds: times.length ? times.reduce((sum, t) => sum + t, 0) / times.length : null,

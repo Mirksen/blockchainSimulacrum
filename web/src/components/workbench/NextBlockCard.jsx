@@ -1,6 +1,7 @@
 import { CoachMark } from './CoachMark';
 import { usePeakHold } from '../../hooks/usePeakHold';
 import { MIN_DIFFICULTY, MAX_DIFFICULTY } from '../../lib/difficulty';
+import { bitsOfZeros } from '../../../../shared/bitcoin-block.mjs';
 import './cardKit.css';
 import './NextBlockCard.css';
 
@@ -130,6 +131,9 @@ export function NextBlockCard({
           <button type="button" aria-label="Raise difficulty" disabled={settingsLocked || difficulty >= MAX_DIFFICULTY}
             onClick={() => onDifficulty?.(difficulty + 1)}><PlusIcon /></button>
         </span>
+        <code className="next-block-bits" title={`Leading zeros in the hash: ${difficulty}. The header stores this target as compact bits.`}>
+          bits 0x{bitsOfZeros(difficulty).toString(16).padStart(8, '0')}
+        </code>
       </span>
     </CoachMark>
   );

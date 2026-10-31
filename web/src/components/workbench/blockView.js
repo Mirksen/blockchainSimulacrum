@@ -28,6 +28,11 @@ export function formatSeconds(seconds) {
   return `${Math.max(0, seconds).toFixed(1)} s`;
 }
 
+// "7 s": a header's time has whole seconds, so an interval between blocks has too.
+export function formatInterval(seconds) {
+  return Number.isFinite(seconds) ? `${Math.max(0, seconds)} s` : null;
+}
+
 const ORDINALS = ['first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh', 'eighth', 'ninth', 'tenth'];
 export function ordinal(position) {
   return ORDINALS[position - 1] ?? `number ${position}`;
@@ -56,8 +61,8 @@ export function buildBlockViews({ blocks = [], blockStatus = [], participants = 
     const minerKey = isGenesis ? 'genesis' : (KNOWN_MINERS.has(minerName.toLowerCase()) ? minerName.toLowerCase() : 'other');
     const previous = blocks[index - 1];
     // The genesis block has a fixed launch time, so block #1 has no mining interval.
-    const seconds = index > 1 && Number.isFinite(block.timestamp) && Number.isFinite(previous?.timestamp)
-      ? (block.timestamp - previous.timestamp) / 1000 : null;
+    const seconds = index > 1 && Number.isFinite(block.time) && Number.isFinite(previous?.time)
+      ? block.time - previous.time : null;
     const storedHash = check.storedHash ?? block.hash ?? '';
     const computedHash = check.computedHash ?? storedHash;
     const difficulty = Number.isFinite(block.difficulty) ? block.difficulty : 0;

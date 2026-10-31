@@ -1,23 +1,24 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { candidateHash, createBlockchain } from '../lib/blockchain';
+import { meetsTarget as meetsBits } from '../../../shared/bitcoin-block.mjs';
 import {
   bandWindow, buildBlockViews, candidateCopy, formatSeconds, healthSummary, linkInto, listBlocks, pendingLink,
   shortHash, stateOf, statusLabel, zerosOf
 } from '../components/workbench/blockView';
 
-const T0 = Date.parse('2026-01-02T12:00:00Z');
+const T0 = Date.parse('2026-01-02T12:00:00Z') / 1000;
 const HASH = '0080a3e897fb1e3839f43f95b033620ff7fb2f9739c8e415e5ce6e7df0726c4d';
 
 function findNonce(candidate) {
   let nonce = 0;
-  while (!candidateHash(candidate, nonce).startsWith(candidate.target)) nonce++;
+  while (!meetsBits(candidateHash(candidate, nonce), candidate.bits)) nonce++;
   return nonce;
 }
-// Genesis plus four mined blocks, 2.5 s apart (deterministic clock).
+// Genesis plus four mined blocks, 3 s apart (deterministic clock).
 function minedChain() {
   const chain = createBlockchain({ participants: ['Lars', 'Dana7'], miners: ['Lars'], miningDifficulty: 1 });
   for (let i = 1; i <= 4; i++) {
-    const candidate = chain.prepareCandidate(chain.getActiveMiner(), { timestamp: T0 + i * 2500 });
+    const candidate = chain.prepareCandidate(chain.getActiveMiner(), { time: T0 + i * 3 });
     const nonce = findNonce(candidate);
     expect(chain.acceptBlock(candidate, nonce, candidateHash(candidate, nonce)).status).toBe('accepted');
   }
@@ -28,7 +29,7 @@ const snapshotViews = chain => buildBlockViews({
   participants: chain.participants.map(p => ({ ...p })), tamperedEdits: chain.getTamperedEdits()
 });
 
-beforeEach(() => { vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(T0); });
+beforeEach(() => { vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(T0 * 1000); });
 afterEach(() => { vi.useRealTimers(); });
 
 describe('shortHash and zerosOf', () => {
@@ -61,7 +62,7 @@ describe('buildBlockViews', () => {
     // The genesis time is a fixed launch moment, so block #1 has no mining interval.
     expect(views[1].seconds).toBeNull();
     expect(views[2]).toMatchObject({
-      index: 2, minerName: 'Lars', minerKey: 'lars', txCount: 1, seconds: 2.5, status: 'valid', difficulty: 1,
+      index: 2, minerName: 'Lars', minerKey: 'lars', txCount: 1, seconds: 3, status: 'valid', difficulty: 1,
       storedHash: chain.blockArray[2].hash, prevHash: chain.blockArray[1].hash, edited: false, edits: []
     });
     expect(views.every(view => view.status === 'valid')).toBe(true);
@@ -90,7 +91,7 @@ describe('buildBlockViews', () => {
   });
 
   it('passes signature-invalid through from blockStatus', () => {
-    const blocks = [{ hash: 'aa', transactions: [], difficulty: 0, timestamp: 1 }, { hash: '00bb', previousHash: 'aa', transactions: [], difficulty: 2, timestamp: 1001 }];
+    const blocks = [{ hash: 'aa', transactions: [], difficulty: 0, time: 1 }, { hash: '00bb', previousHash: 'aa', transactions: [], difficulty: 2, time: 2 }];
     const views = buildBlockViews({ blocks, blockStatus: [{ status: 'valid' }, { status: 'signature-invalid', hashMatches: true, meetsTarget: true, linkIntact: true, signaturesValid: false }] });
     expect(views[1]).toMatchObject({ status: 'signature-invalid', minerName: 'Unknown miner', minerKey: 'other', seconds: null });
     expect(stateOf(views[1])).toBe('broken');

@@ -1,3 +1,5 @@
+import { Buffer } from 'node:buffer';
+import { createHash } from 'node:crypto';
 // Locators shared by the browser acceptance scripts.
 
 const TILE = /^(Genesis block 0|Block \d+)(,|$)/;
@@ -40,4 +42,24 @@ export async function openTab(page, name) {
 // After a resize, wait until the top bar has folded (or unfolded) for the new width.
 export async function settle(page) {
   await page.waitForFunction(() => (innerWidth < 768) === Boolean(document.querySelector('.top-bar.is-compact')));
+}
+
+// Independent check of a displayed 80-byte header: its double SHA-256, reversed for display.
+export const headerHash = hex => {
+  const once = createHash('sha256').update(Buffer.from(hex, 'hex')).digest();
+  return createHash('sha256').update(once).digest().reverse().toString('hex');
+};
+
+// The header of a lab block, built here without the app's code: the text stands in for the
+// transactions, the lab clock starts at Satoshi's block 0 with ten minutes per block.
+export function labHeader({ data, previousHash = '0'.repeat(64), number = 0, bits, nonce }) {
+  const bytes = Buffer.alloc(80);
+  bytes.writeUInt32LE(1, 0);
+  Buffer.from(previousHash, 'hex').reverse().copy(bytes, 4);
+  const once = createHash('sha256').update(Buffer.from(data, 'utf8')).digest();
+  createHash('sha256').update(once).digest().copy(bytes, 36);
+  bytes.writeUInt32LE(1231006505 + number * 600, 68);
+  bytes.writeUInt32LE(bits, 72);
+  bytes.writeUInt32LE(nonce, 76);
+  return bytes.toString('hex');
 }

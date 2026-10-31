@@ -15,9 +15,9 @@ npm --prefix web run dev
 
 Choose **Start demo** to mine the initial coins and distribute them. Create a transfer in **New Transaction**, then choose **Mine Next Block**. **Auto-mine** repeats the experiment; **Stop mining** cancels the active attempt. **Reset** creates fresh wallets and a new genesis block while retaining experiment settings.
 
-Open **Experiment settings** to change difficulty, the coin's display name, target block time or the halving interval. Changes affect future blocks. Difficulty adapts every ten mined blocks. Difficulty is measured in leading hexadecimal zeros, so each additional zero makes a successful hash about sixteen times less likely.
+Open **Experiment settings** to change difficulty, the coin's display name, target block time or the halving interval. Changes affect future blocks. Difficulty adapts every ten mined blocks. You choose difficulty in leading hexadecimal zeros, so each additional zero makes a successful hash about sixteen times less likely; every block stores it as Bitcoin's compact `bits`.
 
-Choose **Hash lab** in the header to edit a message and nonce, compare fingerprints, and search for a hash with one to three leading zeros. Search checks at most 50,000 candidates per run and can be stopped; editing an input cancels it. The lab uses independent temporary state and never changes the chain or wallets. **Back to simulator** or Escape closes it; reopening starts a fresh lab.
+Choose **Hash lab** in the header to edit a message and nonce, compare fingerprints, and search for a hash with one to three leading zeros. The lab hashes a real 80-byte Bitcoin header in which the message stands in for the transactions. Search checks at most 50,000 candidates per run and can be stopped; editing an input cancels it. The lab uses independent temporary state and never changes the chain or wallets. **Back to simulator** or Escape closes it; reopening starts a fresh lab.
 
 Choose **Chain lab** to experiment with three linked text blocks. Change Block 1's data: its stored hash stays unchanged, while the recomputed fingerprint reveals the edit. Later blocks can still pass their own checks while depending on an invalid earlier block. Re-mine each affected block in order to adopt the preceding stored hash and find a new nonce with one leading hex zero. Repairing one block leaves its successors untouched, so their links need attention next. Each search starts at zero, checks at most 50,000 candidates and can be stopped. Edits, reset and close cancel pending searches; only a successful search replaces a stored block. This isolated demonstration has no signatures, balances or network consensus and never changes the simulator. Choose **Competing branches** inside Chain lab to explore two valid histories. **Competition** starts tied; **Rewrite history** starts an altered toy payment two blocks behind. Allocate nominal hash power, mine one block or run up to twelve new blocks, and observe which history this local model selects. Only strictly more accumulated target work switches branches; a tie keeps the current selection. Stop, power changes, reset and leaving the experiment cancel unfinished work. Each block has the same target and contributes 16 expected-work units, regardless of observed attempts or extra hash zeros. Editing payment text does not forge a signature.
 
@@ -25,7 +25,7 @@ Open **Missions** for nine guided experiments across the labs and workbench, fro
 
 ## How mining works here
 
-Every hash attempt, in the simulator and in all labs, goes through one search module (`web/src/lib/powSearch.js`). In the browser it runs in a Web Worker, so the page stays responsive while miners race. The constant part of the block header is absorbed into SHA-256 once (the midstate); each attempt only hashes the nonce and the rest. Blocks commit to their transactions through a Merkle transaction root, like Bitcoin's block header: change one transaction and the recomputed root, and with it the block hash, no longer match. Why the work stays in your browser, and when a server is used instead, is recorded in [ADR 0001](docs/adr/0001-proof-of-work-runs-in-the-browser.md); the domain terms are in [CONTEXT.md](CONTEXT.md).
+Every hash attempt, in the simulator and in all labs, goes through one search module (`web/src/lib/powSearch.js`). In the browser it runs in a Web Worker, so the page stays responsive while miners race. Every block is an 80-byte Bitcoin header hashed with double SHA-256, so any Bitcoin tool can recompute it; the block details show those bytes. The first 64 bytes are absorbed into SHA-256 once (the midstate); each attempt only hashes the rest with the nonce, then hashes the digest again. Blocks commit to their transactions through a Merkle root, like Bitcoin's block header: change one transaction and the recomputed root, and with it the block hash, no longer match. Why the work stays in your browser, and when a server is used instead, is recorded in [ADR 0001](docs/adr/0001-proof-of-work-runs-in-the-browser.md); the domain terms are in [CONTEXT.md](CONTEXT.md).
 
 ## Mining pool and leaderboard
 
@@ -45,7 +45,7 @@ npm --prefix web run preview
 npm --prefix server test
 ```
 
-The tests cover invalid transaction values and pending balances, tampering, the Merkle transaction root, block acceptance, the search module (midstate digests, weighted races, stop and limits), wallet initialization, concurrent starts, stopped halving attempts, reset, setting changes and demo distribution. Browser and server hashing are pinned to the same vectors in `shared/share-vectors.json`. The server tests cover forged, expired, duplicate and tampered shares, rate limits and CORS. `test:browser` needs Google Chrome. It starts and stops a local preview, exercises the complete demo/transfer/tamper/reset flow and checks five viewport widths. Set `BASE_URL` to check an already running site instead; screenshots go to the OS temporary directory (override with `SCREENSHOT_DIR`).
+The tests cover invalid transaction values and pending balances, tampering, the Merkle root against real Bitcoin blocks, block acceptance, the search module (midstate digests, weighted races, stop and limits), wallet initialization, concurrent starts, stopped halving attempts, reset, setting changes and demo distribution. Browser and server hashing are pinned to the same vectors in `shared/share-vectors.json`. The server tests cover forged, expired, duplicate and tampered shares, rate limits and CORS. `test:browser` needs Google Chrome. It starts and stops a local preview, exercises the complete demo/transfer/tamper/reset flow and checks five viewport widths. Set `BASE_URL` to check an already running site instead; screenshots go to the OS temporary directory (override with `SCREENSHOT_DIR`).
 
 The deployment check builds the public files and runs a Cloudflare dry run; it does not publish anything or establish live-domain acceptance.
 
@@ -69,7 +69,7 @@ After publication, verify HTTPS, response headers, asset loading and the Start d
 
 ## Source layout
 
-- `web/src/lib/blockchain.js`: participants, signed transactions, the Merkle transaction root, block headers, candidate preparation and block acceptance, integrity checks.
+- `web/src/lib/blockchain.js`: participants, signed transactions, the Merkle root, 80-byte block headers, candidate preparation and block acceptance, integrity checks.
 - `web/src/lib/powSearch.js` and `powSearch.worker.js`: the one nonce search (midstate, weighted race, Web Worker adapter).
 - `web/src/hooks/useBlockchain.js`: simulation state, miner race orchestration, cancellation and demo setup.
 - `web/src/components/PoolPanel.jsx` and `web/src/lib/poolApi.js`: the mining pool view.

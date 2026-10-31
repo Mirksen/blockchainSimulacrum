@@ -87,19 +87,18 @@ export function useBlockchain(config = {}) {
         }
     }, [controller, publish]);
 
-    // One miner race over prepared candidates (one per miner). `commit` stores
-    // the winner's proof in the chain and returns the block, or null when the
-    // chain refused it. The run must already hold the lock in controller.run.
-    const race = useCallback(async (run, chain, miners, candidates, commit) => {
+    // One miner race. `prepare(round)` returns the candidates (one per miner) of a
+    // round; a further round starts only when every 32-bit nonce of the previous one
+    // was tried, and must bring a new header. `commit` stores the winner's proof in
+    // the chain and returns the block, or null when the chain refused it. The run must
+    // already hold the lock in controller.run.
+    const race = useCallback(async (run, chain, miners, prepare, commit) => {
         const isCurrent = () => !run.aborted && controller.run === run && controller.chain === chain;
         setIsMining(true);
         setRaceWinner(null);
         setMinerProgress({});
         setMiningProgress(null);
         setHashAttempts([]);
-        // Each miner tries `hashpower` consecutive nonces per round from its own random start.
-        const entrants = miners.map(miner => ({ id: miner.name, weight: miner.hashpower,
-            prefix: candidates.get(miner.name).prefix, startNonce: Math.floor(Math.random() * 10000) + 1 }));
         const attempts = [];
         const start = run.startedAt;
         // All three updates happen in one synchronous callback, so React batches
@@ -123,24 +122,34 @@ export function useBlockchain(config = {}) {
             // The search always yields before its first attempt, including easy
             // blocks, so Stop and concurrent starts have the same lifecycle as
             // expensive mining.
-            const result = await runSearch({
-                entrants, target: candidates.get(miners[0].name).target, signal: run.stop.signal,
-                onProgress: progress => {
-                    if (!isCurrent()) return;
-                    run.attempts = progress.attempts;
-                    remember(progress.recent);
-                    report(progress.entrants, miners[0].name, progress.attempts);
-                }
-            });
-            run.attempts = result.attempts;
+            let round = 0;
+            let earlier = 0; // Attempts of finished rounds.
+            let candidates;
+            let result;
+            do {
+                candidates = prepare(round++);
+                result = await runSearch({
+                    // Each miner tries `hashpower` consecutive nonces per turn from its own random start.
+                    entrants: miners.map(miner => ({ id: miner.name, weight: miner.hashpower,
+                        header: candidates.get(miner.name).header, startNonce: Math.floor(Math.random() * 10000) + 1 })),
+                    bits: candidates.get(miners[0].name).bits, signal: run.stop.signal,
+                    onProgress: progress => {
+                        if (!isCurrent()) return;
+                        run.attempts = earlier + progress.attempts;
+                        remember(progress.recent);
+                        report(progress.entrants, miners[0].name, run.attempts);
+                    }
+                });
+                earlier += result.attempts;
+                run.attempts = earlier;
+            } while (result.status === 'exhausted' && isCurrent());
             if (result.status === 'stopped') return aborted();
-            if (result.status !== 'found') throw new Error('Every nonce was tried without a valid block.');
             if (!isCurrent()) return aborted();
             // A stopped, stale or rejected attempt never changes the chain or supply schedule.
             const block = commit(candidates.get(result.winner), result);
             if (!block) return aborted();
             remember([{ id: result.winner, nonce: result.nonce, hash: result.hash }]);
-            report(result.entrants, result.winner, result.attempts);
+            report(result.entrants, result.winner, run.attempts);
             setRaceWinner(result.winner);
             publish();
             run.finished = true;
@@ -179,14 +188,16 @@ export function useBlockchain(config = {}) {
         const run = createRun(chain, miners, controller.backed, true);
         controller.run = run; // Lock synchronously, before React can rerender.
         void telemetry.track('mining_started', { difficulty: run.difficulty, miner_count: run.minerCount, transaction_count: run.transactionCount });
-        // One shared timestamp keeps every miner's candidate on the same header time.
-        const timestamp = Date.now();
-        const candidates = new Map(miners.map(miner => [miner.name, chain.prepareCandidate(miner, { timestamp })]));
-        const result = await race(run, chain, miners, candidates, (candidate, found) => {
+        // One shared time keeps every miner's candidate on the same header time;
+        // each round moves on to the next extraNonce in the coinbase.
+        const time = chain.nextBlockTime();
+        const height = chain.blockArray.length;
+        const prepare = extraNonce => new Map(miners.map(miner => [miner.name, chain.prepareCandidate(miner, { time, extraNonce })]));
+        const result = await race(run, chain, miners, prepare, (candidate, found) => {
             const outcome = chain.acceptBlock(candidate, found.nonce, found.hash);
             return outcome.status === 'accepted' ? outcome.block : null;
         });
-        return result.success ? { ...result, epoch: chain.epochAt(candidates.get(result.winner).height) } : result;
+        return result.success ? { ...result, epoch: chain.epochAt(height) } : result;
     }, [controller, race]);
 
     // Re-mine historical block `index` with the same race as a new block: only its
@@ -200,9 +211,13 @@ export function useBlockchain(config = {}) {
         if (!prepared.success) return prepared;
         const run = createRun(chain, miners, controller.backed, false);
         controller.run = run; // Lock synchronously, before React can rerender.
-        // Every miner works on the same header; only their nonce ranges differ.
-        const candidates = new Map(miners.map(miner => [miner.name, prepared.candidate]));
-        const result = await race(run, chain, miners, candidates, (candidate, found) => {
+        // Every miner works on the same header; only their nonce ranges differ. Its
+        // transactions must not change, so each further round rolls the time.
+        const prepare = timeRoll => {
+            const { candidate } = timeRoll ? chain.prepareRemine(index, { timeRoll }) : prepared;
+            return new Map(miners.map(miner => [miner.name, candidate]));
+        };
+        const result = await race(run, chain, miners, prepare, (candidate, found) => {
             const outcome = chain.acceptRemine(candidate, found.nonce, found.hash);
             return outcome.status === 'accepted' ? outcome.block : null;
         });

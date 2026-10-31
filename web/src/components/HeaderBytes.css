@@ -1,0 +1,16 @@
+/* The 80 bytes of a block header. Used in the block dialog and in the labs, tokens only. */
+.header-bytes { display: flex; flex-direction: column; align-items: flex-start; gap: var(--s-2); min-width: 0; font-size: 12px; line-height: 17px; }
+.header-bytes-fields { width: 100%; margin: 0; border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--bg-2); }
+.header-bytes-field { display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: var(--s-2); padding: 6px 10px; }
+.header-bytes-field + .header-bytes-field { border-top: 1px solid var(--line); }
+.header-bytes-field dt { color: var(--text-2); }
+.header-bytes-field dt span { display: block; color: var(--text-3); font-size: 11px; }
+.header-bytes-field dd { margin: 0; min-width: 0; }
+.header-bytes .header-bytes-raw { display: block; padding: 0; border: 0; background: none; color: var(--text); font: 12px/17px var(--mono); overflow-wrap: anywhere; word-break: break-all; }
+.header-bytes-value { display: block; color: var(--text-3); font: 11px/16px var(--mono); overflow-wrap: anywhere; word-break: break-all; }
+.header-bytes-note { margin: 0; color: var(--text-2); overflow-wrap: anywhere; }
+.header-bytes-note code { display: inline; padding: 0; border: 0; background: none; font-family: var(--mono); color: var(--text); word-break: break-all; }
+@media (max-width: 480px) {
+  .header-bytes-field { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+  .header-bytes-field dt span { display: inline; }
+}

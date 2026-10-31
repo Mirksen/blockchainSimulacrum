@@ -69,7 +69,7 @@ export function ParticipantDetailsModal({
                         tx,
                         isIncoming,
                         isMiningReward,
-                        timestamp: block.timestamp
+                        timestamp: block.time * 1000
                     });
                 }
             });
