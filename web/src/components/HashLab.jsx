@@ -123,7 +123,7 @@ export function HashLab({ onClose, lesson, onLessonEvent, coach = null, workComp
 
   return <section className="hash-lab" aria-labelledby="hash-lab-title">
     <header className="hash-lab-header">
-      <div><h2 id="hash-lab-title">{lesson === 'work' ? 'Same input. A stricter target.' : 'Small change. New fingerprint.'}</h2>
+      <div><h2 id="hash-lab-title">{lesson === 'work' ? 'Same message. A stricter target.' : 'Small change. New fingerprint.'}</h2>
         <p>{lesson === 'work' ? 'Compare two searches, each beginning at nonce 0.' : 'A hash is repeatable. Finding one that starts with zeros takes trial and error.'}</p></div>
       {lesson === 'hash' && <button className="btn btn-transparent" onClick={reset}>Reset lab</button>}
       {!lesson && <button className="btn btn-transparent" onClick={() => { invalidateSearch(); onClose(); }}>Back to simulator</button>}

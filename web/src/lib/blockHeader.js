@@ -8,7 +8,9 @@ export const ZERO_HASH = '0'.repeat(64);
 // Double SHA-256 over hex bytes, in internal byte order (shared/bitcoin-block.mjs).
 export const sha256d = hex => CryptoJS.SHA256(CryptoJS.SHA256(CryptoJS.enc.Hex.parse(hex))).toString();
 
-export const isNonce = value => Number.isInteger(value) && value >= 0 && value <= 0xffffffff;
+export const MAX_NONCE = 0xffffffff;
+
+export const isNonce = value => Number.isInteger(value) && value >= 0 && value <= MAX_NONCE;
 
 /** Hex of the first 76 header bytes: everything a nonce search keeps constant. */
 export const headerPrefix = fields => headerHex({ ...fields, nonce: 0 }).slice(0, 152);

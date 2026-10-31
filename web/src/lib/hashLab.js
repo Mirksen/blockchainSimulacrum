@@ -1,5 +1,5 @@
 import { bitsOfZeros, displayHash, le, meetsTarget as meetsBits } from '../../../shared/bitcoin-block.mjs';
-import { labHeaderPrefix, sha256d } from './blockHeader';
+import { labHeaderPrefix, MAX_NONCE, sha256d } from './blockHeader';
 import { search } from './powSearch';
 
 export const SEARCH_LIMIT = 50_000;
@@ -7,8 +7,8 @@ export const SEARCH_LIMIT = 50_000;
 export function parseNonce(value) {
   if ((typeof value !== 'number' && typeof value !== 'string') ||
       (typeof value === 'string' && !/^\d+$/.test(value)) ||
-      !Number.isSafeInteger(Number(value)) || Number(value) < 0 || Number(value) > 0xffffffff) {
-    throw new RangeError('Enter a whole number from 0 to 4294967295.');
+      !Number.isSafeInteger(Number(value)) || Number(value) < 0 || Number(value) > MAX_NONCE) {
+    throw new RangeError(`Enter a whole number from 0 to ${MAX_NONCE}.`);
   }
   return Number(value);
 }

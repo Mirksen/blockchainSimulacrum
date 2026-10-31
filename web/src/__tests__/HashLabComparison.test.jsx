@@ -73,7 +73,7 @@ describe('measured work-lesson comparison', () => {
     localStorage.setItem('proofofwork-rail-collapsed', '0');
     history.replaceState(null, '', '/#/hash-lab');
     render(<App />);
-    expect(screen.getByRole('heading', { name: 'Same input. A stricter target.' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Same message. A stricter target.' })).toBeTruthy();
     await find(1);
     const first = row('One zero').textContent;
     await find(2);

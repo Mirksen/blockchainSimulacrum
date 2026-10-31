@@ -1,6 +1,7 @@
 import CryptoJS from 'crypto-js/core.js';
 import 'crypto-js/sha256.js';
 import { meetsTarget, zerosOfTarget } from '../../../shared/bitcoin-block.mjs';
+import { MAX_NONCE } from './blockHeader.js';
 
 // One proof-of-work search for every nonce race in the app, over one of two inputs:
 // an 80-byte Bitcoin header (simulator and labs) or the pool's text
@@ -8,7 +9,6 @@ import { meetsTarget, zerosOfTarget } from '../../../shared/bitcoin-block.mjs';
 // state once (the midstate) and each attempt only hashes the short tail.
 
 const RECENT_LIMIT = 20;
-const MAX_HEADER_NONCE = 0xffffffff;
 const nextTick = () => new Promise(resolve => setTimeout(resolve, 0));
 
 // Returns nonce => hex digest, equal to SHA256(prefix + nonce + suffix).
@@ -99,7 +99,7 @@ export async function search({ entrants, target, bits, limit = Infinity, signal,
   if (!['round-robin', 'weighted-random'].includes(scheduling)) throw new RangeError('Unknown search scheduling.');
   const random = scheduling === 'weighted-random' ? allocationRandom(seed) : null;
   const states = entrants.map(({ id, weight = 1, header, prefix, suffix = '', startNonce = 0 }) => {
-    const maxNonce = header === undefined ? Number.MAX_SAFE_INTEGER : MAX_HEADER_NONCE;
+    const maxNonce = header === undefined ? Number.MAX_SAFE_INTEGER : MAX_NONCE;
     if (!Number.isSafeInteger(weight) || weight < 1) throw new RangeError('Weight must be a positive whole number.');
     if (!Number.isSafeInteger(startNonce) || startNonce < 0 || startNonce > maxNonce) throw new RangeError('Start nonce is out of range.');
     return { id, weight, hasher: header === undefined ? createHasher(String(prefix), String(suffix)) : createHeaderHasher(header),

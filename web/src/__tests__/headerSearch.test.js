@@ -142,6 +142,20 @@ describe('a simulator block', () => {
     expect(block.transactions[0].createHash()).toBe(txid);
     expect(simulator.isChainValid()).toBe(true);
   });
+  it('shows every coinbase edit in its txid, also those Bitcoin cannot encode', () => {
+    const simulator = chain();
+    const candidate = simulator.prepareCandidate(simulator.getActiveMiner());
+    const nonce = findNonce(candidate);
+    const { block } = simulator.acceptBlock(candidate, nonce, candidateHash(candidate, nonce));
+    const [coinbase] = block.transactions;
+    const txids = [3.125, 3.125000001, 3.125000002, 1e30, 1e31, -1].map(amount => {
+      coinbase.amount = amount;
+      return coinbase.createHash();
+    });
+    expect(new Set(txids).size).toBe(txids.length);
+    coinbase.amount = 3.125;
+    expect(block.isValid()).toBe(true);
+  });
   it('rejects a nonce beyond 32 bits', () => {
     const simulator = chain();
     const candidate = simulator.prepareCandidate(simulator.getActiveMiner());

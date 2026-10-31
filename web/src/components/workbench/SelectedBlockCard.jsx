@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { CoachMark } from './CoachMark';
+import { formatInterval } from './blockView';
 import './cardKit.css';
 import './SelectedBlockCard.css';
 
@@ -229,7 +230,7 @@ export function SelectedBlockCard({ block, status, prevHash, edit, onOpenDetails
   );
 
   const minerFacts = [
-    block.seconds != null ? `${block.seconds} s` : null,
+    formatInterval(block.seconds),
     block.tries != null ? `${Number(block.tries).toLocaleString('en-US')} tries` : null,
     block.reward != null ? `reward ${formatAmount(block.reward)}` : null
   ].filter(Boolean);
