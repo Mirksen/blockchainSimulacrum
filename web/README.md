@@ -34,7 +34,7 @@ Each participant receives a new English [BIP39](https://github.com/bitcoin/bips/
 
 Both creation and recovery require Web Crypto (`crypto.getRandomValues`): the BIP32 library also uses secure randomness for scalar-multiplication blinding. This protection does not change the deterministic key. Neither operation has an insecure fallback.
 
-The phrase is converted to a BIP39 seed with an **empty passphrase**, then [BIP32](https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki) derives the secp256k1 key at **`m/44'/0'/0'/0/0`** using `@scure/bip39` and `@scure/bip32`. The simulator continues to identify wallets by uncompressed hexadecimal public keys, not Bitcoin addresses.
+The phrase is converted to a BIP39 seed with an **empty passphrase**, then [BIP32](https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki) derives the secp256k1 key at **`m/44'/0'/0'/0/0`** using `@scure/bip39` and `@scure/bip32`. Wallets use the compressed public key and pay to its mainnet-format P2PKH address.
 
 `Participant.fromSeedPhrase(name, phrase, isMiner = false)` restores the same private/public key pair in memory. Recovery accepts valid English BIP39 phrases of 12, 15, 18, 21 or 24 words; it applies Unicode NFKD, trims surrounding whitespace and collapses whitespace between words. Unknown words, incorrect checksums, wrong word counts, uppercase words and non-string input are rejected. Names and miner settings do not affect key derivation. Additional BIP39 passphrases are not supported.
 

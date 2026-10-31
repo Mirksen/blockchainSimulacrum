@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
 import { act, cleanup, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import SHA256 from 'crypto-js/sha256';
 import CryptoJS from 'crypto-js/core.js';
 import { ec as EC } from 'elliptic';
 import { useBlockchain } from '../hooks/useBlockchain';
@@ -11,17 +10,19 @@ vi.mock('../lib/telemetry', async (importOriginal) => {
   return { ...actual, telemetry: { track: vi.fn(), reportError: vi.fn() } };
 });
 
-vi.mock('crypto-js/sha256', async (importOriginal) => {
-  const actual = await importOriginal();
-  return { default: vi.fn(actual.default) };
-});
 const config = { participants: ['Miner One', 'Wallet Two'], miners: ['Miner One'], miningDifficulty: 1, halvingEvent: 2 };
-// Nonce searches hash through the SHA-256 midstate (finalize), block checks
-// through the SHA256 helper; both are forced to the same synthetic digest.
+// Every hash ends in the SHA-256 finalize. An 80-byte header and the second round over its
+// digest are forced to a synthetic digest; transaction hashes stay real, so txids and
+// addresses differ.
 let finalize;
+const realFinalize = CryptoJS.algo.SHA256.finalize;
 const forceHash = hex => {
-  vi.mocked(SHA256).mockImplementation(() => ({ toString: () => hex }));
-  finalize.mockImplementation(() => CryptoJS.enc.Hex.parse(hex));
+  finalize.mockImplementation(function (message) {
+    const data = message ?? this._data;
+    const size = this._nDataBytes + (message?.sigBytes ?? 0);
+    const forced = size === 80 || (size === 32 && data.toString() === hex);
+    return forced ? CryptoJS.enc.Hex.parse(hex) : realFinalize.call(this, message);
+  });
 };
 beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(new Date('2026-01-02T12:00:00Z')); finalize = vi.spyOn(CryptoJS.algo.SHA256, 'finalize'); forceHash('0'.repeat(64)); });
 afterEach(() => { cleanup(); vi.useRealTimers(); vi.clearAllMocks(); vi.restoreAllMocks(); telemetry.track.mockReset(); telemetry.reportError.mockReset(); });

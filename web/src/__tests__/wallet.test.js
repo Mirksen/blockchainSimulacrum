@@ -10,7 +10,7 @@ const OTHER_PHRASE = `${'zoo '.repeat(11)}wrong`;
 // Empty-passphrase BIP32 child independently calculated with Node/OpenSSL's
 // PBKDF2/HMAC-SHA512/ECDH primitives, following BIP32 at the documented path.
 const PRIVATE_KEY = 'e284129cc0922579a535bbf4d1a3b25773090d28c909bc0fed73b5e0222cc372';
-const PUBLIC_KEY = '04aaeb52dd7494c361049de67cc680e83ebcbbbdbeb13637d92cd845f70308af5e9370164133294e5fd1679672fe7866c307daf97281a28f66dca7cbb52919824f';
+const PUBLIC_KEY = '03aaeb52dd7494c361049de67cc680e83ebcbbbdbeb13637d92cd845f70308af5e';
 
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 
@@ -104,9 +104,11 @@ describe('demo wallet recovery', () => {
     const original = new Participant('Fixture Wallet', false, PHRASE);
     const recovered = Participant.fromSeedPhrase('Recovered Fixture', PHRASE);
     const recipient = Participant.fromSeedPhrase('Fixture Recipient', OTHER_PHRASE);
-    const tx = new Transaction(original.publicKey, recipient.publicKey, 1, 0, 'Synthetic reference');
-    tx.sign(recovered.keyPair);
-    expect(tx.isValid()).toBe(true);
-    expect(() => tx.sign(recipient.keyPair)).toThrow(/does not match/);
+    const coin = { txid: 'ab'.repeat(32), vout: 0 };
+    const tx = new Transaction({ inputs: [coin], outputs: [{ value: 1, scriptPubKey: recipient.scriptPubKey }] });
+    tx.signInput(0, recovered.keyPair, original.scriptPubKey);
+    expect(tx.verifyInput(0, original.scriptPubKey)).toBe(true);
+    tx.signInput(0, recipient.keyPair, original.scriptPubKey);
+    expect(tx.verifyInput(0, original.scriptPubKey)).toBe(false);
   });
 });

@@ -4,6 +4,7 @@ import { MIN_DIFFICULTY, MAX_DIFFICULTY } from '../../lib/difficulty';
 import { bitsOfZeros } from '../../../../shared/bitcoin-block.mjs';
 import './cardKit.css';
 import './NextBlockCard.css';
+import { issueText } from './blockView';
 
 // Next block card (web/DESIGN.md, "Card grid" and "Interaction patterns").
 // One filled primary per mode:
@@ -14,7 +15,8 @@ import './NextBlockCard.css';
 // miners:    [{ name, hashrate?, color? }]  (color: any CSS color, defaults to var(--<name>))
 // race:      { perMiner: { [name]: { nonce, hash, zeros, iterations } }, attempts, elapsedMs, targetSeconds, winner }
 // lastRound: { index, winner, nonce, attempts, elapsedMs, difficulty?, perMiner: { [name]: { nonce, zeros } } }
-// repair:    { next, order }  order = the re-mine path in order, `next` the block to re-mine now;
+// repair:    { next, order, undoOnly?, stuck?, reason? }  order = the re-mine path in order, `next` the block to re-mine now
+//            (with undoOnly the edited block; `stuck` and `reason` name the block and the rule re-mining cannot fix);
 //            blocks before `next` in `order` count as done
 
 const KNOWN_COLORS = ['lars', 'minas', 'alice', 'bob', 'chris'];
@@ -299,10 +301,10 @@ function RepairBody({ repair, difficulty, target, onRemine, coach }) {
         )}
       </div>
       {repair?.undoOnly
-        // A forged signature survives every re-mine; only undoing the edit repairs it.
+        // A broken transaction rule survives every re-mine; only undoing the edit repairs it.
         ? <div className="next-block-repair-row">
           <button type="button" className="btn-primary" onClick={() => repair.onUndo?.(next)}><UndoIcon />Undo edit in block #{next}</button>
-          <small>Block #{next} has a valid hash, but its edited transfer no longer matches its signature. Re-mining cannot fix a signature.</small>
+          <small>{issueText(repair.reason ?? 'signature', repair.stuck ?? next)} Re-mining changes no transaction, so it cannot fix this.</small>
         </div>
         : <CoachMark target="workbench.remine" coach={coach} className="next-block-coach-block">
           <div className="next-block-repair-row">

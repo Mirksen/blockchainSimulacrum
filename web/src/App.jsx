@@ -14,12 +14,13 @@ import { ChainLab } from './components/ChainLab';
 import { PoolPanel } from './components/PoolPanel';
 import { BlockDetailsModal } from './components/BlockDetailsModal';
 import { ParticipantDetailsModal } from './components/ParticipantDetailsModal';
+import { TransactionDetailsModal } from './components/TransactionDetailsModal';
 import './index.css';
 import { MIN_DIFFICULTY, MAX_DIFFICULTY } from './lib/difficulty';
 
 const INITIAL_CONFIG = {
   name: 'powfyicoin', miningDifficulty: 4, blockReward: 3.125, halvingEvent: 4,
-  participants: ['Alice', 'Bob', 'Chris', 'Lars', 'Minas'], miners: ['Minas', 'Lars'], startingBalance: 0
+  participants: ['Alice', 'Bob', 'Chris', 'Lars', 'Minas'], miners: ['Minas', 'Lars']
 };
 const VIEWS = { '': 'workbench', 'hash-lab': 'hash-lab', 'chain-lab': 'chain-lab', pool: 'pool' };
 const RAIL_KEY = 'proofofwork-rail-collapsed';
@@ -71,6 +72,7 @@ function App() {
   const [lastRound, setLastRound] = useState(null);
   const [remining, setRemining] = useState(null);
   const [details, setDetails] = useState(null);
+  const [pendingTx, setPendingTx] = useState(null);
   const [walletDetails, setWalletDetails] = useState(null);
   const [workComparison, setWorkComparison] = useState(null);
   // The rail starts collapsed (free play); a first-visit card invites to the missions once.
@@ -84,7 +86,7 @@ function App() {
   const { blocks, participants, balances, memPool, chainValid, isMining, isSettingUp, difficulty, halvingInterval,
     minerProgress, miningProgress, createTransaction, mineBlock, setupInitialDistribution, generateRandomTransactions,
     setDifficulty, setHalvingInterval, tamperBlock, undoTamper, remineBlock, resetBlockchain, cancelMining,
-    createWallet, backMiner, toggleMiner, setMinerHashpower } = sim;
+    createWallet, backMiner, toggleMiner, setMinerHashpower, describeTx } = sim;
   const busy = isMining || isSettingUp;
   const coach = railCollapsed ? null : coachOf(progress);
   const activeMission = missions.activeMission(progress);
@@ -303,7 +305,7 @@ function App() {
             lastRound={lastRound} remining={remining} coach={coach}
             onStartDemo={handleSetup} onMine={handleMine} onPause={pause} onRemine={handleRemine} onTamper={onTamper} onUndo={onUndo}
             onDifficulty={onDifficulty} onBack={onBack} onCreateTransaction={onCreateTransaction} onCreateWallet={createWallet}
-            onOpenWallet={setWalletDetails} onOpenDetails={setDetails} onOpenChainLab={() => navigate('chain-lab')} error={error} />}
+            onOpenWallet={setWalletDetails} onOpenDetails={setDetails} onOpenTransaction={setPendingTx} onOpenChainLab={() => navigate('chain-lab')} error={error} />}
           {view === 'hash-lab' && <div className="wb-view">
             <HashLab key={hashLesson ?? 'free'} lesson={hashLesson} onLessonEvent={hashLesson ? report : undefined}
               coach={hashLesson ? coach : null} onClose={() => navigate('workbench')}
@@ -321,9 +323,11 @@ function App() {
         difficulty={difficulty} onDifficulty={onDifficulty} halvingInterval={halvingInterval} onHalvingInterval={setHalvingInterval}
         targetBlockTime={targetBlockTime} onTargetBlockTime={changeTarget} busy={busy} />
       {details !== null && blocks[details] && <BlockDetailsModal block={blocks[details]} blockIndex={details} blocks={blocks}
-        onClose={() => setDetails(null)} participants={participants} coinName={coinName} />}
+        onClose={() => setDetails(null)} participants={participants} describeTx={describeTx} coinName={coinName} />}
+      {pendingTx && memPool.includes(pendingTx) && <TransactionDetailsModal transaction={describeTx(pendingTx)} blockIndex={null}
+        onClose={() => setPendingTx(null)} coinName={coinName} />}
       {wallet && <ParticipantDetailsModal participant={wallet}
-        balance={balances.find(b => b.name === wallet.name)} blocks={blocks} onClose={() => setWalletDetails(null)}
+        balance={balances.find(b => b.name === wallet.name)} blocks={blocks} describeTx={describeTx} onClose={() => setWalletDetails(null)}
         toggleMiner={toggleMiner} setMinerHashpower={setMinerHashpower} isMining={busy} coinName={coinName} />}
     </div>
   );

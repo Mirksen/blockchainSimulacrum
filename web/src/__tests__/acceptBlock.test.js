@@ -5,7 +5,7 @@ import { headerHex, meetsTarget as meetsBits } from '../../../shared/bitcoin-blo
 const T0 = Date.parse('2026-01-02T12:00:00Z') / 1000;
 const setup = (overrides = {}) => createBlockchain({
   participants: ['Miner One', 'Miner Two', 'Wallet Three'], miners: ['Miner One', 'Miner Two'],
-  startingBalance: 2, miningDifficulty: 1, ...overrides
+  miningDifficulty: 1, ...overrides
 });
 const miner = (chain, name = 'Miner One') => chain.getParticipantByName(name);
 function findNonce(candidate, meetsTarget = true) {
@@ -31,15 +31,19 @@ afterEach(() => { vi.useRealTimers(); });
 describe('prepareCandidate', () => {
   it('describes one immutable block template whose header matches the block hash', () => {
     const chain = setup();
-    chain.createTransaction('Wallet Three', 'Miner Two', 0.5, 0.25, 'synthetic transfer');
+    mineNext(chain);
+    chain.createTransaction('Miner One', 'Miner Two', 0.5, 0.25, 'synthetic transfer');
     const candidate = chain.prepareCandidate(miner(chain), { time: T0 });
     expect(Object.isFrozen(candidate)).toBe(true);
     expect(Object.isFrozen(candidate.transactions)).toBe(true);
-    expect(candidate).toMatchObject({ previousHash: chain.blockArray[0].hash, time: T0, difficulty: 1, bits: 0x200fffff,
-      reward: 3.125, halved: false, minerPublicKey: miner(chain).publicKey, height: 1 });
+    expect(candidate).toMatchObject({ previousHash: chain.blockArray[1].hash, time: T0, difficulty: 1, bits: 0x200fffff,
+      reward: 3.125, subsidy: 312500000, halved: false, minerPublicKey: miner(chain).publicKey, height: 2 });
     expect(candidate.transactions).toHaveLength(2);
-    expect(candidate.transactions[0]).toMatchObject({ sender: null, recipient: miner(chain).publicKey, amount: 3.375,
-      transactionFee: 0, referenceNumber: 'Mining Reward #1' });
+    const [coinbase, transfer] = candidate.transactions;
+    expect(coinbase.isCoinbase).toBe(true);
+    expect(coinbase.memo).toBe('Mining Reward');
+    expect(coinbase.outputs).toEqual([{ value: 337500000, scriptPubKey: miner(chain).scriptPubKey }]);
+    expect(transfer).toBe(chain.memPool[0]);
     expect(candidate.txRoot).toBe(transactionRoot(candidate.transactions));
     expect(candidate.header).toBe(headerHex({ version: 1, previousHash: candidate.previousHash, merkleRoot: candidate.txRoot,
       time: T0, bits: candidate.bits, nonce: 0 }).slice(0, 152));
@@ -83,29 +87,30 @@ describe('acceptBlock', () => {
 
   it('appends a valid block that keeps the chain valid and records the win and log once', () => {
     const chain = setup();
-    chain.createTransaction('Wallet Three', 'Miner Two', 0.5, 0.25, 'synthetic transfer');
+    mineNext(chain);
+    chain.createTransaction('Miner One', 'Miner Two', 0.5, 0.25, 'synthetic transfer');
     const candidate = chain.prepareCandidate(miner(chain), { time: T0 });
     const nonce = findNonce(candidate);
     const hash = candidateHash(candidate, nonce);
     const outcome = chain.acceptBlock(candidate, nonce, hash);
     expect(outcome.status).toBe('accepted');
     const { block } = outcome;
-    expect(chain.blockArray).toHaveLength(2);
-    expect(chain.blockArray[1]).toBe(block);
+    expect(chain.blockArray).toHaveLength(3);
+    expect(chain.blockArray[2]).toBe(block);
     expect(block).toMatchObject({ time: T0, previousHash: candidate.previousHash, difficulty: 1, txRoot: candidate.txRoot,
       nonce, hash, halved: false });
     expect(block.createHash()).toBe(hash);
     expect(block.isValid()).toBe(true);
     expect(chain.isChainValid()).toBe(true);
     expect(chain.memPool).toEqual([]);
-    expect(miner(chain).blocksWon).toBe(1);
+    expect(miner(chain).blocksWon).toBe(2);
     expect(miner(chain, 'Miner Two').blocksWon).toBe(0);
-    expect(chain.miningLog).toEqual([{ blockNumber: 1, nonce, hash }]);
-    expect(chain.calculateConfirmedBalance(miner(chain).publicKey)).toBe(2 + 3.125 + 0.25);
+    expect(chain.miningLog.at(-1)).toEqual({ blockNumber: 2, nonce, hash });
+    expect(chain.calculateConfirmedBalance(miner(chain).publicKey)).toBe(2 * 3.125 - 0.5);
     // Replaying the same proof is stale and does not count twice.
     expect(chain.acceptBlock(candidate, nonce, hash)).toEqual({ status: 'stale' });
-    expect(miner(chain).blocksWon).toBe(1);
-    expect(chain.miningLog).toHaveLength(1);
+    expect(miner(chain).blocksWon).toBe(2);
+    expect(chain.miningLog).toHaveLength(2);
   });
 
   it('applies the halving exactly at height halvingEvent', () => {
@@ -113,7 +118,7 @@ describe('acceptBlock', () => {
     const rewards = [];
     for (let height = 1; height <= 4; height++) {
       const { block } = mineNext(chain);
-      rewards.push({ height, halved: block.halved, coinbase: block.transactions[0].amount, blockReward: chain.blockReward });
+      rewards.push({ height, halved: block.halved, coinbase: block.transactions[0].outputs[0].value / 1e8, blockReward: chain.blockReward });
     }
     expect(rewards).toEqual([
       { height: 1, halved: false, coinbase: 3.125, blockReward: 3.125 },

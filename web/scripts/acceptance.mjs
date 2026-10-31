@@ -139,8 +139,18 @@ try {
  await form.getByRole('combobox',{name:'To'}).selectOption('Bob');
  await form.getByLabel('Amount (powfyicoin)',{exact:true}).fill('0.1');
  await form.getByLabel(/^Reference/).fill('Synthetic acceptance transfer');
+ assert.match(await form.getByRole('status').innerText(), /Spends 1 coin \(0\.60\) · 0\.10 to Bob · 0\.49999999 change · 0\.00000001 fee/);
  await form.getByRole('button',{name:'Add to mempool'}).click();
- await page.getByRole('list',{name:'Pending transactions'}).getByText('Synthetic acceptance transfer').waitFor();
+ const pendingList = page.getByRole('list',{name:'Pending transactions'});
+ await pendingList.getByText('Synthetic acceptance transfer').waitFor();
+ assert.match(await pendingList.innerText(), /1 coin · 0\.49999999 change · 0\.00000001 fee/);
+ await pendingList.getByRole('button',{name:/^Details of Alice to Bob/}).click();
+ const pendingDialog = page.getByRole('dialog',{name:'Transaction details',exact:true});
+ await pendingDialog.getByRole('list',{name:'Outputs'}).waitFor();
+ assert.equal(await pendingDialog.getByRole('list',{name:'Outputs'}).getByRole('listitem').count(), 3, 'Payment, change and memo');
+ await page.keyboard.press('Escape');
+ await pendingDialog.waitFor({state:'hidden'});
+ results.push('The form previews coins, change and fee; a pending transaction shows its inputs and outputs');
  await wb.mine(3).click();
  await wb.mine(4).waitFor({timeout:30000});
  assert.equal(await page.getByText('Synthetic acceptance transfer').count(), 0, 'The mined transfer left the mempool');
@@ -158,9 +168,12 @@ try {
  assert.equal(await dialog.getByRole('status').innerText(),'Verified: this phrase recovers the same demo public key.');
  results.push('BIP39 recovery derives the same demo public key at the documented path');
  assert.ok((await dialog.locator('.balance-amount').innerText()).includes('0.70000000'));
+ assert.equal(await dialog.getByRole('list',{name:'Unspent outputs'}).getByRole('listitem').count(), 2, 'Bob holds two coins');
  await dialog.getByRole('button',{name:/Transaction in block/}).first().click();
  const nested = page.getByRole('dialog',{name:'Transaction details',exact:true});
  await nested.waitFor();
+ assert.match(await nested.innerText(), /Fee = inputs − outputs/);
+ assert.match(await nested.innerText(), /Every input passes its script/);
  await page.keyboard.press('Escape');
  await nested.waitFor({state:'hidden'});
  assert.ok(await dialog.isVisible());
@@ -168,18 +181,33 @@ try {
  await dialog.waitFor({state:'hidden'});
  results.push('Wallet balance updates; wallet and transaction dialogs open and Escape closes them');
 
- // Tamper with the coinbase of block #1, then repair the chain in order.
- await wb.tile(1).click();
- await page.getByRole('button',{name:'Tamper with this block',exact:true}).click();
- const editor = page.getByRole('form',{name:'Change a transaction amount in block 1'});
- await editor.getByLabel('New amount').fill('99');
- await editor.getByRole('button',{name:'Change amount'}).click();
- await wb.chainPill().filter({hasText:'Chain invalid'}).waitFor();
- assert.match(await wb.tile(1).getAttribute('aria-label'), /hash mismatch/i);
- assert.match(await wb.tile(2).getAttribute('aria-label'), /built on a broken block/i);
+ const tamper = async (index, amount) => {
+  await wb.tile(index).click();
+  await page.getByRole('button',{name:'Tamper with this block',exact:true}).click();
+  const editor = page.getByRole('form',{name:`Change a transaction amount in block ${index}`});
+  await editor.getByLabel('New amount').fill(amount);
+  await editor.getByRole('button',{name:'Change amount'}).click();
+  await wb.chainPill().filter({hasText:'Chain invalid'}).waitFor();
+ };
+
+ // The coinbase of block #1 is spent in block #2: a new txid leaves that spend pointing at nothing.
+ await tamper(1, '3');
+ const undoEdit = page.getByRole('button',{name:'Undo edit in block #1',exact:true});
+ await undoEdit.waitFor();
+ assert.match(await page.locator('.next-block-repair-row').innerText(), /that output no longer exists/);
+ assert.equal(await page.getByRole('button',{name:'Re-mine block #1',exact:true}).count(), 0);
+ await referenceViews('tampered-spent');
+ await undoEdit.click();
+ await wb.chainPill().filter({hasText:'Chain valid'}).waitFor();
+ results.push('Editing a spent coin is a dead end that only Undo leaves, and the reason says why');
+
+ // The coinbase of block #2 is unspent: lowering it can be repaired by redoing the work.
+ await tamper(2, '1');
+ assert.match(await wb.tile(2).getAttribute('aria-label'), /hash mismatch/i);
+ assert.match(await wb.tile(3).getAttribute('aria-label'), /built on a broken block/i);
  assert.ok(await wb.mine(4).isDisabled());
  await referenceViews('tampered');
- for (const index of [1, 2, 3]) {
+ for (const index of [2, 3]) {
   await page.getByRole('button',{name:`Re-mine block #${index}`,exact:true}).click();
   if (index < 3) await page.getByRole('button',{name:`Re-mine block #${index + 1}`,exact:true}).waitFor({timeout:30000});
  }

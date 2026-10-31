@@ -24,15 +24,30 @@ Terms used in code, tests and docs of proofofwork.fyi. Decisions that shape them
 - **Accept** — `chain.acceptBlock(candidate, nonce, hash)` re-checks the hash, the target and that
   the chain tip has not moved; only then the block is appended. `stale` means the tip moved,
   `rejected` means the proof is wrong.
+- **Transaction** — a legacy Bitcoin transaction (`web/src/lib/tx/transaction.js`): inputs that spend
+  earlier outputs, outputs with a value in satoshis and a locking script. Its id (**txid**) is the
+  double SHA-256 of its bytes, displayed byte-reversed.
+- **Coin / UTXO** — an unspent output. `validateChain` (`web/src/lib/tx/utxo.js`) walks the blocks and
+  the mempool and is the only source of the UTXO set; a wallet's balance is the sum of its coins.
+- **Change** — the output that returns what a payment did not use to the sender.
+- **Fee** — what a transaction's inputs leave over after its outputs; never stored, collected by the
+  miner in the coinbase.
+- **Coinbase** — transaction 0 of a block. It spends nothing and may claim at most the block's
+  **subsidy** plus its fees. The genesis coinbase cannot be spent.
+- **Memo** — a reference, stored as an OP_RETURN output of 0 value.
+- **Transaction view** — `describeTx(tx)`, what the UI reads: inputs, outputs with their role, fee,
+  signature state. `tx.createHash()` is the only thing the block layer reads from a transaction.
 - **Merkle root** — `transactionRoot`: Bitcoin's Merkle tree over the transactions' txids
   (`tx.createHash()`), double SHA-256 in internal byte order, an odd level repeating its last hash.
   The header commits to it, so a changed transaction breaks the block hash.
 - **Block status** — `chain.inspectBlocks()` per block: `hash-mismatch` (its content no longer
   produces the stored hash, or the stored hash misses its target), `link-broken` (its stored previous
   hash differs from the predecessor's stored hash), `built-on-broken` (own hash and link fine, but an
-  earlier block is broken), otherwise `valid`.
-- **Edit** — a tampered transaction amount. `tamperTransaction` remembers the original once;
-  `undoTamper(block)` restores the originals of that block.
+  earlier block is broken), `signature-invalid` and `transaction-invalid` (hash and link fine, but a
+  ledger rule fails; `issue` names it, also while a hash mismatch still decides the status),
+  otherwise `valid`.
+- **Edit** — a tampered value of a transaction's first output. `tamperTransaction` remembers the
+  original once; `undoTamper(block)` restores the originals of that block. An edit changes the txid.
 - **Re-mine** — find a new nonce for a historical block at the current target after re-linking it
   to its predecessor's stored hash; its transactions stay as they are, so after 2^32 nonces the
   header's time moves one second instead of an extraNonce. Allowed only when every earlier block is
