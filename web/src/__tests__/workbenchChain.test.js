@@ -1,17 +1,19 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { candidateHash, createBlockchain } from '../lib/blockchain';
+import { meetsTarget as meetsBits } from '../../../shared/bitcoin-block.mjs';
+import { hashAtNonce, headerPrefix } from '../lib/blockHeader';
 
-const T0 = Date.parse('2026-01-02T12:00:00Z');
+const T0 = Date.parse('2026-01-02T12:00:00Z') / 1000;
 const setup = (overrides = {}) => createBlockchain({
   participants: ['Miner1', 'Wallet2'], miners: ['Miner1'], miningDifficulty: 1, ...overrides
 });
 function findNonce(candidate, meetsTarget = true) {
   let nonce = 0;
-  while (candidateHash(candidate, nonce).startsWith(candidate.target) !== meetsTarget) nonce++;
+  while (meetsBits(candidateHash(candidate, nonce), candidate.bits) !== meetsTarget) nonce++;
   return nonce;
 }
 function mineNext(chain) {
-  const candidate = chain.prepareCandidate(chain.getActiveMiner(), { timestamp: T0 + chain.blockArray.length });
+  const candidate = chain.prepareCandidate(chain.getActiveMiner(), { time: T0 + chain.blockArray.length });
   const nonce = findNonce(candidate);
   expect(chain.acceptBlock(candidate, nonce, candidateHash(candidate, nonce)).status).toBe('accepted');
 }
@@ -31,7 +33,7 @@ function minedChain(overrides) {
 }
 const statuses = chain => chain.inspectBlocks().map(check => check.status);
 
-beforeEach(() => { vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(T0); });
+beforeEach(() => { vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(T0 * 1000); });
 afterEach(() => { vi.useRealTimers(); });
 
 describe('addWallet', () => {
@@ -103,8 +105,9 @@ describe('inspectBlocks', () => {
   it('calls a correctly computed hash that misses its target a hash mismatch', () => {
     const chain = minedChain();
     const block = chain.blockArray[1];
-    const prefix = block.previousHash + block.txRoot + block.timestamp + block.difficulty;
-    block.nonce = findNonce({ prefix, target: '0' }, false);
+    let nonce = 0;
+    while (meetsBits(hashAtNonce(headerPrefix(block.header()), nonce), block.bits)) nonce++;
+    block.nonce = nonce;
     block.hash = block.createHash();
     const checks = chain.inspectBlocks();
     expect(checks[1]).toMatchObject({ hashMatches: true, meetsTarget: false, status: 'hash-mismatch' });
@@ -189,7 +192,7 @@ describe('re-mining a historical block', () => {
     const chain = minedChain();
     chain.tamperTransaction(2, 0, 999);
     const block = chain.blockArray[2];
-    const { transactions, timestamp } = block;
+    const { transactions, time } = block;
     const state = () => JSON.stringify({ memPool: chain.memPool, reward: chain.blockReward, log: chain.miningLog,
       won: chain.participants.map(p => p.blocksWon) });
     const before = state();
@@ -197,7 +200,7 @@ describe('re-mining a historical block', () => {
     expect(remined).toBe(block);
     expect(block.transactions).toBe(transactions);
     expect(block.transactions[0].amount).toBe(999);
-    expect(block.timestamp).toBe(timestamp);
+    expect(block.time).toBe(time);
     expect(block.previousHash).toBe(chain.blockArray[1].hash);
     expect(block.hash).toBe(block.createHash());
     expect(block.hash.startsWith('0')).toBe(true);

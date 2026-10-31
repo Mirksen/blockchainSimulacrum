@@ -22,7 +22,7 @@ export function le(value, bytes) {
 /** Reverses the byte order of a hex string (internal order <-> display order). */
 export const reverseHex = hex => hex.match(/../g).reverse().join('');
 
-const utf8Hex = text => Array.from(new TextEncoder().encode(text), hexByte).join('');
+export const utf8Hex = text => Array.from(new TextEncoder().encode(text), hexByte).join('');
 
 function varint(n) {
   if (n < 0xfd) return hexByte(n);
@@ -65,6 +65,34 @@ export function headerHex({ version, previousHash, merkleRoot, time, bits, nonce
 /** Display-order hash of a hex byte string. */
 export const displayHash = (hex, sha256d) => reverseHex(sha256d(hex));
 
+const HEADER_FIELDS = [['version', 4], ['previousHash', 32], ['merkleRoot', 32], ['time', 4], ['bits', 4], ['nonce', 4]];
+
+/** The six fields of an 80-byte header: name, their bytes as stored and the value they encode. */
+export function headerFields(hex) {
+  let offset = 0;
+  return HEADER_FIELDS.map(([name, size]) => {
+    const bytes = hex.slice(offset, offset + size * 2);
+    offset += size * 2;
+    return { name, bytes, value: size === 4 ? parseInt(reverseHex(bytes), 16) : reverseHex(bytes) };
+  });
+}
+
+/**
+ * Bitcoin's merkle root over display-order txids: leaves and parents are internal-order
+ * bytes, a parent is the double SHA-256 of its two children, an odd level repeats its last
+ * hash. Returns display order. An empty list has an all-zero root.
+ */
+export function merkleRoot(txids, sha256d) {
+  if (txids.length === 0) return '0'.repeat(64);
+  let level = txids.map(reverseHex);
+  while (level.length > 1) {
+    const next = [];
+    for (let i = 0; i < level.length; i += 2) next.push(sha256d(level[i] + (level[i + 1] ?? level[i])));
+    level = next;
+  }
+  return reverseHex(level[0]);
+}
+
 /**
  * The genesis block of `genesis` (shared/genesis.json): its coinbase hex, txid, header hex
  * and hash, all derived from the stored fields so anyone can recompute them.
@@ -99,6 +127,21 @@ export function targetOf(bits) {
 export function zerosOfTarget(bits) {
   return Math.floor((256 - targetOf(bits).toString(2).length) / 4);
 }
+
+/**
+ * The compact `bits` of the easiest target that still demands `zeros` leading hex zeros, the
+ * number the UI lets a learner choose: `zeros` zeros followed by as many f digits as the
+ * mantissa holds. 8 zeros is 0x1d00ffff, Bitcoin's difficulty 1.
+ */
+export function bitsOfZeros(zeros) {
+  if (!Number.isInteger(zeros) || zeros < 1 || zeros > 60) throw new RangeError('Choose 1 to 60 leading zeros.');
+  const exponent = 0x20 - Math.floor((zeros - 1) / 2);
+  const mantissa = zeros % 2 ? 0x0fffff : 0x00ffff;
+  return exponent * 0x1000000 + mantissa;
+}
+
+/** Whether a display-order hash meets the target of `bits`: Bitcoin's proof-of-work rule. */
+export const meetsTarget = (hash, bits) => BigInt(`0x${hash}`) <= targetOf(bits);
 
 /** Bitcoin difficulty of a hash: the difficulty-1 target divided by the hash value. */
 export function hashDifficulty(hash) {

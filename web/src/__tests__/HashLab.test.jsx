@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { HashLab } from '../components/HashLab';
 
 afterEach(() => { cleanup(); vi.useRealTimers(); });
-const fingerprint = () => screen.getByRole('img', { name: /^SHA-256 hash:/ }).getAttribute('aria-label');
+const fingerprint = () => screen.getByRole('img', { name: /^Double SHA-256 hash:/ }).getAttribute('aria-label');
 
 describe('HashLab independent interaction', () => {
   it('updates/restores fingerprints and exposes invalid nonces', () => {
@@ -28,8 +28,8 @@ describe('HashLab independent interaction', () => {
     render(<HashLab onClose={() => {}} />);
     fireEvent.click(screen.getByRole('button', { name: 'Find a nonce' }));
     await act(async () => { await vi.runAllTimersAsync(); });
-    expect(screen.getByRole('status').textContent).toContain('72 attempts');
-    expect(screen.getByLabelText(/Nonce/).value).toBe('71');
+    expect(screen.getByRole('status').textContent).toContain('264 attempts');
+    expect(screen.getByLabelText(/Nonce/).value).toBe('263');
     expect(screen.getByText('Target met')).toBeTruthy();
   });
   it('stops before the first attempt and can search again', async () => {
@@ -46,6 +46,8 @@ describe('HashLab independent interaction', () => {
   it.each(['edit', 'reset', 'next nonce', 'difficulty'])('invalidates a pending search on %s', async action => {
     vi.useFakeTimers();
     render(<HashLab onClose={() => {}} />);
+    // This message has no three-zero match in its first 25,000 candidates.
+    fireEvent.change(screen.getByLabelText('Message'), { target: { value: 'Stop experiment 264' } });
     fireEvent.change(screen.getByLabelText('Find a hash starting with'), { target: { value: '3' } });
     fireEvent.click(screen.getByRole('button', { name: 'Find a nonce' }));
     // Resolve one timer before flushing microtasks; the async timer helper also drains newly scheduled timers.

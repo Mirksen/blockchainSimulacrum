@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { candidateHash, createBlockchain } from '../lib/blockchain';
+import { meetsTarget as meetsBits } from '../../../shared/bitcoin-block.mjs';
 const setup = () => createBlockchain({participants:['Miner One','Wallet Two'], miners:['Miner One'], startingBalance:2, miningDifficulty:1});
 // Test helper: search nonces for the active miner's candidate, then hand the proof to the chain.
 function mineNext(chain, miner = chain.getActiveMiner()) {
   const candidate = chain.prepareCandidate(miner);
   let nonce = 0;
-  while (!candidateHash(candidate, nonce).startsWith(candidate.target)) nonce++;
+  while (!meetsBits(candidateHash(candidate, nonce), candidate.bits)) nonce++;
   const outcome = chain.acceptBlock(candidate, nonce, candidateHash(candidate, nonce));
   expect(outcome.status).toBe('accepted');
   return outcome;

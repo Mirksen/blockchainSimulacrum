@@ -3,6 +3,7 @@ import { inspectChain, remineBlock, sampleChain } from '../lib/chainLab';
 import { SEARCH_LIMIT } from '../lib/hashLab';
 import { CoachMark } from './workbench/CoachMark';
 import { ForkExperiment } from './ForkExperiment';
+import { HeaderBytes } from './HeaderBytes';
 import './ChainLab.css';
 
 export function ChainLab({ onClose, embedded = false, onLessonEvent, coach = null, experiment, onExperimentChange }) {
@@ -118,8 +119,8 @@ export function ChainLab({ onClose, embedded = false, onLessonEvent, coach = nul
                 : <button className="btn btn-emphasized" disabled={!!check.error || searching !== null} onClick={() => mine(index)}>Re-mine Block {block.number}</button>}
             </CoachMark>
             <details className="chain-lab-input"><summary>Inspect Block {block.number} input</summary>
-              <p>SHA-256 hashes this exact UTF-8 JSON text:</p><code>{check.trial?.preimage || 'Enter a valid nonce to inspect the input.'}</code>
-              <p>Recomputed hash:</p><code>{check.trial?.hash || 'Waiting for a valid nonce'}</code>
+              <p>Double SHA-256 hashes these 80 header bytes. The block’s data stands in for its transactions: the merkle root is its double SHA-256.</p>
+              {check.trial ? <HeaderBytes header={check.trial.header} hash={check.trial.hash} /> : <code>Enter a valid nonce to inspect the input.</code>}
               <p>Re-mining uses the preceding stored hash and searches nonces from zero. A successful result replaces only this block.</p>
             </details>
           </article>
@@ -128,7 +129,7 @@ export function ChainLab({ onClose, embedded = false, onLessonEvent, coach = nul
     </ol>
     <p className="chain-lab-feedback" role="status">{feedback}</p>
     <p className="chain-lab-help">Search checks up to {SEARCH_LIMIT.toLocaleString()} candidates and can be stopped. Editing, resetting or closing cancels pending work.</p>
-    <p className="chain-lab-note">This separate text-only chain demonstrates hashes, links and proof of work. A consistent toy chain does not repair transaction signatures or balances, or gain agreement from a network. Your simulator stays unchanged.</p>
+    <p className="chain-lab-note">This separate toy chain demonstrates hashes, links and proof of work. A consistent toy chain does not repair transaction signatures or balances, or gain agreement from a network. Your simulator stays unchanged.</p>
     </>}
   </section>;
 }
