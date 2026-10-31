@@ -4,12 +4,18 @@
  * Ported for modern React web application
  */
 
-import SHA256 from 'crypto-js/sha256';
 import { ec as EC } from 'elliptic';
 import { deriveWallet } from './wallet';
 import genesis from '../../../shared/genesis.json';
-import { bitsOfZeros, coinbaseParts, displayHash, headerHex, meetsTarget, merkleRoot, utf8Hex, zerosOfTarget } from '../../../shared/bitcoin-block.mjs';
+import { bitsOfZeros, displayHash, headerHex, meetsTarget, merkleRoot, utf8Hex, zerosOfTarget } from '../../../shared/bitcoin-block.mjs';
 import { BLOCK_VERSION, hashAtNonce, headerPrefix, isNonce, sha256d } from './blockHeader';
+import { addressOf, hash160 } from './tx/encoding';
+import { createDescriber } from './tx/describe';
+import { MAX_MEMO_BYTES, opReturnScript, p2pkhScript, p2pkScript } from './tx/script';
+import { createCoinbase, Transaction } from './tx/transaction';
+import { MAX_MONEY, selectCoins, validateChain } from './tx/utxo';
+
+export { Transaction };
 
 const ec = new EC('secp256k1');
 
@@ -23,8 +29,11 @@ export class Participant {
     } finally {
       wallet.privateKey.fill(0);
     }
-    this.publicKey = this.keyPair.getPublic('hex');
+    this.publicKey = this.keyPair.getPublic(true, 'hex');
     this.privateKey = this.keyPair.getPrivate('hex');
+    this.pubKeyHash = hash160(this.publicKey);
+    this.scriptPubKey = p2pkhScript(this.pubKeyHash);
+    this.address = addressOf(this.pubKeyHash);
     this.seedPhrase = wallet.seedPhrase;
     // Miner properties
     this.isMiner = isMiner;
@@ -40,47 +49,6 @@ export class Participant {
       throw new Error('Enter a valid English BIP39 recovery phrase.');
     }
     return new Participant(name, isMiner, seedPhrase);
-  }
-}
-
-// Transaction class - transfers between participants
-export class Transaction {
-  constructor(sender, recipient, amount, transactionFee, referenceNumber) {
-    this.sender = sender;
-    this.recipient = recipient;
-    this.amount = amount;
-    this.transactionFee = transactionFee;
-    this.referenceNumber = referenceNumber;
-    this.signature = null;
-    this.timestamp = new Date().toISOString();
-  }
-
-  createHash() {
-    return SHA256(
-      this.sender +
-      this.recipient +
-      this.amount +
-      this.transactionFee +
-      this.referenceNumber
-    ).toString();
-  }
-
-  sign(signingKey) {
-    if (signingKey.getPublic('hex') !== this.sender) {
-      throw new Error('Signature does not match sender wallet');
-    }
-    const hashTx = this.createHash();
-    const sig = signingKey.sign(hashTx, 'base64');
-    this.signature = sig.toDER('hex');
-  }
-
-  isValid() {
-    if (this.sender === null) return true; // Mining reward
-    if (!this.signature || this.signature.length === 0) {
-      throw new Error('No signature in this transaction');
-    }
-    const publicKey = ec.keyFromPublic(this.sender, 'hex');
-    return publicKey.verify(this.createHash(), this.signature);
   }
 }
 
@@ -125,41 +93,9 @@ export class Block {
 
 export const GENESIS = genesis;
 
-// A coinbase in Bitcoin's byte format: the scriptSig pushes bits, extraNonce and memo, the
-// output pays `value` to a public key. Its hash is the txid, rebuilt from the current
-// amount and memo, so an edit shows. An edit the format cannot encode, such as a fraction
-// of a satoshi, hashes its text instead: no real txid, but a different one for every edit.
-class Coinbase extends Transaction {
-  constructor({ recipient, pubkey, amount, memo, bits, extraNonce = 0, extraNonceBytes = 8 }) {
-    super(null, recipient, amount, 0, memo);
-    Object.assign(this, { pubkey, bits, extraNonce, extraNonceBytes });
-  }
-
-  createHash() {
-    const { pubkey, bits, extraNonce, extraNonceBytes } = this;
-    const memo = String(this.referenceNumber);
-    const amount = Number(this.amount);
-    const value = Math.round(amount * 1e8);
-    try {
-      if (value / 1e8 !== amount) throw new RangeError('Not a whole number of satoshis.');
-      return displayHash(coinbaseParts({ pubkey, bits, extraNonce, extraNonceBytes, memo, value }).hex, sha256d);
-    } catch {
-      return displayHash(utf8Hex(`${this.amount}|${memo}`), sha256d);
-    }
-  }
-}
-
-// The one place a block's reward is built. The height in the memo keeps two rewards of
-// one miner from sharing a txid.
-function rewardCoinbase({ height, value, pubkey, extraNonce, bits }) {
-  return new Coinbase({ recipient: pubkey, pubkey, amount: value, memo: `Mining Reward #${height}`, bits, extraNonce });
-}
-
 export function createGenesisBlock() {
-  const { coinbase, header } = genesis;
-  const tx = new Coinbase({ ...coinbase, bits: header.bits });
-  tx.timestamp = new Date(header.time * 1000).toISOString();
-  const block = new Block(header.time, [tx], genesis.anchor.hash, header.bits);
+  const { header } = genesis;
+  const block = new Block(header.time, [Transaction.parse(genesis.coinbaseHex)], genesis.anchor.hash, header.bits);
   block.version = header.version;
   block.nonce = header.nonce;
   block.hash = block.createHash();
@@ -179,10 +115,14 @@ function proofProblem(candidate, nonce, hash) {
 }
 
 const WALLET_NAME = /^[A-Za-z0-9]{2,16}$/;
+export const DEFAULT_FEE = 0.00000001;
+const satoshis = coins => Math.round(coins * 1e8);
+const walletScript = publicKey => p2pkhScript(hash160(publicKey));
+const sumValues = coins => coins.reduce((sum, coin) => sum + coin.value, 0);
 
 // Blockchain class - the main chain management
 export class Blockchain {
-  constructor(name, miningDifficulty = 3, blockReward = 3.125, halvingEvent = 210000, startingBalance = 0) {
+  constructor(name, miningDifficulty = 3, blockReward = 3.125, halvingEvent = 210000) {
     this.name = name;
     this.miningDifficulty = miningDifficulty;
     this.blockReward = blockReward;
@@ -190,9 +130,13 @@ export class Blockchain {
     this.participants = [];
     this.blockArray = [this.createGenesisBlock()];
     this.memPool = [];
-    this.startingBalance = startingBalance;
     this.miningLog = [];
-    // Original amounts of tampered transactions, keyed "block:tx"; set once per edit.
+    // Script verification results by "txid:input"; a txid commits to everything they depend on.
+    this.verified = new Map();
+    // Bumped by every change to blocks or mempool, so one state is walked once.
+    this.revision = 0;
+    this.walked = { revision: -1, ledger: null };
+    // Original values of tampered outputs, keyed "block:tx"; set once per edit.
     this.tamperedOriginals = new Map();
     // Set by every change to an already mined block (tamper, undo, re-mine).
     this.historyEdited = false;
@@ -218,8 +162,7 @@ export class Blockchain {
     return participant;
   }
 
-  // A wallet the learner creates: a non-miner participant whose balance
-  // follows the starting balance rule like every other wallet.
+  // A wallet the learner creates: a non-miner participant that starts without coins.
   addWallet(name) {
     const trimmed = typeof name === 'string' ? name.trim() : '';
     if (!WALLET_NAME.test(trimmed)) return { success: false, error: 'Use 2–16 letters or digits for the wallet name.' };
@@ -276,66 +219,62 @@ export class Blockchain {
     return participant;
   }
 
-  // Calculate balance including pending mempool transactions (for validation)
-  calculateBalance(publicKey) {
-    let balance = this.startingBalance;
-
-    // Include confirmed transactions in blocks
-    for (const block of this.blockArray) {
-      for (const tx of block.transactions) {
-        if (tx.sender === publicKey) {
-          balance -= tx.amount;
-          balance -= tx.transactionFee;
-        }
-        if (tx.recipient === publicKey) {
-          balance += tx.amount;
-        }
-      }
+  // The UTXO set and every rule check, computed from the blocks and the mempool (./tx/utxo.js).
+  ledger() {
+    if (this.walked.revision !== this.revision) {
+      this.walked = { revision: this.revision, ledger: validateChain(this.blockArray, this.memPool, this.verified) };
     }
-
-    // Also include pending transactions in mempool (for validation only)
-    for (const tx of this.memPool) {
-      if (tx.sender === publicKey) {
-        balance -= tx.amount;
-        balance -= tx.transactionFee;
-      }
-      if (tx.recipient === publicKey) {
-        balance += tx.amount;
-      }
-    }
-
-    const rounded = Math.round(balance * 100000000) / 100000000;
-    return rounded === 0 ? 0 : rounded;
+    return this.walked.ledger;
   }
 
-  // Calculate confirmed balance only (for display - excludes mempool)
+  // Unspent outputs a key can spend; `pending` includes the mempool, which also spends coins.
+  coinsOf(publicKey, { pending = false } = {}) {
+    const script = walletScript(publicKey);
+    const ledger = this.ledger();
+    return [...(pending ? ledger.pending : ledger.confirmed).values()].filter(coin => coin.scriptPubKey === script);
+  }
+
+  // Balance including pending mempool transactions, what a wallet can still spend.
+  calculateBalance(publicKey) {
+    return sumValues(this.coinsOf(publicKey, { pending: true })) / 1e8;
+  }
+
+  // Confirmed balance only (for display): the sum of the wallet's unspent outputs.
   calculateConfirmedBalance(publicKey) {
-    let balance = this.startingBalance;
-
-    // Only include confirmed transactions in blocks
-    for (const block of this.blockArray) {
-      for (const tx of block.transactions) {
-        if (tx.sender === publicKey) {
-          balance -= tx.amount;
-          balance -= tx.transactionFee;
-        }
-        if (tx.recipient === publicKey) {
-          balance += tx.amount;
-        }
-      }
-    }
-
-    const rounded = Math.round(balance * 100000000) / 100000000;
-    return rounded === 0 ? 0 : rounded;
+    return sumValues(this.coinsOf(publicKey)) / 1e8;
   }
 
   getAllBalances() {
-    return this.participants.map(p => ({
-      name: p.name,
-      publicKey: p.publicKey,
-      balance: this.calculateConfirmedBalance(p.publicKey), // Use confirmed only for display
-      isMiner: p.isMiner && p.minerEnabled
-    }));
+    const { confirmed } = this.ledger();
+    return this.participants.map(p => {
+      const coins = [...confirmed.values()].filter(coin => coin.scriptPubKey === p.scriptPubKey);
+      return { name: p.name, publicKey: p.publicKey, balance: sumValues(coins) / 1e8, coins, isMiner: p.isMiner && p.minerEnabled };
+    });
+  }
+
+  // The coins, change and fee a transfer would use; nothing is created. Reads the coins including the mempool.
+  planSpend(sender, amount, fee) {
+    const coins = this.coinsOf(sender.publicKey, { pending: true });
+    const selection = selectCoins(coins, amount + fee);
+    if (!selection) return { funded: false, balance: sumValues(coins), required: amount + fee };
+    return { funded: true, coins: selection.coins, amount, fee, change: selection.total - amount - fee };
+  }
+
+  // What the transaction form shows before anything is signed.
+  previewTransaction(senderName, amount, transactionFee = DEFAULT_FEE) {
+    const sender = this.getParticipantByName(senderName);
+    if (!sender || !Number.isFinite(amount) || amount <= 0) return null;
+    return this.planSpend(sender, satoshis(amount), satoshis(transactionFee));
+  }
+
+  // Mempool policy: the transaction must spend existing unspent coins with valid scripts and
+  // create no value. A coin already spent by a pending transaction is a double spend.
+  acceptToMempool(tx) {
+    const check = validateChain(this.blockArray, [...this.memPool, tx], this.verified).memPool.at(-1);
+    if (!check.valid) return { success: false, reason: check.issues[0].reason };
+    this.memPool.push(tx);
+    this.revision++;
+    return { success: true, reason: null };
   }
 
   createTransaction(senderName, recipientName, amount, transactionFee, reference) {
@@ -352,24 +291,20 @@ export class Blockchain {
     if (!sender || !recipient) {
       throw new Error('Sender or recipient not found');
     }
+    const memo = reference ? utf8Hex(reference) : '';
+    if (memo.length / 2 > MAX_MEMO_BYTES) throw new Error(`Reference must fit in ${MAX_MEMO_BYTES} bytes`);
 
-    const balance = this.calculateBalance(sender.publicKey);
-    const required = Math.round(amount * 1e8) + Math.round(transactionFee * 1e8);
-    if (Math.round(balance * 1e8) < required) {
-      throw new Error(`Insufficient funds. Balance: ${balance}, Required: ${required / 1e8}`);
+    const plan = this.planSpend(sender, satoshis(amount), satoshis(transactionFee));
+    if (!plan.funded) {
+      throw new Error(`Insufficient funds. Balance: ${plan.balance / 1e8}, Required: ${plan.required / 1e8}`);
     }
-
-    const tx = new Transaction(
-      sender.publicKey,
-      recipient.publicKey,
-      amount,
-      transactionFee,
-      reference
-    );
-
-    tx.sign(sender.keyPair);
-    this.memPool.push(tx);
-
+    const outputs = [{ value: plan.amount, scriptPubKey: recipient.scriptPubKey }];
+    if (plan.change > 0) outputs.push({ value: plan.change, scriptPubKey: sender.scriptPubKey });
+    if (memo) outputs.push({ value: 0, scriptPubKey: opReturnScript(memo) });
+    const tx = new Transaction({ inputs: plan.coins.map(({ txid, vout }) => ({ txid, vout })), outputs });
+    plan.coins.forEach((coin, index) => tx.signInput(index, sender.keyPair, coin.scriptPubKey));
+    const accepted = this.acceptToMempool(tx);
+    if (!accepted.success) throw new Error(`Transaction rejected: ${accepted.reason}`);
     return tx;
   }
 
@@ -384,11 +319,15 @@ export class Blockchain {
   prepareCandidate(miner, { time = this.nextBlockTime(), extraNonce = 0 } = {}) {
     const height = this.blockArray.length;
     const reward = height % this.halvingEvent === 0 ? this.blockReward / 2 : this.blockReward;
-    const fees = this.memPool.reduce((sum, tx) => sum + tx.transactionFee, 0);
+    // An edit of history can orphan a pending transaction; it stays for an undo but stays out of the block.
+    const ledger = this.ledger();
+    const included = this.memPool.filter((_, i) => ledger.memPool[i].valid);
+    const fees = ledger.memPool.reduce((sum, entry) => sum + (entry.valid ? entry.fee : 0), 0);
+    const subsidy = Math.floor(reward * 1e8);
     const difficulty = this.miningDifficulty;
     const bits = bitsOfZeros(difficulty);
-    const coinbase = rewardCoinbase({ height, value: reward + fees, pubkey: miner.publicKey, extraNonce, bits });
-    const transactions = Object.freeze([coinbase, ...this.memPool]);
+    const coinbase = createCoinbase({ height, value: subsidy + fees, recipientScript: miner.scriptPubKey, extraNonce });
+    const transactions = Object.freeze([coinbase, ...included]);
     const previousHash = this.blockArray[height - 1].hash;
     const txRoot = transactionRoot(transactions);
     return Object.freeze({
@@ -398,6 +337,7 @@ export class Blockchain {
       bits,
       extraNonce,
       reward,
+      subsidy,
       halved: reward !== this.blockReward,
       transactions,
       minerPublicKey: miner.publicKey,
@@ -419,8 +359,13 @@ export class Blockchain {
     block.nonce = nonce;
     block.hash = hash;
     block.halved = candidate.halved;
+    block.subsidy = candidate.subsidy;
     this.blockArray.push(block);
-    this.memPool = [];
+    this.revision++;
+    // Everything the block spent, and every entry it invalidated, leaves the mempool.
+    const { memPool } = this.ledger();
+    this.memPool = this.memPool.filter((_, i) => memPool[i].valid);
+    this.revision++;
     this.blockReward = candidate.reward;
     this.incrementBlocksWon(candidate.minerPublicKey);
     this.miningLog.push({ blockNumber: candidate.height, nonce, hash });
@@ -479,6 +424,7 @@ export class Blockchain {
     block.nonce = nonce;
     block.hash = hash;
     this.historyEdited = true;
+    this.revision++;
     return { status: 'accepted', block };
   }
 
@@ -502,10 +448,14 @@ export class Blockchain {
   // `hash-mismatch` when its content no longer produces the stored hash or the
   // stored hash misses its target; `link-broken` when its stored previous hash
   // differs from the predecessor's stored hash; `signature-invalid` when hash
-  // and link are fine but a signed transaction no longer matches its signature
-  // (re-mining repairs hashes, never signatures); `built-on-broken` when the
-  // block itself is fine but an earlier block is broken; otherwise `valid`.
+  // and link are fine but a spend no longer matches its signature;
+  // `transaction-invalid` when hash and link are fine but the block breaks another
+  // ledger rule (`issue` names it); `built-on-broken` when the block itself is fine
+  // but an earlier block is broken; otherwise `valid`. Re-mining repairs hashes and
+  // links, never transactions, so `issue` is set as soon as the rule is broken,
+  // also while a hash mismatch still decides the status.
   inspectBlocks() {
+    const ledger = this.ledger();
     let brokenBefore = false;
     return this.blockArray.map((block, index) => {
       const storedHash = block.hash;
@@ -514,14 +464,17 @@ export class Blockchain {
       const hashMeetsTarget = meetsTarget(storedHash, block.bits);
       // Genesis has no predecessor; its link is intact by definition.
       const linkIntact = index === 0 || block.previousHash === this.blockArray[index - 1].hash;
-      const signaturesValid = block.transactions.every(tx => { try { return tx.isValid(); } catch { return false; } });
+      const { issues } = ledger.blocks[index];
+      const signaturesValid = !issues.some(issue => issue.reason === 'signature');
       const builtOnBroken = brokenBefore;
       const status = !hashMatches || !hashMeetsTarget ? 'hash-mismatch'
         : !linkIntact ? 'link-broken'
           : !signaturesValid ? 'signature-invalid'
-            : builtOnBroken ? 'built-on-broken' : 'valid';
+            : issues.length ? 'transaction-invalid'
+              : builtOnBroken ? 'built-on-broken' : 'valid';
       if (status !== 'valid') brokenBefore = true;
-      return { index, storedHash, computedHash, hashMatches, meetsTarget: hashMeetsTarget, linkIntact, signaturesValid, builtOnBroken, status };
+      return { index, storedHash, computedHash, hashMatches, meetsTarget: hashMeetsTarget, linkIntact, signaturesValid, builtOnBroken, status,
+        issue: issues[0] ?? null };
     });
   }
 
@@ -531,67 +484,38 @@ export class Blockchain {
   }
 
   areTransactionsValid() {
-    for (const block of this.blockArray) {
-      for (const tx of block.transactions) {
-        if (!tx.isValid()) return false;
-      }
-    }
-    return true;
+    return this.ledger().blocks.every(block => block.issues.length === 0);
   }
 
   isChainValid() {
-    return this.areBlocksValid() && this.areTransactionsValid() && this.areBalancesValid();
+    return this.areBlocksValid() && this.areTransactionsValid();
   }
 
-  areBalancesValid() {
-    const balances = {};
-
-    for (const block of this.blockArray) {
-      // Validate Block Logic (Optional: balances must be consistent)
-      for (const tx of block.transactions) {
-        // Debit Sender
-        if (tx.sender) {
-          const senderBalance = (balances[tx.sender] || 0) + this.startingBalance;
-          const required = Math.round(tx.amount * 1e8) + Math.round(tx.transactionFee * 1e8);
-          if (Math.round(senderBalance * 1e8) < required) {
-            return false; // Insufficient funds
-          }
-          balances[tx.sender] = (Math.round((balances[tx.sender] || 0) * 1e8) - required) / 1e8;
-        }
-
-        // Credit Recipient
-        if (tx.recipient) {
-          balances[tx.recipient] = (Math.round((balances[tx.recipient] || 0) * 1e8) + Math.round(tx.amount * 1e8)) / 1e8;
-        }
-      }
-    }
+  // Tamper with a transaction (for demo purposes): changes the value of its first
+  // output, the payment or the reward. The first edit of a transaction remembers the
+  // original value; setting that value again ends the edit.
+  tamperTransaction(blockIndex, txIndex, newAmount) {
+    const output = this.blockArray[blockIndex]?.transactions[txIndex]?.outputs[0];
+    const value = satoshis(newAmount);
+    if (!output || !Number.isSafeInteger(value) || value < 0 || value > MAX_MONEY || value / 1e8 !== newAmount) return false;
+    const key = `${blockIndex}:${txIndex}`;
+    if (!this.tamperedOriginals.has(key)) this.tamperedOriginals.set(key, { blockIndex, txIndex, value: output.value });
+    output.value = value;
+    this.historyEdited = true;
+    this.revision++;
+    if (this.tamperedOriginals.get(key).value === value) this.tamperedOriginals.delete(key);
     return true;
   }
 
-  // Tamper with a transaction (for demo purposes)
-  // The first edit of a transaction remembers its original amount; setting the
-  // original amount again ends the edit.
-  tamperTransaction(blockIndex, txIndex, newAmount) {
-    if (this.blockArray[blockIndex] && this.blockArray[blockIndex].transactions[txIndex]) {
-      const tx = this.blockArray[blockIndex].transactions[txIndex];
-      const key = `${blockIndex}:${txIndex}`;
-      if (!this.tamperedOriginals.has(key)) this.tamperedOriginals.set(key, { blockIndex, txIndex, amount: tx.amount });
-      tx.amount = newAmount;
-      this.historyEdited = true;
-      if (this.tamperedOriginals.get(key).amount === newAmount) this.tamperedOriginals.delete(key);
-      return true;
-    }
-    return false;
-  }
-
-  // Restore the original amounts of every edited transaction in one block.
+  // Restore the original values of every edited transaction in one block.
   undoTamper(blockIndex) {
     let restored = 0;
     for (const [key, edit] of this.tamperedOriginals) {
       if (edit.blockIndex !== blockIndex) continue;
-      this.blockArray[edit.blockIndex].transactions[edit.txIndex].amount = edit.amount;
+      this.blockArray[edit.blockIndex].transactions[edit.txIndex].outputs[0].value = edit.value;
       this.tamperedOriginals.delete(key);
       this.historyEdited = true;
+      this.revision++;
       restored++;
     }
     return { success: restored > 0, restored };
@@ -600,31 +524,21 @@ export class Blockchain {
   // Current edits, ordered by block and transaction: amount `from` → `to`.
   getTamperedEdits() {
     return [...this.tamperedOriginals.values()]
-      .map(({ blockIndex, txIndex, amount }) => ({ blockIndex, txIndex, from: amount,
-        to: this.blockArray[blockIndex].transactions[txIndex].amount }))
+      .map(({ blockIndex, txIndex, value }) => ({ blockIndex, txIndex, from: value / 1e8,
+        to: this.blockArray[blockIndex].transactions[txIndex].outputs[0].value / 1e8 }))
       .sort((a, b) => a.blockIndex - b.blockIndex || a.txIndex - b.txIndex);
+  }
+
+  // describe(tx) for the UI over the current chain and mempool (./tx/describe.js).
+  describer() {
+    const names = new Map(this.participants.map(p => [p.scriptPubKey, p.name]));
+    names.set(p2pkScript(genesis.coinbase.pubkey), genesis.coinbase.recipient);
+    return createDescriber({ blocks: this.blockArray, memPool: this.memPool, ledger: this.ledger(), names, verified: this.verified });
   }
 
   // Get block details
   getBlockDetails(index) {
     return this.blockArray[index] || null;
-  }
-
-  // Get transaction history for a participant
-  getTransactionHistory(publicKey) {
-    const history = [];
-    for (let i = 0; i < this.blockArray.length; i++) {
-      const block = this.blockArray[i];
-      for (const tx of block.transactions) {
-        if (tx.sender === publicKey || tx.recipient === publicKey) {
-          history.push({
-            blockIndex: i,
-            ...tx
-          });
-        }
-      }
-    }
-    return history;
   }
 }
 
@@ -636,11 +550,10 @@ export function createBlockchain(config = {}) {
     blockReward = 3.125,
     halvingEvent = 210000,
     participants = ['Alice', 'Bob', 'Chris', 'Lars', 'Minas'],
-    miners = ['Minas', 'Lars'],
-    startingBalance = 0
+    miners = ['Minas', 'Lars']
   } = config;
 
-  const blockchain = new Blockchain(name, miningDifficulty, blockReward, halvingEvent, startingBalance);
+  const blockchain = new Blockchain(name, miningDifficulty, blockReward, halvingEvent);
 
   // Add participants, marking miners accordingly
   participants.forEach(pName => {

@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { createBlockchain } from '../lib/blockchain';
+import { createBlockchain, DEFAULT_FEE } from '../lib/blockchain';
 import { runSearch } from '../lib/powSearch';
 import { MIN_DIFFICULTY, MAX_DIFFICULTY } from '../lib/difficulty';
 import { telemetry, failureCode } from '../lib/telemetry';
@@ -16,7 +16,8 @@ function snapshot(chain) {
         blockReward: chain.blockReward,
         halvingInterval: chain.halvingEvent,
         blockStatus: chain.inspectBlocks(),
-        tamperedEdits: chain.getTamperedEdits()
+        tamperedEdits: chain.getTamperedEdits(),
+        describeTx: chain.describer()
     };
 }
 const aborted = () => ({ success: false, aborted: true });
@@ -70,7 +71,7 @@ export function useBlockchain(config = {}) {
         setIsSettingUp(false);
     }, [controller]);
 
-    const createTransaction = useCallback((sender, recipient, amount, fee = 0.00000001, reference) => {
+    const createTransaction = useCallback((sender, recipient, amount, fee = DEFAULT_FEE, reference) => {
         if (controller.run || controller.setup) {
             void telemetry.track('transaction_rejected', { source: 'manual', reason: 'busy' });
             return { success: false, error: 'Wait for mining to finish or stop it first.' };
@@ -86,6 +87,9 @@ export function useBlockchain(config = {}) {
             return { success: false, error: error.message, code };
         }
     }, [controller, publish]);
+
+    // The coins, change and fee a transfer would use, for the form before it is created.
+    const previewTransaction = useCallback((sender, amount) => controller.chain.previewTransaction(sender, Number(amount)), [controller]);
 
     // One miner race. `prepare(round)` returns the candidates (one per miner) of a
     // round; a further round starts only when every 32-bit nonce of the previous one
@@ -255,7 +259,7 @@ export function useBlockchain(config = {}) {
             const balance = chain.calculateBalance(chain.getParticipantByName(first.winner).publicKey);
             const amount = Math.min(0.6, Math.floor((balance / Math.max(1, others.length) - 0.00000001) * 1e8) / 1e8);
             if (amount <= 0) return finish({ success: false, error: 'Reward is too small to distribute. Reset the demo.', code: 'reward_too_small' });
-            for (const recipient of others) chain.createTransaction(first.winner, recipient.name, amount, 0.00000001, 'Demo distribution');
+            for (const recipient of others) chain.createTransaction(first.winner, recipient.name, amount, DEFAULT_FEE, 'Demo distribution');
             if (others.length) void telemetry.track('transaction_created', { source: 'demo', count: others.length, pending_count: chain.memPool.length });
             publish();
             const second = await doMining(false, setup);
@@ -356,7 +360,7 @@ export function useBlockchain(config = {}) {
             const recipient = recipients[Math.floor(Math.random() * recipients.length)];
             const maximum = Math.min(10_000_000, available);
             const amount = (5_000_000 + Math.floor(Math.random() * (maximum - 5_000_000 + 1))) / 1e8;
-            chain.createTransaction(sender.name, recipient.name, amount, 0.00000001, 'Demo transfer');
+            chain.createTransaction(sender.name, recipient.name, amount, DEFAULT_FEE, 'Demo transfer');
             count++;
         }
         publish();
@@ -385,7 +389,7 @@ export function useBlockchain(config = {}) {
     const getActiveMiners = useCallback(() => controller.chain.getActiveMiners(), [controller]);
     return { ...view, isMining, isSettingUp, miningProgress, minerProgress, raceWinner, hashAttempts, selectedBlock,
         backedMiner, lastDifficultyChange,
-        setSelectedBlock, createTransaction, mineBlock, mineEmptyBlock: mineBlock, setupInitialDistribution,
+        setSelectedBlock, createTransaction, previewTransaction, mineBlock, mineEmptyBlock: mineBlock, setupInitialDistribution,
         generateRandomTransactions, setDifficulty, setHalvingInterval, tamperBlock, undoTamper, remineBlock,
         resetBlockchain, cancelMining, toggleMiner, setMinerHashpower, getActiveMiners, createWallet, backMiner };
 }

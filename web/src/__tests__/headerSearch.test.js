@@ -104,7 +104,7 @@ describe('a simulator block', () => {
     expect(hex).toHaveLength(160);
     expect(nodeHash(hex)).toBe(block.hash);
     expect(hex.slice(8, 72)).toBe(Buffer.from(simulator.blockArray[0].hash, 'hex').reverse().toString('hex'));
-    expect(block.transactions[0].sender).toBeNull();
+    expect(block.transactions[0].isCoinbase).toBe(true);
   });
   it('gives equal rewards different txids at different heights', () => {
     const simulator = chain();
@@ -142,18 +142,20 @@ describe('a simulator block', () => {
     expect(block.transactions[0].createHash()).toBe(txid);
     expect(simulator.isChainValid()).toBe(true);
   });
-  it('shows every coinbase edit in its txid, also those Bitcoin cannot encode', () => {
+  it('shows every coinbase edit in its txid and refuses what Bitcoin cannot encode', () => {
     const simulator = chain();
     const candidate = simulator.prepareCandidate(simulator.getActiveMiner());
     const nonce = findNonce(candidate);
     const { block } = simulator.acceptBlock(candidate, nonce, candidateHash(candidate, nonce));
     const [coinbase] = block.transactions;
-    const txids = [3.125, 3.125000001, 3.125000002, 1e30, 1e31, -1].map(amount => {
-      coinbase.amount = amount;
+    const txids = [3.125, 3.12500001, 3.12500002].map(amount => {
+      expect(simulator.tamperTransaction(1, 0, amount)).toBe(true);
       return coinbase.createHash();
     });
     expect(new Set(txids).size).toBe(txids.length);
-    coinbase.amount = 3.125;
+    for (const amount of [3.125000001, 1e30, -1]) expect(simulator.tamperTransaction(1, 0, amount)).toBe(false);
+    expect(coinbase.createHash()).toBe(txids[2]);
+    simulator.tamperTransaction(1, 0, 3.125);
     expect(block.isValid()).toBe(true);
   });
   it('rejects a nonce beyond 32 bits', () => {

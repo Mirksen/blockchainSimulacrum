@@ -15,11 +15,17 @@ export function keyFiguresOf({ blocks, difficulty, blockReward, halvingInterval,
 }
 
 // Where the chain needs work: the first broken block, the re-mine order (that
-// block and every later one) and whether only undoing an edit helps, because a
-// forged signature survives re-mining.
-export function repairOf(blockStatus) {
+// block and every later one) and whether only undoing an edit helps. Re-mining never
+// changes a transaction, so a broken ledger rule ends the repair as soon as it shows:
+// `next` is then the edited block, `stuck` the block that breaks the rule.
+export function repairOf(blockStatus, tamperedEdits = []) {
   const first = blockStatus.find(check => check.status !== 'valid');
   if (!first) return null;
+  const broken = blockStatus.find(check => check.issue);
+  if (broken) {
+    const next = tamperedEdits[0]?.blockIndex ?? broken.index;
+    return { next, order: [next], undoOnly: true, stuck: broken.index, reason: broken.issue.reason };
+  }
   if (!REPAIRABLE.has(first.status)) return { next: first.index, order: [first.index], undoOnly: true };
   const last = blockStatus.length - 1;
   return { next: first.index, order: Array.from({ length: last - first.index + 1 }, (_, i) => first.index + i), undoOnly: false };

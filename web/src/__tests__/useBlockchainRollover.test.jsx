@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useBlockchain } from '../hooks/useBlockchain';
 import { runSearch } from '../lib/powSearch';
 import { telemetry } from '../lib/telemetry';
+import { createCoinbase } from '../lib/tx/transaction';
 
 vi.mock('../lib/telemetry', async importOriginal => ({ ...await importOriginal(), telemetry: { track: vi.fn(), reportError: vi.fn() } }));
 // The first search of a run claims the whole nonce space; later ones really search.
@@ -39,7 +40,8 @@ describe('nonce space exhausted', () => {
     const [[first], [second]] = runSearch.mock.calls;
     expect(second.entrants[0].header).not.toBe(first.entrants[0].header);
     const block = result.current.blocks[1];
-    expect(block.transactions[0].extraNonce).toBe(1);
+    const [{ value, scriptPubKey }] = block.transactions[0].outputs;
+    expect(block.transactions[0].createHash()).toBe(createCoinbase({ height: 1, value, recipientScript: scriptPubKey, extraNonce: 1 }).createHash());
     expect(block.isValid()).toBe(true);
     expect(result.current.chainValid).toBe(true);
     expect(result.current.miningProgress.iterations).toBeGreaterThan(WASTED);

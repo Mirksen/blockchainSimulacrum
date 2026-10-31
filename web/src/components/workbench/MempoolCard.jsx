@@ -6,10 +6,12 @@ import './MempoolCard.css';
 // Mempool card (web/DESIGN.md, "Card grid" and "Interaction patterns"). "New
 // transaction" sits in the header
 // as the tinted second invitation and opens the form in place at the top of the card.
-// transactions: [{ from, to, amount, reference? }] with names already resolved
+// transactions: [{ id?, tx?, from, to, amount, reference?, inputs?, change?, fee? }] with names already resolved
 // participants:  [{ name }] or names, the choices for From and To
-// reward:        optional coinbase amount shown on the coinbase line
+// reward:        optional coinbase amount (reward plus fees) shown on the coinbase line
 // onCreateTransaction(from, to, amount, reference) returns { success, error }
+// onPreviewTransaction(from, amount) returns the planned coins, change and fee, or null
+// onOpenTransaction(tx) opens the details of a pending transaction
 
 function formatAmount(value) {
   if (typeof value !== 'number' || !Number.isFinite(value)) return String(value ?? '');
@@ -18,11 +20,35 @@ function formatAmount(value) {
   return `${whole}.${fraction.padEnd(2, '0')}`;
 }
 
+const coinCount = count => `${count} ${count === 1 ? 'coin' : 'coins'}`;
+
+// What the form will spend, before anything is signed.
+function SpendPreview({ plan, to }) {
+  if (!plan) return null;
+  if (!plan.funded) return <p className="card-kit-t3 mempool-card-preview" role="status">Not enough coins: this wallet can spend {formatAmount(plan.balance / 1e8)}.</p>;
+  const total = plan.coins.reduce((sum, coin) => sum + coin.value, 0);
+  return (
+    <p className="card-kit-t3 mempool-card-preview" role="status">
+      Spends {coinCount(plan.coins.length)} ({formatAmount(total / 1e8)}) · {formatAmount(plan.amount / 1e8)} to {to || 'recipient'}
+      {' '}· {formatAmount(plan.change / 1e8)} change · {formatAmount(plan.fee / 1e8)} fee
+    </p>
+  );
+}
+
+// One line under a pending transaction: where its value goes.
+function spendSummary(tx) {
+  if (tx.inputs === undefined) return null;
+  const parts = [coinCount(tx.inputs)];
+  if (tx.change > 0) parts.push(`${formatAmount(tx.change)} change`);
+  if (tx.fee != null) parts.push(`${formatAmount(tx.fee)} fee`);
+  return parts.join(' · ');
+}
+
 const PlusIcon = () => (
   <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M6 2v8M2 6h8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /></svg>
 );
 
-function NewTransactionForm({ names, coinName, onCreate, onClose }) {
+function NewTransactionForm({ names, coinName, onCreate, onPreview, onClose }) {
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [amount, setAmount] = useState('');
@@ -39,6 +65,8 @@ function NewTransactionForm({ names, coinName, onCreate, onClose }) {
     else setError(result.error || 'The transaction could not be added. Try again.');
   };
   const edit = setter => event => { setter(event.target.value); setError(''); };
+  const previewAmount = Number(amount.trim());
+  const plan = from && previewAmount > 0 ? onPreview?.(from, previewAmount) ?? null : null;
   return (
     <form id="mempool-card-form" className="card-kit-form mempool-card-form" onSubmit={submit} aria-label="New transaction" noValidate
       onKeyDown={event => { if (event.key === 'Escape') onClose(); }}>
@@ -63,6 +91,7 @@ function NewTransactionForm({ names, coinName, onCreate, onClose }) {
           <input className="card-kit-input" placeholder="Coffee (optional)" value={reference} maxLength={64} onChange={edit(setReference)} />
         </label>
       </div>
+      <SpendPreview plan={plan} to={to} />
       {error && <p className="card-kit-error" role="alert">{error}</p>}
       <div className="card-kit-form-actions">
         <button type="submit" className="card-kit-btn">Add to mempool</button>
@@ -75,7 +104,7 @@ function NewTransactionForm({ names, coinName, onCreate, onClose }) {
 
 export function MempoolCard({
   transactions = [], nextIndex, mining = false, participants = [], coinName = 'powfyicoin', reward,
-  onCreateTransaction, autoTransact = false, onAutoTransact, newTxGlow = false, coach = null
+  onCreateTransaction, onPreviewTransaction, onOpenTransaction, autoTransact = false, onAutoTransact, newTxGlow = false, coach = null
 }) {
   const [open, setOpen] = useState(false);
   const names = participants.map(p => (typeof p === 'string' ? p : p.name)).filter(Boolean);
@@ -102,7 +131,7 @@ export function MempoolCard({
           </button>
         </CoachMark>
       </div>
-      {open && <NewTransactionForm names={names} coinName={coinName} onCreate={onCreateTransaction} onClose={() => setOpen(false)} />}
+      {open && <NewTransactionForm names={names} coinName={coinName} onCreate={onCreateTransaction} onPreview={onPreviewTransaction} onClose={() => setOpen(false)} />}
       <ul className="mempool-card-list" aria-label="Pending transactions">
         {pending === 0 && (
           <li className="card-kit-empty mempool-card-empty">No transactions waiting.
@@ -110,7 +139,13 @@ export function MempoolCard({
         )}
         {transactions.map((tx, i) => (
           <li key={tx.id ?? i} className={`mempool-card-tx${mining ? ' is-mining' : ''}`}>
-            <span className="mempool-card-what"><b>{tx.from} → {tx.to}</b>{tx.reference ? <small>{tx.reference}</small> : null}</span>
+            <span className="mempool-card-what">
+              {onOpenTransaction && tx.tx
+                ? <button type="button" className="mempool-card-open" aria-label={`Details of ${tx.from} to ${tx.to}, ${formatAmount(tx.amount)}`} onClick={() => onOpenTransaction(tx.tx)}><b>{tx.from} → {tx.to}</b></button>
+                : <b>{tx.from} → {tx.to}</b>}
+              {tx.reference ? <small>{tx.reference}</small> : null}
+              {spendSummary(tx) && <small className="mempool-card-spend">{spendSummary(tx)}</small>}
+            </span>
             {mining && <span className="mempool-card-state"><i aria-hidden="true" />being mined into #{nextIndex}</span>}
             <span className="mempool-card-amt">{formatAmount(tx.amount)}</span>
           </li>

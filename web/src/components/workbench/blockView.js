@@ -5,7 +5,7 @@
 
 import { GENESIS } from '../../lib/poolProof';
 
-const BROKEN_STATUSES = new Set(['hash-mismatch', 'signature-invalid', 'link-broken']);
+const BROKEN_STATUSES = new Set(['hash-mismatch', 'signature-invalid', 'transaction-invalid', 'link-broken']);
 const KNOWN_MINERS = new Set(['lars', 'minas', 'alice', 'bob', 'chris']);
 
 // First 6 + last 2 characters with "…" (web/DESIGN.md, "Chain band").
@@ -46,9 +46,9 @@ export function listBlocks(indices) {
 }
 
 function minerOf(block, participants) {
-  const coinbase = (block.transactions ?? []).find(tx => tx && tx.sender === null);
-  if (!coinbase) return null;
-  return (participants ?? []).find(p => p.publicKey === coinbase.recipient) ?? null;
+  const script = (block.transactions ?? []).find(tx => tx?.isCoinbase)?.outputs[0]?.scriptPubKey;
+  if (!script) return null;
+  return (participants ?? []).find(p => p.scriptPubKey === script) ?? null;
 }
 
 // One view model per block, oldest first.
@@ -112,9 +112,22 @@ export function statusLabel(status) {
   switch (status) {
     case 'hash-mismatch': return 'Hash mismatch';
     case 'signature-invalid': return 'Signature invalid';
+    case 'transaction-invalid': return 'Transaction invalid';
     case 'link-broken': return 'Link broken';
     case 'built-on-broken': return 'Built on a broken block';
     default: return 'Valid';
+  }
+}
+
+// Why re-mining cannot repair a block: the ledger rule it breaks, in one sentence.
+export function issueText(reason, index) {
+  switch (reason) {
+    case 'signature': return `A transfer in block #${index} no longer matches its signature.`;
+    case 'missing-input': return `Block #${index} spends an output of the edited transaction. Its txid changed, so that output no longer exists.`;
+    case 'double-spend': return `Block #${index} spends a coin that was already spent.`;
+    case 'overspend': return `Block #${index} pays out more than its inputs hold.`;
+    case 'coinbase-overclaim': return `The coinbase of block #${index} claims more than the reward plus fees.`;
+    default: return `Block #${index} breaks a transaction rule.`;
   }
 }
 
@@ -189,13 +202,15 @@ export function healthSummary(views) {
   const byStatus = status => views.filter(view => view.status === status).map(view => view.index);
   const changed = byStatus('hash-mismatch');
   const unsigned = byStatus('signature-invalid');
+  const rejected = byStatus('transaction-invalid');
   const unlinked = byStatus('link-broken');
   const dependents = byStatus('built-on-broken');
   if (changed.length) issues.push(`${listBlocks(changed)} changed after mining`);
   if (unsigned.length) issues.push(`${listBlocks(unsigned)} ${unsigned.length > 1 ? 'have' : 'has'} a signature that no longer matches`);
+  if (rejected.length) issues.push(`${listBlocks(rejected)} ${rejected.length > 1 ? 'break' : 'breaks'} a transaction rule`);
   for (const index of unlinked) issues.push(`#${index} does not store the hash of #${index - 1}`);
   if (dependents.length) {
-    const roots = changed.length + unsigned.length + unlinked.length;
+    const roots = changed.length + unsigned.length + rejected.length + unlinked.length;
     issues.push(`${listBlocks(dependents)} ${dependents.length > 1 ? 'are' : 'is'} unchanged but built on ${roots === 1 ? 'it' : 'a broken block'}`);
   }
 

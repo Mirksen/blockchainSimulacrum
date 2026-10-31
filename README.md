@@ -2,7 +2,7 @@
 
 An interactive blockchain learning experiment, originally built for CS50 in 2021. Mine blocks, race two miners, send simulated coins, change the difficulty or halving interval, and tamper with a transaction to see integrity checks fail. Mining runs in your browser; an optional mining pool lets visitors compare verified work on a shared leaderboard.
 
-This is a simplified model, not a Bitcoin wallet or network client. Coins have no monetary value. Each participant's BIP39 recovery phrase deterministically derives its demo key through BIP32; the phrase restores the key, not the simulated ledger. Never use these demo keys or phrases for real funds. All simulation state lives in memory; refreshing or resetting starts a new chain. See [demo wallet recovery](web/README.md#demo-wallet-recovery) for the recovery API and derivation details.
+Transactions are real legacy Bitcoin transactions with inputs, outputs, scripts and signatures, spent from a UTXO set, but this is a teaching model, not a Bitcoin wallet or network client. Coins have no monetary value. Each participant's BIP39 recovery phrase deterministically derives its demo key through BIP32; the phrase restores the key, not the simulated ledger. Never use these demo keys or phrases for real funds. All simulation state lives in memory; refreshing or resetting starts a new chain. See [demo wallet recovery](web/README.md#demo-wallet-recovery) for the recovery API and derivation details.
 
 ## Run locally
 
@@ -45,7 +45,7 @@ npm --prefix web run preview
 npm --prefix server test
 ```
 
-The tests cover invalid transaction values and pending balances, tampering, the Merkle root against real Bitcoin blocks, block acceptance, the search module (midstate digests, weighted races, stop and limits), wallet initialization, concurrent starts, stopped halving attempts, reset, setting changes and demo distribution. Browser and server hashing are pinned to the same vectors in `shared/share-vectors.json`. The server tests cover forged, expired, duplicate and tampered shares, rate limits and CORS. `test:browser` needs Google Chrome. It starts and stops a local preview, exercises the complete demo/transfer/tamper/reset flow and checks five viewport widths. Set `BASE_URL` to check an already running site instead; screenshots go to the OS temporary directory (override with `SCREENSHOT_DIR`).
+The tests cover real mainnet transactions and Bitcoin Core signature hashes, invalid transaction values and pending balances, double spends, tampering, the Merkle root against real Bitcoin blocks, block acceptance, the search module (midstate digests, weighted races, stop and limits), wallet initialization, concurrent starts, stopped halving attempts, reset, setting changes and demo distribution. Browser and server hashing are pinned to the same vectors in `shared/share-vectors.json`. The server tests cover forged, expired, duplicate and tampered shares, rate limits and CORS. `test:browser` needs Google Chrome. It starts and stops a local preview, exercises the complete demo/transfer/tamper/reset flow and checks five viewport widths. Set `BASE_URL` to check an already running site instead; screenshots go to the OS temporary directory (override with `SCREENSHOT_DIR`).
 
 The deployment check builds the public files and runs a Cloudflare dry run; it does not publish anything or establish live-domain acceptance.
 
@@ -69,7 +69,8 @@ After publication, verify HTTPS, response headers, asset loading and the Start d
 
 ## Source layout
 
-- `web/src/lib/blockchain.js`: participants, signed transactions, the Merkle root, 80-byte block headers, candidate preparation and block acceptance, integrity checks.
+- `web/src/lib/tx/`: Bitcoin transactions, scripts, the UTXO rules and the transaction view of the UI.
+- `web/src/lib/blockchain.js`: participants, spending, the Merkle root, 80-byte block headers, candidate preparation and block acceptance, integrity checks.
 - `web/src/lib/powSearch.js` and `powSearch.worker.js`: the one nonce search (midstate, weighted race, Web Worker adapter).
 - `web/src/hooks/useBlockchain.js`: simulation state, miner race orchestration, cancellation and demo setup.
 - `web/src/components/PoolPanel.jsx` and `web/src/lib/poolApi.js`: the mining pool view.

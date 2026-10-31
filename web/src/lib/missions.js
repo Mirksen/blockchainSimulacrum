@@ -49,8 +49,8 @@ export const MISSIONS = freeze([
     steps: [
       { id: 'new-transaction', text: 'Create a transaction from one wallet to another.', target: 'workbench.new-transaction' }
     ],
-    hint: 'A new transaction waits in the mempool until a mined block includes it.',
-    result: 'Your transaction is waiting in the mempool. Once a mined block includes it, it is part of the chain. powfyicoin is virtual: no real money moves.',
+    hint: 'The form shows which coins it spends. What the payment does not use comes back as change, and a small fee goes to the miner.',
+    result: 'Your transaction spends whole coins, pays the recipient, returns the change to the sender and leaves a fee for the miner. It waits in the mempool until a mined block includes it. powfyicoin is virtual: no real money moves.',
     reward: { xp: 40 }
   },
   {
@@ -77,12 +77,12 @@ export const MISSIONS = freeze([
   {
     id: 'forge-a-block', title: 'Forge a block without getting caught', view: 'workbench',
     steps: [
-      { id: 'tamper', text: 'Change a transaction in a mined block.', target: 'workbench.selected-block.tamper' },
+      { id: 'tamper', text: 'Lower a coinbase amount in a mined block whose coin nobody spent.', target: 'workbench.selected-block.tamper' },
       { id: 'remine-changed', text: 'Re-mine the changed block.', target: 'workbench.remine' },
       { id: 'remine-later', text: 'Re-mine every later block in order until the chain is valid.', target: 'workbench.remine' }
     ],
-    hint: 'Every re-mine needs a new nonce whose hash meets the difficulty.',
-    result: 'The chain is valid again, but only because you redid the work for the changed block and every block after it. On a real network, other miners would have kept adding blocks meanwhile. This simulation has no network.',
+    hint: 'A signed transfer cannot be forged, a spent coin takes its spender down with it, and a coinbase may never claim more than reward plus fees. Undo starts over.',
+    result: 'The chain is valid again, but only because you redid the work for the changed block and every block after it, and only because a coinbase has no signature and nobody had spent it. On a real network, other miners would have kept adding blocks meanwhile. This simulation has no network.',
     reward: { xp: 80, badge: 'Forger' }
   },
   {

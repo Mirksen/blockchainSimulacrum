@@ -14,25 +14,22 @@ import './Workbench.css';
 // card grid; App frames it with the mission rail. It turns the simulation snapshot
 // into the view models of the presentational components; App owns state and effects.
 
-// A key that belongs to no wallet stays "Unknown"; a plain name (the genesis coinbase's
-// recipient) is shown as written.
-const nameOf = (participants, key) => key
-  ? (participants.find(p => p.publicKey === key)?.name ?? (/^[0-9a-f]{64,}$/i.test(key) ? 'Unknown' : key)) : null;
+const satoshis = coins => Math.round(coins * 1e8);
 
 export function Workbench({
   sim, coinName, targetSeconds, autoMine, onAutoMine, autoTransact, onAutoTransact, selectedIndex, onSelect, healthOpen, onToggleHealth,
   lastRound, remining, coach,
   onStartDemo, onMine, onPause, onRemine, onTamper, onUndo, onDifficulty, onBack,
-  onCreateTransaction, onCreateWallet, onOpenWallet, onOpenDetails, onOpenChainLab, error
+  onCreateTransaction, onCreateWallet, onOpenWallet, onOpenDetails, onOpenTransaction, onOpenChainLab, error
 }) {
-  const { blocks, blockStatus, participants, memPool, balances, tamperedEdits, difficulty, blockReward, halvingInterval,
+  const { blocks, blockStatus, participants, memPool, balances, tamperedEdits, describeTx, previewTransaction, difficulty, blockReward, halvingInterval,
     isMining, isSettingUp, minerProgress, miningProgress, raceWinner, backedMiner } = sim;
   const busy = isMining || isSettingUp;
   const height = blocks.length - 1;
   const fresh = height === 0 && memPool.length === 0 && !busy;
   const views = useMemo(() => buildBlockViews({ blocks, blockStatus, participants, tamperedEdits }),
     [blocks, blockStatus, participants, tamperedEdits]);
-  const repair = repairOf(blockStatus);
+  const repair = repairOf(blockStatus, tamperedEdits);
   const keyFigures = keyFiguresOf({ blocks, difficulty, blockReward, halvingInterval, targetSeconds });
   const nextIndex = blocks.length;
 
@@ -55,9 +52,11 @@ export function Workbench({
     index: selected, hash: block.hash, previousHash: block.previousHash, anchor: selectedView?.anchor ?? null, nonce: block.nonce, difficulty: block.difficulty,
     isNewest: selected === height && selected > 0, miner: selectedView?.isGenesis ? null : selectedView?.minerName,
     seconds: selectedView?.seconds, tries: lastRound?.index === selected ? lastRound.attempts : undefined,
-    reward: block.transactions.find(tx => tx.sender === null)?.amount,
-    transactions: block.transactions.map(tx => ({ from: nameOf(participants, tx.sender), to: nameOf(participants, tx.recipient),
-      amount: tx.amount, reference: tx.referenceNumber }))
+    reward: describeTx(block.transactions[0]).amount,
+    transactions: block.transactions.map(tx => {
+      const view = describeTx(tx);
+      return { from: view.from, to: view.to, amount: view.amount, reference: view.memo, spentIn: view.outputs[0]?.spentIn };
+    })
   } : null;
   const edits = tamperedEdits.filter(edit => edit.blockIndex === selected);
 
@@ -67,13 +66,18 @@ export function Workbench({
     return { name: wallet.name, balance: wallet.balance, isMiner: wallet.isMiner, blocksWon: participant?.blocksWon ?? 0,
       hashrate: wallet.isMiner ? rateOf(minerProgress[wallet.name]) : undefined };
   });
-  const pending = memPool.map(tx => ({ from: nameOf(participants, tx.sender), to: nameOf(participants, tx.recipient),
-    amount: tx.amount, reference: tx.referenceNumber }));
+  const pending = memPool.map(tx => {
+    const view = describeTx(tx);
+    return { id: view.txid, tx, from: view.from, to: view.to, amount: view.amount, reference: view.memo, inputs: view.inputs.length,
+      change: view.change, fee: view.fee };
+  });
+  const pendingFees = pending.reduce((sum, tx) => sum + satoshis(tx.fee ?? 0), 0) / 1e8;
   const confirmed = blocks.slice(1).reverse().flatMap((b, i) => {
     const index = height - i;
-    return b.transactions.map(tx => ({ blockIndex: index,
-      label: tx.sender === null ? `Coinbase → ${nameOf(participants, tx.recipient)}` : `${nameOf(participants, tx.sender)} → ${nameOf(participants, tx.recipient)}`,
-      amount: tx.amount }));
+    return b.transactions.map(tx => {
+      const view = describeTx(tx);
+      return { blockIndex: index, label: `${view.coinbase ? 'Coinbase' : view.from} → ${view.to}`, amount: view.amount };
+    });
   }).slice(0, 12);
   const blockTimes = views.slice(1).reverse().filter(v => v.seconds !== null).map(v => ({ index: v.index, seconds: v.seconds })).slice(0, 8);
   const workbenchCoach = coach?.view === 'workbench' ? coach : null;
@@ -110,7 +114,8 @@ export function Workbench({
       </div>
       <div className="wb-mempool">
         <MempoolCard transactions={pending} nextIndex={nextIndex} mining={busy} participants={participants.map(p => p.name)}
-          coinName={coinName} reward={blockReward} onCreateTransaction={onCreateTransaction}
+          coinName={coinName} reward={blockReward + pendingFees} onCreateTransaction={onCreateTransaction}
+          onPreviewTransaction={previewTransaction} onOpenTransaction={onOpenTransaction}
           autoTransact={autoTransact} onAutoTransact={onAutoTransact}
           newTxGlow={!busy && !repair && !fresh} coach={workbenchCoach} />
       </div>
