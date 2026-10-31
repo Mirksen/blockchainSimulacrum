@@ -24,6 +24,8 @@ const ChevronIcon = () => (
     <svg className="details-modal-row-chevron" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M4.5 2.5L8 6l-3.5 3.5" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" /></svg>
 );
 
+const shortTxid = txid => `${txid.slice(0, 8)}…${txid.slice(-4)}`;
+
 function Avatar({ name }) {
     const key = String(name).toLowerCase();
     const style = KNOWN_COLORS.includes(key) ? { '--av-color': `var(--${key})` } : undefined;
@@ -34,6 +36,7 @@ export function ParticipantDetailsModal({
     participant,
     balance,
     blocks,
+    describeTx,
     onClose,
     toggleMiner,
     setMinerHashpower,
@@ -60,29 +63,32 @@ export function ParticipantDetailsModal({
         const history = [];
         blocks.forEach((block, blockIndex) => {
             block.transactions?.forEach((tx, txIndex) => {
-                if (tx.sender === participant.publicKey || tx.recipient === participant.publicKey) {
-                    const isIncoming = tx.recipient === participant.publicKey;
-                    const isMiningReward = tx.sender === null;
-                    history.push({
-                        blockIndex,
-                        txIndex,
-                        tx,
-                        isIncoming,
-                        isMiningReward,
-                        timestamp: block.timestamp
-                    });
-                }
+                const view = describeTx(tx);
+                const isSender = view.inputs.some(input => input.owner === participant.name);
+                const received = view.outputs.filter(output => output.owner === participant.name && output.kind !== 'change');
+                if (!isSender && received.length === 0) return;
+                const isIncoming = !isSender;
+                history.push({
+                    blockIndex,
+                    txIndex,
+                    view,
+                    isIncoming,
+                    isMiningReward: view.coinbase,
+                    amount: isIncoming ? received.reduce((sum, output) => sum + output.value, 0) : view.amount,
+                    timestamp: block.timestamp
+                });
             });
         });
         return history.reverse(); // Most recent first
     };
 
     const txHistory = getTransactionHistory();
+    const coins = balance?.coins ?? [];
 
     // Calculate stats
-    const totalReceived = txHistory.filter(t => t.isIncoming).reduce((sum, t) => sum + t.tx.amount, 0);
-    const totalSent = txHistory.filter(t => !t.isIncoming).reduce((sum, t) => sum + t.tx.amount, 0);
-    const miningRewards = txHistory.filter(t => t.isMiningReward).reduce((sum, t) => sum + t.tx.amount, 0);
+    const totalReceived = txHistory.filter(t => t.isIncoming).reduce((sum, t) => sum + t.amount, 0);
+    const totalSent = txHistory.filter(t => !t.isIncoming).reduce((sum, t) => sum + t.amount, 0);
+    const miningRewards = txHistory.filter(t => t.isMiningReward).reduce((sum, t) => sum + t.amount, 0);
 
     return (
         <Modal onClose={onClose} label="Participant details">
@@ -170,6 +176,27 @@ export function ParticipantDetailsModal({
                     )}
 
                     <div className="details-modal-section">
+                        <div className="details-modal-label">Coins ({coins.length} unspent {coins.length === 1 ? 'output' : 'outputs'})</div>
+                        <p className="details-modal-note">The balance is the sum of these coins. A wallet stores no total.</p>
+                        {coins.length > 0 ? (
+                            <ul className="details-modal-coins" aria-label="Unspent outputs">
+                                {coins.map(coin => (
+                                    <li key={`${coin.txid}:${coin.vout}`} className="details-modal-coin">
+                                        <span className="details-modal-coin-ref" title={`${coin.txid}:${coin.vout}`}>{shortTxid(coin.txid)}:{coin.vout}</span>
+                                        <span className="details-modal-coin-block">block #{coin.blockIndex}</span>
+                                        <span className="details-modal-row-amount">{(coin.value / 1e8).toFixed(8)}</span>
+                                    </li>
+                                ))}
+                            </ul>
+                        ) : <div className="details-modal-empty">No unspent outputs</div>}
+                    </div>
+
+                    <div className="details-modal-section">
+                        <div className="details-modal-label">Address</div>
+                        <div className="details-modal-hash">{participant.address}</div>
+                    </div>
+
+                    <div className="details-modal-section">
                         <div className="details-modal-label">Demo public key</div>
                         <div className="details-modal-hash">
                             {participant.publicKey}
@@ -214,7 +241,7 @@ export function ParticipantDetailsModal({
                                     <div
                                         key={idx}
                                         className="details-modal-row"
-                                        onClick={() => setSelectedTransaction(item.tx)} role="button" tabIndex={0} aria-label={`Transaction in block ${item.blockIndex}: ${item.tx.amount}`} onKeyDown={event => { if (event.target === event.currentTarget && ['Enter', ' '].includes(event.key)) { event.preventDefault(); event.currentTarget.click(); } }}
+                                        onClick={() => setSelectedTransaction(item)} role="button" tabIndex={0} aria-label={`Transaction in block ${item.blockIndex}: ${item.amount}`} onKeyDown={event => { if (event.target === event.currentTarget && ['Enter', ' '].includes(event.key)) { event.preventDefault(); event.currentTarget.click(); } }}
                                         title="Click for details"
                                     >
                                         <div className="details-modal-row-icon">
@@ -225,17 +252,17 @@ export function ParticipantDetailsModal({
                                                 {item.isMiningReward ? (
                                                     <span>Mining reward (block #{item.blockIndex})</span>
                                                 ) : item.isIncoming ? (
-                                                    <span>From: {getParticipantName(item.tx.sender)}</span>
+                                                    <span>From: {item.view.from}</span>
                                                 ) : (
-                                                    <span>To: {getParticipantName(item.tx.recipient)}</span>
+                                                    <span>To: {item.view.to}</span>
                                                 )}
                                             </div>
-                                            {item.tx.referenceNumber && (
-                                                <div className="details-modal-row-meta">Ref: {item.tx.referenceNumber}</div>
+                                            {item.view.memo && !item.isMiningReward && (
+                                                <div className="details-modal-row-meta">Ref: {item.view.memo}</div>
                                             )}
                                         </div>
                                         <div className="details-modal-row-amount">
-                                            {item.isIncoming ? '+' : '-'}{item.tx.amount?.toFixed(4)}
+                                            {item.isIncoming ? '+' : '-'}{item.amount.toFixed(4)}
                                         </div>
                                         <ChevronIcon />
                                     </div>
@@ -247,17 +274,12 @@ export function ParticipantDetailsModal({
             </div>
             {selectedTransaction && (
                 <TransactionDetailsModal
-                    transaction={selectedTransaction}
+                    transaction={selectedTransaction.view}
+                    blockIndex={selectedTransaction.blockIndex}
                     onClose={() => setSelectedTransaction(null)}
                     coinName={coinName}
                 />
             )}
         </Modal>
     );
-
-    function getParticipantName(publicKey) {
-        if (!publicKey) return 'Mining reward';
-        // This is a simple fallback - ideally we'd pass participants list
-        return publicKey.substring(0, 8) + '...';
-    }
 }

@@ -30,6 +30,14 @@ describe('repairOf', () => {
     });
   });
 
+  it('offers only undo as soon as a ledger rule breaks, on the edited block, not the block that fails', () => {
+    const blockStatus = [{ index: 0, status: 'valid' }, { index: 1, status: 'hash-mismatch' },
+      { index: 2, status: 'built-on-broken', issue: { reason: 'missing-input', txIndex: 1 } }];
+    expect(repairOf(blockStatus, [{ blockIndex: 1, txIndex: 0, from: 3.125, to: 3 }])).toEqual({
+      next: 1, order: [1], undoOnly: true, stuck: 2, reason: 'missing-input'
+    });
+  });
+
   it('offers only undo when a forged signature would survive re-mining', () => {
     expect(repairOf(status(['valid', 'valid', 'signature-invalid', 'built-on-broken']))).toEqual({
       next: 2, order: [2], undoOnly: true

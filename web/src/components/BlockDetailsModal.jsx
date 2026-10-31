@@ -22,26 +22,16 @@ export function BlockDetailsModal({
     blocks,
     onClose,
     participants,
+    describeTx,
     coinName = 'powfyicoin'
 }) {
     const [selectedTx, setSelectedTx] = useState(null);
 
     if (!block) return null;
 
-    const getParticipantName = (publicKey) => {
-        if (!publicKey) return 'Mining reward';
-        const participant = participants.find(p => p.publicKey === publicKey);
-        return participant ? participant.name : publicKey.substring(0, 12) + '...';
-    };
-
-    const getMinerFromBlock = () => {
-        const rewardTx = block.transactions?.find(tx => tx.sender === null);
-        if (!rewardTx) return null;
-        const miner = participants.find(p => p.publicKey === rewardTx.recipient);
-        return miner;
-    };
-
-    const miner = getMinerFromBlock();
+    const views = (block.transactions ?? []).map(describeTx);
+    const minerName = views.find(view => view.coinbase)?.to;
+    const miner = participants.find(p => p.name === minerName);
     const minerColorClass = miner?.name?.toLowerCase() === 'minas' ? 'minas' :
         miner?.name?.toLowerCase() === 'lars' ? 'lars' : null;
 
@@ -52,8 +42,8 @@ export function BlockDetailsModal({
         (blockIndex > 0 && block.previousHash !== blocks[blockIndex - 1]?.hash);
 
     // Handle transaction click
-    const handleTxClick = (tx) => {
-        setSelectedTx(tx);
+    const handleTxClick = (view) => {
+        setSelectedTx(view);
     };
 
     return (
@@ -129,7 +119,7 @@ export function BlockDetailsModal({
                         </div>
                         <div className="details-modal-stat">
                             <div className="details-modal-stat-value">
-                                {block.transactions?.reduce((sum, tx) => sum + (tx.amount || 0), 0).toFixed(2)}
+                                {views.reduce((sum, view) => sum + view.amount, 0).toFixed(2)}
                             </div>
                             <div className="details-modal-stat-label">Volume</div>
                         </div>
@@ -177,28 +167,28 @@ export function BlockDetailsModal({
                                 Transactions ({block.transactions.length}) · select one for details
                             </div>
                             <div className="details-modal-list">
-                                {block.transactions.map((tx, txIndex) => (
+                                {views.map((view, txIndex) => (
                                     <div
                                         key={txIndex}
                                         className="details-modal-row"
-                                        onClick={() => handleTxClick(tx)} role="button" tabIndex={0} aria-label={`Transfer to ${getParticipantName(tx.recipient)}: ${tx.amount}`} onKeyDown={event => { if (event.target === event.currentTarget && ['Enter', ' '].includes(event.key)) { event.preventDefault(); event.currentTarget.click(); } }}
+                                        onClick={() => handleTxClick(view)} role="button" tabIndex={0} aria-label={`Transfer to ${view.to}: ${view.amount}`} onKeyDown={event => { if (event.target === event.currentTarget && ['Enter', ' '].includes(event.key)) { event.preventDefault(); event.currentTarget.click(); } }}
                                     >
                                         <div className="details-modal-row-main">
                                             <div className="details-modal-row-title">
-                                                <span className={tx.sender === null ? 'details-modal-quiet' : undefined}>
-                                                    {getParticipantName(tx.sender)}
+                                                <span className={view.coinbase ? 'details-modal-quiet' : undefined}>
+                                                    {view.coinbase ? 'Mining reward' : view.from}
                                                 </span>
                                                 <ArrowIcon />
-                                                <span>{getParticipantName(tx.recipient)}</span>
+                                                <span>{view.to}</span>
                                             </div>
-                                            {tx.referenceNumber && (
+                                            {view.memo && (
                                                 <div className="details-modal-row-meta">
-                                                    Ref: {tx.referenceNumber}
+                                                    Ref: {view.memo}
                                                 </div>
                                             )}
                                         </div>
                                         <div className="details-modal-row-amount">
-                                            {tx.amount?.toFixed(8)} {coinName}
+                                            {view.amount.toFixed(8)} {coinName}
                                         </div>
                                         <ChevronIcon />
                                     </div>
@@ -214,7 +204,7 @@ export function BlockDetailsModal({
                 <TransactionDetailsModal
                     transaction={selectedTx}
                     blockIndex={blockIndex}
-                    participants={participants}
+                    coinName={coinName}
                     onClose={() => setSelectedTx(null)}
                 />
             )}

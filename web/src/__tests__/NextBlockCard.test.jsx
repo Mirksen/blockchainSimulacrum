@@ -182,7 +182,8 @@ describe('NextBlockCard', () => {
     render(<NextBlockCard {...base} mode="repair" repair={{ next: 2, order: [2], undoOnly: true, onUndo }} onRemine={onRemine} />);
     expect(filledPrimaries()).toHaveLength(1);
     expect(screen.queryByRole('button', { name: /^Re-mine/ })).toBeNull();
-    expect(card().textContent).toContain('Re-mining cannot fix a signature');
+    expect(card().textContent).toContain('no longer matches its signature');
+    expect(card().textContent).toContain('Re-mining changes no transaction');
     fireEvent.click(screen.getByRole('button', { name: 'Undo edit in block #2' }));
     expect(onUndo).toHaveBeenCalledWith(2);
     expect(onRemine).not.toHaveBeenCalled();

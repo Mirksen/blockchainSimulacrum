@@ -193,8 +193,9 @@ decision, 2026-10-27):
 - **Wallets:** sized for the five sample wallets plus one the learner
   creates ("Create wallet"); more wallets scroll inside the card with Create
   wallet staying visible.
-- **Mempool:** pending transactions and the coinbase line "added when #N is
-  mined"; **"New transaction" sits in the card header** as a tinted button
+- **Mempool:** pending transactions with their coins, change and fee, and the
+  coinbase line "added when #N is mined" with reward plus fees. A row opens its
+  transaction details; **"New transaction" sits in the card header** as a tinted button
   with the same glow as Mine block.
 - **Activity** (only on tall screens): recent confirmed transactions and
   block times.
@@ -232,7 +233,7 @@ Every flow covers its states, not only the success path.
 | Idle | Mining is the primary action; New transaction glows as the second invitation. |
 | Mining | The Next block card becomes the live race: per miner the current nonce and hash, leading characters checked against the target, attempts and elapsed time against the target time. The Play primary becomes Pause in the same place; the header says "Mining block #N…". The adjacent Repeat toggle stays available, and Pause also stays available between automatic rounds. The candidate tile says "mining". Mempool rows read "being mined into #N". New transaction stays available without glow. |
 | Block found | The new tile appears on the right with a short calm highlight; the race line becomes "Last round". No confetti. |
-| Tampered | The changed block turns red with "Hash mismatch" and its new hash (the stored one struck through). Descendants turn amber with "Built on a broken block"; their own links are intact and say so. The chain pill says "Chain invalid", health opens, Mine pauses with "Paused while the chain is invalid", and the single primary becomes "Re-mine block #2". Red only for the broken block and its direct status. |
+| Tampered | The changed block turns red with "Hash mismatch" and its new hash (the stored one struck through). Descendants turn amber with "Built on a broken block"; their own links are intact and say so. The chain pill says "Chain invalid", health opens, Mine pauses with "Paused while the chain is invalid", and the single primary becomes "Re-mine block #2". When the edit breaks a ledger rule (a signature, a spent coin, a coinbase claiming too much) re-mining cannot help, so the primary is "Undo edit in block #2" with the reason beside it. Red only for the broken block and its direct status. |
 | Empty | A sentence that says what is recorded ("No transactions waiting.") and the next step under it. |
 | Error | Plain text plus a way to retry; inputs stay. |
 

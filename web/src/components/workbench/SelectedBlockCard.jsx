@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { CoachMark } from './CoachMark';
+import { issueText } from './blockView';
 import './cardKit.css';
 import './SelectedBlockCard.css';
 
@@ -8,8 +9,8 @@ import './SelectedBlockCard.css';
 // stored hash of its predecessor.
 //
 // block:  { index, hash, previousHash, nonce, difficulty, isNewest?, miner?,
-//           seconds?, tries?, reward?, transactions: [{ from, to, amount, reference? }] }
-//         (`from: null` is the coinbase)
+//           seconds?, tries?, reward?, transactions: [{ from, to, amount, reference?, spentIn? }] }
+//         (`from: null` is the coinbase; `spentIn` is the block that spends its first output)
 // status: inspectBlocks() entry { status, storedHash?, computedHash?, linkIntact? }
 //         or just the status string; missing means 'valid'
 // edit:   tamperedEdits entry { txIndex, from, to } for this block (or a list), null when unchanged
@@ -19,6 +20,7 @@ const STATUS = {
   'hash-mismatch': { cls: 'is-err', text: 'Hash mismatch' },
   'link-broken': { cls: 'is-err', text: 'Link broken' },
   'signature-invalid': { cls: 'is-err', text: 'Signature invalid' },
+  'transaction-invalid': { cls: 'is-err', text: 'Transaction invalid' },
   'built-on-broken': { cls: 'is-warn', text: 'Built on a broken block' }
 };
 
@@ -97,6 +99,14 @@ const UndoIcon = () => (
 );
 
 const txLabel = tx => `${tx.from ?? 'Coinbase'} → ${tx.to ?? 'unknown'}`;
+const MAX_MONEY = 21000000;
+
+// What an edit of this transaction will do, before the learner makes it.
+function editConsequence(tx) {
+  if (tx?.from != null) return 'Signed by its sender: any change breaks the signature, and re-mining cannot fix that.';
+  if (tx?.spentIn != null) return `Block #${tx.spentIn} spends this coin. A new txid leaves that spend pointing at nothing.`;
+  return 'No signature and nobody spent it yet. Lowering it can be re-mined; claiming more than reward plus fees cannot.';
+}
 
 function TamperEditor({ block, onSubmit, onCancel }) {
   const transactions = block.transactions;
@@ -116,6 +126,7 @@ function TamperEditor({ block, onSubmit, onCancel }) {
     if (!tx) return setError('Choose a transaction to change.');
     if (!trimmed || !Number.isFinite(value)) return setError('Enter an amount, for example 2.00.');
     if (value < 0) return setError('Enter an amount of 0 or more.');
+    if (value > MAX_MONEY) return setError('Enter at most 21000000, every coin there will ever be.');
     if (value === tx.amount) return setError('That is the current amount. Enter a different one.');
     onSubmit(Number(txIndex), value);
   };
@@ -140,7 +151,7 @@ function TamperEditor({ block, onSubmit, onCancel }) {
       <div className="card-kit-form-actions">
         <button type="submit" className="card-kit-btn">Change amount</button>
         <button type="button" className="card-kit-btn is-ghost" onClick={onCancel}>Cancel</button>
-        <span className="card-kit-t3 selected-block-editor-hint">The block keeps its stored hash, so the change shows.</span>
+        <span className="card-kit-t3 selected-block-editor-hint">{editConsequence(transactions[Number(txIndex)])}</span>
       </div>
     </form>
   );
@@ -179,7 +190,8 @@ export function SelectedBlockCard({ block, status, prevHash, edit, onOpenDetails
     'hash-mismatch': `${edits.length ? 'edited after mining' : 'content changed'}${minerName ? ` · mined by ${minerName}` : ''}`,
     'link-broken': `stores an old hash of #${block.index - 1}`,
     'built-on-broken': 'its own link is intact',
-    'signature-invalid': 're-mined after an edit'
+    'signature-invalid': 're-mined after an edit',
+    'transaction-invalid': 're-mined after an edit'
   }[kind];
 
   const hashRow = kind === 'hash-mismatch' ? (
@@ -197,7 +209,8 @@ export function SelectedBlockCard({ block, status, prevHash, edit, onOpenDetails
   ) : (
     <div className="card-kit-kv"><dt>Hash</dt><dd>
       <ShortHash hash={block.hash} /><CopyButton key={`${block.index}:${block.hash}`} value={block.hash} label="hash" />
-      <span className="card-kit-t3">{target ? `starts with ${target}` : 'no target for Genesis'}</span>
+      <span className="card-kit-t3">{isGenesis ? `${leadingZeros(block.hash)} zeros · Bitcoin block format, double SHA-256`
+        : target ? `starts with ${target}` : 'no target'}</span>
     </dd></div>
   );
 
@@ -224,7 +237,7 @@ export function SelectedBlockCard({ block, status, prevHash, edit, onOpenDetails
   const nonceRow = kind === 'hash-mismatch' ? null : (
     <div className="card-kit-kv"><dt>Nonce</dt><dd>
       <span>{Number(block.nonce ?? 0).toLocaleString('en-US')}</span>
-      <span className="card-kit-t3">{target ? `· makes the hash start with ${target}` : '· Genesis needs no proof of work'}</span>
+      <span className="card-kit-t3">{target ? `· makes the hash start with ${target}` : '· no proof of work needed'}</span>
     </dd></div>
   );
 
@@ -237,7 +250,7 @@ export function SelectedBlockCard({ block, status, prevHash, edit, onOpenDetails
     <div className="card-kit-kv"><dt>Miner</dt><dd>
       {minerName ? (
         <><Avatar name={minerName} /><span>{minerName}</span>{minerFacts.length > 0 && <span className="card-kit-t3">· {minerFacts.join(' · ')}</span>}</>
-      ) : <span className="card-kit-t3">none · Genesis was not mined</span>}
+      ) : <span className="card-kit-t3">{isGenesis ? 'none · Genesis was mined once before launch' : 'unknown'}</span>}
     </dd></div>
   );
 
@@ -277,6 +290,9 @@ export function SelectedBlockCard({ block, status, prevHash, edit, onOpenDetails
       </dl>
       {kind === 'signature-invalid' && (
         <p className="selected-block-note" role="note">Re-mining fixes the hash, not the signature. Undo the edit to repair.</p>
+      )}
+      {kind === 'transaction-invalid' && (
+        <p className="selected-block-note" role="note">{issueText(check.issue?.reason, block.index)} Undo the edit to repair.</p>
       )}
       {editorOpen ? (
         <TamperEditor key={block.index} block={{ ...block, transactions }}

@@ -69,11 +69,11 @@ describe('buildBlockViews', () => {
 
   it('marks an edited block, its descendants and a broken link after re-mining', () => {
     const chain = minedChain();
-    const original = chain.blockArray[2].transactions[0].amount;
-    chain.tamperTransaction(2, 0, 9);
+    const original = chain.blockArray[2].transactions[0].outputs[0].value / 1e8;
+    chain.tamperTransaction(2, 0, 1);
     let views = snapshotViews(chain);
     expect(views.map(view => view.status)).toEqual(['valid', 'valid', 'hash-mismatch', 'built-on-broken', 'built-on-broken']);
-    expect(views[2].edits).toEqual([{ txIndex: 0, from: original, to: 9 }]);
+    expect(views[2].edits).toEqual([{ txIndex: 0, from: original, to: 1 }]);
     expect(views[2].edited).toBe(true);
     expect(views[2].computedHash).not.toBe(views[2].storedHash);
     expect(stateOf(views[2])).toBe('broken');
@@ -106,7 +106,7 @@ describe('healthSummary', () => {
   });
   it('names the changed block and the blocks built on it', () => {
     const chain = minedChain();
-    chain.tamperTransaction(2, 0, 9);
+    chain.tamperTransaction(2, 0, 1);
     const summary = healthSummary(snapshotViews(chain));
     expect(summary.valid).toBe(false);
     expect(summary.firstBroken).toBe(2);
