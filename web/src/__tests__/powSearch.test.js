@@ -197,13 +197,13 @@ describe('bounded lab adapters', () => {
     for (const message of ['Synthetic block', 'café 🧪', '"nonce":1}']) {
       const result = await findNonce({ message, startNonce: 3, difficulty: 2, yieldControl: noWait });
       expect(result.status).toBe('found');
-      expect(result.trial).toEqual(createTrial(message, result.trial.nonce));
+      expect(result.trial).toEqual(createTrial(message, result.trial.nonce, 2));
       expect(result.attempts).toBe(result.trial.nonce - 3 + 1);
     }
     const controller = new AbortController();
     const stopped = await findNonce({ message: 'Synthetic block', startNonce: 0, difficulty: 3, signal: controller.signal,
-      yieldControl: noWait, onProgress: ({ trial }) => { expect(trial).toEqual(createTrial('Synthetic block', trial.nonce)); controller.abort(); } });
-    expect(stopped.trial).toEqual(createTrial('Synthetic block', 99));
+      yieldControl: noWait, onProgress: ({ trial }) => { expect(trial).toEqual(createTrial('Synthetic block', trial.nonce, 3)); controller.abort(); } });
+    expect(stopped.trial).toEqual(createTrial('Synthetic block', 99, 3));
   });
 
   it('remineBlock results equal blockTrial for the found nonce', async () => {

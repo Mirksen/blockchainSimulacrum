@@ -5,14 +5,14 @@ import { ChainBand } from '../components/workbench/ChainBand';
 import { buildBlockViews } from '../components/workbench/blockView';
 
 // Synthetic chain: Genesis + mined blocks, two miners, deterministic timestamps.
-const T0 = Date.parse('2026-01-02T12:00:00Z');
+const T0 = Date.parse('2026-01-02T12:00:00Z') / 1000;
 const people = [{ name: 'Lars', publicKey: 'pk-lars' }, { name: 'Minas', publicKey: 'pk-minas' }];
 const hashOf = i => (i === 0 ? 'a1'.padEnd(64, 'f') : `00${String(i).padStart(2, '0')}`.padEnd(62, 'c') + String(i).padStart(2, '0'));
 const NOW2 = '7c41e235e2f72f5e4541c5f66eec0ce5e06e28d53ef19595758471564a74a5b0';
 
 function makeViews(count = 5, statuses = {}) {
   const blocks = Array.from({ length: count }, (_, i) => ({
-    hash: hashOf(i), previousHash: i ? hashOf(i - 1) : '0', difficulty: i ? 2 : 0, timestamp: T0 + i * 1500,
+    hash: hashOf(i), previousHash: i ? hashOf(i - 1) : '0', difficulty: i ? 2 : 0, time: T0 + i * 2,
     transactions: i ? [{ sender: null, recipient: i % 2 ? 'pk-minas' : 'pk-lars' }] : []
   }));
   const blockStatus = blocks.map((b, i) => {

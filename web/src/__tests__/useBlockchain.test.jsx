@@ -21,7 +21,7 @@ const config = { participants: ['Miner One', 'Wallet Two'], miners: ['Miner One'
 let finalize;
 const forceHash = hex => {
   vi.mocked(SHA256).mockImplementation(() => ({ toString: () => hex }));
-  finalize.mockImplementation(() => ({ toString: () => hex }));
+  finalize.mockImplementation(() => CryptoJS.enc.Hex.parse(hex));
 };
 beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(new Date('2026-01-02T12:00:00Z')); finalize = vi.spyOn(CryptoJS.algo.SHA256, 'finalize'); forceHash('0'.repeat(64)); });
 afterEach(() => { cleanup(); vi.useRealTimers(); vi.clearAllMocks(); vi.restoreAllMocks(); telemetry.track.mockReset(); telemetry.reportError.mockReset(); });

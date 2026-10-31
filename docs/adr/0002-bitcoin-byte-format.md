@@ -1,6 +1,6 @@
 # ADR 0002: Blocks and transactions move to Bitcoin's byte format
 
-Status: accepted, 2026-10-31 (Mirko). Package 1 done; packages 2 and 3 in progress.
+Status: accepted, 2026-10-31 (Mirko). Packages 1 and 2 done; package 3 in progress.
 
 ## Context
 
@@ -67,6 +67,16 @@ missions.
 ## Consequences
 
 - A learner sees and can recompute the exact bytes of every block with any Bitcoin tool.
-- Hashing in the browser costs two SHA-256 compressions per attempt instead of about one; the
-  difficulty range may need retuning (ADR 0001's measurements apply per compression).
+- Hashing in the browser costs two SHA-256 compressions per attempt instead of about one, yet
+  needs no retuning: crypto-js with a midstate over the binary header reached 96,000 hashes per
+  CPU second against 90,000 for the old text preimage (m1, Node, median of seven runs), because
+  the header's tail is short and needs no string parsing.
+- `bitsOfZeros` keeps zeros as the unit a learner chooses; 8 zeros is `0x1d00ffff`, Bitcoin's
+  difficulty 1.
+- A block's coinbase comes first, as in Bitcoin. Until package 3 replaces `rewardCoinbase`,
+  rewards are P2PK coinbases in the genesis layout with the height in the memo, so two rewards
+  never share a txid.
+- When 2^32 nonces are exhausted a new block moves to the next extraNonce, while a re-mine moves
+  the header's time one second: it must not change a transaction, and later blocks may spend the
+  coinbase's outputs.
 - The genesis stays valid across packages 2 and 3: it is already in the target format.

@@ -5,7 +5,7 @@ import { verifyChainLab } from './chain-lab.acceptance.mjs';
 import { verifyMissions, verifyMissionReload } from './missions.acceptance.mjs';
 import { verifyMissionVisibility } from './missions-visibility.acceptance.mjs';
 import { verifyPool } from './pool.acceptance.mjs';
-import { menu, openTab, settle, snapshot, workbench } from './workbench.helpers.mjs';
+import { headerHash, menu, openTab, settle, snapshot, workbench } from './workbench.helpers.mjs';
 import { chromium } from 'playwright';
 import { spawn } from 'node:child_process';
 import { mkdir } from 'node:fs/promises';
@@ -186,6 +186,19 @@ try {
  await wb.chainPill().filter({hasText:'Chain valid'}).waitFor({timeout:30000});
  await wb.mine(4).waitFor();
  results.push('Tampering is detected; re-mining the broken block and every later one repairs the chain');
+
+ // A mined block can be recomputed from the bytes it shows, without the app.
+ await wb.tile(2).click();
+ await page.getByRole('button',{name:'Details',exact:true}).click();
+ const blockDetails = page.getByRole('dialog',{name:'Block details'});
+ await blockDetails.waitFor();
+ const headerBytes = (await blockDetails.locator('.header-bytes-raw').allTextContents()).join('');
+ assert.equal(headerBytes.length,160);
+ assert.equal(await blockDetails.locator('.header-bytes-note code').innerText(),headerHash(headerBytes));
+ await page.screenshot({path:join(output,'block-details.png')});
+ await page.keyboard.press('Escape');
+ await blockDetails.waitFor({state:'hidden'});
+ results.push('A mined block is recomputed from its 80 displayed bytes with node:crypto');
 
  await fitsWidths('Workbench with history');
  await menu(page, 'Reset');

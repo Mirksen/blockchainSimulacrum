@@ -197,8 +197,7 @@ export function SelectedBlockCard({ block, status, prevHash, edit, onOpenDetails
   ) : (
     <div className="card-kit-kv"><dt>Hash</dt><dd>
       <ShortHash hash={block.hash} /><CopyButton key={`${block.index}:${block.hash}`} value={block.hash} label="hash" />
-      <span className="card-kit-t3">{isGenesis ? `${leadingZeros(block.hash)} zeros · Bitcoin block format, double SHA-256`
-        : target ? `starts with ${target}` : 'no target'}</span>
+      <span className="card-kit-t3">{isGenesis ? `${leadingZeros(block.hash)} zeros · ` : `starts with ${target} · `}double SHA-256 of 80 bytes</span>
     </dd></div>
   );
 
@@ -225,12 +224,12 @@ export function SelectedBlockCard({ block, status, prevHash, edit, onOpenDetails
   const nonceRow = kind === 'hash-mismatch' ? null : (
     <div className="card-kit-kv"><dt>Nonce</dt><dd>
       <span>{Number(block.nonce ?? 0).toLocaleString('en-US')}</span>
-      <span className="card-kit-t3">{target ? `· makes the hash start with ${target}` : '· no proof of work needed'}</span>
+      <span className="card-kit-t3">· makes the hash start with {target}</span>
     </dd></div>
   );
 
   const minerFacts = [
-    block.seconds != null ? `${Number(block.seconds).toFixed(1)} s` : null,
+    block.seconds != null ? `${block.seconds} s` : null,
     block.tries != null ? `${Number(block.tries).toLocaleString('en-US')} tries` : null,
     block.reward != null ? `reward ${formatAmount(block.reward)}` : null
   ].filter(Boolean);

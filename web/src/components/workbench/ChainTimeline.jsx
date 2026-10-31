@@ -4,7 +4,7 @@ import {
   CandidateCell, ChevronIcon, CopyButton, DownIcon, HashText, HealthCell, HealthLine, KeyFigures, ShortHash
 } from './ChainBand';
 import {
-  brokenBefore, candidateCopy, formatSeconds, healthSummary, linkInto, ordinal, pendingLink, shortHash, stateOf, statusLabel
+  brokenBefore, candidateCopy, formatInterval, healthSummary, linkInto, ordinal, pendingLink, shortHash, stateOf, statusLabel
 } from './blockView';
 import './ChainTimeline.css';
 
@@ -21,7 +21,7 @@ function rowLabel(view, { newest, selected, link, repairPosition }) {
   if (repairPosition) parts.push(`re-mine ${ordinal(repairPosition)}`);
   if (!view.isGenesis) parts.push(view.minerName);
   parts.push(`${view.txCount} tx`);
-  const time = formatSeconds(view.seconds);
+  const time = formatInterval(view.seconds);
   if (time) parts.push(time);
   parts.push(`hash ${shortHash(view.status === 'hash-mismatch' ? view.computedHash : view.storedHash)}`);
   if (link) parts.push(link.label.replace(/^Link (intact|unchanged|broken):.*/, `link to block ${view.index - 1} $1`));
@@ -100,7 +100,7 @@ function Row({ view, views, newest, selected, open, onTap, repairPosition, onOpe
               {marker}
             </span>
             <span className="chain-timeline-tx">{view.txCount} tx</span>
-            <span className="chain-timeline-t">{view.isGenesis ? 'start' : formatSeconds(view.seconds)}</span>
+            <span className="chain-timeline-t">{view.isGenesis ? 'start' : formatInterval(view.seconds)}</span>
           </>
         ) : (
           <span className={`chain-timeline-status is-${state}`}>{marker}<span className="chain-timeline-status-text">{statusLabel(view.status)}</span></span>

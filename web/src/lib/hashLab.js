@@ -1,4 +1,5 @@
-import SHA256 from 'crypto-js/sha256.js';
+import { bitsOfZeros, displayHash, le, meetsTarget as meetsBits } from '../../../shared/bitcoin-block.mjs';
+import { labHeaderPrefix, sha256d } from './blockHeader';
 import { search } from './powSearch';
 
 export const SEARCH_LIMIT = 50_000;
@@ -6,42 +7,39 @@ export const SEARCH_LIMIT = 50_000;
 export function parseNonce(value) {
   if ((typeof value !== 'number' && typeof value !== 'string') ||
       (typeof value === 'string' && !/^\d+$/.test(value)) ||
-      !Number.isSafeInteger(Number(value)) || Number(value) < 0) {
-    throw new RangeError('Enter a whole number from 0 to 9007199254740991.');
+      !Number.isSafeInteger(Number(value)) || Number(value) < 0 || Number(value) > 0xffffffff) {
+    throw new RangeError('Enter a whole number from 0 to 4294967295.');
   }
   return Number(value);
 }
 
-export function createTrial(message, nonce) {
-  // JSON preserves the boundary between the message and the numeric nonce.
-  const preimage = JSON.stringify({ message, nonce: parseNonce(nonce) });
-  return { nonce: parseNonce(nonce), preimage, hash: SHA256(preimage).toString() };
+function labBits(difficulty) {
+  if (![1, 2, 3].includes(difficulty)) throw new RangeError('Choose 1, 2 or 3 leading zeros.');
+  return bitsOfZeros(difficulty);
 }
 
-export function meetsTarget(hash, difficulty) {
-  if (![1, 2, 3].includes(difficulty)) throw new RangeError('Choose 1, 2 or 3 leading zeros.');
-  return hash.startsWith('0'.repeat(difficulty));
+// One 80-byte header: the message stands in for the transactions, the chosen target fills
+// the bits field, so the target is part of what is hashed.
+export function createTrial(message, nonce, difficulty) {
+  const header = labHeaderPrefix({ data: message, bits: labBits(difficulty) }) + le(parseNonce(nonce), 4);
+  return { nonce: parseNonce(nonce), header, hash: displayHash(header, sha256d) };
 }
+
+export const meetsTarget = (hash, difficulty) => meetsBits(hash, labBits(difficulty));
 
 export function changedPositions(hash, previousHash) {
   return [...hash].map((character, index) => previousHash != null && character !== previousHash[index]);
-}
-
-// Splits the trial preimage around the nonce: prefix + nonce + suffix.
-function trialParts(message) {
-  const preimage = JSON.stringify({ message, nonce: 0 });
-  return { prefix: preimage.slice(0, -'0}'.length), suffix: '}' };
 }
 
 // This bounded experiment searches one message; it never touches the chain.
 export async function findNonce({ message, startNonce, difficulty, signal,
   onProgress = () => {}, yieldControl }) {
   const start = parseNonce(startNonce);
-  meetsTarget('', difficulty);
-  const { prefix, suffix } = trialParts(message);
-  const trialOf = ({ nonce, hash }) => ({ nonce, preimage: prefix + nonce + suffix, hash });
-  const result = await search({ entrants: [{ id: 'message', prefix, suffix, startNonce: start }],
-    target: '0'.repeat(difficulty), limit: SEARCH_LIMIT, signal, yieldControl,
+  const bits = labBits(difficulty);
+  const header = labHeaderPrefix({ data: message, bits });
+  const trialOf = ({ nonce, hash }) => ({ nonce, header: header + le(nonce, 4), hash });
+  const result = await search({ entrants: [{ id: 'message', header, startNonce: start }],
+    bits, limit: SEARCH_LIMIT, signal, yieldControl,
     onProgress: progress => onProgress({ attempts: progress.attempts, trial: trialOf(progress.entrants.message) }) });
   const last = result.entrants.message;
   return { status: result.status, attempts: result.attempts, trial: last.attempts ? trialOf(last) : null };

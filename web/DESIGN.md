@@ -185,9 +185,9 @@ decision, 2026-10-27):
   at the same height; Wallets and Mempool start and end at the same height.
 - **Selected block:** hash with Copy, previous hash, nonce, miner with time,
   tries and reward, transactions; "Open in Chain lab", "Tamper with this
-  block".
+  block". Details show the block's 80 header bytes, field by field.
 - **Next block:** the one primary action "Mining" with Play, an adjacent Repeat toggle for Auto-mine,
-  difficulty stepper, and the last round as two lanes (Lars, Minas) with
+  difficulty stepper with its compact `bits`, and the last round as two lanes (Lars, Minas) with
   "Back Lars / Back Minas". While mining it becomes the **live race** in
   place.
 - **Wallets:** sized for the five sample wallets plus one the learner

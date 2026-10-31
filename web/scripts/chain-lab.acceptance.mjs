@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict';
-import { createHash } from 'node:crypto';
 import { join } from 'node:path';
-import { menu, openTab, settle, snapshot } from './workbench.helpers.mjs';
+import { headerHash, menu, openTab, settle, snapshot } from './workbench.helpers.mjs';
 
 export async function verifyChainLab(page, output, before) {
   const lab = page.locator('section.chain-lab');
@@ -17,9 +16,10 @@ export async function verifyChainLab(page, output, before) {
   await block(2).getByText('Previous link matches', { exact: true }).waitFor();
   await block(2).getByText('Earlier block invalid', { exact: true }).waitFor();
   await block(1).getByText('Inspect Block 1 input', { exact: true }).click();
-  const preimage = await block(1).locator('.chain-lab-input code').first().innerText();
-  const actual = createHash('sha256').update(preimage).digest('hex');
-  assert.equal(await block(1).locator('.chain-lab-input code').nth(1).innerText(), actual);
+  const header = (await block(1).locator('.header-bytes-raw').allTextContents()).join('');
+  assert.equal(header.length, 160);
+  const actual = headerHash(header);
+  assert.equal(await block(1).locator('.header-bytes-note code').innerText(), actual);
   assert.notEqual(actual, original[0]);
   await block(1).getByText('Inspect Block 1 input', { exact: true }).click();
   for (const number of [1, 2, 3]) {
@@ -82,7 +82,7 @@ export async function verifyChainLab(page, output, before) {
   await lab.getByRole('button', { name: 'Back to simulator' }).click();
   await lab.waitFor({ state: 'hidden' });
   assert.deepEqual(await snapshot(page), before, 'The chain lab leaves the simulator chain and wallets untouched');
-  return ['Chain lab: edit, real recomputed SHA-256 and sequential repair verified',
+  return ['Chain lab: edit, real recomputed double SHA-256 over 80 bytes and sequential repair verified',
     'Chain lab: bounded search Stop and reset verified',
     'Chain lab: five widths in both themes with long input, unchanged simulator and wallets'];
 }

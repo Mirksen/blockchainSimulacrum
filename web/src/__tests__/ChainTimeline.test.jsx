@@ -4,14 +4,14 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ChainTimeline } from '../components/workbench/ChainTimeline';
 import { buildBlockViews } from '../components/workbench/blockView';
 
-const T0 = Date.parse('2026-01-02T12:00:00Z');
+const T0 = Date.parse('2026-01-02T12:00:00Z') / 1000;
 const people = [{ name: 'Lars', publicKey: 'pk-lars' }, { name: 'Minas', publicKey: 'pk-minas' }];
 const hashOf = i => (i === 0 ? 'a1'.padEnd(64, 'f') : `00${String(i).padStart(2, '0')}`.padEnd(62, 'c') + String(i).padStart(2, '0'));
 const NOW2 = '7c41e235e2f72f5e4541c5f66eec0ce5e06e28d53ef19595758471564a74a5b0';
 
 function makeViews(statuses = {}) {
   const blocks = Array.from({ length: 5 }, (_, i) => ({
-    hash: hashOf(i), previousHash: i ? hashOf(i - 1) : '0', difficulty: i ? 2 : 0, timestamp: T0 + i * 1500,
+    hash: hashOf(i), previousHash: i ? hashOf(i - 1) : '0', difficulty: i ? 2 : 0, time: T0 + i * 2,
     transactions: i ? [{ sender: null, recipient: i % 2 ? 'pk-minas' : 'pk-lars' }] : []
   }));
   const blockStatus = blocks.map((b, i) => {
@@ -43,7 +43,7 @@ describe('ChainTimeline', () => {
     expect(rows.slice(1).map(element => element.querySelector('.chain-timeline-n').textContent)).toEqual(['#4', '#3', '#2', '#1', '#0']);
     expect(screen.getByRole('group', { name: 'Candidate block 5, not mined yet, 2 transactions waiting' }).textContent).toContain('Mine below');
     expect(row(4).getAttribute('aria-pressed')).toBe('true');
-    expect(row(3).getAttribute('aria-label')).toBe('Block 3, Minas, 1 tx, 1.5 s, hash 0003cc…03, link to block 2 intact');
+    expect(row(3).getAttribute('aria-label')).toBe('Block 3, Minas, 1 tx, 2 s, hash 0003cc…03, link to block 2 intact');
   });
 
   it('expands a tapped row with the full hash, Copy and Open in Chain lab, and selects it', async () => {
