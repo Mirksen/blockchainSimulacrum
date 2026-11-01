@@ -25,15 +25,18 @@ describe('SelectedBlockCard', () => {
     expect(card().textContent).toContain('No block selected.');
   });
 
-  it('shows a valid block: short hash with Copy, intact link, nonce, miner facts and transactions', () => {
+  it('shows a valid block: the whole hash with Copy, intact link, nonce, miner facts and transactions', () => {
     render(<SelectedBlockCard block={block()} status="valid" prevHash={PREV} />);
     const text = card().textContent;
     expect(screen.getByRole('heading', { name: 'Selected block #4' })).toBeTruthy();
     expect(text).toContain('Valid');
     expect(text).toContain('newest · mined by Lars');
-    expect(text).toContain('0080a3…4d');
-    expect(text).toContain('starts with 00');
-    expect(text).toContain('= hash of #3');
+    expect(HASH).toHaveLength(64);
+    expect(text).toContain(HASH);
+    expect(text).toContain(PREV);
+    expect(text).not.toContain('…');
+    expect(text).toContain('start with 00');
+    expect(text).toContain('= #3');
     expect(text).toContain('link intact');
     expect(text).toContain('5,775');
     expect(text).toContain('7.1 s · 332 tries · reward 1.5625');
@@ -195,7 +198,7 @@ describe('SelectedBlockCard', () => {
     expect(text).toContain('Hash mismatch');
     expect(text).toContain('edited after mining · mined by Lars');
     expect(text).toContain('Hash now');
-    expect(text).toContain('7c41e2…b0');
+    expect(text).toContain(computed);
     expect(text).toContain('0/2 zeros');
     expect(text).toContain('does not start with 00');
     expect(text).toContain('As mined');
@@ -217,7 +220,7 @@ describe('SelectedBlockCard', () => {
     rerender(<SelectedBlockCard block={block({ index: 3 })} status="link-broken" prevHash="00ffee0000000000000000000000000000000000000000000000000000000011" />);
     expect(card().textContent).toContain('Link broken');
     expect(card().textContent).toContain('link broken');
-    expect(card().textContent).toContain('#2 is now 00ffee…11');
+    expect(card().textContent).toContain('#2 is now 00ffee0000000000000000000000000000000000000000000000000000000011');
 
     rerender(<SelectedBlockCard block={block({ index: 2 })} status="signature-invalid" prevHash={PREV}
       edit={{ txIndex: 0, from: 0.2, to: 2 }} onUndo={() => {}} />);

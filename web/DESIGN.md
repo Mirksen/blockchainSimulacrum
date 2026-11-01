@@ -156,8 +156,9 @@ decision, 2026-10-27):
   including the first automatic block after Genesis. Pause stops both the current
   search and repeat, including between rounds.
 - **Auto-transact** starts off. Its Repeat toggle sits in the Mempool header and
-  explains its behavior on hover. It fills only an empty mempool, waits while a
-  candidate is being mined, and keeps existing transfers when switched off.
+  explains its behavior on hover. It fills only an empty mempool with eight sample
+  transfers, waits while a candidate is being mined, and keeps existing transfers
+  when switched off.
   A fresh unfunded chain waits for a mining reward. Reset turns both repeats off.
 - **Live zero bars** show the highest observed zero count from the last second,
   including peaks between rendered frames. New highs rise promptly; older highs
@@ -192,9 +193,11 @@ decision, 2026-10-27):
 
 - **One grid with shared rows.** Selected block and Next block start and end
   at the same height; Wallets and Mempool start and end at the same height.
-- **Selected block:** hash with Copy, previous hash, nonce, miner with time,
-  tries and reward, transactions; "Open in Chain lab", "Tamper with this
-  block". Details show the block's 80 header bytes, field by field.
+- **Selected block:** the whole hash with Copy, the whole previous hash, nonce,
+  miner with time, tries and reward, transactions; "Open in Chain lab", "Tamper
+  with this block". Details show the block's 80 header bytes, field by field.
+  Both hashes keep all 64 characters, on two lines of 32 where one line is too
+  short: their length is part of the lesson.
 - **Next block:** the one primary action "Mining" with Play, an adjacent Repeat toggle for Auto-mine,
   difficulty stepper with its compact `bits`, and the last round as two lanes (Lars, Minas) with
   "Back Lars / Back Minas". While mining it becomes the **live race** in
@@ -329,7 +332,8 @@ Rules for every workbench component (`src/components/workbench/`):
 - A step a mission needs is wrapped in `<CoachMark target="…" coach={coach}>`;
   the target ids are the `target` strings in `src/lib/missions.js`.
 - Short hash: first 6 + last 2 characters with "…", leading zeros
-  highlighted.
+  highlighted. Only for tiles, hints and lists, where the full hash is one hover
+  or one click away. Where a hash is the subject, show all 64 characters.
 - Each component has a test (vitest and Testing Library) for its states and
   callbacks.
 

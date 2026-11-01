@@ -20,6 +20,8 @@ function snapshot(chain) {
         describeTx: chain.describer()
     };
 }
+// One Auto-transact refill: enough to fill a block, few enough to read.
+const SAMPLE_TRANSFERS = 8;
 const aborted = () => ({ success: false, aborted: true });
 function miningMetrics(run) {
     return { difficulty: run.difficulty, elapsed_ms: Math.max(0, Date.now() - run.startedAt), attempt_count: run.attempts,
@@ -354,7 +356,7 @@ export function useBlockchain(config = {}) {
         if (controller.run || controller.setup) return { success: false, error: 'Stop mining first.' };
         const chain = controller.chain;
         let count = 0;
-        for (let i = 0; i < 10; i++) {
+        for (let i = 0; i < SAMPLE_TRANSFERS; i++) {
             // Pick a sender who can actually fund a sample transfer. Choosing
             // only unfunded wallets must not strand an enabled empty refill.
             const funded = chain.participants.map(participant => ({ participant,
