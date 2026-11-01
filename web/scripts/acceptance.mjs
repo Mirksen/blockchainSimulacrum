@@ -253,6 +253,22 @@ try {
  assert.equal(await wb.shown().innerText(),'Block #1');
  await page.getByRole('button',{name:'Show newest',exact:true}).click();
  assert.equal(await wb.shown().innerText(),'Block #4');
+ // Tampering shows the block without holding it: a valid chain follows the newest block again.
+ await page.getByRole('button',{name:'Tamper with this block',exact:true}).click();
+ const newestEditor = page.getByRole('form',{name:'Change a transaction amount in block 4'});
+ await newestEditor.getByLabel('New amount').fill('1');
+ await newestEditor.getByRole('button',{name:'Change amount'}).click();
+ await wb.chainPill().filter({hasText:'Chain invalid'}).waitFor();
+ assert.equal(await wb.tile(4).getAttribute('aria-pressed'),'false','A repair holds no block');
+ await wb.tile(3).click();
+ assert.equal(await wb.shown().innerText(),'Block #3','A click outranks the repair');
+ await wb.tile(3).click();
+ assert.equal(await wb.shown().innerText(),'Block #4');
+ await page.getByRole('button',{name:'Undo edit',exact:true}).first().click();
+ await wb.chainPill().filter({hasText:'Chain valid'}).waitFor();
+ await wb.mine(5).click();
+ await wb.tile(5).waitFor({timeout:30000});
+ assert.equal(await wb.shown().innerText(),'Block #5','After a repair the card follows the newest block');
  results.push('The block card follows the newest block, holds a clicked block and opens its transactions in place');
 
  await fitsWidths('Workbench with history');
