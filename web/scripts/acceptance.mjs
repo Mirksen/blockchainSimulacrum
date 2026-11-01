@@ -184,7 +184,7 @@ try {
  results.push('Wallet balance updates; wallet and transaction dialogs open and Escape closes them');
 
  const tamper = async (index, amount) => {
-  await wb.tile(index).click();
+  await wb.select(index);
   await page.getByRole('button',{name:'Tamper with this block',exact:true}).click();
   const editor = page.getByRole('form',{name:`Change a transaction amount in block ${index}`});
   await editor.getByLabel('New amount').fill(amount);
@@ -218,7 +218,7 @@ try {
  results.push('Tampering is detected; re-mining the broken block and every later one repairs the chain');
 
  // A mined block can be recomputed from the bytes it shows, without the app.
- await wb.tile(2).click();
+ await wb.select(2);
  await page.getByRole('button',{name:'Details',exact:true}).click();
  const blockDetails = page.getByRole('dialog',{name:'Block details'});
  await blockDetails.waitFor();
@@ -229,6 +229,31 @@ try {
  await page.keyboard.press('Escape');
  await blockDetails.waitFor({state:'hidden'});
  results.push('A mined block is recomputed from its 80 displayed bytes with node:crypto');
+ // The card follows the newest block unless one is held; a held block outlives new blocks.
+ const held = await wb.tile(2).getAttribute('aria-pressed');
+ assert.equal(held,'true');
+ assert.equal(await wb.shown().innerText(),'Block #2');
+ await wb.mine(4).click();
+ await wb.tile(4).waitFor({timeout:30000});
+ assert.equal(await wb.shown().innerText(),'Block #2','A held block stays shown while new blocks arrive');
+ const rows = page.getByRole('list',{name:'Transactions'}).locator('.block-tx-row');
+ assert.ok(await rows.count()>=1);
+ await rows.first().click();
+ assert.match(await page.locator('.block-tx-id code').innerText(),/^[0-9a-f]{64}$/);
+ assert.equal((await page.locator('.selected-block-hash').first().innerText()).replace(/\s/g,'').length,64);
+ await page.getByRole('button',{name:'Scripts, signature and raw bytes',exact:true}).click();
+ const blockTx = page.getByRole('dialog',{name:'Transaction details'});
+ await blockTx.waitFor();
+ await page.keyboard.press('Escape');
+ await blockTx.waitFor({state:'hidden'});
+ await wb.tile(2).click();
+ assert.equal(await wb.shown().innerText(),'Block #4','A second click follows the newest again');
+ assert.equal(await wb.tile(4).getAttribute('aria-pressed'),'false');
+ await wb.tile(1).click();
+ assert.equal(await wb.shown().innerText(),'Block #1');
+ await page.getByRole('button',{name:'Show newest',exact:true}).click();
+ assert.equal(await wb.shown().innerText(),'Block #4');
+ results.push('The block card follows the newest block, holds a clicked block and opens its transactions in place');
 
  await fitsWidths('Workbench with history');
  await menu(page, 'Reset');

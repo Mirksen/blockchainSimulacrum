@@ -1,12 +1,14 @@
 /* Selected block card — shell, rows and buttons come from cardKit.css */
-.selected-block { container: selected-block / inline-size; }
+.selected-block { container: selected-block / inline-size; overflow-y: auto; }
 .selected-block .card-kit-head .card-kit-pill > svg { flex: none; }
-.selected-block-rows { min-height: 0; }
+.selected-block-rows { flex: none; }
 /* The full hash: one line where it fits, otherwise two equal halves. */
 .selected-block-hash { flex: 0 1 auto; min-width: 0; font: 12px/18px var(--mono); }
 .selected-block-hash, .selected-block-hash > s { display: inline-flex; flex-wrap: wrap; }
 .selected-block .card-kit-kv.is-wrap > dd { flex-wrap: wrap; white-space: normal; row-gap: 2px; }
-.selected-block-txs { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.selected-block-follow { flex: none; padding: 0; border: 0; background: none; color: var(--blue); font: 500 12px/16px var(--ui); cursor: pointer; }
+.selected-block-follow:hover { text-decoration: underline; }
+.selected-block-follow:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .selected-block-edit b { font-weight: 600; }
 
 .selected-block-note {

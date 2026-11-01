@@ -16,7 +16,7 @@
 .mempool-card-what { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mempool-card-what b { font-weight: 500; }
 .mempool-card-what small { font-size: 12px; color: var(--text-3); margin-left: var(--s-2); }
-.mempool-card-what small.mempool-card-spend { display: block; margin-left: 0; font-size: 11px; line-height: 14px; font-family: var(--mono); white-space: normal; }
+.mempool-card-what small.mempool-card-spend { display: block; margin-left: 0; font-size: 11px; line-height: 14px; font-family: var(--mono); overflow: hidden; text-overflow: ellipsis; }
 .mempool-card-open { padding: 0; border: 0; background: none; color: inherit; font: inherit; cursor: pointer; }
 .mempool-card-open:hover b { text-decoration: underline; }
 .mempool-card-open:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
@@ -31,7 +31,7 @@
 
 @container mempool-card (max-width: 520px) {
   .mempool-card-aside { display: none; }
-  .mempool-card .card-kit-head .btn-tinted, .coach-mark.is-active.mempool-card-coach { margin-left: auto; }
+  .mempool-card-repeat { margin-left: auto; }
   .coach-mark.is-active.mempool-card-coach .btn-tinted { margin-left: 0; }
   .mempool-card-fields { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
   .mempool-card-form-hint { display: none; }
@@ -51,6 +51,19 @@
 .mempool-card-repeat[aria-pressed="true"]:hover { background: var(--blue-2); }
 .mempool-card-repeat:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 @container mempool-card (max-width: 520px) {
+  .mempool-card-repeat-rest { display: none; }
+  /* one line per transfer, the same as in the block card; coins and change give way first */
+  .mempool-card-tx { flex: 1 1 30px; min-height: 30px; max-height: 44px; }
+  .mempool-card-what { display: flex; align-items: baseline; gap: var(--s-2); }
+  .mempool-card-what > :first-child { flex: none; }
+  .mempool-card-what small { flex: none; margin-left: 0; }
+  .mempool-card-what small.mempool-card-spend { flex: 0 1 auto; min-width: 0; white-space: nowrap; }
+}
+@container mempool-card (max-width: 400px) {
+  .mempool-card .card-kit-head .btn-tinted { font-size: 12px; padding-inline: 8px; }
+}
+@container mempool-card (max-width: 360px) {
+  .mempool-card-repeat-rest { display: inline; }
   .mempool-card .card-kit-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; height: auto; min-height: 44px; padding-block: 8px; gap: 8px; }
   .mempool-card .card-kit-title { grid-row: 1; grid-column: 1; }
   .mempool-card .card-kit-head > .card-kit-pill { grid-row: 1; grid-column: 2; justify-self: end; }

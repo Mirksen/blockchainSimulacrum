@@ -8,6 +8,12 @@ export function workbench(page) {
   return {
     tiles: () => page.getByRole('button', { name: TILE }),
     tile: index => page.getByRole('button', { name: index === 0 ? /^Genesis block 0(,|$)/ : new RegExp(`^Block ${index}(,|$)`) }),
+    // A click holds a block and a second click lets go, so select only what is not held yet.
+    select: async index => {
+      const tile = page.getByRole('button', { name: index === 0 ? /^Genesis block 0(,|$)/ : new RegExp(`^Block ${index}(,|$)`) });
+      if (await tile.getAttribute('aria-pressed') !== 'true') await tile.click();
+    },
+    shown: () => page.locator('section.selected-block .card-kit-title').first(),
     mine: index => page.getByRole('region', { name: new RegExp(`^Next block ${index}(,|$)`) }).getByRole('button', { name: 'Mining', exact: true }),
     chainPill: () => page.locator('.top-bar-chain')
   };
