@@ -38,18 +38,19 @@ function leadingZeros(hash = '') {
   return match ? match[0].length : 0;
 }
 
-function ShortHash({ hash, struck = false }) {
+// All 64 characters, always: their length is part of what the card teaches. Where a
+// line is too short for them they break once, in the middle.
+function FullHash({ hash, struck = false }) {
   if (!hash) return <span className="card-kit-mono card-kit-t3">none</span>;
-  const head = hash.slice(0, 6);
   // A struck (no longer valid) hash shows no highlighted zeros.
-  const zeros = struck ? 0 : leadingZeros(head);
-  const body = (
-    <>
-      {zeros > 0 && <span className="card-kit-zero">{head.slice(0, zeros)}</span>}
-      {head.slice(zeros)}…{hash.slice(-2)}
-    </>
-  );
-  return <span className="card-kit-mono" title={hash}>{struck ? <s>{body}</s> : body}</span>;
+  const zeros = struck ? 0 : leadingZeros(hash);
+  const half = Math.ceil(hash.length / 2);
+  const part = (from, to) => {
+    const lead = Math.max(0, Math.min(zeros, to) - from);
+    return <span>{lead > 0 && <span className="card-kit-zero">{hash.slice(from, from + lead)}</span>}{hash.slice(from + lead, to)}</span>;
+  };
+  const body = <>{part(0, half)}{part(half, hash.length)}</>;
+  return <span className="selected-block-hash">{struck ? <s>{body}</s> : body}</span>;
 }
 
 function CopyButton({ value, label }) {
@@ -197,37 +198,37 @@ export function SelectedBlockCard({ block, status, prevHash, edit, onOpenDetails
 
   const hashRow = kind === 'hash-mismatch' ? (
     <>
-      <div className="card-kit-kv"><dt>Hash now</dt><dd>
-        <ShortHash hash={computedHash} /><CopyButton key={`${block.index}:${computedHash}`} value={computedHash} label="hash" />
+      <div className="card-kit-kv is-wrap"><dt>Hash now</dt><dd>
+        <FullHash hash={computedHash} /><CopyButton key={`${block.index}:${computedHash}`} value={computedHash} label="hash" />
         <span className="card-kit-bad">{Math.min(leadingZeros(computedHash), difficulty)}/{difficulty} zeros</span>
         <span className="card-kit-t3">· does not start with {target}</span>
       </dd></div>
-      <div className="card-kit-kv"><dt>As mined</dt><dd>
-        <ShortHash hash={storedHash} struck />
+      <div className="card-kit-kv is-wrap"><dt>As mined</dt><dd>
+        <FullHash hash={storedHash} struck />
         <span className="card-kit-t3">{block.isNewest ? 'the hash stored when it was mined' : `what #${block.index + 1} still stores as its previous hash`}</span>
       </dd></div>
     </>
   ) : (
     <div className="card-kit-kv"><dt>Hash</dt><dd>
-      <ShortHash hash={block.hash} /><CopyButton key={`${block.index}:${block.hash}`} value={block.hash} label="hash" />
-      <span className="card-kit-t3">{isGenesis ? `${leadingZeros(block.hash)} zeros · ` : `starts with ${target} · `}double SHA-256 of 80 bytes</span>
+      <FullHash hash={block.hash} /><CopyButton key={`${block.index}:${block.hash}`} value={block.hash} label="hash" />
     </dd></div>
   );
 
   const previousRow = (
-    <div className="card-kit-kv"><dt>Previous</dt><dd>
+    <div className={`card-kit-kv${linkIntact && !block.anchor ? '' : ' is-wrap'}`}><dt>Previous</dt><dd>
       {isGenesis ? (block.anchor
-        ? <><ShortHash hash={block.anchor.hash} /><span className="card-kit-t3">= Bitcoin block #{block.anchor.height}</span></>
+        ? <><FullHash hash={block.anchor.hash} /><span className="card-kit-t3">= Bitcoin block #{block.anchor.height}</span></>
         : <span className="card-kit-t3">none · Genesis is the first block</span>) : linkIntact ? (
         <>
-          <ShortHash hash={block.previousHash} />
-          <span className="card-kit-t3">= hash of #{block.index - 1}</span>
-          <span className="card-kit-ok"><CheckIcon />link intact</span>
+          <FullHash hash={block.previousHash} />
+          <span className="card-kit-ok" title={`Link intact: this is the hash of #${block.index - 1}`}>
+            <CheckIcon />= #{block.index - 1}<span className="card-kit-sr">, the hash of the block before, link intact</span>
+          </span>
         </>
       ) : (
         <>
-          <ShortHash hash={block.previousHash} struck />
-          <span className="card-kit-t3">#{block.index - 1} is now <ShortHash hash={prevHash} /></span>
+          <FullHash hash={block.previousHash} struck />
+          <span className="card-kit-t3">#{block.index - 1} is now <FullHash hash={prevHash} /></span>
           <span className="card-kit-bad">link broken</span>
         </>
       )}
@@ -237,7 +238,7 @@ export function SelectedBlockCard({ block, status, prevHash, edit, onOpenDetails
   const nonceRow = kind === 'hash-mismatch' ? null : (
     <div className="card-kit-kv"><dt>Nonce</dt><dd>
       <span>{Number(block.nonce ?? 0).toLocaleString('en-US')}</span>
-      <span className="card-kit-t3">· makes the hash start with {target}</span>
+      <span className="card-kit-t3">· makes the double SHA-256 of 80 bytes start with {target}</span>
     </dd></div>
   );
 

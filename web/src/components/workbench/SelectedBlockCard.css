@@ -2,6 +2,10 @@
 .selected-block { container: selected-block / inline-size; }
 .selected-block .card-kit-head .card-kit-pill > svg { flex: none; }
 .selected-block-rows { min-height: 0; }
+/* The full hash: one line where it fits, otherwise two equal halves. */
+.selected-block-hash { flex: 0 1 auto; min-width: 0; font: 12px/18px var(--mono); }
+.selected-block-hash, .selected-block-hash > s { display: inline-flex; flex-wrap: wrap; }
+.selected-block .card-kit-kv.is-wrap > dd { flex-wrap: wrap; white-space: normal; row-gap: 2px; }
 .selected-block-txs { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .selected-block-edit b { font-weight: 600; }
 
