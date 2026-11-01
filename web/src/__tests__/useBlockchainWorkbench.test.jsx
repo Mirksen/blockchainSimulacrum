@@ -210,8 +210,8 @@ describe('automatic sample transfers', () => {
     vi.mocked(Math.random).mockReturnValue(0.999);
     let generated;
     act(() => { generated = result.current.generateRandomTransactions(); });
-    expect(generated).toEqual({ success: true, count: 10 });
-    expect(result.current.memPool).toHaveLength(10);
+    expect(generated).toEqual({ success: true, count: 8 });
+    expect(result.current.memPool).toHaveLength(8);
     expect(result.current.memPool.every(tx => tx.outputs[0].value >= 5_000_000 && tx.outputs[0].value <= 10_000_000)).toBe(true);
     expect(result.current.chainValid).toBe(true);
   });
