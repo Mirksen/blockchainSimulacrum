@@ -16,6 +16,7 @@ import {
   MIN_SHARE_ZEROS,
   MAX_SHARE_ZEROS,
   LEADERBOARD_SIZE,
+  MAX_BLOCKS,
 } from '../src/app.js';
 import { createHiddenNames } from '../src/names.js';
 import {
@@ -470,6 +471,77 @@ describe('leaderboard', () => {
     } finally {
       hidden.unhide('equal-small');
       srv.tip.state.window = 2;
+    }
+  });
+});
+
+describe('the limit on stored blocks', () => {
+  const stored = (srv) => srv.db.prepare('SELECT name FROM blocks ORDER BY name').all().map((row) => row.name);
+  const tip = () => fakeTip({ current: ROUND_A });
+  const prove2 = async (srv, name, round, exact) => assert.equal((await prove(srv, name, round, { exact })).res.status, 200, name);
+
+  test('MAX_BLOCKS stays well inside the 64 MiB data filesystem', () => {
+    assert.equal(MAX_BLOCKS, 20_000);
+  });
+
+  test('drops the worst block of the window while finished rounds hold their half', async () => {
+    const srv = await startServer({ tip: tip(), maxBlocks: 4 });
+    try {
+      await prove2(srv, 'old-leader', ROUND_A, 3);
+      await prove2(srv, 'old-weak', ROUND_A, 1);
+      srv.tip.advance(ROUND_B);
+      srv.tip.advance(ROUND_C); // A has left the two-block window.
+      await prove2(srv, 'new-good', ROUND_C, 2);
+      await prove2(srv, 'new-mid', ROUND_C, 2);
+      assert.equal(stored(srv).length, 4, 'exactly at the limit nothing goes');
+      await prove2(srv, 'new-weak', ROUND_C, 1);
+      assert.deepEqual(stored(srv), ['new-good', 'new-mid', 'old-leader', 'old-weak']);
+    } finally {
+      await srv.close();
+    }
+  });
+
+  test('drops the worst finished block once finished rounds exceed their half', async () => {
+    const srv = await startServer({ tip: tip(), maxBlocks: 4 });
+    try {
+      await prove2(srv, 'old-leader', ROUND_A, 3);
+      await prove2(srv, 'old-mid', ROUND_A, 2);
+      await prove2(srv, 'old-weak', ROUND_A, 1);
+      srv.tip.advance(ROUND_B);
+      srv.tip.advance(ROUND_C);
+      await prove2(srv, 'new-one', ROUND_C, 1);
+      await prove2(srv, 'new-two', ROUND_C, 1);
+      assert.deepEqual(stored(srv), ['new-one', 'new-two', 'old-leader', 'old-mid']);
+    } finally {
+      await srv.close();
+    }
+  });
+
+  test('a flood under rotating names reaches neither the all-time leader nor the best of the window', async () => {
+    const srv = await startServer({ tip: tip(), maxBlocks: 6 });
+    try {
+      await prove2(srv, 'old-leader', ROUND_A, 3);
+      srv.tip.advance(ROUND_B);
+      srv.tip.advance(ROUND_C);
+      await prove2(srv, 'new-leader', ROUND_C, 2);
+      for (let i = 0; i < 30; i += 1) await prove2(srv, `flood-${i}`, ROUND_C, 1);
+      assert.equal(stored(srv).length, 6);
+      const { body } = await getLeaderboard(srv);
+      assert.equal(body.allTime[0].name, 'old-leader');
+      assert.equal(body.recent.rows[0].name, 'new-leader');
+    } finally {
+      await srv.close();
+    }
+  });
+
+  test('a dropped block is answered like any other', async () => {
+    const srv = await startServer({ tip: tip(), maxBlocks: 1 });
+    try {
+      await prove2(srv, 'only-one', ROUND_A, 2);
+      await prove2(srv, 'too-weak', ROUND_A, 1);
+      assert.deepEqual(stored(srv), ['only-one']);
+    } finally {
+      await srv.close();
     }
   });
 });
