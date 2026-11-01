@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import CryptoJS from 'crypto-js/core';
 import SHA256 from 'crypto-js/sha256';
 import { Blockchain, createGenesisBlock, GENESIS } from '../lib/blockchain';
-import { buildBlock, leadingZeroBits, targetOf, zerosOfTarget } from '../../../shared/bitcoin-block.mjs';
-import { formatDifficulty, hashDifficulty, leadingZeros, proofPrefix, verifyRow } from '../lib/poolProof';
+import { buildBlock, displayHash, leadingZeroBits, targetOf, zerosOfTarget } from '../../../shared/bitcoin-block.mjs';
+import { formatDifficulty, hashDifficulty, leadingZeros, poolCandidate, proofPrefix, signatureOf, verifyRow } from '../lib/poolProof';
 
 const ROUND = { height: 900001, hash: `0000${'ab'.repeat(30)}` };
 const sha256d = hex => SHA256(SHA256(CryptoJS.enc.Hex.parse(hex))).toString();
@@ -70,10 +70,15 @@ describe('pool proof', () => {
   });
 
   it('verifies a row from its public fields and catches a changed name', () => {
-    const prefix = proofPrefix(GENESIS.hash, ROUND, 'synthetic-miner');
-    const row = { name: 'synthetic-miner', round: ROUND, nonce: 42, bestHash: SHA256(`${prefix}42`).toString() };
-    expect(verifyRow(row)).toMatchObject({ preimage: `${prefix}42`, matches: true });
+    const name = 'synthetic-miner';
+    const signature = signatureOf({ name, round: ROUND, prefix: proofPrefix(GENESIS.hash, ROUND, name) });
+    const candidate = poolCandidate(signature, { time: 1_800_000_000, extraNonce: 0, zeros: 1 });
+    const header = `${candidate.header}${'00'.repeat(4)}`;
+    const row = { name, round: ROUND, header, coinbase: candidate.coinbase, branch: [], bestHash: displayHash(header, sha256d) };
+    expect(verifyRow(row)).toMatchObject({ header, hash: row.bestHash, signed: true, matches: true });
     expect(verifyRow({ ...row, name: 'other-miner' }).matches).toBe(false);
+    expect(verifyRow({ ...row, bestHash: '0'.repeat(64) }).matches).toBe(false);
+    expect(verifyRow({ ...row, branch: ['ab'.repeat(32)] }).signed).toBe(false);
   });
 
   it('scores difficulty relative to one zero, finer than counting zeros', () => {

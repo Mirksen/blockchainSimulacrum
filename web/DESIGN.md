@@ -95,21 +95,30 @@ use the monospace font.
 Features that reached master during the workshop get these places (lead
 decision, 2026-10-27):
 
-- **Mining pool** becomes the fourth tab: Workbench · Hash lab · Chain lab ·
-  Mining pool. The labs and the pool are views behind the tabs, not dialogs;
-  the tab is in the URL (`#/hash-lab`, `#/chain-lab`, `#/pool`). Joining the
-  pool happens on its tab.
-- **Pool proofs** (Mirko, 2026-10-29): a proof hashes our genesis hash, a
-  recent Bitcoin block (height and hash), the name and a nonce. It counts
-  while that Bitcoin block is one of the last 144 (about a day); the pool
-  tab lists "Last 144 blocks" and "All time", ranked by the smallest hash.
-  Every row has Verify. A bridge genesis says so under the board; the final
-  genesis (mined 31 October 2026) starts the board again.
+- **Leaderboard** is the fourth tab: Workbench · Hash lab · Chain lab ·
+  Leaderboard. The labs and the board are views behind the tabs, not dialogs;
+  the tab is in the URL (`#/hash-lab`, `#/chain-lab`, `#/pool`).
+- **Miner name** (Mirko, 2026-11-01): the strip at the top of the Next block
+  card holds the visitor's name, in every mode. A visitor starts with a
+  generated name from Bitcoin's history (`Not-Satoshi-4`); the field glows
+  until they choose their own, and an emptied field returns to it. It locks
+  during a race. One line says what happens to the next block and what
+  became of the last one, with the rank. The Leaderboard tab shows the same
+  name.
+- **Every block counts** (Mirko, 2026-11-01): every block this browser mines
+  carries the name in the coinbase and goes to the leaderboard,
+  whichever simulated miner wins (ADR 0003). The selected block says "signed
+  <name>" beside its miner. A proof counts while its Bitcoin block is one of
+  the last 144 (about a day); the tab lists "Last 144 blocks" and "All time",
+  ranked by the smallest hash, then a continuous search for one more zero.
+  Every row has Verify.
 - **Leaderboard ticker** (Mirko): a slim band directly under the top bar
-  runs the all-time pool leaderboard from right to left (rank, name, zeros,
-  difficulty, best hash). It pauses on hover and focus, is static under
-  `prefers-reduced-motion`, and disappears quietly when the leaderboard
-  server is unavailable. Clicking it opens the Mining pool tab.
+  runs the all-time leaderboard of all visitors from right to left (rank,
+  name, zeros, difficulty, best hash), then the special finds: best today,
+  most blocks, latest find. It pauses on hover and focus, is static under
+  `prefers-reduced-motion`, invites to the first block while the board is
+  empty and disappears quietly when the leaderboard server is unavailable.
+  Clicking it opens the Leaderboard tab.
 - **Missions and the learning path are one track** (Mirko). The three guided
   experiments become missions; the learning path dialog goes away. A
   mission names the view it needs, switches to that tab and marks the
@@ -300,7 +309,7 @@ and validity states are semantic tokens.
 | Link | 1 px hairline with a neutral 6 px dot; `is-broken` red, `is-dependent` amber; explaining tooltip |
 | Chain health | One line, collapsible strip of per-block checks on the tile column grid |
 | Card | Panel surface, 1 px line, no shadow; header with title, status pill and at most one action |
-| Next block card | Primary action, Auto-mine, difficulty stepper, race lanes; live race state; repair state |
+| Next block card | Miner name, primary action, Auto-mine, difficulty stepper, race lanes; live race state; repair state |
 | Race lane | Miner, nonce, current hash with checked leading characters, progress, Back action, result |
 | Coach ring | Ring plus small label on the element a mission step needs |
 | Key-value rows | Label, mono value, quiet explanation |

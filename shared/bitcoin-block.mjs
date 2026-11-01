@@ -95,6 +95,22 @@ export function merkleRoot(txids, sha256d) {
 }
 
 /**
+ * The siblings, in internal byte order, that lead from transaction 0 to the merkle root:
+ * enough to prove what the coinbase says without the other transactions.
+ */
+export function merkleBranch(txids, sha256d) {
+  const branch = [];
+  let level = txids.map(reverseHex);
+  while (level.length > 1) {
+    branch.push(level[1]);
+    const next = [];
+    for (let i = 0; i < level.length; i += 2) next.push(sha256d(level[i] + (level[i + 1] ?? level[i])));
+    level = next;
+  }
+  return branch;
+}
+
+/**
  * The genesis block of `genesis` (shared/genesis.json): its coinbase hex, txid, header hex
  * and hash, all derived from the stored fields so anyone can recompute them.
  */

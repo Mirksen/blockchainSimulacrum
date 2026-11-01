@@ -87,12 +87,18 @@ Terms used in code, tests and docs of proofofwork.fyi. Decisions that shape them
 
 ## Pool and leaderboard
 
-- **Pool** — the shared, server-side part: the server issues signed, short-lived **challenges**
-  (`prefix` contains the challenge id and the player name), browsers search nonces, and the server
-  re-hashes every submitted **share** before it counts. Shares of the local simulator chain never
-  count; that chain lives only in one browser.
-- **Points** — a share is worth its target's expected work (16^zeros). A luckier hash than required
-  earns the same points and only improves the player's **best hash**.
+- **Miner name** — the public name a visitor mines under. It is not an account; people using the same
+  name share a leaderboard entry.
+- **Round** — a recent Bitcoin block the server offers. A block counts while its round is one of the
+  last 144 Bitcoin blocks, so nobody can mine further ahead.
+- **Signature** — the name in a coinbase's tag plus a last OP_RETURN output of 0 value, the
+  **commitment**: `SHA256(proofofwork.fyi|genesis|round|name|)`. With a name, every candidate of every
+  miner in the browser is signed, so every block counts whichever miner wins (ADR 0003).
+- **Block proof** — what the server re-checks and the board stores: header, coinbase and the **merkle
+  branch** from the coinbase to the root. The server checks the work and the signature, never the
+  block's place in a chain, which lives in one browser.
+- **Best hash** — the smallest hash of a name; it decides the rank. The server keeps one block per
+  name and round, plus how many were sent.
 
 ## Hosting
 

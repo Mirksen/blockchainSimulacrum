@@ -6,7 +6,9 @@ import { initialProgress, MISSIONS, STORAGE_KEY } from '../lib/missions';
 
 // Keep real App, rail, invitation and progress storage. Simulation and lab internals
 // are covered separately; their evidence callbacks exercise the real App wiring here.
+vi.mock('../hooks/useMinerIdentity', () => ({ useMinerIdentity: () => ({ name: 'Not-Satoshi-4', setName: () => {}, signer: {} }) }));
 vi.mock('../hooks/useBlockchain', () => ({ useBlockchain: () => ({
+  setSigner: () => {},
   blocks: [{}], participants: [], balances: [], memPool: [], chainValid: true,
   isMining: false, isSettingUp: false, difficulty: 2, halvingInterval: 4,
 }) }));

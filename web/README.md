@@ -22,8 +22,8 @@ local to this browser and site: clearing site data or using another browser/devi
 does not recover them. If storage is blocked, controls still work for the current
 visit, but the choice and progress cannot survive a reload.
 
-The pool's public display name is entered in Mining pool and remembered separately
-as `proofofwork-pool-name`. Its server stores submitted proofs in SQLite.
+The public miner name starts generated, can be changed at the top of the Next block card and is
+remembered separately as `proofofwork-pool-name`. The leaderboard server stores each name's best block per round in SQLite.
 Names are not unique: people using the same name share a leaderboard entry.
 The name is not a login or a protected account, and it does not identify or sync
 mission progress. Simulated wallets are separate from both.

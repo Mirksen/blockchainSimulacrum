@@ -9,14 +9,15 @@ export const POOL_TIMEOUT_MS = 10_000;
 // Same rule as the server: 3–20 letters, digits or hyphens.
 const NAME_PATTERN = /^[A-Za-z0-9-]{3,20}$/;
 export const isValidPoolName = name => typeof name === 'string' && NAME_PATTERN.test(name);
+export const NAME_HINT = 'Use 3–20 characters: letters, digits or hyphens.';
 
 const MESSAGES = {
-  400: 'The pool did not accept this request.',
-  409: 'This proof was already counted.',
+  400: 'The leaderboard did not accept this request.',
+  409: 'This block was already counted.',
   410: 'This round is over: its Bitcoin block left the window.',
-  413: 'The proof was too large to send.',
-  422: 'This hash does not meet the target.',
-  429: 'Too many requests to the pool. Please wait a minute.',
+  413: 'The block was too large to send.',
+  422: 'The leaderboard did not accept this block.',
+  429: 'Too many requests to the leaderboard. Please wait a minute.',
 };
 
 function poolError(status, message, code) {
@@ -26,7 +27,7 @@ function poolError(status, message, code) {
 export const NAME_UNAVAILABLE_MESSAGE = 'This name is not available. Please choose another.';
 
 const messageFor = status => MESSAGES[status] ||
-  (status >= 500 ? 'The leaderboard server is unavailable right now.' : 'The pool answered with an unexpected error.');
+  (status >= 500 ? 'The leaderboard server is unavailable right now.' : 'The leaderboard answered with an unexpected error.');
 
 // The server decides which names are available; a refused name gets its own code
 // so the panel can point at the name field instead of retrying.
@@ -82,7 +83,8 @@ async function request(path, { method = 'GET', body, signal } = {}) {
 const invalidAnswer = () => poolError(0, 'The leaderboard server sent an unreadable answer.', 'invalid');
 const HASH = /^[0-9a-f]{64}$/;
 const isRound = round => Boolean(round) && Number.isSafeInteger(round.height) && round.height >= 0 && HASH.test(round.hash ?? '');
-const isRow = row => Boolean(row) && isValidPoolName(row.name) && isRound(row.round) && Number.isSafeInteger(row.nonce) &&
+const isRow = row => Boolean(row) && isValidPoolName(row.name) && isRound(row.round) && /^[0-9a-f]{160}$/.test(row.header ?? '') &&
+  /^[0-9a-f]+$/.test(row.coinbase ?? '') && Array.isArray(row.branch) && row.branch.every(node => HASH.test(node)) &&
   HASH.test(row.bestHash ?? '') && Number.isInteger(row.bestZeros) && Number.isFinite(row.difficulty) && Number.isInteger(row.proofs);
 
 // The round to mine. The client rebuilds the prefix itself, so a server answering for
@@ -96,9 +98,9 @@ export async function getChallenge(name, { signal } = {}) {
   return challenge;
 }
 
-export function submitProof(challenge, nonce, { signal } = {}) {
-  const { name, round } = challenge;
-  return request('/api/shares', { method: 'POST', body: { name, round: { height: round.height, hash: round.hash }, nonce }, signal });
+// `proof` is { header, coinbase, branch } of a mined block (poolProof.js).
+export function submitProof({ name, round }, proof, { signal } = {}) {
+  return request('/api/shares', { method: 'POST', body: { name, round: { height: round.height, hash: round.hash }, ...proof }, signal });
 }
 
 // { recent: { from, to, rows } | null, allTime: rows }; malformed rows are dropped.

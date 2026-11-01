@@ -243,6 +243,7 @@ export function SelectedBlockCard({ block, status, prevHash, edit, onOpenDetails
   );
 
   const minerFacts = [
+    block.signedBy && `signed ${block.signedBy}`,
     formatInterval(block.seconds),
     block.tries != null ? `${Number(block.tries).toLocaleString('en-US')} tries` : null,
     block.reward != null ? `reward ${formatAmount(block.reward)}` : null

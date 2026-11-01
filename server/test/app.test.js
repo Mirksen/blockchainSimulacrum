@@ -29,13 +29,15 @@ import {
   getChallenge,
   postShare,
   getLeaderboard,
+  blockAt,
+  coinbaseFor,
   mine,
   miss,
   prove,
   rawGet,
 } from './helpers.js';
 
-const countProofs = (srv) => srv.db.prepare('SELECT COUNT(*) AS n FROM proofs').get().n;
+const countProofs = (srv) => srv.db.prepare('SELECT COUNT(*) AS n FROM blocks').get().n;
 
 async function withApp(options, fn) {
   const server = http.createServer(createApp({ db: new DatabaseSync(':memory:'), now: () => T0, ...options }));
@@ -68,15 +70,15 @@ describe('proofPrefix and hashDifficulty', () => {
 });
 
 describe('createApp options', () => {
-  test('shareZeros defaults to PROOF_ZEROS (5) and genesisHash to the shipped genesis block', async () => {
-    assert.equal(PROOF_ZEROS, 5);
+  test('shareZeros defaults to PROOF_ZEROS (1) and genesisHash to the shipped genesis block', async () => {
+    assert.equal(PROOF_ZEROS, 1);
     assert.equal(MIN_SHARE_ZEROS, 1);
     assert.equal(MAX_SHARE_ZEROS, 8);
     await withApp({ tip: fakeTip() }, async (base) => {
       const res = await fetch(`${base}/api/challenge?name=default-miner`);
       assert.equal(res.status, 200);
       const body = await res.json();
-      assert.equal(body.minZeros, 5);
+      assert.equal(body.minZeros, 1);
       assert.equal(body.genesisHash, GENESIS.hash);
       assert.equal(body.prefix, proofPrefix(GENESIS.hash, ROUND_A, 'default-miner'));
       const lb = await (await fetch(`${base}/api/leaderboard`)).json();
@@ -170,7 +172,7 @@ describe('share verification', () => {
 
   test('an accepted proof answers its hash, zeros, difficulty and round and is stored once', async () => {
     const proof = mine(srv.prefix('honest-miner'), { min: 1 });
-    const res = await postShare(srv, { name: 'honest-miner', round: ROUND_B, nonce: proof.nonce });
+    const res = await postShare(srv, { name: 'honest-miner', round: ROUND_B, ...proof.block });
     assert.equal(res.status, 200);
     assert.deepEqual(res.body, {
       accepted: true,
@@ -179,16 +181,19 @@ describe('share verification', () => {
       difficulty: hashDifficulty(proof.hash),
       round: ROUND_B,
     });
-    assert.equal(proof.hash, sha256hex(`proofofwork.fyi|${TEST_GENESIS}|${ROUND_B.height}:${ROUND_B.hash}|honest-miner|${proof.nonce}`));
-    const rows = srv.db.prepare("SELECT * FROM proofs WHERE name = 'honest-miner'").all().map((row) => ({ ...row }));
+    assert.ok(proof.block.coinbase.includes(sha256hex(`proofofwork.fyi|${TEST_GENESIS}|${ROUND_B.height}:${ROUND_B.hash}|honest-miner|`)));
+    const rows = srv.db.prepare("SELECT * FROM blocks WHERE name = 'honest-miner'").all().map((row) => ({ ...row }));
     assert.deepEqual(rows, [{
       genesis_hash: TEST_GENESIS,
       name: 'honest-miner',
       round_height: ROUND_B.height,
       round_hash: ROUND_B.hash,
-      nonce: proof.nonce,
+      header: proof.block.header,
+      coinbase: proof.block.coinbase,
+      branch: '[]',
       hash: proof.hash,
       zeros: proof.zeros,
+      proofs: 1,
       created_at: T0,
     }]);
   });
@@ -200,38 +205,56 @@ describe('share verification', () => {
   });
 
   test('the same proof again is 409 duplicate proof and stored once', async () => {
-    const { nonce, res } = await prove(srv, 'dup-miner');
+    const { block, res } = await prove(srv, 'dup-miner');
     assert.equal(res.status, 200);
-    const again = await postShare(srv, { name: 'dup-miner', round: ROUND_B, nonce });
+    const again = await postShare(srv, { name: 'dup-miner', round: ROUND_B, ...block });
     assert.equal(again.status, 409);
     assert.deepEqual(again.body, { error: 'duplicate proof' });
-    assert.equal(srv.db.prepare("SELECT COUNT(*) AS n FROM proofs WHERE name = 'dup-miner'").get().n, 1);
+    assert.equal(srv.db.prepare("SELECT COUNT(*) AS n FROM blocks WHERE name = 'dup-miner'").get().n, 1);
   });
 
-  test('a nonce that misses the target is 422 hash misses target; client hash and zeros are ignored', async () => {
+  test('a block that misses the target is 422 hash misses target; client hash and zeros are ignored', async () => {
     const before = countProofs(srv);
     const bad = miss(srv.prefix('forger-01'), 1);
-    const res = await postShare(srv, { name: 'forger-01', round: ROUND_B, nonce: bad.nonce, hash: '0'.repeat(64), zeros: 64 });
+    const res = await postShare(srv, { name: 'forger-01', round: ROUND_B, ...bad.block, hash: '0'.repeat(64), zeros: 64 });
     assert.equal(res.status, 422);
     assert.deepEqual(res.body, { error: 'hash misses target' });
     assert.equal(countProofs(srv), before);
   });
 
+  test('a block with transactions proves its coinbase through the merkle branch', async () => {
+    const proof = mine(srv.prefix('branch-miner'), { min: 1, branch: ['ab'.repeat(32), 'cd'.repeat(32)] });
+    assert.equal((await postShare(srv, { name: 'branch-miner', round: ROUND_B, ...proof.block })).status, 200);
+    const { body } = await getLeaderboard(srv);
+    assert.deepEqual(body.allTime.find((row) => row.name === 'branch-miner').branch, proof.block.branch);
+  });
+
+  test('a block is bound to its coinbase, and the coinbase to transaction 0', async () => {
+    const before = countProofs(srv);
+    const proof = mine(srv.prefix('tied-miner'), { min: 1 });
+    const send = (block) => postShare(srv, { name: 'tied-miner', round: ROUND_B, ...block });
+    const forged = 'block names another miner or round';
+    // The same work with another coinbase, or a branch the header's root does not contain.
+    const swapped = await send({ ...proof.block, coinbase: coinbaseFor(srv.prefix('tied-miner')).replace('0151', '0152') });
+    assert.deepEqual([swapped.status, swapped.body.error], [422, forged]);
+    const branched = await send({ ...proof.block, branch: ['ab'.repeat(32)] });
+    assert.deepEqual([branched.status, branched.body.error], [422, forged]);
+    // A valid commitment outside a coinbase: its input spends a real outpoint.
+    const spending = proof.block.coinbase.replace(`01${'00'.repeat(32)}ffffffff`, `01${'11'.repeat(32)}00000000`);
+    const found = blockAt(spending, 0);
+    assert.deepEqual([(await send(found.block)).status], [422]);
+    assert.equal(countProofs(srv), before);
+  });
+
   test('a proof is bound to its name and its round', async () => {
     const before = countProofs(srv);
-    // Hits the target for bound-miner in round B, misses it for another name or round.
-    const proof = mine(srv.prefix('bound-miner', ROUND_B), {
-      min: 1,
-      accept: (nonce) =>
-        leadingHexZeros(sha256hex(srv.prefix('other-miner', ROUND_B) + nonce)) === 0 &&
-        leadingHexZeros(sha256hex(srv.prefix('bound-miner', ROUND_A) + nonce)) === 0,
-    });
-    const otherName = await postShare(srv, { name: 'other-miner', round: ROUND_B, nonce: proof.nonce });
+    const proof = mine(srv.prefix('bound-miner', ROUND_B), { min: 1 });
+    const otherName = await postShare(srv, { name: 'other-miner', round: ROUND_B, ...proof.block });
     assert.equal(otherName.status, 422);
-    const otherRound = await postShare(srv, { name: 'bound-miner', round: ROUND_A, nonce: proof.nonce });
+    const otherRound = await postShare(srv, { name: 'bound-miner', round: ROUND_A, ...proof.block });
     assert.equal(otherRound.status, 422);
     assert.equal(countProofs(srv), before);
-    assert.equal((await postShare(srv, { name: 'bound-miner', round: ROUND_B, nonce: proof.nonce })).status, 200);
+    assert.equal((await postShare(srv, { name: 'bound-miner', round: ROUND_B, ...proof.block })).status, 200);
   });
 
   test('an unknown block or one outside the window is 410 round over', async () => {
@@ -239,7 +262,7 @@ describe('share verification', () => {
     const unknown = { height: ROUND_B.height, hash: `${'0'.repeat(20)}${'d'.repeat(44)}` };
     for (const round of [ROUND_C, unknown, { height: 1, hash: ROUND_A.hash }]) {
       const proof = mine(srv.prefix('late-miner', round), { min: 1 });
-      const res = await postShare(srv, { name: 'late-miner', round, nonce: proof.nonce });
+      const res = await postShare(srv, { name: 'late-miner', round, ...proof.block });
       assert.equal(res.status, 410, JSON.stringify(round));
       assert.deepEqual(res.body, { error: 'round over' });
     }
@@ -247,7 +270,7 @@ describe('share verification', () => {
   });
 
   test('malformed share bodies are rejected with 400', async () => {
-    const ok = { name: 'malformed', round: ROUND_B, nonce: 1 };
+    const ok = { name: 'malformed', round: ROUND_B, ...mine(srv.prefix('malformed'), { min: 1 }).block };
     const cases = [
       ['not json', 'invalid JSON'],
       ['[]', 'invalid body'],
@@ -257,7 +280,7 @@ describe('share verification', () => {
       [{ ...ok, name: 'no' }, 'invalid name'],
       [{ ...ok, name: 'bad name' }, 'invalid name'],
       [{ ...ok, name: 42 }, 'invalid name'],
-      [{ name: 'malformed', nonce: 1 }, 'invalid round'],
+      [{ name: 'malformed' }, 'invalid round'],
       [{ ...ok, round: [ROUND_B.height, ROUND_B.hash] }, 'invalid round'],
       [{ ...ok, round: 'round-b' }, 'invalid round'],
       [{ ...ok, round: { hash: ROUND_B.hash } }, 'invalid round'],
@@ -266,11 +289,16 @@ describe('share verification', () => {
       [{ ...ok, round: { height: '900002', hash: ROUND_B.hash } }, 'invalid round'],
       [{ ...ok, round: { height: ROUND_B.height, hash: ROUND_B.hash.toUpperCase() } }, 'invalid round'],
       [{ ...ok, round: { height: ROUND_B.height, hash: ROUND_B.hash.slice(1) } }, 'invalid round'],
-      [{ ...ok, nonce: undefined }, 'invalid nonce'],
-      [{ ...ok, nonce: -1 }, 'invalid nonce'],
-      [{ ...ok, nonce: 1.5 }, 'invalid nonce'],
-      [{ ...ok, nonce: '12' }, 'invalid nonce'],
-      [{ ...ok, nonce: Number.MAX_SAFE_INTEGER + 1 }, 'invalid nonce'],
+      [{ ...ok, header: undefined }, 'invalid header'],
+      [{ ...ok, header: ok.header.slice(2) }, 'invalid header'],
+      [{ ...ok, header: ok.header.toUpperCase() }, 'invalid header'],
+      [{ ...ok, coinbase: undefined }, 'invalid coinbase'],
+      [{ ...ok, coinbase: ok.coinbase.slice(1) }, 'invalid coinbase'],
+      [{ ...ok, coinbase: `${ok.coinbase}zz` }, 'invalid coinbase'],
+      [{ ...ok, coinbase: '00'.repeat(257) }, 'invalid coinbase'],
+      [{ ...ok, branch: undefined }, 'invalid branch'],
+      [{ ...ok, branch: ['ab'] }, 'invalid branch'],
+      [{ ...ok, branch: Array(13).fill('ab'.repeat(32)) }, 'invalid branch'],
     ];
     const before = countProofs(srv);
     for (const [payload, error] of cases) {
@@ -282,7 +310,7 @@ describe('share verification', () => {
   });
 
   test('body larger than 2 KB is rejected with 413', async () => {
-    const payload = JSON.stringify({ name: 'big-body', round: ROUND_B, nonce: 1, pad: 'x'.repeat(3000) });
+    const payload = JSON.stringify({ name: 'big-body', round: ROUND_B, pad: 'x'.repeat(3000) });
     const res = await postShare(srv, payload);
     assert.equal(res.status, 413);
     assert.deepEqual(res.body, { error: 'body too large' });
@@ -306,12 +334,12 @@ describe('target enforcement above one zero', () => {
     const { body: ch } = await getChallenge(srv, 'near-miss');
     assert.equal(ch.minZeros, 2);
     const short = mine(ch.prefix, { exact: 1 });
-    const res = await postShare(srv, { name: 'near-miss', round: ch.round, nonce: short.nonce });
+    const res = await postShare(srv, { name: 'near-miss', round: ch.round, ...short.block });
     assert.equal(res.status, 422);
     assert.equal(countProofs(srv), 0);
 
     const enough = mine(ch.prefix, { min: 2 });
-    const ok = await postShare(srv, { name: 'near-miss', round: ch.round, nonce: enough.nonce });
+    const ok = await postShare(srv, { name: 'near-miss', round: ch.round, ...enough.block });
     assert.equal(ok.status, 200);
     assert.equal(ok.body.zeros, enough.zeros);
     assert.ok(ok.body.difficulty >= 16);
@@ -342,11 +370,11 @@ describe('leaderboard', () => {
   test('ranks the best hash per name: more zeros first, among equal zeros the smaller hash', async () => {
     // equal-big comes first in time, equal-small later with a smaller hash at the same zeros.
     big = mine(srv.prefix('equal-big'), { exact: 1 });
-    small = mine(srv.prefix('equal-small'), { exact: 1, accept: (_, hash) => hashDifficulty(hash) > hashDifficulty(big.hash) });
+    small = mine(srv.prefix('equal-small'), { exact: 1, accept: ({ hash }) => hashDifficulty(hash) > hashDifficulty(big.hash) });
     deep = mine(srv.prefix('deep-miner'), { exact: 2 });
     const worseDeep = mine(srv.prefix('deep-miner'), { exact: 1 });
-    const worseBig = mine(srv.prefix('equal-big'), { exact: 1, accept: (_, hash) => hash > big.hash });
-    const post = (name, proof) => postShare(srv, { name, round: ROUND_A, nonce: proof.nonce });
+    const worseBig = mine(srv.prefix('equal-big'), { exact: 1, accept: ({ hash }) => hash > big.hash });
+    const post = (name, proof) => postShare(srv, { name, round: ROUND_A, ...proof.block });
     for (const [t, name, proof] of [
       [T0 + 1000, 'equal-big', big],
       [T0 + 2000, 'equal-small', small],
@@ -367,7 +395,7 @@ describe('leaderboard', () => {
     assert.deepEqual(body.recent.rows[0], {
       name: 'deep-miner',
       round: ROUND_A,
-      nonce: deep.nonce,
+      ...deep.block,
       bestHash: deep.hash,
       bestZeros: 2,
       difficulty: hashDifficulty(deep.hash),
@@ -449,8 +477,8 @@ describe('leaderboard', () => {
 describe('leaderboard limits and ties', () => {
   let srv;
   const insert = (name, round, nonce, hash, createdAt) => srv.db
-    .prepare('INSERT INTO proofs (genesis_hash, name, round_height, round_hash, nonce, hash, zeros, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
-    .run(TEST_GENESIS, name, round.height, round.hash, nonce, hash, leadingHexZeros(hash), createdAt);
+    .prepare('INSERT INTO blocks (genesis_hash, name, round_height, round_hash, header, coinbase, branch, hash, zeros, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+    .run(TEST_GENESIS, name, round.height, round.hash, '00'.repeat(80), String(nonce), '[]', hash, leadingHexZeros(hash), createdAt);
   before(async () => {
     srv = await startServer();
   });
@@ -616,7 +644,7 @@ describe('privacy: no client address in logs or database', () => {
     await fetch(`${srv.base}/api/health`, { headers });
     const { body: ch } = await getChallenge(srv, 'privacy-miner', headers);
     const good = mine(ch.prefix, { min: ch.minZeros });
-    const res = await postShare(srv, { name: 'privacy-miner', round: ch.round, nonce: good.nonce }, headers);
+    const res = await postShare(srv, { name: 'privacy-miner', round: ch.round, ...good.block }, headers);
     assert.equal(res.status, 200);
     await fetch(`${srv.base}/api/leaderboard`); // no cf-connecting-ip: socket address path
 
@@ -630,9 +658,9 @@ describe('privacy: no client address in logs or database', () => {
       }
     }
 
-    const columns = srv.db.prepare('PRAGMA table_info(proofs)').all().map((c) => c.name);
-    assert.deepEqual(columns, ['genesis_hash', 'name', 'round_height', 'round_hash', 'nonce', 'hash', 'zeros', 'created_at']);
-    const dump = JSON.stringify(srv.db.prepare('SELECT * FROM proofs').all());
+    const columns = srv.db.prepare('PRAGMA table_info(blocks)').all().map((c) => c.name);
+    assert.deepEqual(columns, ['genesis_hash', 'name', 'round_height', 'round_hash', 'header', 'coinbase', 'branch', 'hash', 'zeros', 'proofs', 'created_at']);
+    const dump = JSON.stringify(srv.db.prepare('SELECT * FROM blocks').all());
     assert.ok(dump.includes('privacy-miner'));
     assert.ok(!dump.includes(ip));
     assert.ok(!dump.includes('127.0.0.1'));

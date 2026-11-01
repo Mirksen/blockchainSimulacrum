@@ -5,7 +5,7 @@ import { ec as EC } from 'elliptic';
 import { displayHash, le, push, reverseHex, utf8Hex, varint } from '../../../../shared/bitcoin-block.mjs';
 import { sha256d } from '../blockHeader';
 import { hexUtf8 } from './encoding';
-import { evaluateScript, memoOf, p2pkhScriptSig, parseScript, scriptNumberPush } from './script';
+import { evaluateScript, memoOf, opReturnScript, p2pkhScriptSig, parseScript, scriptNumberPush } from './script';
 
 const ec = new EC('secp256k1');
 
@@ -122,10 +122,10 @@ export class Transaction {
 }
 
 /** The coinbase of the block at `height` (BIP34): scriptSig = <height> <extraNonce> <tag>, one output paying `value`. */
-export function createCoinbase({ height, value, recipientScript, extraNonce = 0, tag = COINBASE_TAG }) {
+// `commitment` adds a last, unspendable output: what a leaderboard proof commits to (poolProof.js).
+export function createCoinbase({ height, value, recipientScript, extraNonce = 0, tag = COINBASE_TAG, commitment }) {
   const scriptSig = scriptNumberPush(height) + push(le(extraNonce, 8)) + push(utf8Hex(tag));
-  return new Transaction({
-    inputs: [{ txid: ZERO_HASH, vout: COINBASE_INDEX, scriptSig }],
-    outputs: [{ value, scriptPubKey: recipientScript }]
-  });
+  const outputs = [{ value, scriptPubKey: recipientScript }];
+  if (commitment) outputs.push({ value: 0, scriptPubKey: opReturnScript(commitment) });
+  return new Transaction({ inputs: [{ txid: ZERO_HASH, vout: COINBASE_INDEX, scriptSig }], outputs });
 }
