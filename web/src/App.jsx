@@ -69,6 +69,8 @@ function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [error, setError] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(null);
+  // The block a repair is about: shown while the chain is invalid, never held.
+  const [repairIndex, setRepairIndex] = useState(null);
   const [healthOpen, setHealthOpen] = useState(false);
   const [lastRound, setLastRound] = useState(null);
   const [remining, setRemining] = useState(null);
@@ -191,7 +193,7 @@ function App() {
     setRemining(null);
     if (finishRound(result)) {
       pendingRound.current = { index, result };
-      setSelectedIndex(index);
+      setRepairIndex(index);
       report({ type: 'block_remined', blockIndex: index, chainValid: sim.blockchain.isChainValid() });
     }
   }, [finishRound, remineBlock, report, sim.blockchain]);
@@ -214,8 +216,15 @@ function App() {
     return () => clearTimeout(timer);
   }, [autoTransact, busy, chainValid, blocks.length, memPool?.length, generateRandomTransactions]);
 
-  // Nothing clicked follows the newest block; a click pins a block until it is clicked again.
-  const toggleSelected = index => setSelectedIndex(current => (current === index ? null : index));
+  // Nothing clicked follows the newest block; a click holds a block until it is clicked again.
+  const toggleSelected = index => {
+    setRepairIndex(null);
+    setSelectedIndex(current => (current === index ? null : index));
+  };
+  const followNewest = () => {
+    setRepairIndex(null);
+    setSelectedIndex(null);
+  };
 
   const reset = () => {
     setAutoTransact(false);
@@ -225,7 +234,7 @@ function App() {
     setWinner(null);
     setError('');
     setLastRound(null);
-    setSelectedIndex(null);
+    followNewest();
     report({ type: 'reset' });
   };
   const pause = () => { setAutoMining(false); cancelMining(); setRemining(null); };
@@ -271,7 +280,7 @@ function App() {
   };
   const onTamper = (blockIndex, txIndex, amount) => {
     tamperBlock(blockIndex, txIndex, Number(amount));
-    setSelectedIndex(blockIndex);
+    setRepairIndex(blockIndex);
     setHealthOpen(true);
     report({ type: 'block_tampered', blockIndex });
   };
@@ -288,6 +297,8 @@ function App() {
     report({ type: 'difficulty_changed', direction: value > difficulty ? 'up' : 'down', manual: true });
   };
 
+  // A repair shows its block only while the chain is invalid; a click on a tile outranks it.
+  const shownIndex = !chainValid && repairIndex !== null ? repairIndex : selectedIndex;
   const wallet = walletDetails && participants.find(p => p.name === walletDetails);
   // A collapsed rail means free play: the labs open without the mission lesson.
   const hashLesson = !railCollapsed && activeMission ? HASH_LESSONS[activeMission.id] : undefined;
@@ -310,7 +321,7 @@ function App() {
           {showIntro && <MissionIntro onStart={startMissions} onDismiss={dismissIntro} />}
           {view === 'workbench' && <Workbench sim={sim} coinName={coinName} targetSeconds={targetBlockTime}
             autoMine={autoMining} onAutoMine={setAutoMining} autoTransact={autoTransact} onAutoTransact={setAutoTransact}
-            selectedIndex={selectedIndex} onSelect={toggleSelected} onFollowNewest={() => setSelectedIndex(null)} healthOpen={healthOpen} onToggleHealth={() => setHealthOpen(open => !open)}
+            selectedIndex={shownIndex} held={shownIndex !== null && shownIndex === selectedIndex} onSelect={toggleSelected} onFollowNewest={followNewest} healthOpen={healthOpen} onToggleHealth={() => setHealthOpen(open => !open)}
             lastRound={lastRound} remining={remining} coach={coach}
             identity={identity} boardRows={boardRows}
             onStartDemo={handleSetup} onMine={handleMine} onPause={pause} onRemine={handleRemine} onTamper={onTamper} onUndo={onUndo}

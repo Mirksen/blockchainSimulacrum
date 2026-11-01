@@ -21,7 +21,7 @@ const satoshis = coins => Math.round(coins * 1e8);
 const signerOf = coinbase => (coinbase.outputs.some(output => output.kind === 'commitment') ? coinbase.memo : null);
 
 export function Workbench({
-  sim, coinName, targetSeconds, autoMine, onAutoMine, autoTransact, onAutoTransact, selectedIndex, onSelect, onFollowNewest, healthOpen, onToggleHealth,
+  sim, coinName, targetSeconds, autoMine, onAutoMine, autoTransact, onAutoTransact, selectedIndex, held = false, onSelect, onFollowNewest, healthOpen, onToggleHealth,
   lastRound, remining, coach, identity, boardRows,
   onStartDemo, onMine, onPause, onRemine, onTamper, onUndo, onDifficulty, onBack,
   onCreateTransaction, onCreateWallet, onOpenWallet, onOpenDetails, onOpenTransaction, onOpenBlockTx, onOpenChainLab, error
@@ -49,8 +49,8 @@ export function Workbench({
     targetSeconds, winner: raceWinner
   } : null;
 
-  const pinned = selectedIndex !== null && Boolean(blocks[selectedIndex]);
-  const selected = pinned ? selectedIndex : height;
+  const selected = selectedIndex !== null && blocks[selectedIndex] ? selectedIndex : height;
+  const pinned = held && selected === selectedIndex;
   const block = blocks[selected];
   const selectedView = views[selected];
   const selectedBlock = block ? {

@@ -191,6 +191,9 @@ decision, 2026-10-27):
 - **The Block card follows the newest block.** A click on a tile holds that
   block, also while new blocks are mined; a second click or "Show newest" lets
   go. A held tile has the strong white frame, the followed newest a thin one.
+  Tampering and re-mining show their block while the chain is invalid, without
+  holding it: once the chain is valid again the card follows the newest block,
+  or the block the learner holds.
 - **Older blocks page within the one row.** "‹ N earlier" moves the window back
   by its width, so the band keeps its height and the cards stay where they are.
   While older blocks are in view the candidate's place reads "N newer"; the
