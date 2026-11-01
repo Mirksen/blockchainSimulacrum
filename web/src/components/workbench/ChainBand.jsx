@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { CoachMark } from './CoachMark';
 import {
   bandWindow, brokenBefore, candidateCopy, formatInterval, formatSeconds, healthSummary, linkInto, ordinal, pendingLink,
@@ -149,12 +149,12 @@ function FullHash({ hash, miss = 0 }) {
   );
 }
 
-function Tile({ view, views, newest, selected, repairPosition, shade, onSelect, tipEnd }) {
+function Tile({ view, views, newest, selected, pinned, repairPosition, shade, onSelect, tipEnd }) {
   const tipId = useId();
   const state = stateOf(view);
   const mismatch = view.status === 'hash-mismatch';
   const zeros = targetZeros(view);
-  const classes = ['chain-band-tile', newest && 'is-newest', selected && 'is-selected',
+  const classes = ['chain-band-tile', newest && 'is-newest', selected && (pinned ? 'is-selected' : 'is-current'),
     state === 'broken' && 'is-broken', state === 'dependent' && 'is-dependent'].filter(Boolean).join(' ');
   const tag = view.isGenesis ? 'genesis' : state === 'broken' ? statusLabel(view.status) : newest ? 'newest' : null;
   const time = view.isGenesis ? 'start' : formatInterval(view.seconds);
@@ -165,7 +165,7 @@ function Tile({ view, views, newest, selected, repairPosition, shade, onSelect, 
       {repairPosition ? (
         <span className={`chain-band-order${repairPosition === 1 ? ' is-next' : ''}`} aria-hidden="true">{repairPosition}</span>
       ) : null}
-      <button type="button" className="chain-band-tile-face" aria-pressed={selected} aria-describedby={tipId}
+      <button type="button" className="chain-band-tile-face" aria-pressed={selected && pinned} aria-describedby={tipId}
         aria-label={tileLabel(view, { newest, selected, repairPosition })} onClick={() => onSelect?.(view.index)}>
         <span className="chain-band-tile-top">
           <b>#{view.index}</b>
@@ -363,29 +363,52 @@ export { HealthLine };
 /* ---------- band ---------- */
 
 export function ChainBand({
-  views = [], candidate = { index: 1, txCount: 0, state: 'idle' }, selectedIndex = null, onSelect,
+  views = [], candidate = { index: 1, txCount: 0, state: 'idle' }, selectedIndex = null, pinned = true, onSelect,
   keyFigures, healthOpen = false, onToggleHealth, coach = null, repairOrder = []
 }) {
   const stripId = useId();
-  const [showEarlier, setShowEarlier] = useState(false);
+  // The newest block of the visible window; null follows the chain as it grows.
+  const [topIndex, setTopIndex] = useState(null);
+  // Letting go of a held block returns to the newest, so the window follows too.
+  const [wasPinned, setWasPinned] = useState(pinned);
+  if (wasPinned !== pinned) {
+    setWasPinned(pinned);
+    if (!pinned) setTopIndex(null);
+  }
+  const bandRef = useRef(null);
+  const [tierNow, setTierNow] = useState('c');
+  useEffect(() => {
+    const band = bandRef.current;
+    if (!band || typeof ResizeObserver !== 'function') return undefined;
+    const observer = new ResizeObserver(([entry]) => {
+      const width = entry.contentRect.width;
+      setTierNow(width < 1114 ? 'a' : width < 1240 ? 'b' : 'c');
+    });
+    observer.observe(band);
+    return () => observer.disconnect();
+  }, []);
   const count = views.length;
   const newestIndex = count - 1;
   const summary = healthSummary(views);
   const invalid = !summary.valid;
   const windows = bandWindow(count);
   const anyHidden = TIERS.some(tier => windows[tier].hidden > 0);
-  const expanded = showEarlier && anyHidden;
   const cand = { ...candidate, prevHash: candidate.prevHash ?? views[newestIndex]?.storedHash };
   const twoLine = invalid;
 
-  const hiddenClasses = age => TIERS.filter(tier => age >= windows[tier].visible).map(tier => `is-hidden-${tier}`).join(' ');
-  const rootClasses = ['chain-band', invalid && 'is-invalid', expanded && 'is-all',
+  // Blocks skipped at the newest end, per tier: the window never runs past block #0.
+  const wanted = topIndex === null ? 0 : Math.max(0, newestIndex - topIndex);
+  const offsetOf = tier => Math.min(wanted, windows[tier].hidden);
+  const older = tier => windows[tier].hidden - offsetOf(tier);
+  const paged = offsetOf(tierNow) > 0;
+  const moveTo = offset => setTopIndex(offset > 0 ? newestIndex - offset : null);
+  const step = windows[tierNow].visible;
+
+  const hiddenClasses = age => TIERS.filter(tier => age < offsetOf(tier) || age >= offsetOf(tier) + windows[tier].visible).map(tier => `is-hidden-${tier}`).join(' ');
+  const rootClasses = ['chain-band', invalid && 'is-invalid', paged && 'is-paged',
     ...TIERS.filter(tier => windows[tier].hidden > 0).map(tier => `has-earlier-${tier}`)].filter(Boolean).join(' ');
 
-  const earlierRange = tier => {
-    const hidden = windows[tier].hidden;
-    return hidden === 1 ? '#0' : `#0 – #${hidden - 1}`;
-  };
+  const earlierRange = tier => (older(tier) === 1 ? '#0' : `#0 – #${older(tier) - 1}`);
 
   const shadeOf = view => {
     if (view.isGenesis) return 0;
@@ -394,13 +417,13 @@ export function ChainBand({
   };
 
   return (
-    <section className={rootClasses} aria-label="Chain">
+    <section ref={bandRef} className={rootClasses} aria-label="Chain">
       <div className="chain-band-inner">
         <div className="chain-band-header">
           <h2>Chain</h2>
           <span className="chain-band-grows"><RightIcon />grows to the right · {count} {count === 1 ? 'block' : 'blocks'}</span>
           <span className="chain-band-sep chain-band-hint" aria-hidden="true">·</span>
-          <span className="chain-band-hint">hover a block for the full hash, a link for what it checks</span>
+          <span className="chain-band-hint">click a block to hold it, again to follow the newest · hover for the full hash</span>
           <KeyFigures keyFigures={keyFigures} className="chain-band-stats" />
         </div>
 
@@ -408,19 +431,14 @@ export function ChainBand({
           <div className="chain-band-row">
             {anyHidden && (
               <div className="chain-band-item is-earlier">
-                <button type="button" className="chain-band-earlier" aria-expanded={expanded} onClick={() => setShowEarlier(open => !open)}>
-                  {expanded ? (
-                    <><LeftIcon />Hide earlier<small>newest only</small></>
-                  ) : (
-                    <>
-                      <LeftIcon />
-                      {TIERS.map(tier => windows[tier].hidden > 0 && (
-                        <span key={tier} className={`chain-band-tier-${tier}`}>
-                          {windows[tier].hidden} earlier<small>{earlierRange(tier)}</small>
-                        </span>
-                      ))}
-                    </>
-                  )}
+                <button type="button" className="chain-band-earlier" disabled={older(tierNow) === 0}
+                  onClick={() => moveTo(Math.min(windows[tierNow].hidden, offsetOf(tierNow) + step))}>
+                  <LeftIcon />
+                  {TIERS.map(tier => windows[tier].hidden > 0 && (
+                    <span key={tier} className={`chain-band-tier-${tier}`}>
+                      {older(tier) > 0 ? <>{older(tier)} earlier<small>{earlierRange(tier)}</small></> : <>Oldest<small>this is #0</small></>}
+                    </span>
+                  ))}
                 </button>
               </div>
             )}
@@ -430,14 +448,19 @@ export function ChainBand({
               return (
                 <div key={view.index} className={`chain-band-item${view.isGenesis ? ' is-first' : ''} ${hiddenClasses(age)}`.trim()}>
                   {!view.isGenesis && <Link link={linkInto(view, views[view.index - 1])} />}
-                  <Tile view={view} views={views} newest={view.index === newestIndex} selected={selectedIndex === view.index}
+                  <Tile view={view} views={views} newest={view.index === newestIndex} selected={selectedIndex === view.index} pinned={pinned}
                     repairPosition={position || null} shade={shadeOf(view)} onSelect={onSelect} tipEnd={view.index === newestIndex && count > 1} />
                 </div>
               );
             })}
             <div className="chain-band-item is-cand">
-              {count > 0 && <Link link={pendingLink(cand.index, cand.state)} />}
-              <Candidate candidate={cand} />
+              {count > 0 && <Link link={paged ? { state: 'pending', title: 'Newer blocks', text: 'The chain continues here', label: 'Newer blocks follow' } : pendingLink(cand.index, cand.state)} />}
+              {paged ? (
+                <button type="button" className="chain-band-newer" onClick={() => moveTo(Math.max(0, offsetOf(tierNow) - step))}>
+                  <span>{offsetOf(tierNow)} newer<small>{`up to #${newestIndex}`}</small></span>
+                  <RightIcon />
+                </button>
+              ) : <Candidate candidate={cand} />}
               <span className="chain-band-depth" aria-hidden="true" />
             </div>
           </div>

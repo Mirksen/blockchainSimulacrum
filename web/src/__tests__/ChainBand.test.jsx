@@ -188,22 +188,57 @@ describe('ChainBand earlier blocks', () => {
     expect(screen.queryByRole('button', { name: /earlier/ })).toBeNull();
   });
 
-  it('offers the earlier blocks per width tier and toggles them', () => {
+  const row = container => [...container.querySelectorAll('.chain-band-row:not(.chain-band-strip) > .chain-band-item')];
+  const hiddenIn = (container, tier) => row(container).filter(item => item.classList.contains(`is-hidden-${tier}`)).length;
+
+  it('offers the earlier blocks per width tier', () => {
     const { container } = renderBand({ views: makeViews(9) });
-    const toggle = screen.getByRole('button', { name: /earlier/ });
-    expect(toggle.getAttribute('aria-expanded')).toBe('false');
-    expect(within(toggle).getByText('6 earlier').className).toBe('chain-band-tier-a');
-    expect(within(toggle).getByText('5 earlier').className).toBe('chain-band-tier-b');
-    expect(within(toggle).getByText('4 earlier').className).toBe('chain-band-tier-c');
-    const items = [...container.querySelectorAll('.chain-band-row:not(.chain-band-strip) > .chain-band-item')];
-    const hidden = tier => items.filter(item => item.classList.contains(`is-hidden-${tier}`)).length;
-    expect([hidden('a'), hidden('b'), hidden('c')]).toEqual([6, 5, 4]);
+    const earlier = screen.getByRole('button', { name: /earlier/ });
+    expect(within(earlier).getByText('6 earlier').className).toBe('chain-band-tier-a');
+    expect(within(earlier).getByText('5 earlier').className).toBe('chain-band-tier-b');
+    expect(within(earlier).getByText('4 earlier').className).toBe('chain-band-tier-c');
+    expect([hiddenIn(container, 'a'), hiddenIn(container, 'b'), hiddenIn(container, 'c')]).toEqual([6, 5, 4]);
     expect(container.querySelector('.chain-band').className).toContain('has-earlier-a');
-    fireEvent.click(toggle);
-    expect(toggle.getAttribute('aria-expanded')).toBe('true');
-    expect(toggle.textContent).toContain('Hide earlier');
-    expect(container.querySelector('.chain-band').className).toContain('is-all');
-    fireEvent.click(toggle);
-    expect(container.querySelector('.chain-band').className).not.toContain('is-all');
+  });
+
+  it('pages through older blocks in one row and back', () => {
+    const { container } = renderBand({ views: makeViews(12) });
+    expect(screen.queryByRole('button', { name: /newer/ })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /earlier/ }));
+    // Tier c shows five blocks: #2-#6 after one step back from #7-#11.
+    const shown = row(container).filter(item => item.querySelector('.chain-band-tile') && !item.classList.contains('is-hidden-c'));
+    expect(shown.map(item => item.querySelector('.chain-band-tile b').textContent)).toEqual(['#2', '#3', '#4', '#5', '#6']);
+    expect(screen.getByRole('button', { name: /5 newer/ })).toBeTruthy();
+    expect(screen.queryByRole('group', { name: /^Candidate/ })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /earlier/ }));
+    const oldest = screen.getByRole('button', { name: /Oldest/ });
+    expect(oldest.disabled).toBe(true);
+    fireEvent.click(screen.getByRole('button', { name: /7 newer/ }));
+    fireEvent.click(screen.getByRole('button', { name: /newer/ }));
+    expect(screen.getByRole('group', { name: /^Candidate/ })).toBeTruthy();
+  });
+
+  it('keeps the window on its blocks when the chain grows and returns when a held block is let go', () => {
+    const select = {};
+    const { container, rerender } = render(<ChainBand views={makeViews(12)} selectedIndex={3} pinned {...select} />);
+    fireEvent.click(screen.getByRole('button', { name: /earlier/ }));
+    const firstShown = () => row(container).find(item => item.querySelector('.chain-band-tile') && !item.classList.contains('is-hidden-c')).querySelector('.chain-band-tile b').textContent;
+    expect(firstShown()).toBe('#2');
+    rerender(<ChainBand views={makeViews(13)} selectedIndex={3} pinned {...select} />);
+    expect(firstShown()).toBe('#2');
+    rerender(<ChainBand views={makeViews(13)} selectedIndex={12} pinned={false} {...select} />);
+    expect(firstShown()).toBe('#8');
+  });
+});
+
+describe('ChainBand selection', () => {
+  it('frames a held block strongly and the followed newest quietly', () => {
+    const { container, rerender } = render(<ChainBand views={makeViews(3)} selectedIndex={2} pinned={false} />);
+    const tile = () => container.querySelectorAll('.chain-band-tile')[2];
+    expect(tile().className).toContain('is-current');
+    expect(tile().querySelector('button').getAttribute('aria-pressed')).toBe('false');
+    rerender(<ChainBand views={makeViews(3)} selectedIndex={2} pinned />);
+    expect(tile().className).toContain('is-selected');
+    expect(tile().querySelector('button').getAttribute('aria-pressed')).toBe('true');
   });
 });

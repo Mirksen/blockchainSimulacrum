@@ -144,7 +144,7 @@ export async function verifyMissionReload(browser, baseURL, output) {
           await page.getByRole('button', { name: /^Back / }).first().click();
         } else if (id === 'forge-a-block') {
           // Block #2's coinbase is the unspent one after the demo.
-          await wb.tile(2).click();
+          await wb.select(2);
           await page.getByRole('button', { name: 'Tamper with this block', exact: true }).click();
           const editor = page.getByRole('form', { name: 'Change a transaction amount in block 2' });
           await editor.getByLabel('New amount').fill('1');
@@ -195,7 +195,7 @@ export async function verifyForgeMission(browser, baseURL, output) {
     const wb = workbench(page);
     const progress = () => page.evaluate(() => JSON.parse(localStorage.getItem('proofofwork-missions')));
     const tamper = async (index, amount) => {
-      await wb.tile(index).click();
+      await wb.select(index);
       await page.getByRole('button', { name: 'Tamper with this block', exact: true }).click();
       const editor = page.getByRole('form', { name: `Change a transaction amount in block ${index}` });
       await editor.getByLabel('New amount').fill(amount);

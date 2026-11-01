@@ -99,6 +99,18 @@ describe('mining controls and sound in App', () => {
     expect(tiles()).toHaveLength(2);
   });
 
+  it('shows the newest block until one is clicked and lets go on a second click', async () => {
+    render(<App />);
+    await completeDemo();
+    const shown = () => document.querySelector('section.selected-block .card-kit-title').textContent;
+    const newest = tiles().length - 1;
+    expect(shown()).toBe(`Block #${newest}`);
+    fireEvent.click(tiles()[1]);
+    expect(shown()).toBe('Block #1');
+    fireEvent.click(tiles()[1]);
+    expect(shown()).toBe(`Block #${newest}`);
+  });
+
   it('fills the mempool only when Auto-transact is enabled and keeps transfers when disabled', async () => {
     render(<App />);
     await completeDemo();

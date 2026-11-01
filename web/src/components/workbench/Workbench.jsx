@@ -7,6 +7,7 @@ import { MinerName } from './MinerName';
 import { WalletsCard } from './WalletsCard';
 import { MempoolCard } from './MempoolCard';
 import { ActivityCard } from './ActivityCard';
+import { BlockTransactions } from './BlockTransactions';
 import { buildBlockViews } from './blockView';
 import { keyFiguresOf, rateOf, repairOf } from './workbenchModel';
 import './Workbench.css';
@@ -20,10 +21,10 @@ const satoshis = coins => Math.round(coins * 1e8);
 const signerOf = coinbase => (coinbase.outputs.some(output => output.kind === 'commitment') ? coinbase.memo : null);
 
 export function Workbench({
-  sim, coinName, targetSeconds, autoMine, onAutoMine, autoTransact, onAutoTransact, selectedIndex, onSelect, healthOpen, onToggleHealth,
+  sim, coinName, targetSeconds, autoMine, onAutoMine, autoTransact, onAutoTransact, selectedIndex, onSelect, onFollowNewest, healthOpen, onToggleHealth,
   lastRound, remining, coach, identity, boardRows,
   onStartDemo, onMine, onPause, onRemine, onTamper, onUndo, onDifficulty, onBack,
-  onCreateTransaction, onCreateWallet, onOpenWallet, onOpenDetails, onOpenTransaction, onOpenChainLab, error
+  onCreateTransaction, onCreateWallet, onOpenWallet, onOpenDetails, onOpenTransaction, onOpenBlockTx, onOpenChainLab, error
 }) {
   const { blocks, blockStatus, participants, memPool, balances, tamperedEdits, describeTx, previewTransaction, difficulty, blockReward, halvingInterval,
     isMining, isSettingUp, minerProgress, miningProgress, raceWinner, backedMiner } = sim;
@@ -48,11 +49,12 @@ export function Workbench({
     targetSeconds, winner: raceWinner
   } : null;
 
-  const selected = selectedIndex !== null && blocks[selectedIndex] ? selectedIndex : height;
+  const pinned = selectedIndex !== null && Boolean(blocks[selectedIndex]);
+  const selected = pinned ? selectedIndex : height;
   const block = blocks[selected];
   const selectedView = views[selected];
   const selectedBlock = block ? {
-    index: selected, hash: block.hash, previousHash: block.previousHash, anchor: selectedView?.anchor ?? null, nonce: block.nonce, difficulty: block.difficulty,
+    index: selected, hash: block.hash, previousHash: block.previousHash, txRoot: block.txRoot, anchor: selectedView?.anchor ?? null, nonce: block.nonce, difficulty: block.difficulty,
     isNewest: selected === height && selected > 0, miner: selectedView?.isGenesis ? null : selectedView?.minerName,
     seconds: selectedView?.seconds, tries: lastRound?.index === selected ? lastRound.attempts : undefined,
     reward: describeTx(block.transactions[0]).amount, signedBy: signerOf(describeTx(block.transactions[0])),
@@ -84,18 +86,19 @@ export function Workbench({
   }).slice(0, 12);
   const blockTimes = views.slice(1).reverse().filter(v => v.seconds !== null).map(v => ({ index: v.index, seconds: v.seconds })).slice(0, 8);
   const workbenchCoach = coach?.view === 'workbench' ? coach : null;
+  const selectedTransactions = selectedBlock ? (blocks[selected]?.transactions ?? []).map(describeTx) : [];
   const repairOrder = repair && !repair.undoOnly ? repair.order : [];
 
   return (
     <>
     {error && <div role="alert" className="wb-error">{error}</div>}
     <div className="wb-band">
-      <ChainBand views={fresh ? views.slice(0, 1) : views} candidate={candidate} selectedIndex={selected} onSelect={onSelect}
+      <ChainBand views={fresh ? views.slice(0, 1) : views} candidate={candidate} selectedIndex={selected} pinned={pinned} onSelect={onSelect}
         keyFigures={keyFigures} healthOpen={healthOpen || Boolean(repair)} onToggleHealth={onToggleHealth}
         coach={workbenchCoach} repairOrder={repairOrder} />
     </div>
     <div className="wb-timeline">
-      <ChainTimeline views={views} candidate={candidate} selectedIndex={selected} onSelect={onSelect} onOpenChainLab={onOpenChainLab}
+      <ChainTimeline views={views} candidate={candidate} selectedIndex={selected} pinned={pinned} onSelect={onSelect} onOpenChainLab={onOpenChainLab}
         keyFigures={keyFigures} healthOpen={healthOpen || Boolean(repair)} onToggleHealth={onToggleHealth}
         coach={workbenchCoach} repairOrder={repairOrder} />
     </div>
@@ -103,7 +106,10 @@ export function Workbench({
       <div className="wb-selected">
         <SelectedBlockCard block={selectedBlock} status={blockStatus[selected]} prevHash={blocks[selected - 1]?.hash ?? null}
           edit={edits.length ? edits : null} onOpenDetails={onOpenDetails} onOpenChainLab={onOpenChainLab}
-          onTamper={onTamper} onUndo={onUndo} coach={workbenchCoach} />
+          pinned={pinned} onFollowNewest={onFollowNewest} onTamper={onTamper} onUndo={onUndo} coach={workbenchCoach}>
+          <BlockTransactions key={`transactions-${selected}`} transactions={selectedTransactions} editedTx={edits.map(edit => edit.txIndex)}
+            onOpenDetails={tx => onOpenBlockTx?.(tx, selected)} />
+        </SelectedBlockCard>
       </div>
       <div className="wb-next">
         <NextBlockCard mode={mode} index={busy && remining !== null ? remining : nextIndex} txCount={memPool.length}

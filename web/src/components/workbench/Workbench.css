@@ -1,6 +1,6 @@
 /* Workbench layout (web/DESIGN.md, "Information architecture" and "Screen sizes").
-   Rail | main column; the main column holds the chain band and one card grid whose
-   right column starts under tile #3, the same column template the band uses. */
+   Rail | main column; the main column holds the chain band and one card grid: the
+   block card fills the left half, Next block and then Mempool with Wallets the right. */
 .app-shell {
   --rail-w: 248px;
   --rail-w-collapsed: 56px;
@@ -32,14 +32,14 @@
   flex: 1 0 auto;
   padding: 14px var(--page-x);
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-columns: calc(50% - 6px) minmax(0, 1fr) clamp(196px, 17.3cqi, 252px);
   grid-template-rows: auto auto;
   gap: var(--s-3);
 }
-.wb-selected, .wb-wallets { grid-column: 1; }
-.wb-next, .wb-mempool { grid-column: 2; }
-.wb-selected, .wb-next { grid-row: 1; }
-.wb-wallets, .wb-mempool { grid-row: 2; }
+.wb-selected { grid-column: 1; grid-row: 1 / 3; }
+.wb-next { grid-column: 2 / 4; grid-row: 1; }
+.wb-mempool { grid-column: 2; grid-row: 2; }
+.wb-wallets { grid-column: 3; grid-row: 2; }
 .wb-activity { display: none; grid-column: 1 / -1; grid-row: 3; }
 .wb-grid > * { min-width: 0; min-height: 0; }
 
@@ -58,8 +58,8 @@
 /* Lab and pool tabs: one centered column on the same background. */
 .wb-view { flex: 1 0 auto; width: 100%; max-width: 1200px; margin: 0 auto; padding: var(--s-6) var(--page-x) var(--s-7); }
 
-/* FILL (>= 1024 wide, >= 830 tall): exactly one screen; extra height goes to lists. */
-@media (min-width: 1024px) and (min-height: 830px) {
+/* FILL (>= 1200 wide, >= 830 tall): exactly one screen; extra height goes to lists. */
+@media (min-width: 1200px) and (min-height: 830px) {
   .app-shell.is-workbench { height: 100vh; min-height: 0; overflow: hidden; }
   .is-workbench .wb-shell { flex: 1 1 0; min-height: 0; }
   .is-workbench .wb-main { overflow: hidden; }
@@ -78,6 +78,15 @@
   .wb-shell { max-width: var(--wb-max); margin: 0 auto; }
   .wb-rail { border-left: 1px solid var(--line); }
 }
+/* 1024-1199: too narrow for three columns; the right column stacks and the page scrolls. */
+@media (min-width: 1024px) and (max-width: 1199.98px) {
+  .wb-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: auto auto auto; }
+  .wb-selected { grid-row: 1 / 4; }
+  .wb-next, .wb-mempool, .wb-wallets { grid-column: 2; }
+  .wb-next { grid-row: 1; }
+  .wb-mempool { grid-row: 2; }
+  .wb-wallets { grid-row: 3; }
+}
 /* 1024-1279: the rail collapses to icons unless the learner opened it. */
 @media (min-width: 1024px) and (max-width: 1279.98px) {
   .app-shell:not(.is-rail-expanded) { --rail-cur: var(--rail-w-collapsed); }
@@ -89,11 +98,13 @@
   .wb-mbar { display: block; border-bottom: 1px solid var(--line); }
   .wb-band { display: none; }
   .wb-timeline { display: block; }
-  .wb-next { grid-column: 1 / -1; grid-row: 1; }
-  .wb-mempool { grid-column: 1 / -1; grid-row: 2; }
-  .wb-selected { grid-column: 1; grid-row: 3; }
-  .wb-wallets { grid-column: 2; grid-row: 3; }
-  .wb-activity { grid-row: 4; }
+  .wb-grid { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; }
+  .wb-next, .wb-mempool, .wb-selected, .wb-wallets, .wb-activity { grid-column: 1; grid-row: auto; }
+  .wb-next { order: 1; }
+  .wb-mempool { order: 2; }
+  .wb-selected { order: 3; }
+  .wb-wallets { order: 4; }
+  .wb-activity { order: 5; }
 }
 @media (max-width: 1023.98px) and (min-height: 1100px) {
   .wb-activity { display: block; }
@@ -101,11 +112,4 @@
 /* Phone: one column. */
 @media (max-width: 767.98px) {
   .app-shell { --page-x: 16px; }
-  .wb-grid { grid-template-columns: minmax(0, 1fr); }
-  .wb-selected, .wb-wallets, .wb-next, .wb-mempool, .wb-activity { grid-column: 1; grid-row: auto; }
-  .wb-next { order: 1; }
-  .wb-mempool { order: 2; }
-  .wb-selected { order: 3; }
-  .wb-wallets { order: 4; }
-  .wb-activity { order: 5; }
 }

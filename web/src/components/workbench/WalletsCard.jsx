@@ -60,7 +60,8 @@ export function WalletsCard({ wallets = [], coinName = 'powfyicoin', onOpenWalle
     <section className="card-kit wallets-card" aria-label="Wallets">
       <div className="card-kit-head">
         <h2 className="card-kit-title">Wallets</h2>
-        <span className="card-kit-aside">{wallets.length} {wallets.length === 1 ? 'wallet' : 'wallets'} · {coinName} · virtual</span>
+        <span className="card-kit-aside wallets-card-aside">{wallets.length} {wallets.length === 1 ? 'wallet' : 'wallets'} · {coinName} · virtual</span>
+        <button type="button" className="wallets-card-new" aria-expanded={creating} onClick={() => setCreating(open => !open)}><PlusIcon />Create wallet</button>
       </div>
       <ul className="wallets-card-list" aria-label="Wallets">
         {wallets.length === 0 && <li className="card-kit-empty">No wallets yet.<small>Create one below.</small></li>}
@@ -77,19 +78,7 @@ export function WalletsCard({ wallets = [], coinName = 'powfyicoin', onOpenWalle
           </li>
         ))}
       </ul>
-      <div className="wallets-card-create">
-        {creating ? (
-          <CreateWalletForm onCreate={onCreateWallet} onCancel={() => setCreating(false)} />
-        ) : (
-          <button type="button" className="wallets-card-row is-create" onClick={() => setCreating(true)}>
-            <span className="card-kit-av wallets-card-plus" aria-hidden="true"><PlusIcon /></span>
-            <span className="wallets-card-nm">Create wallet</span>
-            <span className="wallets-card-role" />
-            <span className="wallets-card-hp" />
-            <span className="wallets-card-bal">starts at 0</span>
-          </button>
-        )}
-      </div>
+      {creating && <div className="wallets-card-create"><CreateWalletForm onCreate={onCreateWallet} onCancel={() => setCreating(false)} /></div>}
     </section>
   );
 }

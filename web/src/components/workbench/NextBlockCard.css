@@ -132,7 +132,7 @@
 .next-block-repair-row small { font-size: 12px; line-height: 16px; color: var(--text-2); }
 
 /* ---------- narrow card (phone): the primary takes the full width, lanes stack ---------- */
-@container next-block (max-width: 560px) {
+@container next-block (max-width: 510px) {
   .next-block-head .card-kit-aside { display: none; }
   .next-block-actions { flex-wrap: wrap; gap: var(--s-3) var(--s-4); justify-content: space-between; }
   .next-block-action { order: -1; flex: 1 0 100%; margin-left: 0; }
@@ -163,7 +163,7 @@
 .next-block-repeat[aria-pressed="true"]:hover { background: var(--blue-2); color: var(--on-accent); }
 .next-block-track-fill { transition: width 360ms cubic-bezier(.16, 1, .3, 1); }
 .next-block-track-runner { transition: left 360ms cubic-bezier(.16, 1, .3, 1); }
-@container next-block (max-width: 560px) {
+@container next-block (max-width: 510px) {
   .next-block-action .btn-primary, .next-block-repeat { min-height: 40px; }
 }
 @media (prefers-reduced-motion: reduce) {

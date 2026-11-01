@@ -10,16 +10,34 @@ afterEach(() => {
 });
 
 const HASH = '0080a3e897fb1e3839f43f95b033620ff7fb2f9739c8e415e5ce6e7df0726c4d';
+const ROOT = '74ade267607c108e6483968317be4e63830d9c66961a6120e870593f555e39db';
 const PREV = '00e6130b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f708192a3b4c5d6e7f80912f8';
 const block = (overrides = {}) => ({
-  index: 4, hash: HASH, previousHash: PREV, nonce: 5775, difficulty: 2, isNewest: true,
+  index: 4, hash: HASH, previousHash: PREV, txRoot: ROOT, nonce: 5775, difficulty: 2, isNewest: true,
   miner: 'Lars', seconds: 7.1, tries: 332, reward: 1.5625,
   transactions: [{ from: 'Alice', to: 'Bob', amount: 0.25 }, { from: null, to: 'Lars', amount: 1.5625 }],
   ...overrides
 });
-const card = () => screen.getByRole('region', { name: /Selected block/ });
+const card = () => screen.getByRole('region', { name: /^Block/ });
 
 describe('SelectedBlockCard', () => {
+  it('offers the way back to the newest only while an older block is held', () => {
+    const onFollowNewest = vi.fn();
+    const older = block({ index: 2, isNewest: false });
+    const { rerender } = render(<SelectedBlockCard block={older} status="valid" prevHash={PREV} pinned onFollowNewest={onFollowNewest} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Show newest' }));
+    expect(onFollowNewest).toHaveBeenCalledOnce();
+    rerender(<SelectedBlockCard block={block()} status="valid" prevHash={PREV} pinned onFollowNewest={onFollowNewest} />);
+    expect(screen.queryByRole('button', { name: 'Show newest' })).toBeNull();
+    rerender(<SelectedBlockCard block={older} status="valid" prevHash={PREV} onFollowNewest={onFollowNewest} />);
+    expect(screen.queryByRole('button', { name: 'Show newest' })).toBeNull();
+  });
+
+  it('holds its transactions as a part of the card', () => {
+    render(<SelectedBlockCard block={block()} status="valid" prevHash={PREV}><p>Transaction list</p></SelectedBlockCard>);
+    expect(within(card()).getByText('Transaction list')).toBeTruthy();
+  });
+
   it('shows an empty state without a block', () => {
     render(<SelectedBlockCard block={null} />);
     expect(card().textContent).toContain('No block selected.');
@@ -28,7 +46,7 @@ describe('SelectedBlockCard', () => {
   it('shows a valid block: the whole hash with Copy, intact link, nonce, miner facts and transactions', () => {
     render(<SelectedBlockCard block={block()} status="valid" prevHash={PREV} />);
     const text = card().textContent;
-    expect(screen.getByRole('heading', { name: 'Selected block #4' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Block #4' })).toBeTruthy();
     expect(text).toContain('Valid');
     expect(text).toContain('newest · mined by Lars');
     expect(HASH).toHaveLength(64);
@@ -40,7 +58,8 @@ describe('SelectedBlockCard', () => {
     expect(text).toContain('link intact');
     expect(text).toContain('5,775');
     expect(text).toContain('7.1 s · 332 tries · reward 1.5625');
-    expect(text).toContain('Alice → Bob 0.25 and 1 more');
+    expect(text).toContain(ROOT);
+    expect(text).toContain('2 tx');
     expect(screen.getByRole('button', { name: 'Tamper with this block' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: /Undo edit/ })).toBeNull();
   });

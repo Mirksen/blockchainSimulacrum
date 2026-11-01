@@ -4,12 +4,14 @@ import { formatInterval, issueText } from './blockView';
 import './cardKit.css';
 import './SelectedBlockCard.css';
 
-// Selected block card (web/DESIGN.md, "Card grid"). Presentational: the parent passes the block as a view
-// model with names already resolved, its check from `inspectBlocks()` and the
-// stored hash of its predecessor.
+// Block card (web/DESIGN.md, "Card grid"): the newest block, or the block held by a click
+// on the chain. Presentational: the parent passes the block as a view model with names
+// already resolved, its check from `inspectBlocks()` and the stored hash of its
+// predecessor. Its transactions come in as children.
+// pinned: a click holds this block; onFollowNewest lets go of it
 //
 // block:  { index, hash, previousHash, nonce, difficulty, isNewest?, miner?,
-//           seconds?, tries?, reward?, transactions: [{ from, to, amount, reference?, spentIn? }] }
+//           seconds?, tries?, reward?, txRoot?, transactions: [{ from, to, amount, reference?, spentIn? }] }
 //         (`from: null` is the coinbase; `spentIn` is the block that spends its first output)
 // status: inspectBlocks() entry { status, storedHash?, computedHash?, linkIntact? }
 //         or just the status string; missing means 'valid'
@@ -159,14 +161,14 @@ function TamperEditor({ block, onSubmit, onCancel }) {
   );
 }
 
-export function SelectedBlockCard({ block, status, prevHash, edit, onOpenDetails, onOpenChainLab, onTamper, onUndo, coach = null }) {
+export function SelectedBlockCard({ block, status, prevHash, edit, onOpenDetails, onOpenChainLab, onTamper, onUndo, coach = null, pinned = false, onFollowNewest, children = null }) {
   // The editor belongs to one block; selecting another block closes it.
   const [editorFor, setEditorFor] = useState(null);
 
   if (!block) {
     return (
-      <section className="card-kit selected-block" aria-label="Selected block">
-        <div className="card-kit-head"><h2 className="card-kit-title">Selected block</h2></div>
+      <section className="card-kit selected-block" aria-label="Block">
+        <div className="card-kit-head"><h2 className="card-kit-title">Block</h2></div>
         <p className="card-kit-empty">No block selected.<small>Select a block in the chain to see its hash, link and transactions.</small></p>
       </section>
     );
@@ -265,23 +267,21 @@ export function SelectedBlockCard({ block, status, prevHash, edit, onOpenDetails
       <span className="card-kit-t3">· tx {firstEdit.txIndex + 1} of {transactions.length}{edits.length > 1 ? ` · ${edits.length - 1} more` : ''}</span>
     </dd></div>
   ) : (
-    <div className="card-kit-kv"><dt>Transactions</dt><dd>
-      <span>{transactions.length}</span>
-      {transactions.length > 0 && (
-        <span className="card-kit-t3 selected-block-txs">· {txLabel(transactions[0])} {formatAmount(transactions[0].amount)}
-          {transactions.length > 1 ? ` and ${transactions.length - 1} more` : ''}</span>
-      )}
+    <div className="card-kit-kv"><dt>Merkle root</dt><dd>
+      <FullHash hash={block.txRoot} />
+      <span className="card-kit-ok" title="This hash commits to every transaction of the block">{transactions.length} tx</span>
     </dd></div>
   );
 
   const canTamper = transactions.length > 0 && typeof onTamper === 'function';
 
   return (
-    <section className={`card-kit selected-block is-${kind}`} aria-label={`Selected block ${block.index}`}>
+    <section className={`card-kit selected-block is-${kind}`} aria-label={`Block ${block.index}`}>
       <div className="card-kit-head">
-        <h2 className="card-kit-title">Selected block #{block.index}</h2>
+        <h2 className="card-kit-title">Block #{block.index}</h2>
         <span className={`card-kit-pill ${pill.cls}`}>{kind === 'valid' ? <CheckIcon /> : <i aria-hidden="true" />}{pill.text}</span>
         <span className="card-kit-aside">{aside}</span>
+        {pinned && !block.isNewest && <button type="button" className="selected-block-follow" onClick={onFollowNewest}>Show newest</button>}
       </div>
       <dl className="card-kit-kv-list selected-block-rows">
         {hashRow}
@@ -317,6 +317,7 @@ export function SelectedBlockCard({ block, status, prevHash, edit, onOpenDetails
           <button type="button" className="card-kit-btn is-ghost selected-block-details" onClick={() => onOpenDetails?.(block.index)}>Details</button>
         </div>
       )}
+      {children}
     </section>
   );
 }

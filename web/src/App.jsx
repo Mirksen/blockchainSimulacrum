@@ -74,6 +74,7 @@ function App() {
   const [remining, setRemining] = useState(null);
   const [details, setDetails] = useState(null);
   const [pendingTx, setPendingTx] = useState(null);
+  const [blockTx, setBlockTx] = useState(null);
   const [walletDetails, setWalletDetails] = useState(null);
   const [workComparison, setWorkComparison] = useState(null);
   // The rail starts collapsed (free play); a first-visit card invites to the missions once.
@@ -174,7 +175,6 @@ function App() {
     const result = await mineBlock();
     if (finishRound(result)) {
       pendingRound.current = { index, result };
-      setSelectedIndex(null);
       report({ type: 'block_mined', backedWon: result.backedWon, epoch: result.epoch });
       adjustDifficulty();
     }
@@ -213,6 +213,9 @@ function App() {
     const timer = setTimeout(generateRandomTransactions, 750);
     return () => clearTimeout(timer);
   }, [autoTransact, busy, chainValid, blocks.length, memPool?.length, generateRandomTransactions]);
+
+  // Nothing clicked follows the newest block; a click pins a block until it is clicked again.
+  const toggleSelected = index => setSelectedIndex(current => (current === index ? null : index));
 
   const reset = () => {
     setAutoTransact(false);
@@ -307,12 +310,12 @@ function App() {
           {showIntro && <MissionIntro onStart={startMissions} onDismiss={dismissIntro} />}
           {view === 'workbench' && <Workbench sim={sim} coinName={coinName} targetSeconds={targetBlockTime}
             autoMine={autoMining} onAutoMine={setAutoMining} autoTransact={autoTransact} onAutoTransact={setAutoTransact}
-            selectedIndex={selectedIndex} onSelect={setSelectedIndex} healthOpen={healthOpen} onToggleHealth={() => setHealthOpen(open => !open)}
+            selectedIndex={selectedIndex} onSelect={toggleSelected} onFollowNewest={() => setSelectedIndex(null)} healthOpen={healthOpen} onToggleHealth={() => setHealthOpen(open => !open)}
             lastRound={lastRound} remining={remining} coach={coach}
             identity={identity} boardRows={boardRows}
             onStartDemo={handleSetup} onMine={handleMine} onPause={pause} onRemine={handleRemine} onTamper={onTamper} onUndo={onUndo}
             onDifficulty={onDifficulty} onBack={onBack} onCreateTransaction={onCreateTransaction} onCreateWallet={createWallet}
-            onOpenWallet={setWalletDetails} onOpenDetails={setDetails} onOpenTransaction={setPendingTx} onOpenChainLab={() => navigate('chain-lab')} error={error} />}
+            onOpenWallet={setWalletDetails} onOpenDetails={setDetails} onOpenTransaction={setPendingTx} onOpenBlockTx={(transaction, blockIndex) => setBlockTx({ transaction, blockIndex })} onOpenChainLab={() => navigate('chain-lab')} error={error} />}
           {view === 'hash-lab' && <div className="wb-view">
             <HashLab key={hashLesson ?? 'free'} lesson={hashLesson} onLessonEvent={hashLesson ? report : undefined}
               coach={hashLesson ? coach : null} onClose={() => navigate('workbench')}
@@ -334,6 +337,8 @@ function App() {
         onClose={() => setDetails(null)} participants={participants} describeTx={describeTx} coinName={coinName} />}
       {pendingTx && memPool.includes(pendingTx) && <TransactionDetailsModal transaction={describeTx(pendingTx)} blockIndex={null}
         onClose={() => setPendingTx(null)} coinName={coinName} />}
+      {blockTx && <TransactionDetailsModal transaction={blockTx.transaction} blockIndex={blockTx.blockIndex}
+        onClose={() => setBlockTx(null)} coinName={coinName} />}
       {wallet && <ParticipantDetailsModal participant={wallet}
         balance={balances.find(b => b.name === wallet.name)} blocks={blocks} describeTx={describeTx} onClose={() => setWalletDetails(null)}
         toggleMiner={toggleMiner} setMinerHashpower={setMinerHashpower} isMining={busy} coinName={coinName} />}

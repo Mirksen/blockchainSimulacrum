@@ -76,7 +76,7 @@ function Details({ view, views, id, onOpenChainLab }) {
   );
 }
 
-function Row({ view, views, newest, selected, open, onTap, repairPosition, onOpenChainLab }) {
+function Row({ view, views, newest, selected, pinned, open, onTap, repairPosition, onOpenChainLab }) {
   const detId = useId();
   const state = stateOf(view);
   const link = view.isGenesis ? null : linkInto(view, views[view.index - 1]);
@@ -91,7 +91,7 @@ function Row({ view, views, newest, selected, open, onTap, repairPosition, onOpe
       <span className="chain-timeline-mark" aria-hidden="true" />
       {link && <span className={`chain-timeline-link is-${link.state}`} title={`${link.title} · ${link.text}`} aria-hidden="true" />}
       <button type="button" className="chain-timeline-sum" aria-expanded={open} aria-controls={open ? detId : undefined}
-        aria-pressed={selected} aria-label={rowLabel(view, { newest, selected, link, repairPosition })} onClick={() => onTap(view.index)}>
+        aria-pressed={selected && pinned} aria-label={rowLabel(view, { newest, selected, link, repairPosition })} onClick={() => onTap(view.index)}>
         <span className="chain-timeline-n">#{view.index}</span>
         {state === 'ok' ? (
           <>
@@ -120,7 +120,7 @@ function Row({ view, views, newest, selected, open, onTap, repairPosition, onOpe
 }
 
 export function ChainTimeline({
-  views = [], candidate = { index: 1, txCount: 0, state: 'idle' }, selectedIndex = null, onSelect, onOpenChainLab,
+  views = [], candidate = { index: 1, txCount: 0, state: 'idle' }, selectedIndex = null, pinned = true, onSelect, onOpenChainLab,
   keyFigures, healthOpen = false, onToggleHealth, coach = null, repairOrder = []
 }) {
   const stripId = useId();
@@ -165,7 +165,7 @@ export function ChainTimeline({
           {newestFirst.map(view => {
             const position = repairOrder.indexOf(view.index) + 1;
             return (
-              <Row key={view.index} view={view} views={views} newest={view.index === newestIndex} selected={selectedIndex === view.index}
+              <Row key={view.index} view={view} views={views} newest={view.index === newestIndex} selected={selectedIndex === view.index} pinned={pinned}
                 open={openIndex === view.index} onTap={tap} repairPosition={position || null} onOpenChainLab={onOpenChainLab} />
             );
           })}

@@ -70,8 +70,9 @@ use the monospace font.
 - **Workbench is the start page.** It shows the whole simulation at once:
   1. **Mission rail** on the left (collapsible).
   2. **Chain band** across the full width of the main column.
-  3. **Card grid** below: Selected block and Next block in row 1, Wallets
-     and Mempool in row 2, Activity in row 3 on tall screens.
+  3. **Card grid** below: the Block card with its transactions fills the left
+     half; Next block sits top right, Mempool and Wallets under it. Activity
+     takes a last row on tall screens.
 - **No separate pages for race or missions.** The race lives in the Next
   block card; missions live in the rail and point at the part of the
   workbench they need.
@@ -143,7 +144,7 @@ decision, 2026-10-27):
 - **Usage sharing** (analytics opt-in) moves into the overflow menu and keeps
   its consent text.
 - **Wallet details** (recovery phrase, transactions) open from a wallet row;
-  **block and transaction details** open from the Selected block card.
+  **block and transaction details** open from the Block card.
 - **Fresh start:** before the demo is set up, the chain band shows only
   Genesis and the candidate, and the single primary in the Next block card
   is "Start demo".
@@ -176,8 +177,8 @@ decision, 2026-10-27):
   block on the right, then the **dashed candidate** "#N next · k tx waiting".
 - Each block tile shows number, time to mine, miner, tx count, stored
   previous hash and the **short hash** (first 6 + last 2 characters,
-  `0080a3…4d`) with its leading zeros highlighted. Hover or focus shows the
-  full hash with **Copy**.
+  `0080a3…4d`) with its leading zeros highlighted. Hover or keyboard focus
+  shows the full hash with **Copy**.
 - **Links between tiles are a 1 px hairline with a small neutral dot.** No
   icon, no badge, no color while intact. Hover explains the link ("Link
   intact · #3 stores the hash of #2"). Red or amber only when broken.
@@ -187,26 +188,38 @@ decision, 2026-10-27):
 - **Chain health** is one collapsible line under the tiles, collapsed by
   default; "Show checks" opens per-block checks aligned under the tiles. It
   opens by itself when the chain is invalid.
-- Clicking a tile selects the block for the Selected block card.
+- **The Block card follows the newest block.** A click on a tile holds that
+  block, also while new blocks are mined; a second click or "Show newest" lets
+  go. A held tile has the strong white frame, the followed newest a thin one.
+- **Older blocks page within the one row.** "‹ N earlier" moves the window back
+  by its width, so the band keeps its height and the cards stay where they are.
+  While older blocks are in view the candidate's place reads "N newer"; the
+  window stays on its blocks when new ones arrive. Letting go of a held block
+  returns to the newest.
 
 ### Card grid
 
-- **One grid with shared rows.** Selected block and Next block start and end
-  at the same height; Wallets and Mempool start and end at the same height.
-- **Selected block:** the whole hash with Copy, the whole previous hash, nonce,
-  miner with time, tries and reward, transactions; "Open in Chain lab", "Tamper
-  with this block". Details show the block's 80 header bytes, field by field.
-  Both hashes keep all 64 characters, on two lines of 32 where one line is too
-  short: their length is part of the lesson.
+- **One grid.** The Block card spans both rows on the left. Next block and
+  Mempool share their column edges with the cards beside them; Wallets is the
+  narrow column next to Mempool.
+- **Block:** one card for the block shown in the chain: the whole hash with
+  Copy, the whole previous hash, nonce, miner with time, tries and reward, the
+  whole Merkle root; "Open in Chain lab", "Tamper with this block". Details show
+  the block's 80 header bytes, field by field. All hashes keep their 64
+  characters, on two lines of 32 where one line is too short: their length is
+  part of the lesson. Under them the card lists the block's **transactions**,
+  one line each. A click opens one in place: inputs, outputs and the whole TXID;
+  scripts, signature and raw bytes stay one click further in the dialog.
 - **Next block:** the one primary action "Mining" with Play, an adjacent Repeat toggle for Auto-mine,
   difficulty stepper with its compact `bits`, and the last round as two lanes (Lars, Minas) with
   "Back Lars / Back Minas". While mining it becomes the **live race** in
   place.
-- **Wallets:** sized for the five sample wallets plus one the learner
-  creates ("Create wallet"); more wallets scroll inside the card with Create
-  wallet staying visible.
-- **Mempool:** pending transactions with their coins, change and fee, and the
-  coinbase line "added when #N is mined" with reward plus fees. A row opens its
+- **Wallets:** a narrow column with name and balance, sized for the five sample
+  wallets plus one the learner creates; more wallets scroll inside the card and
+  "Create wallet" stays in its header. Role, blocks won and hash rate appear
+  where the card is wider; blocks won and hashpower are in the wallet details.
+- **Mempool:** pending transactions with their coins, change and fee, one line
+  each where the card is narrow, and the coinbase line "added when #N is mined" with reward plus fees. A row opens its
   transaction details; **"New transaction" sits in the card header** as a tinted button
   with the same glow as Mine block.
 - **Activity** (only on tall screens): recent confirmed transactions and
@@ -260,13 +273,13 @@ it; type size never changes with the viewport.
 
 | Viewport | Behavior |
 |---|---|
-| ≥ 1280 wide and ≥ 830 tall | Fills the screen without scrolling. Extra height goes to lists (wallets, mempool), extra width to block tiles (up to ~280 px each) and cards; never to empty padding. |
+| ≥ 1200 wide and ≥ 830 tall | Fills the screen without scrolling. Extra height goes to lists (wallets, mempool), extra width to block tiles (up to ~280 px each) and cards; never to empty padding. |
 | ≥ 1100 tall | The Activity card appears as row 3 and takes the height lists cannot fill. |
 | ≥ 2200 wide | Content capped at ~2160 px and centered; the background continues. |
 | < 830 tall (e.g. 1366 × 657) | The page scrolls vertically; cards keep their density instead of squeezing. |
-| 1024–1279 wide | Collapsed Missions entry unless explicitly opened; tiles narrower (min ~150 px); earlier blocks behind a "‹ N earlier" control. |
-| 768–1023 wide | Mission rail becomes a bar on top; the chain becomes a vertical timeline (newest on top, candidate first); then Next block, Mempool, then Selected block and Wallets side by side. |
-| < 768 wide | Phone: compact top bar, mission bar, vertical timeline, health line, key-figure line, then Next block, Mempool, Selected block, Wallets. The race sits directly under the chain. |
+| 1024–1279 wide | Collapsed Missions entry unless explicitly opened; tiles narrower (min ~150 px); earlier blocks behind a "‹ N earlier" control. Below 1200 the Block card stays left and Next block, Mempool and Wallets stack on the right; the page scrolls. |
+| 768–1023 wide | Mission rail becomes a bar on top; the chain becomes a vertical timeline (newest on top, candidate first); then Next block, Mempool, Block and Wallets, one under the other. |
+| < 768 wide | Phone: compact top bar, mission bar, vertical timeline, health line, key-figure line, then Next block, Mempool, Block, Wallets. The race sits directly under the chain. |
 
 No size scrolls sideways.
 
@@ -304,7 +317,7 @@ and validity states are semantic tokens.
 | Component | Contract |
 |---|---|
 | Top bar | Brand, four-tab navigation, coin label, chain status pill, overflow menu; below 768 px the tabs fold into the menu |
-| Block tile | Number, time, miner chip, tx count, stored previous hash, short hash with highlighted zeros; states `is-selected`, `is-newest`, `is-broken`, `is-dependent`; full-hash tooltip with Copy on hover and focus |
+| Block tile | Number, time, miner chip, tx count, stored previous hash, short hash with highlighted zeros; states `is-selected` (held), `is-current` (followed), `is-newest`, `is-broken`, `is-dependent`; full-hash tooltip with Copy on hover and keyboard focus |
 | Candidate tile | Dashed; idle "next", mining "mining · 3.4 s", paused while invalid |
 | Link | 1 px hairline with a neutral 6 px dot; `is-broken` red, `is-dependent` amber; explaining tooltip |
 | Chain health | One line, collapsible strip of per-block checks on the tile column grid |
@@ -348,10 +361,9 @@ Rules for every workbench component (`src/components/workbench/`):
 
 ## Deviations
 
-- The card grid uses two equal columns. The workshop prototype started the
-  right column under the third visible tile and gave the Next block card a
-  notch pointing at the candidate; both are not built, because the chain band
-  shows a varying number of tiles.
+- The workshop prototype started the right column under the third visible tile
+  and gave the Next block card a notch pointing at the candidate; both are not
+  built, because the chain band shows a varying number of tiles.
 
 ## Findings: product before the redesign (2026-10-27, commit 284c54e)
 
