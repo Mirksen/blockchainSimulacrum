@@ -15,6 +15,8 @@ export const MIN_SHARE_ZEROS = 1;
 export const MAX_SHARE_ZEROS = 8;
 export const MAX_BODY_BYTES = 2048;
 export const LEADERBOARD_SIZE = 20;
+// Keeps the database well inside its filesystem, whatever a script sends (ADR 0003).
+export const MAX_BLOCKS = 20_000;
 export const RATE_LIMITS = Object.freeze({ challenge: 30, share: 120 });
 const RATE_WINDOW_MS = 60 * 1000;
 const HEX_RE = /^[0-9a-f]+$/;
@@ -174,6 +176,7 @@ export function createApp({
   staticDir,
   log,
   shareZeros = PROOF_ZEROS,
+  maxBlocks = MAX_BLOCKS,
   genesisHash = GENESIS.hash,
   // Folded blocked/reserved/allowed name lists; defaults to the term files in server/data/.
   nameLists,
@@ -230,6 +233,20 @@ export function createApp({
   const countBlock = db.prepare(
     'UPDATE blocks SET proofs = proofs + 1 WHERE genesis_hash = ? AND name = ? AND round_height = ? AND round_hash = ?',
   );
+  const countBlocks = db.prepare('SELECT COUNT(*) AS total, COALESCE(SUM(round_height < ?), 0) AS finished FROM blocks');
+  const dropWorst = db.prepare(`
+    DELETE FROM blocks WHERE rowid = (
+      SELECT rowid FROM blocks WHERE (round_height < ?1) = ?2 ORDER BY hash DESC, created_at DESC LIMIT 1
+    )
+  `);
+  // A board keeps its best: past the limit the worst hash goes. Half the room belongs to
+  // finished rounds and half to the window, so neither list can push the other out: a
+  // flood of new blocks cannot reach the all-time leaders, nor old ones the last day's.
+  function trimBlocks() {
+    const from = tip.windowStart();
+    const { total, finished } = countBlocks.get(from);
+    if (total > maxBlocks) dropWorst.run(from, finished > maxBlocks / 2 ? 1 : 0);
+  }
   // Best block per name: the smallest hash, which means the most leading zeros and,
   // among equal zeros, the higher difficulty. Fixed-length lowercase hex sorts by value.
   // Only blocks for the current genesis count; ?2 restricts to rounds from that Bitcoin
@@ -319,8 +336,10 @@ export function createApp({
     const stored = selectBlock.get(...place);
     const fields = [proof.header, proof.coinbase, JSON.stringify(proof.branch), hash, zeros, now()];
     if (stored?.hash === hash) throw new HttpError(409, 'duplicate proof');
-    if (!stored) insertBlock.run(...place, ...fields);
-    else if (hash < stored.hash) replaceBest.run(...fields, ...place);
+    if (!stored) {
+      insertBlock.run(...place, ...fields);
+      trimBlocks();
+    } else if (hash < stored.hash) replaceBest.run(...fields, ...place);
     else countBlock.run(...place);
     send(res, 200, { accepted: true, hash, zeros, difficulty: hashDifficulty(hash), round });
   }

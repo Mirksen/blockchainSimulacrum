@@ -26,8 +26,14 @@ land on the leaderboard, with the name directly visible while mining: "jeder Blo
    Re-mined blocks keep their coinbase and do not count again.
 4. **No floor.** The server accepts one leading zero (`PROOF_ZEROS = 1`), the workbench minimum.
    The board ranks by the smallest hash, so easy blocks cost nothing but a counter.
-5. **One row per name and round.** The server keeps the best block and a count, not every block.
-   A miner left running on Auto-mine adds a number instead of rows. The rate limit stays.
+5. **One row per name and round, 20,000 rows at most.** The server keeps the best block and a
+   count, not every block, so a miner left running on Auto-mine adds a number instead of rows. Past
+   the limit the worst hash goes. Half the room belongs to finished rounds and half to the 144-block
+   window, so a flood of new blocks cannot reach the all-time leaders. The board shows 20 rows per
+   list, so this stays invisible; a dropped block is answered like any other. Floors and tighter
+   rate limits were rejected: neither stops a script that rotates addresses, and both hit honest
+   visitors. Measured: 54 MiB free on the host; 20,000 realistic rows take 24.8 MiB, and dropping a
+   row at that size costs about 8 ms on the m1.
 6. **The server checks work, not a chain.** Each visitor's chain lives in their own browser, so it
    cannot check `previousHash`. It checks that the header hashes as claimed, that its merkle root
    leads to a coinbase and that the coinbase ends with this name's commitment. Malformed
@@ -44,8 +50,8 @@ land on the leaderboard, with the name directly visible while mining: "jeder Blo
 - The Mining pool tab is now the Leaderboard tab. Its continuous search mines the same blocks,
   built on the genesis, and raises its goal by one zero after each accepted block.
 - Every visitor's blocks are sent by default, under a generated name.
-- Anyone can mine blocks under any name; names are not accounts, as before. With no floor a script
-  can add rows up to the rate limit by rotating names. Storage stays bounded per name and round,
-  not per visitor; if that is ever abused, the rate limit is the place to tighten.
+- Anyone can mine blocks under any name; names are not accounts, as before. A script can fill the
+  20,000 rows by rotating names, but only real work moves it up the board, and weak rows lose their
+  block count when they are dropped.
 - The table `blocks` is added next to the unread `proofs` and `shares`; data version 1 stays, since
   older code ignores the new table.

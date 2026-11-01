@@ -69,7 +69,7 @@ intended browser origins; outgoing HTTPS to `mempool.space` supplies public roun
 data. `CHALLENGE_SECRET` is no longer read.
 
 The server creates `blocks` and its index if absent: one row per name and round with
-that round's best block and a count (ADR 0003). The previous `proofs` and `shares`
+that round's best block and a count, 20,000 rows at most (ADR 0003). The previous `proofs` and `shares`
 tables are preserved but not read, so older code still starts on this data. Admission must preserve the original
 SQLite files under a writer stop; an empty leaderboard is not a backup. A snapshot
 captures the whole filesystem after every writer stops and the filesystem unmounts.
