@@ -315,8 +315,9 @@ export class Blockchain {
 
   // Freeze the work for one miner: everything except the nonce is fixed here, so a
   // search only varies the last four header bytes. A further extraNonce changes the
-  // coinbase and with it the root, which opens a fresh nonce space.
-  prepareCandidate(miner, { time = this.nextBlockTime(), extraNonce = 0 } = {}) {
+  // coinbase and with it the root, which opens a fresh nonce space. A `signature` writes
+  // the miner's name into the coinbase and commits it to a leaderboard round.
+  prepareCandidate(miner, { time = this.nextBlockTime(), extraNonce = 0, signature = null } = {}) {
     const height = this.blockArray.length;
     const reward = height % this.halvingEvent === 0 ? this.blockReward / 2 : this.blockReward;
     // An edit of history can orphan a pending transaction; it stays for an undo but stays out of the block.
@@ -326,7 +327,8 @@ export class Blockchain {
     const subsidy = Math.floor(reward * 1e8);
     const difficulty = this.miningDifficulty;
     const bits = bitsOfZeros(difficulty);
-    const coinbase = createCoinbase({ height, value: subsidy + fees, recipientScript: miner.scriptPubKey, extraNonce });
+    const coinbase = createCoinbase({ height, value: subsidy + fees, recipientScript: miner.scriptPubKey, extraNonce,
+      ...(signature ? { tag: signature.name, commitment: signature.commitment } : {}) });
     const transactions = Object.freeze([coinbase, ...included]);
     const previousHash = this.blockArray[height - 1].hash;
     const txRoot = transactionRoot(transactions);

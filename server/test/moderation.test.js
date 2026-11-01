@@ -37,11 +37,11 @@ describe('challenge refuses unavailable names', () => {
   test('a share for a blocked or reserved name is 400 name unavailable and not stored', async () => {
     for (const name of ['zorblax', 'Z0RBL4X', 'my-zorblax-rig', 'qux', 'sysop']) {
       const proof = mine(srv.prefix(name), { min: 1 });
-      const res = await postShare(srv, { name, round: ROUND_A, nonce: proof.nonce });
+      const res = await postShare(srv, { name, round: ROUND_A, ...proof.block });
       assert.equal(res.status, 400, name);
       assert.deepEqual(res.body, { error: 'name unavailable' }, name);
     }
-    assert.equal(srv.db.prepare('SELECT COUNT(*) AS n FROM proofs').get().n, 0);
+    assert.equal(srv.db.prepare('SELECT COUNT(*) AS n FROM blocks').get().n, 0);
     assert.equal((await prove(srv, 'qux-miner')).res.status, 200);
   });
 });
@@ -104,17 +104,17 @@ describe('operator hides a name with src/admin.js', () => {
       assert.equal(refused.status, 400, name);
       assert.deepEqual(refused.body, { error: 'name unavailable' });
     }
-    const late = await postShare(srv, { name: 'loud-miner', round: ROUND_A, nonce: held.nonce });
+    const late = await postShare(srv, { name: 'loud-miner', round: ROUND_A, ...held.block });
     assert.equal(late.status, 400);
     assert.deepEqual(late.body, { error: 'name unavailable' });
-    assert.equal(srv.db.prepare("SELECT COUNT(*) AS n FROM proofs WHERE name = 'loud-miner'").get().n, 1);
+    assert.equal(srv.db.prepare("SELECT COUNT(*) AS n FROM blocks WHERE name = 'loud-miner'").get().n, 1);
 
     assert.equal((await admin('unhide', 'loud-miner')).stdout, 'unhidden: loud-miner (folded: loudminer)\n');
     assert.equal((await admin('unhide', 'loud-miner')).stdout, 'not hidden: loud-miner (folded: loudminer)\n');
     assert.equal((await admin('list-hidden')).stdout, 'no hidden names\n');
     assert.deepEqual(await board(), { round: both, allTime: both });
     assert.equal((await getChallenge(srv, 'loud-miner')).status, 200);
-    assert.equal((await postShare(srv, { name: 'loud-miner', round: ROUND_A, nonce: held.nonce })).status, 200);
+    assert.equal((await postShare(srv, { name: 'loud-miner', round: ROUND_A, ...held.block })).status, 200);
   });
 
   test('bad usage exits with status 1 and a usage line', async () => {

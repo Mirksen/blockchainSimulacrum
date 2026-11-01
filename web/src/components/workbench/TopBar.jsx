@@ -11,7 +11,7 @@ const VIEWS = [
   { id: 'workbench', label: 'Workbench', href: '#/' },
   { id: 'hash-lab', label: 'Hash lab', href: '#/hash-lab' },
   { id: 'chain-lab', label: 'Chain lab', href: '#/chain-lab' },
-  { id: 'pool', label: 'Mining pool', href: '#/pool' },
+  { id: 'pool', label: 'Leaderboard', href: '#/pool' },
 ];
 
 const FOCUSABLE = 'a[href], button:not([disabled]), summary, input:not([disabled])';

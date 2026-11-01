@@ -42,7 +42,7 @@ function createRun(chain, miners, backed, tracked) {
 export function useBlockchain(config = {}) {
     // The controller belongs to this hook instance. Only event handlers mutate it;
     // rendering reads a fresh snapshot published after each model change.
-    const [controller] = useState(() => ({ chain: createBlockchain(config), config, run: null, setup: null, backed: null }));
+    const [controller] = useState(() => ({ chain: createBlockchain(config), config, run: null, setup: null, backed: null, signer: null }));
     const [view, setView] = useState(() => snapshot(controller.chain));
     const [isMining, setIsMining] = useState(false);
     const [isSettingUp, setIsSettingUp] = useState(false);
@@ -196,13 +196,20 @@ export function useBlockchain(config = {}) {
         // each round moves on to the next extraNonce in the coinbase.
         const time = chain.nextBlockTime();
         const height = chain.blockArray.length;
-        const prepare = extraNonce => new Map(miners.map(miner => [miner.name, chain.prepareCandidate(miner, { time, extraNonce })]));
+        // Every miner here hashes in this browser, so every candidate carries its visitor's signature.
+        const signature = controller.signer?.current() ?? null;
+        const prepare = extraNonce => new Map(miners.map(miner => [miner.name, chain.prepareCandidate(miner, { time, extraNonce, signature })]));
         const result = await race(run, chain, miners, prepare, (candidate, found) => {
             const outcome = chain.acceptBlock(candidate, found.nonce, found.hash);
             return outcome.status === 'accepted' ? outcome.block : null;
         });
+        if (result.success && signature) void controller.signer.submit(result.block, signature, height);
         return result.success ? { ...result, epoch: chain.epochAt(height) } : result;
     }, [controller, race]);
+
+    // `signer` is { current() → the signature of the next block or null, submit(block, signature,
+    // height) }. Re-mined blocks keep their coinbase and never reach it.
+    const setSigner = useCallback(signer => { controller.signer = signer; }, [controller]);
 
     // Re-mine historical block `index` with the same race as a new block: only its
     // link, difficulty, nonce and hash change; its transactions stay as they are.
@@ -391,5 +398,5 @@ export function useBlockchain(config = {}) {
         backedMiner, lastDifficultyChange,
         setSelectedBlock, createTransaction, previewTransaction, mineBlock, mineEmptyBlock: mineBlock, setupInitialDistribution,
         generateRandomTransactions, setDifficulty, setHalvingInterval, tamperBlock, undoTamper, remineBlock,
-        resetBlockchain, cancelMining, toggleMiner, setMinerHashpower, getActiveMiners, createWallet, backMiner };
+        resetBlockchain, cancelMining, toggleMiner, setMinerHashpower, getActiveMiners, createWallet, backMiner, setSigner };
 }

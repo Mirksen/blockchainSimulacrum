@@ -1,0 +1,34 @@
+/* Miner name: the signature strip at the top of the Next block card (web/DESIGN.md, "Miner name"). */
+.miner-name {
+  display: grid; grid-template-columns: auto minmax(120px, 170px) minmax(0, 1fr); align-items: center; gap: 6px var(--s-3);
+  margin-top: var(--s-2); padding: 6px var(--s-3); border: 1px solid var(--line-2); border-radius: var(--r-md);
+  background: var(--panel);
+}
+.miner-name.is-generated { border-color: var(--blue-line); background: var(--blue-bg); }
+.miner-name.is-generated .miner-name-input { border-color: var(--blue); box-shadow: 0 0 0 1px var(--blue), 0 0 14px var(--blue-glow); }
+.miner-name-label { font-size: 13px; font-weight: 600; color: var(--text); white-space: nowrap; }
+.miner-name-input {
+  width: 100%; min-width: 0; height: 32px; padding: 0 10px; border: 1px solid var(--line-3); border-radius: var(--r-sm);
+  background: var(--bg); color: var(--text); font: 600 14px/1 var(--ui);
+}
+.miner-name-input::placeholder { color: var(--text-3); font-weight: 400; }
+.miner-name-input:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.miner-name-input[aria-invalid="true"] { border-color: var(--red); }
+.miner-name-input:disabled { opacity: .7; cursor: not-allowed; }
+.miner-name-status { margin: 0; font-size: 12px; line-height: 16px; color: var(--text-2); }
+.miner-name-status.is-done { color: var(--green); }
+.miner-name-status.is-problem { color: var(--red); }
+
+/* A slow breath, so the field is found without pulling at the race beside it. */
+@keyframes miner-name-glow {
+  from { box-shadow: 0 0 0 1px var(--blue), 0 0 6px var(--blue-glow); }
+  to { box-shadow: 0 0 0 1px var(--blue), 0 0 18px var(--blue-glow); }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .miner-name.is-generated .miner-name-input:not(:focus):not(:disabled) { animation: miner-name-glow 1.8s ease-in-out infinite alternate; }
+}
+
+@container next-block (max-width: 459.98px) {
+  .miner-name { grid-template-columns: auto minmax(0, 1fr); }
+  .miner-name-status { grid-column: 1 / -1; }
+}

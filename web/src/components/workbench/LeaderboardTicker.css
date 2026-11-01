@@ -23,6 +23,7 @@
   mask-image: linear-gradient(90deg, transparent, black 24px, black calc(100% - 24px), transparent);
 }
 .leaderboard-ticker-track { display: inline-flex; width: max-content; }
+.leaderboard-ticker-empty { padding-left: var(--s-3); color: var(--text-2); }
 .leaderboard-ticker-list { display: inline-flex; flex: none; padding-left: var(--s-3); }
 .leaderboard-ticker { container: leaderboard-ticker / inline-size; }
 @container leaderboard-ticker (max-width: 599.98px) {
@@ -32,6 +33,7 @@
 .leaderboard-ticker-row { display: inline-flex; align-items: baseline; gap: 6px; padding: 0 var(--s-5) 0 var(--s-2); }
 .leaderboard-ticker-row + .leaderboard-ticker-row { border-left: 1px solid var(--line-3); padding-left: var(--s-5); }
 .leaderboard-ticker-rank { color: var(--text-3); }
+.leaderboard-ticker-find { color: var(--amber); font-weight: 600; }
 .leaderboard-ticker-name { color: var(--text); font-weight: 500; }
 .leaderboard-ticker-points { color: var(--text-2); font-family: var(--mono); font-size: 11px; }
 .leaderboard-ticker-hash { color: var(--text-3); font-family: var(--mono); font-size: 11px; }

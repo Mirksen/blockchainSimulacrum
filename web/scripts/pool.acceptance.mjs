@@ -18,7 +18,7 @@ export async function verifyPool(page, output, before) {
   try {
     const pool = page.locator('section.pool-panel');
     const status = pool.getByRole('status');
-    await openTab(page, 'Mining pool');
+    await openTab(page, 'Leaderboard');
     await status.filter({ hasText: UNAVAILABLE }).waitFor();
     assert.equal(await status.innerText(), UNAVAILABLE);
     // The ticker may refresh meanwhile; it only ever reads the leaderboard.
@@ -42,12 +42,13 @@ export async function verifyPool(page, output, before) {
     await challenged;
     await status.filter({ hasText: UNAVAILABLE }).waitFor();
     await pool.getByRole('button', { name: 'Join', exact: true }).waitFor();
-    assert.deepEqual(poolRequests(), ['/api/challenge']);
+    // The workbench signer asks about the same valid name.
+    assert.ok(poolRequests().every(path => path === '/api/challenge'), JSON.stringify(poolRequests()));
 
     for (const theme of ['light', 'dark']) {
       if (await page.locator('html').getAttribute('data-theme') !== theme) await menu(page, theme === 'light' ? 'Light theme' : 'Dark theme');
       await openTab(page, 'Workbench');
-      await openTab(page, 'Mining pool');
+      await openTab(page, 'Leaderboard');
       await status.filter({ hasText: UNAVAILABLE }).waitFor();
       assert.equal(await name.inputValue(), 'test-miner', 'The valid name is remembered');
       for (const width of [320, 390, 768, 1200, 1440]) {
@@ -73,7 +74,7 @@ export async function verifyPool(page, output, before) {
     page.off('pageerror', onError);
     await page.unroute(`${API}/**`, refuse);
   }
-  return ['Mining pool: unreachable server shows the unavailable status and table state without page errors',
-    'Mining pool: invalid name blocked inline; leaving keeps the simulator unchanged',
-    'Mining pool: five widths in both themes'];
+  return ['Leaderboard: unreachable server shows the unavailable status and table state without page errors',
+    'Leaderboard: invalid name blocked inline; leaving keeps the simulator unchanged',
+    'Leaderboard: five widths in both themes'];
 }

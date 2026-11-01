@@ -2,15 +2,16 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { LeaderboardTicker, TICKER_REFRESH_MS } from '../components/workbench/LeaderboardTicker';
+import { findsOf } from '../lib/poolProof';
 import { getLeaderboard } from '../lib/poolApi';
 
 vi.mock('../lib/poolApi', async importOriginal => ({ ...(await importOriginal()), getLeaderboard: vi.fn() }));
 
 const ROUND = { height: 900001, hash: `0000${'ab'.repeat(30)}` };
 const ROWS = [
-  { name: 'test-miner-a', round: ROUND, nonce: 4242, bestHash: '0000ab'.padEnd(62, 'c') + 'ef', bestZeros: 4,
+  { name: 'test-miner-a', round: ROUND, header: '00'.repeat(80), coinbase: '00', branch: [], bestHash: '0000ab'.padEnd(62, 'c') + 'ef', bestZeros: 4,
     difficulty: 2.5e9, proofs: 3, foundAt: 1_800_000_000_000 },
-  { name: 'test-miner-b', round: { height: 899990, hash: 'a'.repeat(64) }, nonce: 7, bestHash: '000f12'.padEnd(62, 'd') + '9a',
+  { name: 'test-miner-b', round: { height: 899990, hash: 'a'.repeat(64) }, header: '00'.repeat(80), coinbase: '00', branch: [], bestHash: '000f12'.padEnd(62, 'd') + '9a',
     bestZeros: 3, difficulty: 4096, proofs: 1, foundAt: 1_799_999_000_000 },
 ];
 const ROUND_ROW = { ...ROWS[1], name: 'round-only-miner', round: ROUND };
@@ -39,11 +40,12 @@ describe('LeaderboardTicker', () => {
     expect(first.textContent).toBe('#1test-miner-a4 zeros · 2.5 B0000ab…ef');
     expect(first.querySelector('.leaderboard-ticker-zero').textContent).toBe('0000');
     expect(list.querySelectorAll('.leaderboard-ticker-row')[1].textContent).toBe('#2test-miner-b3 zeros · 4,096000f12…9a');
-    expect(band.textContent).not.toContain('round-only-miner');
+    expect(band.querySelector('.leaderboard-ticker-row:not(.is-find) .leaderboard-ticker-name').textContent).toBe('test-miner-a');
+    expect(band.querySelector('.leaderboard-ticker-list:not([aria-hidden]) .is-find').textContent).toBe('Best todayround-only-miner3 zeros');
     // The second copy only makes the loop seamless; assistive tech hears one list.
     expect(band.querySelectorAll('.leaderboard-ticker-list[aria-hidden="true"]')).toHaveLength(1);
 
-    const button = screen.getByRole('button', { name: 'Pool leaderboard, 2 miners, leader test-miner-a with 4 zeros. Open the Mining pool' });
+    const button = screen.getByRole('button', { name: 'Leaderboard, 2 miners, leader test-miner-a with 4 zeros. Open the leaderboard' });
     fireEvent.click(button);
     expect(onOpenPool).toHaveBeenCalledTimes(1);
   });
@@ -60,13 +62,38 @@ describe('LeaderboardTicker', () => {
 
   it.each([
     ['an empty board', { round: null, allTime: [] }],
-    ['a board with proofs only in this round', board([])],
-  ])('renders nothing for %s', async (_label, answer) => {
+    ['a board with blocks only in this round', board([])],
+  ])('invites to the first block on %s and still opens the leaderboard', async (_label, answer) => {
     vi.mocked(getLeaderboard).mockResolvedValue(answer);
-    const { container } = render(<LeaderboardTicker onOpenPool={() => {}} />);
+    const onOpenPool = vi.fn();
+    const onBoard = vi.fn();
+    render(<LeaderboardTicker onOpenPool={onOpenPool} onBoard={onBoard} />);
     await flush();
-    expect(getLeaderboard).toHaveBeenCalledTimes(1);
-    expect(container.innerHTML).toBe('');
+    expect(ticker().textContent).toContain('No blocks yet. Mine the first one.');
+    expect(onBoard).toHaveBeenCalledWith([]);
+    fireEvent.click(screen.getByRole('button', { name: 'Leaderboard, no blocks yet. Open the leaderboard' }));
+    expect(onOpenPool).toHaveBeenCalledTimes(1);
+  });
+
+  it('derives the special finds from what the board says', () => {
+    const rows = [{ name: 'deep', bestZeros: 7, proofs: 2, foundAt: 10 }, { name: 'busy', bestZeros: 3, proofs: 900, foundAt: 20 },
+      { name: 'new', bestZeros: 2, proofs: 1, foundAt: 30 }];
+    expect(findsOf({ recent: { rows: [rows[1]] }, allTime: rows })).toEqual([
+      { label: 'Best today', name: 'busy', value: '3 zeros' }, { label: 'Most blocks', name: 'busy', value: '900' },
+      { label: 'Latest find', name: 'new', value: '2 zeros' }]);
+    expect(findsOf({ recent: null, allTime: [] })).toEqual([]);
+    expect(findsOf({ recent: { rows: [] }, allTime: [rows[2]] }).map(find => find.label)).toEqual(['Latest find']);
+  });
+
+  it('reads the board again when a block was accepted and hands the rows up', async () => {
+    vi.mocked(getLeaderboard).mockResolvedValue(board(ROWS));
+    const onBoard = vi.fn();
+    const view = render(<LeaderboardTicker onBoard={onBoard} refreshKey={0} />);
+    await flush();
+    view.rerender(<LeaderboardTicker onBoard={onBoard} refreshKey={1} />);
+    await flush();
+    expect(getLeaderboard).toHaveBeenCalledTimes(2);
+    expect(onBoard).toHaveBeenLastCalledWith(ROWS);
   });
 
   it('pauses on hover and focus and resumes after', async () => {
@@ -107,7 +134,7 @@ describe('LeaderboardTicker', () => {
     expect(getLeaderboard).toHaveBeenCalledTimes(1);
     await act(async () => { await vi.advanceTimersByTimeAsync(1); });
     expect(getLeaderboard).toHaveBeenCalledTimes(2);
-    expect(screen.getByRole('button').getAttribute('aria-label')).toBe('Pool leaderboard, 1 miner, leader test-miner-b with 3 zeros. Open the Mining pool');
+    expect(screen.getByRole('button').getAttribute('aria-label')).toBe('Leaderboard, 1 miner, leader test-miner-b with 3 zeros. Open the leaderboard');
 
     await act(async () => { await vi.advanceTimersByTimeAsync(TICKER_REFRESH_MS); });
     expect(getLeaderboard).toHaveBeenCalledTimes(3);

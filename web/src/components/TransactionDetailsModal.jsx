@@ -4,7 +4,7 @@ const CloseIcon = () => (
     <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M3.5 3.5l7 7M10.5 3.5l-7 7" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg>
 );
 
-const OUTPUT_KINDS = { payment: 'Payment', change: 'Change', memo: 'Memo', reward: 'Reward' };
+const OUTPUT_KINDS = { payment: 'Payment', change: 'Change', memo: 'Memo', reward: 'Reward', commitment: 'Leaderboard' };
 const shortId = id => `${id.slice(0, 8)}…${id.slice(-4)}`;
 const shortAddress = address => (address ? `${address.slice(0, 6)}…${address.slice(-4)}` : null);
 const coins = value => value.toFixed(8);
@@ -26,13 +26,14 @@ function InputRow({ input }) {
 }
 
 function OutputRow({ output }) {
-    const state = output.kind === 'memo' ? `${output.memo ?? 'binary data'} · cannot be spent`
+    const state = output.kind === 'commitment' ? 'commits this block to its miner name and round · cannot be spent'
+        : output.kind === 'memo' ? `${output.memo ?? 'binary data'} · cannot be spent`
         : output.spent ? (output.spentIn === null ? 'spent in the mempool' : `spent in block #${output.spentIn}`) : 'unspent';
     return (
         <li className="details-modal-coin is-flow">
             <div className="details-modal-flow-main">
                 <span className="details-modal-pill">{OUTPUT_KINDS[output.kind]}</span>
-                <b>{output.kind === 'memo' ? '' : (output.owner ?? 'Unknown')}</b>
+                <b>{output.kind === 'memo' || output.kind === 'commitment' ? '' : (output.owner ?? 'Unknown')}</b>
                 <span className="details-modal-row-amount">{coins(output.value)}</span>
             </div>
             <div className="details-modal-flow-meta">{[shortAddress(output.address), state].filter(Boolean).join(' · ')}</div>

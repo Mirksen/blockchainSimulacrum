@@ -5,6 +5,7 @@ import { verifyChainLab } from './chain-lab.acceptance.mjs';
 import { verifyForgeMission, verifyMissions, verifyMissionReload } from './missions.acceptance.mjs';
 import { verifyMissionVisibility } from './missions-visibility.acceptance.mjs';
 import { verifyPool } from './pool.acceptance.mjs';
+import { verifyMinerName } from './miner-name.acceptance.mjs';
 import { headerHash, menu, openTab, settle, snapshot, workbench } from './workbench.helpers.mjs';
 import { chromium } from 'playwright';
 import { spawn } from 'node:child_process';
@@ -35,7 +36,7 @@ const telemetryMock = async route => {
 };
 // Synthetic leaderboard for the ticker; no pool server is ever contacted.
 const FIXTURE_ROUND = { height: 900001, hash: `0000${'ab'.repeat(30)}` };
-const fixtureRow = (name, bestHash, bestZeros, difficulty) => ({ name, round: FIXTURE_ROUND, nonce: 7, bestHash, bestZeros, difficulty, proofs: 3, foundAt: 0 });
+const fixtureRow = (name, bestHash, bestZeros, difficulty) => ({ name, round: FIXTURE_ROUND, header: '00'.repeat(80), coinbase: '00', branch: [], bestHash, bestZeros, difficulty, proofs: 3, foundAt: 0 });
 const leaderboardFixture = () => {
  const rows = [fixtureRow('fixture-alpha', `000000${'1'.repeat(58)}`, 6, 1048576), fixtureRow('fixture-beta', `00000${'2'.repeat(59)}`, 5, 65536)];
  return { recent: { from: FIXTURE_ROUND.height - 143, to: FIXTURE_ROUND.height, rows }, allTime: rows };
@@ -119,14 +120,14 @@ try {
  const controls = page.getByRole('group',{name:'Mining controls'});
  assert.equal(await controls.getByRole('button',{name:'Auto-mine',exact:true}).getAttribute('aria-pressed'), 'false', 'Manual mining is the default');
  assert.equal(await controls.getByRole('button',{name:'Start demo',exact:true}).count(), 1, 'Play and Repeat share one control group');
- const ticker = page.getByRole('button',{name:/^Pool leaderboard, 2 miners, leader fixture-alpha/});
+ const ticker = page.getByRole('button',{name:/^Leaderboard, 2 miners, leader fixture-alpha/});
  await ticker.waitFor();
  await ticker.click();
  await page.locator('section.pool-panel').waitFor();
  assert.match(page.url(), /#\/pool$/);
  await openTab(page, 'Workbench');
  await page.getByRole('button',{name:'Start demo',exact:true}).waitFor();
- results.push('Fresh start shows Genesis, the candidate and Start demo; the leaderboard ticker opens the mining pool');
+ results.push('Fresh start shows Genesis, the candidate and Start demo; the leaderboard ticker opens the leaderboard');
 
  await page.getByRole('button',{name:'Start demo',exact:true}).click();
  await wb.mine(3).waitFor({timeout:30000});
@@ -354,6 +355,7 @@ try {
  assert.equal(telemetryRequests.length,beforeMissionTelemetry,'Missions add no telemetry while sharing is off');
 
  results.push(...await verifyForkMission(browser, baseURL, output));
+ results.push(...await verifyMinerName(browser, baseURL, output));
  assert.deepEqual(errors,[]);
  results.push('No page errors or horizontal overflow at five widths');
  await page.close();

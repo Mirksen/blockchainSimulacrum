@@ -19,14 +19,14 @@ describe('navigation', () => {
     const { onNavigate } = renderBar({ view: 'chain-lab' });
     const nav = screen.getByRole('navigation', { name: 'Main' });
     const links = within(nav).getAllByRole('link');
-    expect(links.map(link => link.textContent)).toEqual(['Workbench', 'Hash lab', 'Chain lab', 'Mining pool']);
+    expect(links.map(link => link.textContent)).toEqual(['Workbench', 'Hash lab', 'Chain lab', 'Leaderboard']);
     expect(within(nav).getByRole('link', { name: 'Chain lab' }).getAttribute('aria-current')).toBe('page');
     expect(links.filter(link => link.hasAttribute('aria-current'))).toHaveLength(1);
-    expect(within(nav).getByRole('link', { name: 'Mining pool' }).getAttribute('href')).toBe('#/pool');
+    expect(within(nav).getByRole('link', { name: 'Leaderboard' }).getAttribute('href')).toBe('#/pool');
 
     fireEvent.click(within(nav).getByRole('link', { name: 'Hash lab' }));
     expect(onNavigate).toHaveBeenCalledWith('hash-lab');
-    fireEvent.click(within(nav).getByRole('link', { name: 'Mining pool' }));
+    fireEvent.click(within(nav).getByRole('link', { name: 'Leaderboard' }));
     expect(onNavigate).toHaveBeenLastCalledWith('pool');
   });
 
@@ -116,7 +116,7 @@ describe('compact (below 768 px)', () => {
     const menuButton = screen.getByRole('button', { name: 'Menu' });
     fireEvent.click(menuButton);
     const nav = screen.getByRole('navigation', { name: 'Main' });
-    expect(within(nav).getByRole('link', { name: 'Mining pool' }).getAttribute('aria-current')).toBe('page');
+    expect(within(nav).getByRole('link', { name: 'Leaderboard' }).getAttribute('aria-current')).toBe('page');
     expect(document.activeElement).toBe(within(nav).getByRole('link', { name: 'Workbench' }));
     fireEvent.click(within(nav).getByRole('link', { name: 'Hash lab' }));
     expect(onNavigate).toHaveBeenCalledWith('hash-lab');

@@ -96,7 +96,7 @@ function zeroStatus(zeros, difficulty, isWinner) {
 export function NextBlockCard({
   mode = 'idle', index, txCount = 0, reward, difficulty = 2, onDifficulty, autoMine = false, onAutoMine,
   onStartDemo, onMine, onPause, onRemine, repair = null, miners = [], race = null, lastRound = null,
-  backedMiner = null, onBack, coach = null
+  backedMiner = null, onBack, coach = null, signature = null
 }) {
   const isMining = mode === 'mining';
   const isRepair = mode === 'repair';
@@ -164,6 +164,7 @@ export function NextBlockCard({
         {headStatus}
         {headAside}
       </div>
+      {signature}
       <div className="next-block-actions">
         {stepper}
         <div className="next-block-action" role="group" aria-label="Mining controls">

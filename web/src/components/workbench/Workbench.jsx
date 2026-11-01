@@ -3,6 +3,7 @@ import { ChainBand } from './ChainBand';
 import { ChainTimeline } from './ChainTimeline';
 import { SelectedBlockCard } from './SelectedBlockCard';
 import { NextBlockCard } from './NextBlockCard';
+import { MinerName } from './MinerName';
 import { WalletsCard } from './WalletsCard';
 import { MempoolCard } from './MempoolCard';
 import { ActivityCard } from './ActivityCard';
@@ -15,10 +16,12 @@ import './Workbench.css';
 // into the view models of the presentational components; App owns state and effects.
 
 const satoshis = coins => Math.round(coins * 1e8);
+// A signed coinbase names its miner in the memo and commits to it in a last output.
+const signerOf = coinbase => (coinbase.outputs.some(output => output.kind === 'commitment') ? coinbase.memo : null);
 
 export function Workbench({
   sim, coinName, targetSeconds, autoMine, onAutoMine, autoTransact, onAutoTransact, selectedIndex, onSelect, healthOpen, onToggleHealth,
-  lastRound, remining, coach,
+  lastRound, remining, coach, identity, boardRows,
   onStartDemo, onMine, onPause, onRemine, onTamper, onUndo, onDifficulty, onBack,
   onCreateTransaction, onCreateWallet, onOpenWallet, onOpenDetails, onOpenTransaction, onOpenChainLab, error
 }) {
@@ -52,7 +55,7 @@ export function Workbench({
     index: selected, hash: block.hash, previousHash: block.previousHash, anchor: selectedView?.anchor ?? null, nonce: block.nonce, difficulty: block.difficulty,
     isNewest: selected === height && selected > 0, miner: selectedView?.isGenesis ? null : selectedView?.minerName,
     seconds: selectedView?.seconds, tries: lastRound?.index === selected ? lastRound.attempts : undefined,
-    reward: describeTx(block.transactions[0]).amount,
+    reward: describeTx(block.transactions[0]).amount, signedBy: signerOf(describeTx(block.transactions[0])),
     transactions: block.transactions.map(tx => {
       const view = describeTx(tx);
       return { from: view.from, to: view.to, amount: view.amount, reference: view.memo, spentIn: view.outputs[0]?.spentIn };
@@ -107,7 +110,8 @@ export function Workbench({
           reward={blockReward} difficulty={difficulty} onDifficulty={onDifficulty} autoMine={autoMine} onAutoMine={onAutoMine}
           onStartDemo={onStartDemo} onMine={onMine} onPause={onPause} onRemine={onRemine}
           repair={repair ? { ...repair, onUndo } : null} miners={miners} race={race} lastRound={lastRound}
-          backedMiner={backedMiner} onBack={onBack} coach={workbenchCoach} />
+          backedMiner={backedMiner} onBack={onBack} coach={workbenchCoach}
+          signature={<MinerName identity={identity} rows={boardRows} locked={busy} />} />
       </div>
       <div className="wb-wallets">
         <WalletsCard wallets={wallets} coinName={coinName} onOpenWallet={onOpenWallet} onCreateWallet={onCreateWallet} />

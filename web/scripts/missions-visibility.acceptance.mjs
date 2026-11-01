@@ -107,7 +107,7 @@ export async function verifyMissionVisibility(browser, baseURL, output) {
       await expectCollapsed(page);
       assert.deepEqual(await page.evaluate(key => JSON.parse(localStorage.getItem(key)), PROGRESS), progress);
       // Every view stays available and keeps the neutral missions entry.
-      for (const name of ['Chain lab', 'Mining pool', 'Workbench']) {
+      for (const name of ['Chain lab', 'Leaderboard', 'Workbench']) {
         await navigate(page, name);
         await expectCollapsed(page);
       }

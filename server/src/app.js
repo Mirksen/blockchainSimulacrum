@@ -4,18 +4,21 @@ import { readFile, realpath, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { NAME_RE, checkName, createHiddenNames, foldName, loadNameLists, prepareNameLists } from './names.js';
 import { isRound } from './bitcoinTip.js';
+import { blockHash, commitsTo, HEADER_HEX_LENGTH, MAX_BRANCH_LENGTH, MAX_COINBASE_HEX_LENGTH } from './blockProof.js';
 
 // The fixed genesis block of proofofwork.fyi (a copy of shared/genesis.json, written by
 // shared/mine-genesis.mjs). Every proof names its hash: the work was done for this chain.
 export const GENESIS = JSON.parse(readFileSync(new URL('./genesis.json', import.meta.url), 'utf8'));
 
-export const PROOF_ZEROS = 5;
+export const PROOF_ZEROS = 1;
 export const MIN_SHARE_ZEROS = 1;
 export const MAX_SHARE_ZEROS = 8;
 export const MAX_BODY_BYTES = 2048;
 export const LEADERBOARD_SIZE = 20;
 export const RATE_LIMITS = Object.freeze({ challenge: 30, share: 120 });
 const RATE_WINDOW_MS = 60 * 1000;
+const HEX_RE = /^[0-9a-f]+$/;
+const HASH_RE = /^[0-9a-f]{64}$/;
 
 const CONTENT_TYPES = {
   '.html': 'text/html; charset=utf-8',
@@ -47,8 +50,8 @@ export function leadingHexZeros(hex) {
   return count;
 }
 
-// The proof a miner searches: SHA-256 of this prefix plus the nonce in decimal. It names
-// the chain (genesis hash), the round (a recent Bitcoin block) and whose work it is.
+// What a block's coinbase commits to (see blockProof.js): the chain (genesis hash), the
+// round (a recent Bitcoin block) and whose work it is.
 export function proofPrefix(genesisHash, round, name) {
   return `proofofwork.fyi|${genesisHash}|${round.height}:${round.hash}|${name}|`;
 }
@@ -146,13 +149,19 @@ function parseShare(raw) {
     throw new HttpError(400, 'invalid JSON');
   }
   if (!body || typeof body !== 'object' || Array.isArray(body)) throw new HttpError(400, 'invalid body');
-  const { name, round, nonce } = body;
+  const { name, round, header, coinbase, branch } = body;
   if (typeof name !== 'string' || !NAME_RE.test(name)) throw new HttpError(400, 'invalid name');
   if (!round || typeof round !== 'object' || Array.isArray(round)) throw new HttpError(400, 'invalid round');
   const { height, hash } = round;
   if (!isRound({ height, hash })) throw new HttpError(400, 'invalid round');
-  if (!Number.isSafeInteger(nonce) || nonce < 0) throw new HttpError(400, 'invalid nonce');
-  return { name, round: { height, hash }, nonce };
+  if (typeof header !== 'string' || header.length !== HEADER_HEX_LENGTH || !HEX_RE.test(header)) throw new HttpError(400, 'invalid header');
+  if (typeof coinbase !== 'string' || coinbase.length > MAX_COINBASE_HEX_LENGTH || coinbase.length % 2 !== 0 || !HEX_RE.test(coinbase)) {
+    throw new HttpError(400, 'invalid coinbase');
+  }
+  if (!Array.isArray(branch) || branch.length > MAX_BRANCH_LENGTH || !branch.every((node) => typeof node === 'string' && HASH_RE.test(node))) {
+    throw new HttpError(400, 'invalid branch');
+  }
+  return { name, round: { height, hash }, proof: { header, coinbase, branch } };
 }
 
 export function createApp({
@@ -184,46 +193,59 @@ export function createApp({
   const staticRoot = staticDir ? path.resolve(staticDir) : null;
   const names = nameLists ? prepareNameLists(nameLists) : loadNameLists();
 
-  // Proofs of the pool. The earlier `shares` table of the signed-challenge pool stays
-  // untouched in old databases; nothing reads it any more.
+  // The best block of each name per round, with the number of blocks sent: every block
+  // counts, and a miner left running adds nothing but a counter. The earlier `shares` and `proofs` tables stay
+  // untouched in old databases; nothing reads them any more.
   db.exec(`
-    CREATE TABLE IF NOT EXISTS proofs (
+    CREATE TABLE IF NOT EXISTS blocks (
       genesis_hash TEXT NOT NULL,
       name TEXT NOT NULL,
       round_height INTEGER NOT NULL,
       round_hash TEXT NOT NULL,
-      nonce INTEGER NOT NULL,
+      header TEXT NOT NULL,
+      coinbase TEXT NOT NULL,
+      branch TEXT NOT NULL,
       hash TEXT NOT NULL,
       zeros INTEGER NOT NULL,
+      proofs INTEGER NOT NULL DEFAULT 1,
       created_at INTEGER NOT NULL,
-      UNIQUE (genesis_hash, name, round_height, round_hash, nonce)
+      UNIQUE (genesis_hash, name, round_height, round_hash)
     );
-    CREATE INDEX IF NOT EXISTS proofs_window ON proofs (genesis_hash, round_height);
+    CREATE INDEX IF NOT EXISTS blocks_window ON blocks (genesis_hash, round_height);
   `);
   const hiddenNames = createHiddenNames(db);
   // Lets the leaderboard compare stored names with hidden_names.folded in SQL.
   db.function('fold_name', { deterministic: true }, (name) => foldName(name));
-  const insertProof = db.prepare(
-    `INSERT INTO proofs (genesis_hash, name, round_height, round_hash, nonce, hash, zeros, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-     ON CONFLICT (genesis_hash, name, round_height, round_hash, nonce) DO NOTHING`,
+  const selectBlock = db.prepare(
+    'SELECT hash FROM blocks WHERE genesis_hash = ? AND name = ? AND round_height = ? AND round_hash = ?',
   );
-  // Best proof per name: the smallest hash, which means the most leading zeros and,
+  const insertBlock = db.prepare(
+    `INSERT INTO blocks (genesis_hash, name, round_height, round_hash, header, coinbase, branch, hash, zeros, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  );
+  const replaceBest = db.prepare(
+    `UPDATE blocks SET header = ?, coinbase = ?, branch = ?, hash = ?, zeros = ?, created_at = ?, proofs = proofs + 1
+     WHERE genesis_hash = ? AND name = ? AND round_height = ? AND round_hash = ?`,
+  );
+  const countBlock = db.prepare(
+    'UPDATE blocks SET proofs = proofs + 1 WHERE genesis_hash = ? AND name = ? AND round_height = ? AND round_hash = ?',
+  );
+  // Best block per name: the smallest hash, which means the most leading zeros and,
   // among equal zeros, the higher difficulty. Fixed-length lowercase hex sorts by value.
-  // Only proofs for the current genesis count; ?2 restricts to rounds from that Bitcoin
+  // Only blocks for the current genesis count; ?2 restricts to rounds from that Bitcoin
   // height on (the window), NULL means all rounds.
   const selectBest = db.prepare(`
     WITH scoped AS (
-      SELECT * FROM proofs
+      SELECT * FROM blocks
       WHERE genesis_hash = ?1 AND (?2 IS NULL OR round_height >= ?2)
-        AND NOT EXISTS (SELECT 1 FROM hidden_names h WHERE h.folded = fold_name(proofs.name))
+        AND NOT EXISTS (SELECT 1 FROM hidden_names h WHERE h.folded = fold_name(blocks.name))
     ),
     ranked AS (
       SELECT *, ROW_NUMBER() OVER (PARTITION BY name ORDER BY hash ASC, created_at ASC) AS rn,
-             COUNT(*) OVER (PARTITION BY name) AS proofs
+             SUM(proofs) OVER (PARTITION BY name) AS total
       FROM scoped
     )
-    SELECT name, round_height, round_hash, nonce, hash, zeros, proofs, created_at
+    SELECT name, round_height, round_hash, header, coinbase, branch, hash, zeros, total, created_at
     FROM ranked WHERE rn = 1
     ORDER BY hash ASC, created_at ASC
     LIMIT ${LEADERBOARD_SIZE}
@@ -231,11 +253,13 @@ export function createApp({
   const leaderboardRows = (fromHeight) => selectBest.all(genesisHash, fromHeight).map((row) => ({
     name: row.name,
     round: { height: row.round_height, hash: row.round_hash },
-    nonce: row.nonce,
+    header: row.header,
+    coinbase: row.coinbase,
+    branch: JSON.parse(row.branch),
     bestHash: row.hash,
     bestZeros: row.zeros,
     difficulty: hashDifficulty(row.hash),
-    proofs: row.proofs,
+    proofs: row.total,
     foundAt: row.created_at,
   }));
 
@@ -279,19 +303,25 @@ export function createApp({
   async function handleShare(req, res) {
     if (!takeToken('share', clientKeyOf(req))) throw new HttpError(429, 'rate limited');
     const raw = await readBody(req, MAX_BODY_BYTES);
-    const { name, round, nonce } = parseShare(raw);
+    const { name, round, proof } = parseShare(raw);
     // Without a signed challenge the name is checked again here, so a hidden or blocked
     // name earns nothing.
     checkPoolName(name);
     if (!tip.accepts(round)) throw new HttpError(410, 'round over');
 
     // Re-verify the work: never trust a client-supplied hash.
-    const hash = sha256hex(proofPrefix(genesisHash, round, name) + String(nonce));
+    if (!commitsTo(proof, sha256hex(proofPrefix(genesisHash, round, name)))) throw new HttpError(422, 'block names another miner or round');
+    const hash = blockHash(proof.header);
     const zeros = leadingHexZeros(hash);
     if (zeros < shareZeros) throw new HttpError(422, 'hash misses target');
 
-    const result = insertProof.run(genesisHash, name, round.height, round.hash, nonce, hash, zeros, now());
-    if (result.changes === 0) throw new HttpError(409, 'duplicate proof');
+    const place = [genesisHash, name, round.height, round.hash];
+    const stored = selectBlock.get(...place);
+    const fields = [proof.header, proof.coinbase, JSON.stringify(proof.branch), hash, zeros, now()];
+    if (stored?.hash === hash) throw new HttpError(409, 'duplicate proof');
+    if (!stored) insertBlock.run(...place, ...fields);
+    else if (hash < stored.hash) replaceBest.run(...fields, ...place);
+    else countBlock.run(...place);
     send(res, 200, { accepted: true, hash, zeros, difficulty: hashDifficulty(hash), round });
   }
 

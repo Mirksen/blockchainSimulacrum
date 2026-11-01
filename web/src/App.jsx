@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { useBlockchain } from './hooks/useBlockchain';
+import { useMinerIdentity } from './hooks/useMinerIdentity';
 import { playMiningSuccessSound, unlockMiningAudio } from './lib/sound';
 import { telemetry } from './lib/telemetry';
 import * as missions from './lib/missions';
@@ -25,7 +26,7 @@ const INITIAL_CONFIG = {
 const VIEWS = { '': 'workbench', 'hash-lab': 'hash-lab', 'chain-lab': 'chain-lab', pool: 'pool' };
 const RAIL_KEY = 'proofofwork-rail-collapsed';
 const INTRO_KEY = 'proofofwork-missions-intro-seen';
-const VIEW_LABELS = { workbench: 'Workbench', 'hash-lab': 'Hash lab', 'chain-lab': 'Chain lab', pool: 'Mining pool' };
+const VIEW_LABELS = { workbench: 'Workbench', 'hash-lab': 'Hash lab', 'chain-lab': 'Chain lab', pool: 'Leaderboard' };
 
 const viewFromHash = () => VIEWS[(globalThis.location?.hash ?? '').replace(/^#\/?/, '')] ?? 'workbench';
 function readFlag(key, fallback = false) {
@@ -83,16 +84,21 @@ function App() {
   const compact = useSyncExternalStore(subscribePhone, isPhone, () => false);
   const lastAdjustedBlock = useRef(0);
   const sim = useBlockchain(INITIAL_CONFIG);
+  const [boardKey, setBoardKey] = useState(0);
+  const [boardRows, setBoardRows] = useState(null);
+  const onBlockAccepted = useCallback(() => setBoardKey(key => key + 1), []);
+  const identity = useMinerIdentity({ onAccepted: onBlockAccepted });
   const { blocks, participants, balances, memPool, chainValid, isMining, isSettingUp, difficulty, halvingInterval,
     minerProgress, miningProgress, createTransaction, mineBlock, setupInitialDistribution, generateRandomTransactions,
     setDifficulty, setHalvingInterval, tamperBlock, undoTamper, remineBlock, resetBlockchain, cancelMining,
-    createWallet, backMiner, toggleMiner, setMinerHashpower, describeTx } = sim;
+    createWallet, backMiner, toggleMiner, setMinerHashpower, describeTx, setSigner } = sim;
   const busy = isMining || isSettingUp;
   const coach = railCollapsed ? null : coachOf(progress);
   const activeMission = missions.activeMission(progress);
   const showIntro = !introSeen && railCollapsed && progress.step === 0 && progress.completed.length === 0;
 
   useEffect(() => { document.documentElement.setAttribute('data-theme', theme); }, [theme]);
+  useEffect(() => setSigner(identity.signer), [identity.signer, setSigner]);
   // Remember the first display, even when the visitor simply ignores the invitation.
   // Keep it visible for this visit until dismissed, opened or navigated away from.
   useEffect(() => { if (showIntro) writeFlag(INTRO_KEY, true); }, [showIntro]);
@@ -290,7 +296,7 @@ function App() {
       <a className="skip-link" href="#workbench">Skip to workbench</a>
       <TopBar view={view} onNavigate={navigate} coinName={coinName} chainValid={chainValid} theme={theme} onTheme={changeTheme}
         muted={muted} onMuted={changeMuted} onReset={reset} onOpenSettings={() => setShowSettings(true)} compact={compact} />
-      <LeaderboardTicker onOpenPool={() => navigate('pool')} />
+      <LeaderboardTicker onOpenPool={() => navigate('pool')} onBoard={setBoardRows} refreshKey={boardKey} />
       <div className="wb-shell">
         <div className="wb-rail">
           <MissionRail progress={progress} collapsed={railCollapsed} onToggle={toggleRail} onShowMe={showMe} highlight={showIntro} />
@@ -303,6 +309,7 @@ function App() {
             autoMine={autoMining} onAutoMine={setAutoMining} autoTransact={autoTransact} onAutoTransact={setAutoTransact}
             selectedIndex={selectedIndex} onSelect={setSelectedIndex} healthOpen={healthOpen} onToggleHealth={() => setHealthOpen(open => !open)}
             lastRound={lastRound} remining={remining} coach={coach}
+            identity={identity} boardRows={boardRows}
             onStartDemo={handleSetup} onMine={handleMine} onPause={pause} onRemine={handleRemine} onTamper={onTamper} onUndo={onUndo}
             onDifficulty={onDifficulty} onBack={onBack} onCreateTransaction={onCreateTransaction} onCreateWallet={createWallet}
             onOpenWallet={setWalletDetails} onOpenDetails={setDetails} onOpenTransaction={setPendingTx} onOpenChainLab={() => navigate('chain-lab')} error={error} />}
@@ -315,7 +322,8 @@ function App() {
             <ChainLab key={railCollapsed ? 'free' : 'guided'} experiment={chainExperiment} onExperimentChange={setChainExperiment} onLessonEvent={chainLesson ? report : undefined}
               coach={chainLesson ? coach : null} onClose={() => navigate('workbench')} />
           </div>}
-          {view === 'pool' && <div className="wb-view"><PoolPanel onClose={() => navigate('workbench')} /></div>}
+          {view === 'pool' && <div className="wb-view"><PoolPanel name={identity.name} onNameChange={identity.setName} refreshKey={boardKey}
+            onAccepted={onBlockAccepted} onClose={() => navigate('workbench')} /></div>}
         </main>
       </div>
       {winner && <div className="wb-announce" role="status">{winner} mined a block</div>}

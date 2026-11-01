@@ -29,8 +29,8 @@ function inputView(input, index, tx, txid, known, ownerOf, verified) {
 }
 
 function outputKind(tx, scriptPubKey, firstInputScript) {
+  if (classifyScript(scriptPubKey).type === 'memo') return tx.isCoinbase ? 'commitment' : 'memo';
   if (tx.isCoinbase) return 'reward';
-  if (classifyScript(scriptPubKey).type === 'memo') return 'memo';
   return scriptPubKey === firstInputScript ? 'change' : 'payment';
 }
 

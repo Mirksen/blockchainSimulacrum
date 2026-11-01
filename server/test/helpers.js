@@ -1,6 +1,8 @@
+import { createHash } from 'node:crypto';
 import http from 'node:http';
 import { DatabaseSync } from 'node:sqlite';
 import { createApp, sha256hex, leadingHexZeros, proofPrefix } from '../src/app.js';
+import { blockHash, coinbaseTail } from '../src/blockProof.js';
 
 export const T0 = Date.UTC(2026, 0, 15, 12, 0, 0);
 
@@ -46,7 +48,7 @@ export async function startServer(options = {}) {
     allowedOrigins: options.allowedOrigins ?? ['https://proofofwork.fyi'],
     staticDir: options.staticDir,
     // Low difficulty keeps in-test mining to a few dozen hashes, so the event loop
-    // shared with the server is never blocked for long. The production default is 5.
+    // shared with the server is never blocked for long. The production default is 1.
     shareZeros: options.shareZeros ?? 1,
     nameLists: options.nameLists,
     log: (line) => lines.push(line),
@@ -91,27 +93,45 @@ export async function getLeaderboard(srv) {
   return { status: res.status, body: await res.json() };
 }
 
-/** Find a nonce whose hash has at least `min` (and, if given, exactly `exact`) leading hex zeros. */
-export function mine(prefix, { min = 1, exact, start = 0, accept = () => true } = {}) {
+const sha256d = (hex) => createHash('sha256').update(createHash('sha256').update(Buffer.from(hex, 'hex')).digest()).digest('hex');
+const le32 = (value) => Buffer.from(new Uint32Array([value]).buffer).toString('hex');
+
+/** A coinbase committing to `prefix`, with a one-byte scriptSig and no reward output. */
+export const coinbaseFor = (prefix) => `0100000001${'00'.repeat(32)}ffffffff01510000000001${coinbaseTail(sha256hex(prefix))}`;
+
+/** The 80-byte header over merkle root `root` (internal byte order). */
+export const headerFor = (root, nonce) => `${le32(1)}${'00'.repeat(32)}${root}${le32(1785000000)}${le32(0x207fffff)}${le32(nonce)}`;
+
+/** The block of `coinbase` under `branch` at `nonce`: { block, hash, zeros, nonce }. */
+export function blockAt(coinbase, nonce, branch = []) {
+  const root = branch.reduce((node, sibling) => sha256d(node + sibling), sha256d(coinbase));
+  const header = headerFor(root, nonce);
+  const hash = blockHash(header);
+  return { block: { header, coinbase, branch }, hash, zeros: leadingHexZeros(hash), nonce };
+}
+
+/** Find a block whose hash has at least `min` (and, if given, exactly `exact`) leading hex zeros. */
+export function mine(prefix, { min = 1, exact, start = 0, accept = () => true, branch = [] } = {}) {
+  const coinbase = coinbaseFor(prefix);
   for (let nonce = start; ; nonce += 1) {
-    const hash = sha256hex(prefix + String(nonce));
-    const z = leadingHexZeros(hash);
-    if (z >= min && (exact === undefined || z === exact) && accept(nonce, hash)) return { nonce, hash, zeros: z };
+    const found = blockAt(coinbase, nonce, branch);
+    if (found.zeros >= min && (exact === undefined || found.zeros === exact) && accept(found)) return found;
   }
 }
 
-/** Find a nonce whose hash misses the target of `zeros` leading hex zeros. */
+/** Find a block whose hash misses the target of `zeros` leading hex zeros. */
 export function miss(prefix, zeros) {
+  const coinbase = coinbaseFor(prefix);
   for (let nonce = 0; ; nonce += 1) {
-    const hash = sha256hex(prefix + String(nonce));
-    if (leadingHexZeros(hash) < zeros) return { nonce, hash };
+    const found = blockAt(coinbase, nonce);
+    if (found.zeros < zeros) return found;
   }
 }
 
-/** Mine a proof for `name` in `round` on this server and submit it. */
+/** Mine a block for `name` in `round` on this server and submit it. */
 export async function prove(srv, name, round = srv.tip.round(), options = {}) {
   const proof = mine(srv.prefix(name, round), { min: options.min ?? 1, exact: options.exact, start: options.start ?? 0 });
-  const res = await postShare(srv, { name, round, nonce: proof.nonce }, options.headers ?? {});
+  const res = await postShare(srv, { name, round, ...proof.block }, options.headers ?? {});
   return { ...proof, res };
 }
 

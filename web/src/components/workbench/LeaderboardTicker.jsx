@@ -1,13 +1,14 @@
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import { getLeaderboard } from '../../lib/poolApi';
-import { formatDifficulty } from '../../lib/poolProof';
+import { findsOf, formatDifficulty } from '../../lib/poolProof';
 import './LeaderboardTicker.css';
 
 // Slim band under the top bar that runs the all-time pool leaderboard from right to left
 // (web/DESIGN.md, "Existing features in the workbench"). It pauses on hover and
-// focus, is static under prefers-reduced-motion and renders nothing while the
-// leaderboard server is unavailable or the board is empty. The only component of
-// the shell that fetches: on mount and every `refreshMs`.
+// focus and is static under prefers-reduced-motion. An empty board still shows, as an
+// invitation, so the leaderboard can be found before its first block; only an unavailable
+// server hides the band. The only component of the shell that fetches: on mount, every
+// `refreshMs` and when `refreshKey` changes (a block was accepted); `onBoard` hands the rows up.
 export const TICKER_REFRESH_MS = 60_000;
 const REDUCED_MOTION = '(prefers-reduced-motion: reduce)';
 
@@ -33,7 +34,7 @@ function ShortHash({ hash }) {
   );
 }
 
-function Rows({ rows, hidden }) {
+function Rows({ rows, finds, hidden }) {
   return (
     <span className="leaderboard-ticker-list" aria-hidden={hidden || undefined}>
       {rows.map((row, index) => (
@@ -44,12 +45,20 @@ function Rows({ rows, hidden }) {
           <ShortHash hash={row.bestHash} />
         </span>
       ))}
+      {finds.map(find => (
+        <span className="leaderboard-ticker-row is-find" key={find.label}>
+          <span className="leaderboard-ticker-find">{find.label}</span>
+          <span className="leaderboard-ticker-name">{find.name}</span>
+          <span className="leaderboard-ticker-points">{find.value}</span>
+        </span>
+      ))}
     </span>
   );
 }
 
-export function LeaderboardTicker({ onOpenPool, refreshMs = TICKER_REFRESH_MS }) {
+export function LeaderboardTicker({ onOpenPool, onBoard, refreshKey = 0, refreshMs = TICKER_REFRESH_MS }) {
   const [rows, setRows] = useState(null);
+  const [finds, setFinds] = useState([]);
   const [paused, setPaused] = useState(false);
   const reduced = useSyncExternalStore(subscribeReducedMotion, reducedMotion, () => false);
 
@@ -59,23 +68,24 @@ export function LeaderboardTicker({ onOpenPool, refreshMs = TICKER_REFRESH_MS })
     const load = async () => {
       try {
         const answer = await getLeaderboard({ signal: controller.signal });
-        if (alive) setRows(answer.allTime);
+        if (alive) { setRows(answer.allTime); setFinds(findsOf(answer)); onBoard?.(answer.allTime); }
       } catch {
         // Unavailable or cancelled: disappear quietly until the next refresh succeeds.
-        if (alive) setRows(null);
+        if (alive) { setRows(null); onBoard?.(null); }
       }
     };
     void load();
     const timer = setInterval(load, refreshMs);
     return () => { alive = false; controller.abort(); clearInterval(timer); };
-  }, [refreshMs]);
+  }, [onBoard, refreshKey, refreshMs]);
 
-  if (!rows || rows.length === 0) return null;
+  if (!rows) return null;
 
   const leader = rows[0];
-  const label = `Pool leaderboard, ${rows.length} ${rows.length === 1 ? 'miner' : 'miners'}, `
-    + `leader ${leader.name} with ${leader.bestZeros} zeros. Open the Mining pool`;
-  const duration = `${Math.max(24, rows.length * 6)}s`;
+  const label = leader
+    ? `Leaderboard, ${rows.length} ${rows.length === 1 ? 'miner' : 'miners'}, leader ${leader.name} with ${leader.bestZeros} zeros. Open the leaderboard`
+    : 'Leaderboard, no blocks yet. Open the leaderboard';
+  const duration = `${Math.max(24, (rows.length + finds.length) * 6)}s`;
   const classes = ['leaderboard-ticker', paused && 'is-paused', reduced && 'is-static'].filter(Boolean).join(' ');
 
   return (
@@ -85,16 +95,18 @@ export function LeaderboardTicker({ onOpenPool, refreshMs = TICKER_REFRESH_MS })
         onFocus={() => setPaused(true)} onBlur={() => setPaused(false)}>
         <span className="leaderboard-ticker-title">
           <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 10.5V6.5M6 10.5V2.5M10 10.5V4.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /></svg>
-          <span className="leaderboard-ticker-title-text">Pool leaderboard</span>
+          <span className="leaderboard-ticker-title-text">All-time best</span>
         </span>
         <span className="leaderboard-ticker-viewport">
-          <span className="leaderboard-ticker-track" style={{ '--leaderboard-ticker-duration': duration }}>
-            <Rows rows={rows} />
-            {!reduced && <Rows rows={rows} hidden />}
-          </span>
+          {leader
+            ? <span className="leaderboard-ticker-track" style={{ '--leaderboard-ticker-duration': duration }}>
+              <Rows rows={rows} finds={finds} />
+              {!reduced && <Rows rows={rows} finds={finds} hidden />}
+            </span>
+            : <span className="leaderboard-ticker-empty">No blocks yet. Mine the first one.</span>}
         </span>
         <span className="leaderboard-ticker-open">
-          Open pool
+          Open
           <svg width="10" height="10" viewBox="0 0 12 12" aria-hidden="true"><path d="M4.5 2.5L8 6l-3.5 3.5" stroke="currentColor" strokeWidth="1.6" fill="none" strokeLinecap="round" strokeLinejoin="round" /></svg>
         </span>
       </button>

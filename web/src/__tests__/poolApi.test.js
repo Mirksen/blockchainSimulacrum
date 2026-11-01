@@ -9,7 +9,8 @@ const ROUND = { height: 900001, hash: `0000${'ab'.repeat(30)}` };
 const challenge = { name: NAME, round: ROUND, windowStart: ROUND.height - 143, prefix: proofPrefix(GENESIS.hash, ROUND, NAME), minZeros: 6,
   genesisHash: GENESIS.hash };
 const RECENT = { from: ROUND.height - 143, to: ROUND.height };
-const row = (overrides = {}) => ({ name: NAME, round: ROUND, nonce: 4242, bestHash: `00000${'c'.repeat(59)}`, bestZeros: 5,
+const PROOF = { header: 'ab'.repeat(80), coinbase: 'cd'.repeat(120), branch: ['ef'.repeat(32)] };
+const row = (overrides = {}) => ({ name: NAME, round: ROUND, ...PROOF, bestHash: `00000${'c'.repeat(59)}`, bestZeros: 5,
   difficulty: 65536, proofs: 3, foundAt: 1_800_000_000_000, ...overrides });
 const answer = (body, status = 200) => ({ ok: status >= 200 && status < 300, status, json: async () => body });
 const refusal = async promise => {
@@ -84,21 +85,21 @@ describe('pool API client', () => {
     await refusal(getChallenge(NAME));
   });
 
-  it('posts exactly the name, the round and the nonce as JSON', async () => {
+  it('posts exactly the name, the round and the block proof as JSON', async () => {
     const accepted = { accepted: true, hash: `000000${'d'.repeat(58)}`, zeros: 6, difficulty: 1048576, round: ROUND };
     fetchMock.mockResolvedValue(answer(accepted));
     const extra = { ...challenge, round: { ...ROUND, time: 1_800_000_000 }, sig: 'b'.repeat(64) };
-    expect(await submitProof(extra, 42)).toEqual(accepted);
+    expect(await submitProof(extra, PROOF)).toEqual(accepted);
     const [url, init] = fetchMock.mock.calls[0];
     expect(url).toBe(`${BASE}/api/shares`);
     expect(init.method).toBe('POST');
     expect(init.headers).toEqual({ 'content-type': 'application/json' });
     expect(init.credentials).toBe('omit');
-    expect(JSON.parse(init.body)).toStrictEqual({ name: NAME, round: { height: ROUND.height, hash: ROUND.hash }, nonce: 42 });
+    expect(JSON.parse(init.body)).toStrictEqual({ name: NAME, round: { height: ROUND.height, hash: ROUND.hash }, ...PROOF });
   });
 
   it('reads the leaderboard with GET: the last 144 blocks and all time', async () => {
-    const roundRows = [row(), row({ name: 'other-miner', nonce: 7, bestHash: `0000${'1'.repeat(60)}`, bestZeros: 4, difficulty: 4096.5, proofs: 1 })];
+    const roundRows = [row(), row({ name: 'other-miner', bestHash: `0000${'1'.repeat(60)}`, bestZeros: 4, difficulty: 4096.5, proofs: 1 })];
     const allTime = [row({ round: { height: 899990, hash: 'a'.repeat(64) }, bestHash: `0000000${'2'.repeat(57)}`, bestZeros: 7,
       difficulty: 2.5e9, proofs: 12 }), ...roundRows];
     fetchMock.mockResolvedValue(answer({ genesisHash: GENESIS.hash, recent: { ...RECENT, rows: roundRows }, allTime }));
@@ -113,7 +114,7 @@ describe('pool API client', () => {
   it('drops malformed rows and keeps the valid ones', async () => {
     const good = row();
     const bad = [null, 'row', row({ name: 'x' }), row({ name: 'with space' }), row({ round: { height: -1, hash: ROUND.hash } }),
-      row({ round: null }), row({ nonce: '4242' }), row({ nonce: 1.5 }), row({ bestHash: 'abc' }), row({ bestHash: undefined }),
+      row({ round: null }), row({ header: 'abc' }), row({ header: undefined }), row({ coinbase: 'xyz' }), row({ branch: 'ab' }), row({ branch: ['ab'] }), row({ bestHash: 'abc' }), row({ bestHash: undefined }),
       row({ bestZeros: '5' }), row({ difficulty: Infinity }), row({ difficulty: 'high' }), row({ proofs: 1.5 })];
     fetchMock.mockResolvedValue(answer({ recent: { ...RECENT, rows: [...bad, good] }, allTime: [good, ...bad] }));
     expect(await getLeaderboard()).toEqual({ recent: { ...RECENT, rows: [good] }, allTime: [good] });
@@ -137,7 +138,7 @@ describe('pool API client', () => {
 
   it.each([400, 409, 410, 413, 422, 429, 500, 503])('turns HTTP %i into an error with that status', async status => {
     fetchMock.mockResolvedValue(answer({ error: 'synthetic failure' }, status));
-    const error = await submitProof(challenge, 1).catch(caught => caught);
+    const error = await submitProof(challenge, PROOF).catch(caught => caught);
     expect(error).toBeInstanceOf(Error);
     expect(error.status).toBe(status);
     expect(error.code).toBeUndefined();
@@ -145,15 +146,15 @@ describe('pool API client', () => {
     expect(error.message).not.toContain('synthetic failure');
   });
 
-  it('explains a counted proof and a finished round', async () => {
+  it('explains a counted block and a finished round', async () => {
     fetchMock.mockResolvedValue(answer({ error: 'duplicate proof' }, 409));
-    expect((await submitProof(challenge, 1).catch(caught => caught)).message).toBe('This proof was already counted.');
+    expect((await submitProof(challenge, PROOF).catch(caught => caught)).message).toBe('This block was already counted.');
     fetchMock.mockResolvedValue(answer({ error: 'round over' }, 410));
-    expect((await submitProof(challenge, 1).catch(caught => caught)).message).toBe('This round is over: its Bitcoin block left the window.');
+    expect((await submitProof(challenge, PROOF).catch(caught => caught)).message).toBe('This round is over: its Bitcoin block left the window.');
   });
 
   it('turns a 400 "name unavailable" answer into a name-unavailable error', async () => {
-    for (const call of [() => getChallenge(NAME), () => submitProof(challenge, 1)]) {
+    for (const call of [() => getChallenge(NAME), () => submitProof(challenge, PROOF)]) {
       fetchMock.mockReset();
       fetchMock.mockResolvedValue(answer({ error: 'name unavailable' }, 400));
       const error = await call().catch(caught => caught);
@@ -170,13 +171,13 @@ describe('pool API client', () => {
     const invalid = await getChallenge(NAME).catch(caught => caught);
     expect(invalid.status).toBe(400);
     expect(invalid.code).toBeUndefined();
-    expect(invalid.message).toBe('The pool did not accept this request.');
+    expect(invalid.message).toBe('The leaderboard did not accept this request.');
     fetchMock.mockResolvedValue({ ok: false, status: 400, json: async () => { throw new SyntaxError('synthetic'); } });
     const unreadable = await getChallenge(NAME).catch(caught => caught);
     expect(unreadable.status).toBe(400);
     expect(unreadable.code).toBeUndefined();
     fetchMock.mockResolvedValue(answer({ error: 'name unavailable' }, 403));
-    const forbidden = await submitProof(challenge, 1).catch(caught => caught);
+    const forbidden = await submitProof(challenge, PROOF).catch(caught => caught);
     expect(forbidden.status).toBe(403);
     expect(forbidden.code).toBeUndefined();
   });
@@ -201,7 +202,7 @@ describe('pool API client', () => {
 
   it('reports an unreachable server and a caller abort differently', async () => {
     fetchMock.mockRejectedValue(new TypeError('Failed to fetch'));
-    for (const call of [() => getLeaderboard(), () => getChallenge(NAME), () => submitProof(challenge, 1)]) {
+    for (const call of [() => getLeaderboard(), () => getChallenge(NAME), () => submitProof(challenge, PROOF)]) {
       const unreachable = await call().catch(caught => caught);
       expect(unreachable.status).toBe(0);
       expect(unreachable.code).toBe('network');
