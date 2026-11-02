@@ -217,9 +217,15 @@ decision, 2026-10-27):
   one line each. A click opens one in place: inputs, outputs and the whole TXID;
   scripts, signature and raw bytes stay one click further in the dialog.
 - **Next block:** the one primary action "Mining" with Play, an adjacent Repeat toggle for Auto-mine,
-  difficulty stepper with its compact `bits`, and the last round as two lanes (Lars, Minas) with
-  "Back Lars / Back Minas". While mining it becomes the **live race** in
-  place.
+  difficulty stepper with its compact `bits`, and the last round as one lane per miner (Lars, Minas)
+  with "Back Lars / Back Minas". While mining it becomes the **live race** in
+  place. "Odds per block" follows each miner's hashpower, the nonces it tries per turn.
+- **Create miner** (Mirko, 2026-11-02): a quiet "Create miner" link at the right of the odds line
+  opens a name form under the lanes, like "Create wallet". The new miner is also a wallet, shares
+  the wallets' name rules, starts at 0 and races from the next block at hashpower 5 of 10; it
+  shows a lane and a wallet row at once. It is offered between races only, never during a live
+  race or a repair. At most four miners race; from three on the lanes get slimmer so Mempool and
+  Wallets keep their lists at the reference size.
 - **Wallets:** a narrow column with name and balance, sized for the five sample
   wallets plus one the learner creates; more wallets scroll inside the card and
   "Create wallet" stays in its header. Role, blocks won and hash rate appear

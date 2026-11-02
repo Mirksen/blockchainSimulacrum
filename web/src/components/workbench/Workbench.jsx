@@ -9,6 +9,7 @@ import { MempoolCard } from './MempoolCard';
 import { ActivityCard } from './ActivityCard';
 import { BlockTransactions } from './BlockTransactions';
 import { buildBlockViews } from './blockView';
+import { MAX_MINERS } from '../../lib/blockchain';
 import { keyFiguresOf, rateOf, repairOf } from './workbenchModel';
 import './Workbench.css';
 
@@ -24,7 +25,7 @@ export function Workbench({
   sim, coinName, targetSeconds, autoMine, onAutoMine, repeating = false, autoTransact, onAutoTransact, selectedIndex, held = false, onSelect, onFollowNewest, healthOpen, onToggleHealth,
   lastRound, remining, coach, identity, boardRows,
   onStartDemo, onMine, onPause, onRemine, onTamper, onUndo, onDifficulty, onBack,
-  onCreateTransaction, onCreateWallet, onOpenWallet, onOpenDetails, onOpenTransaction, onOpenBlockTx, onOpenChainLab, error
+  onCreateTransaction, onCreateWallet, onCreateMiner, onOpenWallet, onOpenDetails, onOpenTransaction, onOpenBlockTx, onOpenChainLab, error
 }) {
   const { blocks, blockStatus, participants, memPool, balances, tamperedEdits, describeTx, previewTransaction, difficulty, blockReward, halvingInterval,
     isMining, isSettingUp, minerProgress, miningProgress, raceWinner, backedMiner } = sim;
@@ -43,7 +44,7 @@ export function Workbench({
     state: busy && remining === null ? 'mining' : repair ? 'paused' : fresh ? 'fresh' : 'idle',
     elapsedMs: miningProgress?.elapsedMs, attempts: miningProgress?.iterations
   };
-  const miners = participants.filter(p => p.isMiner && p.minerEnabled).map(p => ({ name: p.name, hashrate: rateOf(minerProgress[p.name]) }));
+  const miners = participants.filter(p => p.isMiner && p.minerEnabled).map(p => ({ name: p.name, hashpower: p.hashpower, hashrate: rateOf(minerProgress[p.name]) }));
   const race = busy ? {
     perMiner: minerProgress, attempts: miningProgress?.iterations ?? 0, elapsedMs: miningProgress?.elapsedMs ?? 0,
     targetSeconds, winner: raceWinner
@@ -117,6 +118,7 @@ export function Workbench({
           onStartDemo={onStartDemo} onMine={onMine} onPause={onPause} onRemine={onRemine}
           repair={repair ? { ...repair, onUndo } : null} miners={miners} race={race} lastRound={lastRound}
           backedMiner={backedMiner} onBack={onBack} coach={workbenchCoach}
+          onCreateMiner={onCreateMiner} minersFull={participants.filter(p => p.isMiner).length >= MAX_MINERS}
           signature={<MinerName identity={identity} rows={boardRows} locked={busy} />} />
       </div>
       <div className="wb-wallets">

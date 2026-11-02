@@ -327,6 +327,13 @@ export function useBlockchain(config = {}) {
         if (result.success) publish();
         return result;
     }, [controller, publish]);
+    // A new miner joins from the next race on; the miners of a running race stay fixed.
+    const createMiner = useCallback(name => {
+        if (controller.run || controller.setup) return { success: false, error: 'Wait until the current block is found.' };
+        const result = controller.chain.addMiner(name);
+        if (result.success) publish();
+        return result;
+    }, [controller, publish]);
     // The backing that counts for a race is the one in place when it starts.
     const backMiner = useCallback(name => {
         if (name !== null && !controller.chain.getParticipantByName(name)?.isMiner) {
@@ -400,5 +407,5 @@ export function useBlockchain(config = {}) {
         backedMiner, lastDifficultyChange,
         setSelectedBlock, createTransaction, previewTransaction, mineBlock, mineEmptyBlock: mineBlock, setupInitialDistribution,
         generateRandomTransactions, setDifficulty, setHalvingInterval, tamperBlock, undoTamper, remineBlock,
-        resetBlockchain, cancelMining, toggleMiner, setMinerHashpower, getActiveMiners, createWallet, backMiner, setSigner };
+        resetBlockchain, cancelMining, toggleMiner, setMinerHashpower, getActiveMiners, createWallet, createMiner, backMiner, setSigner };
 }

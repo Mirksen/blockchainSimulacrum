@@ -27,7 +27,7 @@ vi.mock('../hooks/useBlockchain', async importOriginal => {
 vi.mock('../lib/powSearch', async importOriginal => {
   const actual = await importOriginal();
   return { ...actual, runSearch: vi.fn(options => new Promise(resolve => {
-    const run = { signal: options.signal, release: async () => resolve(await actual.search({ ...options, yieldControl: () => undefined })) };
+    const run = { signal: options.signal, entrants: options.entrants.map(entrant => entrant.id), release: async () => resolve(await actual.search({ ...options, yieldControl: () => undefined })) };
     controlled.runs.push(run);
     options.signal.addEventListener('abort', () => resolve({ status: 'stopped', attempts: 0, entrants: {} }), { once: true });
   })) };
@@ -148,6 +148,19 @@ describe('mining controls and sound in App', () => {
     fireEvent.click(repeat());
     await wait(6000);
     expect(controlled.runs).toHaveLength(3);
+  });
+
+  it('a created miner shows a lane and wallet at once and races from the next block', async () => {
+    render(<App />);
+    await completeDemo();
+    fireEvent.click(screen.getByRole('button', { name: 'Create miner', exact: true }));
+    fireEvent.change(screen.getByLabelText('New miner name'), { target: { value: 'Hal' } });
+    fireEvent.click(within(screen.getByRole('form', { name: 'Create miner' })).getByRole('button', { name: 'Create' }));
+    expect(document.querySelector('.next-block-lane[data-miner="Hal"]')).toBeTruthy();
+    expect(screen.getByRole('button', { name: /^Open Hal, balance 0\.00000000/ })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Mining', exact: true }));
+    expect(controlled.runs[2].entrants).toEqual(['Miner One', 'Hal']);
+    expect(screen.queryByRole('button', { name: 'Create miner', exact: true })).toBeNull();
   });
 
   it('shows the newest block until one is clicked and lets go on a second click', async () => {

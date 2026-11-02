@@ -73,6 +73,34 @@ describe('addWallet', () => {
   });
 });
 
+describe('addMiner', () => {
+  it('adds a miner that starts without coins and races with the default hashpower', () => {
+    const chain = setup();
+    const result = chain.addMiner('Nora3');
+    expect(result).toMatchObject({ success: true, error: null });
+    expect(result.participant).toMatchObject({ isMiner: true, minerEnabled: true, hashpower: 5 });
+    expect(chain.getActiveMiners().map(p => p.name)).toEqual(['Miner1', 'Nora3']);
+    expect(chain.getAllBalances().at(-1)).toMatchObject({ name: 'Nora3', balance: 0, isMiner: true });
+  });
+
+  it('shares the name rules and name space with wallets', () => {
+    const chain = setup();
+    expect(chain.addMiner('x')).toEqual({ success: false, error: 'Use 2–16 letters or digits for the miner name.' });
+    expect(chain.addMiner('WALLET2')).toEqual({ success: false, error: 'A wallet named WALLET2 already exists.' });
+    expect(chain.addMiner('Nora3').success).toBe(true);
+    expect(chain.addWallet('nora3').success).toBe(false);
+    expect(chain.participants).toHaveLength(3);
+  });
+
+  it('stops at four miners, counting miners that are switched off', () => {
+    const chain = setup();
+    expect(['Two2', 'Three3', 'Four4'].map(name => chain.addMiner(name).success)).toEqual([true, true, true]);
+    chain.toggleMiner('Two2');
+    expect(chain.addMiner('Five5')).toEqual({ success: false, error: 'At most 4 miners race in this simulation.' });
+    expect(chain.addWallet('Five5').success).toBe(true);
+  });
+});
+
 describe('inspectBlocks', () => {
   it('reports genesis alone as valid with an intact link and met target', () => {
     const [genesis] = setup().inspectBlocks();

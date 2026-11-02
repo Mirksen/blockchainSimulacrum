@@ -55,6 +55,10 @@ Terms used in code, tests and docs of proofofwork.fyi. Decisions that shape them
 - **Epoch** — the number of halvings applied up to a block (`chain.epochAt(height)`).
 - **Wallet (created)** — a non-miner participant the learner adds with `chain.addWallet(name)`;
   2–16 letters or digits, unique regardless of letter case.
+- **Miner (created)** — a participant the learner adds with `chain.addMiner(name)`: a wallet that
+  also races, with the wallets' name rules and name space, hashpower 5 and no coins. It joins from
+  the next race; at most `MAX_MINERS` (4) miners. Not to be confused with the visitor's **miner
+  name** on the leaderboard.
 - **Backing** — the learner's pick of a miner before a race; the result reports `backedWon`.
 
 ## Search

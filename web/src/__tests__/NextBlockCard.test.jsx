@@ -42,6 +42,46 @@ describe('NextBlockCard', () => {
     expect(onBack).toHaveBeenCalledWith('Minas');
   });
 
+  it('Create miner opens a name form under the lanes and reports the name', () => {
+    const onCreateMiner = vi.fn(() => ({ success: true, error: null }));
+    render(<NextBlockCard {...base} mode="idle" lastRound={lastRound} onCreateMiner={onCreateMiner} />);
+    const create = screen.getByRole('button', { name: 'Create miner' });
+    expect(create.getAttribute('aria-expanded')).toBe('false');
+    expect(filledPrimaries()).toHaveLength(1);
+    fireEvent.click(create);
+    const form = screen.getByRole('form', { name: 'Create miner' });
+    fireEvent.click(within(form).getByRole('button', { name: 'Create' }));
+    expect(screen.getByRole('alert').textContent).toBe('Enter a name for the miner.');
+    fireEvent.change(screen.getByLabelText('New miner name'), { target: { value: ' Hal ' } });
+    fireEvent.click(within(form).getByRole('button', { name: 'Create' }));
+    expect(onCreateMiner).toHaveBeenCalledWith('Hal');
+    expect(screen.queryByRole('form', { name: 'Create miner' })).toBeNull();
+  });
+
+  it('odds follow hashpower, so a miner without a measured rate still has its share', () => {
+    const three = [{ name: 'Lars', hashpower: 5, hashrate: 12000 }, { name: 'Minas', hashpower: 5, hashrate: 9000 }, { name: 'Hal', hashpower: 10 }];
+    render(<NextBlockCard {...base} mode="idle" miners={three} />);
+    expect(card().textContent).toContain('Lars 25.0 % · Minas 25.0 % · Hal 50.0 %');
+    expect(document.querySelector('.next-block-lanes').classList.contains('is-compact')).toBe(true);
+  });
+
+  it('Create miner shows the refusal and is disabled while the race is full', () => {
+    const onCreateMiner = vi.fn(() => ({ success: false, error: 'A wallet named Lars already exists.' }));
+    const { rerender } = render(<NextBlockCard {...base} mode="idle" onCreateMiner={onCreateMiner} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Create miner' }));
+    fireEvent.change(screen.getByLabelText('New miner name'), { target: { value: 'lars' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Create' }));
+    expect(screen.getByRole('alert').textContent).toBe('A wallet named Lars already exists.');
+    rerender(<NextBlockCard {...base} mode="idle" onCreateMiner={onCreateMiner} minersFull />);
+    expect(screen.getByRole('button', { name: 'Create miner' }).disabled).toBe(true);
+    expect(screen.queryByRole('form', { name: 'Create miner' })).toBeNull();
+  });
+
+  it.each([['mining', { race }], ['repair', { repair: { next: 3, order: [3] } }]])('offers no Create miner while %s', (mode, props) => {
+    render(<NextBlockCard {...base} mode={mode} {...props} onCreateMiner={vi.fn()} />);
+    expect(screen.queryByRole('button', { name: 'Create miner' })).toBeNull();
+  });
+
   it('a backed miner is pressed and backing it again clears the backing', () => {
     const onBack = vi.fn();
     render(<NextBlockCard {...base} mode="idle" lastRound={lastRound} backedMiner="Minas" onBack={onBack} />);

@@ -1,4 +1,6 @@
+import { useState } from 'react';
 import { CoachMark } from './CoachMark';
+import { CreateNameForm } from './CreateNameForm';
 import { usePeakHold } from '../../hooks/usePeakHold';
 import { MIN_DIFFICULTY, MAX_DIFFICULTY } from '../../lib/difficulty';
 import { bitsOfZeros } from '../../../../shared/bitcoin-block.mjs';
@@ -14,12 +16,15 @@ import { issueText } from './blockView';
 // started with Play continues with the next block.
 //   repair  "Re-mine block #K"      paused "Mining" (a new search)
 //
-// miners:    [{ name, hashrate?, color? }]  (color: any CSS color, defaults to var(--<name>))
+// miners:    [{ name, hashpower?, hashrate?, color? }]  (color: any CSS color, defaults to var(--<name>));
+//            the odds follow hashpower, the nonces a miner tries per turn, else the measured hashrate
 // race:      { perMiner: { [name]: { nonce, hash, zeros, iterations } }, attempts, elapsedMs, targetSeconds, winner }
 // lastRound: { index, winner, nonce, attempts, elapsedMs, difficulty?, perMiner: { [name]: { nonce, zeros } } }
 // repair:    { next, order, undoOnly?, stuck?, reason? }  order = the re-mine path in order, `next` the block to re-mine now
 //            (with undoOnly the edited block; `stuck` and `reason` name the block and the rule re-mining cannot fix);
 //            blocks before `next` in `order` count as done
+// onCreateMiner(name) returns { success, error }; "Create miner" sits under the lanes between
+// races (a miner joins from the next block) and is disabled with `minersFull`.
 
 const KNOWN_COLORS = ['lars', 'minas', 'alice', 'bob', 'chris'];
 
@@ -30,6 +35,9 @@ function formatAmount(value) {
   return `${whole}.${fraction.padEnd(2, '0')}`;
 }
 const count = value => Number(value ?? 0).toLocaleString('en-US');
+const weightOf = miner => Number(miner.hashpower ?? miner.hashrate) || 0;
+// From three miners on the lanes get slimmer, so the cards below keep their lists.
+const lanesClass = miners => `next-block-lanes${miners.length > 2 ? ' is-compact' : ''}`;
 const seconds = ms => `${(Math.max(0, Number(ms) || 0) / 1000).toFixed(1)} s`;
 const minerColor = miner => miner.color
   ?? (KNOWN_COLORS.includes(String(miner.name).toLowerCase()) ? `var(--${String(miner.name).toLowerCase()})` : 'var(--text-3)');
@@ -98,7 +106,7 @@ function zeroStatus(zeros, difficulty, isWinner) {
 export function NextBlockCard({
   mode = 'idle', index, txCount = 0, reward, difficulty = 2, onDifficulty, autoMine = false, onAutoMine, repeating = false,
   onStartDemo, onMine, onPause, onRemine, repair = null, miners = [], race = null, lastRound = null,
-  backedMiner = null, onBack, coach = null, signature = null
+  backedMiner = null, onBack, coach = null, signature = null, onCreateMiner, minersFull = false
 }) {
   const isMining = mode === 'mining';
   const isRepair = mode === 'repair';
@@ -179,14 +187,16 @@ export function NextBlockCard({
         : isMining
           ? <LiveRace miners={miners} race={race} index={index} difficulty={difficulty} target={target} backedMiner={backedMiner} coach={coach} />
           : <LastRound miners={miners} lastRound={lastRound} race={isPaused ? race : null} difficulty={difficulty}
-            backedMiner={backedMiner} onBack={onBack} coach={coach} isFresh={isFresh} />}
+            backedMiner={backedMiner} onBack={onBack} coach={coach} isFresh={isFresh}
+            onCreateMiner={onCreateMiner} minersFull={minersFull} />}
     </section>
   );
 }
 
-function LastRound({ miners, lastRound, race, difficulty, backedMiner, onBack, coach, isFresh }) {
+function LastRound({ miners, lastRound, race, difficulty, backedMiner, onBack, coach, isFresh, onCreateMiner, minersFull }) {
+  const [creating, setCreating] = useState(false);
   const d = lastRound?.difficulty ?? difficulty;
-  const total = miners.reduce((sum, m) => sum + (Number(m.hashrate) || 0), 0);
+  const total = miners.reduce((sum, m) => sum + weightOf(m), 0);
   const coached = coach?.target === 'workbench.back-miner';
   let summary;
   if (race) {
@@ -202,7 +212,7 @@ function LastRound({ miners, lastRound, race, difficulty, backedMiner, onBack, c
     <div className="next-block-body" data-round="last">
       <div className="next-block-summary">{summary}</div>
       <CoachMark target="workbench.back-miner" coach={coach} className="next-block-coach-block">
-        <div className="next-block-lanes">
+        <div className={lanesClass(miners)}>
           {miners.map(miner => {
             const result = race?.perMiner?.[miner.name] ?? lastRound?.perMiner?.[miner.name] ?? null;
             const isWinner = !race && lastRound?.winner === miner.name;
@@ -227,11 +237,23 @@ function LastRound({ miners, lastRound, race, difficulty, backedMiner, onBack, c
           })}
         </div>
       </CoachMark>
+      {creating && !minersFull && (
+        <div className="next-block-create">
+          <CreateNameForm noun="miner" label="New miner name" placeholder="New miner, e.g. Hal"
+            hint="A simulated miner: races from the next block at hashpower 5 of 10, starts at 0."
+            onCreate={onCreateMiner} onCancel={() => setCreating(false)} />
+        </div>
+      )}
       <div className="next-block-foot">
         {total > 0 && (
-          <span>Odds per block: {miners.map((m, i) => (
-            <span key={m.name}>{i > 0 && ' · '}<b>{m.name} {((Number(m.hashrate) || 0) / total * 100).toFixed(1)} %</b></span>
+          <span className="next-block-odds">Odds per block: {miners.map((m, i) => (
+            <span key={m.name}>{i > 0 && ' · '}<b>{m.name} {(weightOf(m) / total * 100).toFixed(1)} %</b></span>
           ))}</span>
+        )}
+        {onCreateMiner && (
+          <button type="button" className="next-block-new" aria-expanded={creating && !minersFull} disabled={minersFull}
+            title={minersFull ? 'At most 4 miners race in this simulation.' : 'Add a miner to the race'}
+            onClick={() => setCreating(open => !open)}><PlusIcon />Create miner</button>
         )}
       </div>
     </div>
@@ -266,7 +288,7 @@ function LiveRace({ miners, race, index, difficulty, target, backedMiner, coach 
       {/* While a race runs, the "watch the race" step points at the lanes, not at the disabled button. */}
       <CoachMark target="workbench.mine" coach={coach} className="next-block-coach-block">
       <CoachMark target="workbench.back-miner" coach={coach} className="next-block-coach-block">
-        <div className="next-block-lanes">
+        <div className={lanesClass(miners)}>
           {miners.map(miner => <LiveMinerLane key={miner.name} miner={miner} p={race?.perMiner?.[miner.name]}
             difficulty={difficulty} isWinner={race?.winner === miner.name} backed={backedMiner === miner.name} />)}
         </div>
