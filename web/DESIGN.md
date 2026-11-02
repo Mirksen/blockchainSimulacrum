@@ -149,13 +149,16 @@ decision, 2026-10-27):
   Genesis and the candidate, and the single primary in the Next block card
   is "Start demo".
 - **Stop mining** is the Pause action of the running race; Auto-mine is the Repeat toggle joined to Play/Pause in the Next block card.
-  Repeat starts off; enabling it starts continuous mining. Auto-transact separately
+  **Auto-mine is a setting, not a start** (Mirko, 2026-11-02): it starts off and never
+  starts or stops a search by itself. Play ("Mining", or "Start demo" on a fresh chain)
+  starts a run; with Auto-mine on, each found block starts the next one after a short
+  pause, and Pause stays the primary between blocks. Turning it off lets the active
+  block finish and schedules no further block; turning it on during a block lets the
+  run continue. Pause stops the current search and the run, including between rounds,
+  and keeps the setting for the next Play. Auto-transact separately
   fills the empty mempool with sample transactions between rounds.
   Its label stays “Auto-mine”; a filled blue pressed state and an inset seam
   distinguish it from the adjacent “Mining”/Pause primary, including between blocks.
-  Turning Repeat off lets the active block finish and schedules no further blocks,
-  including the first automatic block after Genesis. Pause stops both the current
-  search and repeat, including between rounds.
 - **Auto-transact** starts off. Its Repeat toggle sits in the Mempool header and
   explains its behavior on hover. It fills only an empty mempool with eight sample
   transfers, waits while a candidate is being mined, and keeps existing transfers
@@ -259,7 +262,7 @@ Every flow covers its states, not only the success path.
 | State | Pattern |
 |---|---|
 | Idle | Mining is the primary action; New transaction glows as the second invitation. |
-| Mining | The Next block card becomes the live race: per miner the current nonce and hash, leading characters checked against the target, attempts and elapsed time against the target time. The Play primary becomes Pause in the same place; the header says "Mining block #N…". The adjacent Repeat toggle stays available, and Pause also stays available between automatic rounds. The candidate tile says "mining". Mempool rows read "being mined into #N". New transaction stays available without glow. |
+| Mining | The Next block card becomes the live race: per miner the current nonce and hash, leading characters checked against the target, attempts and elapsed time against the target time. The Play primary becomes Pause in the same place; the header says "Mining block #N…". The adjacent Repeat toggle stays available as a setting, and Pause also stays available between the blocks of a run that Auto-mine continues. The candidate tile says "mining". Mempool rows read "being mined into #N". New transaction stays available without glow. |
 | Block found | The new tile appears on the right with a short calm highlight; the race line becomes "Last round". No confetti. |
 | Tampered | The changed block turns red with "Hash mismatch" and its new hash (the stored one struck through). Descendants turn amber with "Built on a broken block"; their own links are intact and say so. The chain pill says "Chain invalid", health opens, Mine pauses with "Paused while the chain is invalid", and the single primary becomes "Re-mine block #2". When the edit breaks a ledger rule (a signature, a spent coin, a coinbase claiming too much) re-mining cannot help, so the primary is "Undo edit in block #2" with the reason beside it. Red only for the broken block and its direct status. |
 | Empty | A sentence that says what is recorded ("No transactions waiting.") and the next step under it. |

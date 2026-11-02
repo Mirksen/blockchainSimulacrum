@@ -308,12 +308,16 @@ try {
  await page.screenshot({path:join(output,'difficulty-10-settings.png')});
  await settings.getByLabel('Mining difficulty',{exact:true}).fill('1');
  await settings.getByRole('button',{name:'Done'}).click();
+ const beforeAuto = await wb.tiles().count();
  await page.getByRole('button',{name:'Auto-mine',exact:true}).click();
- await wb.tile(2).waitFor({timeout:30000});
+ await page.waitForTimeout(2000);
+ assert.equal(await wb.tiles().count(), beforeAuto, 'Auto-mine alone starts no block');
+ await page.locator('.next-block .btn-primary').click();
+ await wb.tile(beforeAuto + 2).waitFor({timeout:30000});
  await page.getByRole('button',{name:'Auto-mine',exact:true}).click();
  await menu(page, 'Reset');
  await page.getByRole('button',{name:'Start demo',exact:true}).waitFor();
- results.push('Settings change the difficulty; auto-mine runs and stops; reset clears the result');
+ results.push('Settings change the difficulty; auto-mine continues a run started with Play and stops; reset clears the result');
 
  assert.equal(telemetryRequests.length,0,'No telemetry before consent, including all prior mining operations');
  const sharing = () => page.getByLabel('Share usage and technical errors');

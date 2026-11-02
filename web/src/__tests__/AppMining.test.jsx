@@ -50,15 +50,18 @@ const tiles = () => within(document.querySelector('.wb-band')).getAllByRole('but
 const release = index => act(async () => { await controlled.runs[index].release(); });
 const sound = () => screen.getByRole('button', { name: /^Sound/ });
 const more = () => fireEvent.click(screen.getByRole('button', { name: 'More', exact: true }));
-async function startAutomatic() {
-  fireEvent.click(repeat());
-  await act(async () => { await vi.advanceTimersByTimeAsync(1500); });
-  expect(controlled.runs).toHaveLength(1);
-}
+const wait = ms => act(async () => { await vi.advanceTimersByTimeAsync(ms); });
 async function completeDemo() {
   fireEvent.click(screen.getByRole('button', { name: 'Start demo', exact: true }));
   await release(0);
   await release(1);
+}
+// After the demo (runs 0 and 1): Auto-mine on, then Play starts run 2.
+async function startAutomatic() {
+  await completeDemo();
+  fireEvent.click(repeat());
+  fireEvent.click(screen.getByRole('button', { name: 'Mining', exact: true }));
+  expect(controlled.runs).toHaveLength(3);
 }
 
 describe('mining controls and sound in App', () => {
@@ -73,30 +76,78 @@ describe('mining controls and sound in App', () => {
     expect(playMiningSuccessSound).toHaveBeenLastCalledWith(true);
   });
 
-  it('turns repeat off during the first automatic block without cancelling it or starting another', async () => {
+  it('Auto-mine alone starts no search, on a fresh chain or after the demo', async () => {
+    render(<App />);
+    fireEvent.click(repeat());
+    expect(repeat().getAttribute('aria-pressed')).toBe('true');
+    await wait(6000);
+    expect(controlled.runs).toHaveLength(0);
+    expect(screen.getByRole('button', { name: 'Start demo', exact: true })).toBeTruthy();
+    fireEvent.click(repeat());
+    await completeDemo();
+    await wait(6000);
+    expect(controlled.runs).toHaveLength(2);
+    fireEvent.click(repeat());
+    await wait(6000);
+    expect(controlled.runs).toHaveLength(2);
+    expect(screen.getByRole('button', { name: 'Mining', exact: true })).toBeTruthy();
+  });
+
+  it('with Auto-mine on, Play mines block after block and Pause stays available between blocks', async () => {
+    render(<App />);
+    await startAutomatic();
+    await release(2);
+    expect(tiles()).toHaveLength(4);
+    expect(screen.getByRole('button', { name: 'Pause', exact: true })).toBeTruthy();
+    await wait(1500);
+    expect(controlled.runs).toHaveLength(4);
+  });
+
+  it('Start demo continues into the next block when Auto-mine is already on', async () => {
+    render(<App />);
+    fireEvent.click(repeat());
+    await completeDemo();
+    await wait(1500);
+    expect(controlled.runs).toHaveLength(3);
+  });
+
+  it('turning Auto-mine on during a single block continues after it', async () => {
+    render(<App />);
+    await completeDemo();
+    fireEvent.click(screen.getByRole('button', { name: 'Mining', exact: true }));
+    fireEvent.click(repeat());
+    await release(2);
+    await wait(1500);
+    expect(controlled.runs).toHaveLength(4);
+  });
+
+  it('turns repeat off during a block without cancelling it or starting another', async () => {
     render(<App />);
     await startAutomatic();
     fireEvent.click(repeat());
     expect(repeat().getAttribute('aria-pressed')).toBe('false');
-    expect(controlled.runs[0].signal.aborted).toBe(false);
+    expect(controlled.runs[2].signal.aborted).toBe(false);
     expect(screen.getByRole('button', { name: 'Pause', exact: true })).toBeTruthy();
-    await release(0);
-    expect(tiles()).toHaveLength(2);
+    await release(2);
+    expect(tiles()).toHaveLength(4);
     expect(screen.getByRole('button', { name: 'Mining', exact: true })).toBeTruthy();
-    await act(async () => { await vi.advanceTimersByTimeAsync(6000); });
-    expect(controlled.runs).toHaveLength(1);
+    await wait(6000);
+    expect(controlled.runs).toHaveLength(3);
     expect(playMiningSuccessSound).toHaveBeenLastCalledWith(true);
   });
 
-  it('turns repeat off between rounds and clears the next scheduled search', async () => {
+  it('turns repeat off between rounds; turning it on again starts nothing', async () => {
     render(<App />);
     await startAutomatic();
-    await release(0);
-    expect(tiles()).toHaveLength(2);
+    await release(2);
     fireEvent.click(repeat());
-    await act(async () => { await vi.advanceTimersByTimeAsync(6000); });
-    expect(controlled.runs).toHaveLength(1);
-    expect(tiles()).toHaveLength(2);
+    await wait(6000);
+    expect(controlled.runs).toHaveLength(3);
+    expect(tiles()).toHaveLength(4);
+    expect(screen.getByRole('button', { name: 'Mining', exact: true })).toBeTruthy();
+    fireEvent.click(repeat());
+    await wait(6000);
+    expect(controlled.runs).toHaveLength(3);
   });
 
   it('shows the newest block until one is clicked and lets go on a second click', async () => {
@@ -131,14 +182,27 @@ describe('mining controls and sound in App', () => {
     expect(pending()).toHaveLength(count);
   });
 
-  it('Pause still aborts the active search and repeat', async () => {
+  it('Pause aborts the active search and ends the run but keeps the Auto-mine setting', async () => {
     render(<App />);
     await startAutomatic();
+    const sounds = playMiningSuccessSound.mock.calls.length;
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Pause', exact: true })); });
-    expect(controlled.runs[0].signal.aborted).toBe(true);
-    expect(repeat().getAttribute('aria-pressed')).toBe('false');
-    expect(tiles()).toHaveLength(1);
-    expect(playMiningSuccessSound).not.toHaveBeenCalled();
+    expect(controlled.runs[2].signal.aborted).toBe(true);
+    expect(repeat().getAttribute('aria-pressed')).toBe('true');
+    expect(tiles()).toHaveLength(3);
+    await wait(6000);
+    expect(controlled.runs).toHaveLength(3);
+    expect(playMiningSuccessSound.mock.calls.length).toBe(sounds);
+  });
+
+  it('Pause between automatic blocks clears the next scheduled search', async () => {
+    render(<App />);
+    await startAutomatic();
+    await release(2);
+    fireEvent.click(screen.getByRole('button', { name: 'Pause', exact: true }));
+    await wait(6000);
+    expect(controlled.runs).toHaveLength(3);
+    expect(screen.getByRole('button', { name: 'Mining', exact: true })).toBeTruthy();
   });
 
   it('uses mute changes made while mining, including enabling sound again before completion', async () => {

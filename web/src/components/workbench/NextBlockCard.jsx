@@ -9,7 +9,9 @@ import { issueText } from './blockView';
 // Next block card (web/DESIGN.md, "Card grid" and "Interaction patterns").
 // One filled primary per mode:
 //   fresh   "Start demo"            idle   "Mining"
-//   mining  "Pause" (replaces Play; repeat stays beside it)
+//   mining  "Pause" (replaces Play, also between the blocks of a repeating run; repeat stays beside it)
+// Auto-mine is a setting: it never starts or stops a search. `repeating` says that a run
+// started with Play continues with the next block.
 //   repair  "Re-mine block #K"      paused "Mining" (a new search)
 //
 // miners:    [{ name, hashrate?, color? }]  (color: any CSS color, defaults to var(--<name>))
@@ -94,7 +96,7 @@ function zeroStatus(zeros, difficulty, isWinner) {
 }
 
 export function NextBlockCard({
-  mode = 'idle', index, txCount = 0, reward, difficulty = 2, onDifficulty, autoMine = false, onAutoMine,
+  mode = 'idle', index, txCount = 0, reward, difficulty = 2, onDifficulty, autoMine = false, onAutoMine, repeating = false,
   onStartDemo, onMine, onPause, onRemine, repair = null, miners = [], race = null, lastRound = null,
   backedMiner = null, onBack, coach = null, signature = null
 }) {
@@ -116,7 +118,7 @@ export function NextBlockCard({
 
   const repeatToggle = (
     <button type="button" className="next-block-repeat" aria-label="Auto-mine" aria-pressed={autoMine}
-      title={autoMine ? 'Turn off repeat; let the current block finish' : 'Automatically mine one block after another. Use Auto-transact to fill sample transfers.'}
+      title={autoMine ? 'On: each found block starts the next one. Turn off to stop after the current block.' : 'Keep mining block after block once Mining starts. Use Auto-transact to fill sample transfers.'}
       disabled={isRepair} onClick={() => onAutoMine?.(!autoMine)}>
       <RepeatIcon /><span>Auto-mine</span>
     </button>
@@ -140,8 +142,8 @@ export function NextBlockCard({
     </CoachMark>
   );
 
-  const running = isMining || (autoMine && !isRepair);
-  const startsDemo = isFresh && !autoMine;
+  const running = isMining || (repeating && !isRepair);
+  const startsDemo = isFresh;
   // Keep the same button mounted so keyboard focus follows Play → Pause → Play.
   const action = (
     <CoachMark target={running || isRepair || startsDemo ? undefined : "workbench.mine"} coach={running || isRepair || startsDemo ? null : coach} className="next-block-coach-inline">

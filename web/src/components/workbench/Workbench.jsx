@@ -21,7 +21,7 @@ const satoshis = coins => Math.round(coins * 1e8);
 const signerOf = coinbase => (coinbase.outputs.some(output => output.kind === 'commitment') ? coinbase.memo : null);
 
 export function Workbench({
-  sim, coinName, targetSeconds, autoMine, onAutoMine, autoTransact, onAutoTransact, selectedIndex, held = false, onSelect, onFollowNewest, healthOpen, onToggleHealth,
+  sim, coinName, targetSeconds, autoMine, onAutoMine, repeating = false, autoTransact, onAutoTransact, selectedIndex, held = false, onSelect, onFollowNewest, healthOpen, onToggleHealth,
   lastRound, remining, coach, identity, boardRows,
   onStartDemo, onMine, onPause, onRemine, onTamper, onUndo, onDifficulty, onBack,
   onCreateTransaction, onCreateWallet, onOpenWallet, onOpenDetails, onOpenTransaction, onOpenBlockTx, onOpenChainLab, error
@@ -113,7 +113,7 @@ export function Workbench({
       </div>
       <div className="wb-next">
         <NextBlockCard mode={mode} index={busy && remining !== null ? remining : nextIndex} txCount={memPool.length}
-          reward={blockReward} difficulty={difficulty} onDifficulty={onDifficulty} autoMine={autoMine} onAutoMine={onAutoMine}
+          reward={blockReward} difficulty={difficulty} onDifficulty={onDifficulty} autoMine={autoMine} onAutoMine={onAutoMine} repeating={repeating}
           onStartDemo={onStartDemo} onMine={onMine} onPause={onPause} onRemine={onRemine}
           repair={repair ? { ...repair, onUndo } : null} miners={miners} race={race} lastRound={lastRound}
           backedMiner={backedMiner} onBack={onBack} coach={workbenchCoach}

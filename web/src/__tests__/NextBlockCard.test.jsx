@@ -81,10 +81,20 @@ describe('NextBlockCard', () => {
     expect(within(controls).getByRole('button', { name: 'Auto-mine' }).getAttribute('aria-pressed')).toBe('false');
   });
 
-  it.each(['fresh', 'idle', 'mining'])('auto-mine in %s stays visibly on and can be paused', mode => {
+  it.each([['fresh', 'Start demo'], ['idle', 'Mining']])('Auto-mine on in %s is a setting: Play still starts', (mode, label) => {
+    const onMine = vi.fn();
+    const onStartDemo = vi.fn();
+    render(<NextBlockCard {...base} mode={mode} autoMine onMine={onMine} onStartDemo={onStartDemo} />);
+    expect(screen.getByRole('button', { name: 'Auto-mine' }).getAttribute('aria-pressed')).toBe('true');
+    expect(screen.queryByRole('button', { name: 'Pause' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: label }));
+    expect(onMine.mock.calls.length + onStartDemo.mock.calls.length).toBe(1);
+  });
+
+  it.each([['idle', true], ['mining', false]])('a repeating run in %s stays visibly on and can be paused', (mode, repeating) => {
     const onPause = vi.fn();
     const onAutoMine = vi.fn();
-    render(<NextBlockCard {...base} mode={mode} autoMine onPause={onPause} onAutoMine={onAutoMine} />);
+    render(<NextBlockCard {...base} mode={mode} autoMine repeating={repeating} onPause={onPause} onAutoMine={onAutoMine} />);
     const repeat = screen.getByRole('button', { name: 'Auto-mine' });
     expect(repeat.getAttribute('aria-pressed')).toBe('true');
     expect(repeat.textContent).toBe('Auto-mine');
