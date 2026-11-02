@@ -115,6 +115,8 @@ function proofProblem(candidate, nonce, hash) {
 }
 
 const WALLET_NAME = /^[A-Za-z0-9]{2,16}$/;
+// Race lanes stay readable in the Next block card up to this many miners.
+export const MAX_MINERS = 4;
 export const DEFAULT_FEE = 0.00000001;
 const satoshis = coins => Math.round(coins * 1e8);
 const walletScript = publicKey => p2pkhScript(hash160(publicKey));
@@ -164,11 +166,25 @@ export class Blockchain {
 
   // A wallet the learner creates: a non-miner participant that starts without coins.
   addWallet(name) {
+    return this.addNamed(name, false);
+  }
+
+  // A miner the learner creates: a wallet that races from the next block on with the
+  // default hashpower. Miners and wallets share one name space.
+  addMiner(name) {
+    if (this.participants.filter(p => p.isMiner).length >= MAX_MINERS) {
+      return { success: false, error: `At most ${MAX_MINERS} miners race in this simulation.` };
+    }
+    return this.addNamed(name, true);
+  }
+
+  addNamed(name, isMiner) {
+    const noun = isMiner ? 'miner' : 'wallet';
     const trimmed = typeof name === 'string' ? name.trim() : '';
-    if (!WALLET_NAME.test(trimmed)) return { success: false, error: 'Use 2–16 letters or digits for the wallet name.' };
+    if (!WALLET_NAME.test(trimmed)) return { success: false, error: `Use 2–16 letters or digits for the ${noun} name.` };
     const taken = this.participants.some(p => p.name.toLowerCase() === trimmed.toLowerCase());
     if (taken) return { success: false, error: `A wallet named ${trimmed} already exists.` };
-    const participant = this.addParticipant(trimmed, false);
+    const participant = this.addParticipant(trimmed, isMiner);
     return { success: true, error: null, participant };
   }
 

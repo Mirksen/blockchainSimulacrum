@@ -77,6 +77,9 @@
 .next-block-nm em { font-style: normal; }
 .next-block-nm em.is-win { color: var(--green); }
 .next-block-nm em.is-backed { color: var(--coach); }
+.next-block-lanes.is-compact { gap: 4px; margin-top: var(--s-2); }
+.next-block-lanes.is-compact .next-block-lane { min-height: 34px; }
+.next-block-lanes.is-compact .next-block-nm { line-height: 14px; }
 .next-block-lane-end { justify-self: end; }
 .next-block-lane-end .card-kit-btn { width: 96px; }
 .next-block-lane-end .card-kit-btn.is-pressed { border-color: var(--coach); color: var(--text); }
@@ -106,6 +109,15 @@
   font-size: 12px; color: var(--text-3); white-space: nowrap; overflow: hidden;
 }
 .next-block-foot b { color: var(--text-2); font-weight: 600; }
+.next-block-odds { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.next-block-new {
+  flex: none; margin-left: auto; display: inline-flex; align-items: center; gap: 6px; padding: 0; border: 0; background: none;
+  color: var(--blue); font: 500 12px/16px var(--ui); cursor: pointer; white-space: nowrap;
+}
+.next-block-new:hover:not(:disabled) { text-decoration: underline; }
+.next-block-new:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.next-block-new:disabled { color: var(--text-3); cursor: not-allowed; }
+.next-block-create { margin: 10px calc(-1 * var(--s-4)) 0; border-top: 1px solid var(--line-2); border-bottom: 1px solid var(--line-2); }
 .next-block-timebar { position: relative; display: inline-block; width: 64px; height: 4px; border-radius: 2px; background: var(--panel-3); overflow: hidden; flex: none; }
 .next-block-timebar i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 2px; background: var(--blue); }
 

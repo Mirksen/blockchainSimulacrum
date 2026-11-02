@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { CreateNameForm } from './CreateNameForm';
 import './cardKit.css';
 import './WalletsCard.css';
 
@@ -7,7 +8,6 @@ import './WalletsCard.css';
 // onCreateWallet(name) returns { success, error }; the error text is shown under the field.
 
 const KNOWN_COLORS = ['lars', 'minas', 'alice', 'bob', 'chris'];
-const NAME_RULE = /^[A-Za-z0-9]{2,16}$/;
 
 const PlusIcon = () => (
   <svg width="10" height="10" viewBox="0 0 12 12" aria-hidden="true"><path d="M6 2v8M2 6h8" stroke="currentColor" strokeWidth="1.8" /></svg>
@@ -21,37 +21,6 @@ function Avatar({ name }) {
 
 function balanceText(value) {
   return typeof value === 'number' && Number.isFinite(value) ? value.toFixed(8) : String(value ?? '');
-}
-
-function CreateWalletForm({ onCreate, onCancel }) {
-  const [name, setName] = useState('');
-  const [error, setError] = useState('');
-  const submit = event => {
-    event.preventDefault();
-    const trimmed = name.trim();
-    if (!trimmed) return setError('Enter a name for the wallet.');
-    if (!NAME_RULE.test(trimmed)) return setError('Use 2–16 letters or digits for the wallet name.');
-    const result = onCreate?.(trimmed) ?? { success: false, error: 'The wallet could not be created. Try again.' };
-    if (result.success) onCancel();
-    else setError(result.error || 'The wallet could not be created. Try again.');
-  };
-  return (
-    <form className="wallets-card-create-form" onSubmit={submit} aria-label="Create wallet" noValidate>
-      <div className="wallets-card-create-line">
-        <label className="card-kit-sr" htmlFor="wallets-card-new-name">Wallet name</label>
-        <input id="wallets-card-new-name" className="card-kit-input" placeholder="Wallet name, e.g. Dana" autoComplete="off"
-          autoFocus value={name} maxLength={32}
-          aria-invalid={error ? 'true' : 'false'} aria-describedby={error ? 'wallets-card-new-error' : 'wallets-card-new-hint'}
-          onChange={event => { setName(event.target.value); setError(''); }}
-          onKeyDown={event => { if (event.key === 'Escape') onCancel(); }} />
-        <button type="submit" className="card-kit-btn">Create</button>
-        <button type="button" className="card-kit-btn is-ghost" onClick={onCancel}>Cancel</button>
-      </div>
-      {error
-        ? <p className="card-kit-error" role="alert" id="wallets-card-new-error">{error}</p>
-        : <p className="card-kit-t3 wallets-card-hint" id="wallets-card-new-hint">Starts at 0. 2–16 letters or digits.</p>}
-    </form>
-  );
 }
 
 export function WalletsCard({ wallets = [], coinName = 'powfyicoin', onOpenWallet, onCreateWallet }) {
@@ -78,7 +47,10 @@ export function WalletsCard({ wallets = [], coinName = 'powfyicoin', onOpenWalle
           </li>
         ))}
       </ul>
-      {creating && <div className="wallets-card-create"><CreateWalletForm onCreate={onCreateWallet} onCancel={() => setCreating(false)} /></div>}
+      {creating && <div className="wallets-card-create">
+        <CreateNameForm noun="wallet" label="Wallet name" placeholder="Wallet name, e.g. Dana" hint="Starts at 0. 2–16 letters or digits."
+          onCreate={onCreateWallet} onCancel={() => setCreating(false)} />
+      </div>}
     </section>
   );
 }

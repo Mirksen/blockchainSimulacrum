@@ -308,12 +308,24 @@ try {
  await page.screenshot({path:join(output,'difficulty-10-settings.png')});
  await settings.getByLabel('Mining difficulty',{exact:true}).fill('1');
  await settings.getByRole('button',{name:'Done'}).click();
+ const beforeAuto = await wb.tiles().count();
  await page.getByRole('button',{name:'Auto-mine',exact:true}).click();
- await wb.tile(2).waitFor({timeout:30000});
+ await page.waitForTimeout(2000);
+ assert.equal(await wb.tiles().count(), beforeAuto, 'Auto-mine alone starts no block');
+ await page.locator('.next-block .btn-primary').click();
+ await wb.tile(beforeAuto + 2).waitFor({timeout:30000});
  await page.getByRole('button',{name:'Auto-mine',exact:true}).click();
+ await page.locator('.next-block .btn-primary').filter({hasText:'Mining'}).waitFor({timeout:30000});
+ await page.getByRole('button',{name:'Create miner',exact:true}).click();
+ await page.getByLabel('New miner name',{exact:true}).fill('Hal');
+ await page.getByRole('form',{name:'Create miner'}).getByRole('button',{name:'Create',exact:true}).click();
+ await page.locator('.next-block-lane[data-miner="Hal"]').waitFor();
+ await page.getByRole('button',{name:/^Open Hal, balance 0\.00000000/}).waitFor();
+ assert.match(await page.locator('.next-block-foot').innerText(), /Hal 33\.3 %/);
  await menu(page, 'Reset');
+ assert.equal(await page.locator('.next-block-lane[data-miner="Hal"]').count(), 0, 'Reset removes a created miner');
  await page.getByRole('button',{name:'Start demo',exact:true}).waitFor();
- results.push('Settings change the difficulty; auto-mine runs and stops; reset clears the result');
+ results.push('Settings change the difficulty; auto-mine continues a run started with Play and stops; a created miner gets a lane, a wallet and its odds; reset clears the result');
 
  assert.equal(telemetryRequests.length,0,'No telemetry before consent, including all prior mining operations');
  const sharing = () => page.getByLabel('Share usage and technical errors');

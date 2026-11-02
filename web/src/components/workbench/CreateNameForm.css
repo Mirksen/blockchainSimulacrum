@@ -1,0 +1,5 @@
+/* Create name form — one field with Create and Cancel; the parent decides where it sits */
+.create-name-form { display: grid; gap: 4px; padding: var(--s-2) var(--s-4); background: var(--bg-2); }
+.create-name-form-line { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); }
+.create-name-form-line .card-kit-input { flex: 1 1 120px; min-width: 0; }
+.create-name-form-hint { margin: 0; }

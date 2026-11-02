@@ -25,10 +25,6 @@
 .wallets-card-new:hover { text-decoration: underline; }
 .wallets-card-new:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 
-.wallets-card-create-form { display: grid; gap: 4px; padding: var(--s-2) var(--s-4); background: var(--bg-2); }
-.wallets-card-create-line { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); }
-.wallets-card-create-line .card-kit-input { flex: 1 1 120px; min-width: 0; }
-.wallets-card-hint { margin: 0; }
 
 /* narrow card: role over hash rate in one column (base.html container rule) */
 @container wallets-card (max-width: 520px) {

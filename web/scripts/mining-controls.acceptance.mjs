@@ -86,8 +86,13 @@ export async function verifyMiningControlsAndSound(browser, baseURL, output) {
     await page.keyboard.press('Escape');
 
     const repeat = () => page.getByRole('button', { name: 'Auto-mine', exact: true });
-    const delayed = holdNextWorker();
     await repeat().click();
+    assert.equal(await repeat().getAttribute('aria-pressed'), 'true');
+    await page.waitForTimeout(2200);
+    assert.equal(page.workers().length, 0, 'Auto-mine alone starts no search');
+    assert.equal(await wb.tiles().count(), 1);
+    const delayed = holdNextWorker();
+    await page.getByRole('button', { name: 'Start demo', exact: true }).click();
     await page.getByRole('button', { name: 'Pause', exact: true }).waitFor();
     await waitForRequest(delayed);
     await page.screenshot({ path: join(output, 'mining-repeat-active.png') });
@@ -96,9 +101,9 @@ export async function verifyMiningControlsAndSound(browser, baseURL, output) {
     assert.equal(await page.getByRole('button', { name: 'Pause', exact: true }).isVisible(), true, 'Repeat off keeps the current search running');
     assert.equal(await wb.tiles().count(), 1);
     delayed.release();
-    await wb.mine(2).waitFor({ timeout: 30000 });
+    await wb.mine(3).waitFor({ timeout: 30000 });
     await page.waitForTimeout(2200);
-    assert.equal(await wb.tiles().count(), 2, 'Only the current automatic block finishes, including from Genesis');
+    assert.equal(await wb.tiles().count(), 3, 'The demo started by Play finishes; no further block starts');
     assert.equal(page.workers().length, 0, 'No further search starts');
     const audible = await audioSnapshot(page);
     assert.equal(audible.contexts, 1);
@@ -108,26 +113,26 @@ export async function verifyMiningControlsAndSound(browser, baseURL, output) {
     await page.screenshot({ path: join(output, 'automine-finish-current.png') });
 
     const mutedRun = holdNextWorker();
-    await wb.mine(2).click();
+    await wb.mine(3).click();
     await waitForRequest(mutedRun);
     await page.getByRole('button', { name: 'More', exact: true }).click();
     await sound().click();
     assert.equal(await sound().getAttribute('aria-pressed'), 'false');
     await page.keyboard.press('Escape');
     mutedRun.release();
-    await wb.mine(3).waitFor({ timeout: 30000 });
+    await wb.mine(4).waitFor({ timeout: 30000 });
     await page.waitForTimeout(800);
     assert.equal((await audioSnapshot(page)).starts, audible.starts, 'Muting during a search silences its result');
 
     const enabledRun = holdNextWorker();
-    await wb.mine(3).click();
+    await wb.mine(4).click();
     await waitForRequest(enabledRun);
     await page.getByRole('button', { name: 'More', exact: true }).click();
     await sound().click();
     assert.equal(await sound().getAttribute('aria-pressed'), 'true');
     await page.keyboard.press('Escape');
     enabledRun.release();
-    await wb.mine(4).waitFor({ timeout: 30000 });
+    await wb.mine(5).waitFor({ timeout: 30000 });
     await page.waitForTimeout(800);
     const enabled = await audioSnapshot(page);
     assert.equal(enabled.contexts, 1, 'Later results reuse the gesture-unlocked context');
@@ -159,7 +164,7 @@ export async function verifyMiningControlsAndSound(browser, baseURL, output) {
       }
     }
     assert.deepEqual(errors, []);
-    return [`Mining controls: Repeat off finishes the active block and starts no next block; real browser audio is running, peak ${audible.peak.toFixed(4)}; mid-search mute/unmute applies and one context is reused`];
+    return [`Mining controls: Auto-mine alone starts nothing; Repeat off finishes the active block and starts no next block; real browser audio is running, peak ${audible.peak.toFixed(4)}; mid-search mute/unmute applies and one context is reused`];
   } finally {
     nextGate?.release();
     activeGate?.release();

@@ -63,6 +63,9 @@ function App() {
   const [view, setView] = useState(viewFromHash);
   const [winner, setWinner] = useState(null);
   const [autoMining, setAutoMining] = useState(false);
+  // Play starts a run; Auto-mine only decides whether the run continues after a block.
+  const [running, setRunning] = useState(false);
+  const autoMiningRef = useRef(false);
   const [autoTransact, setAutoTransact] = useState(false);
   const [coinName, setCoinName] = useState('powfyicoin');
   const [targetBlockTime, setTargetBlockTime] = useState(10);
@@ -94,7 +97,7 @@ function App() {
   const { blocks, participants, balances, memPool, chainValid, isMining, isSettingUp, difficulty, halvingInterval,
     minerProgress, miningProgress, createTransaction, mineBlock, setupInitialDistribution, generateRandomTransactions,
     setDifficulty, setHalvingInterval, tamperBlock, undoTamper, remineBlock, resetBlockchain, cancelMining,
-    createWallet, backMiner, toggleMiner, setMinerHashpower, describeTx, setSigner } = sim;
+    createWallet, createMiner, backMiner, toggleMiner, setMinerHashpower, describeTx, setSigner } = sim;
   const busy = isMining || isSettingUp;
   const coach = railCollapsed ? null : coachOf(progress);
   const activeMission = missions.activeMission(progress);
@@ -135,8 +138,8 @@ function App() {
     }
     if (!result.aborted) {
       setError(result.error || 'Mining could not finish. Reset the demo and try again.');
-      setAutoMining(false);
     }
+    setRunning(false);
     return false;
   }, []);
 
@@ -172,21 +175,34 @@ function App() {
     report({ type: 'difficulty_changed', direction: next > current ? 'up' : 'down' });
   }, [report, setDifficulty, sim.blockchain, targetBlockTime]);
 
+  // A run ends after its block unless Auto-mine is on when the block is found.
+  const endRoundUnlessRepeating = useCallback(() => { if (!autoMiningRef.current) setRunning(false); }, []);
   const handleMine = useCallback(async () => {
     const index = blocks.length;
     const result = await mineBlock();
+    endRoundUnlessRepeating();
     if (finishRound(result)) {
       pendingRound.current = { index, result };
       report({ type: 'block_mined', backedWon: result.backedWon, epoch: result.epoch });
       adjustDifficulty();
     }
     return result;
-  }, [adjustDifficulty, blocks.length, finishRound, mineBlock, report]);
+  }, [adjustDifficulty, blocks.length, endRoundUnlessRepeating, finishRound, mineBlock, report]);
   const handleSetup = useCallback(async () => {
     const result = await setupInitialDistribution();
+    endRoundUnlessRepeating();
     finishRound(result);
     return result;
-  }, [finishRound, setupInitialDistribution]);
+  }, [endRoundUnlessRepeating, finishRound, setupInitialDistribution]);
+  const startMining = () => { setRunning(true); return handleMine(); };
+  const startDemo = () => { setRunning(true); return handleSetup(); };
+  // The toggle neither starts nor stops a search: off lets the current block finish,
+  // on lets a running block continue into the next one.
+  const changeAutoMine = next => {
+    autoMiningRef.current = next;
+    setAutoMining(next);
+    if (!next && !busy) setRunning(false);
+  };
   const handleRemine = useCallback(async index => {
     setRemining(index);
     const result = await remineBlock(index);
@@ -198,15 +214,12 @@ function App() {
     }
   }, [finishRound, remineBlock, report, sim.blockchain]);
 
+  const repeating = running && autoMining && chainValid;
   useEffect(() => {
-    if (!autoMining || busy) return;
-    const timer = setTimeout(async () => {
-      // One block per iteration, even from Genesis. Turning Repeat off never
-      // leaves a two-block demo sequence queued behind the active search.
-      await handleMine();
-    }, 1500);
+    if (!repeating || busy) return;
+    const timer = setTimeout(handleMine, 1500);
     return () => clearTimeout(timer);
-  }, [autoMining, busy, blocks.length, handleMine]);
+  }, [repeating, busy, blocks.length, handleMine]);
 
   // Refill only an empty mempool. An active candidate and existing transfers
   // stay untouched, and idle filling cannot grow an unbounded pending queue.
@@ -228,7 +241,8 @@ function App() {
 
   const reset = () => {
     setAutoTransact(false);
-    setAutoMining(false);
+    changeAutoMine(false);
+    setRunning(false);
     resetBlockchain();
     lastAdjustedBlock.current = 0;
     setWinner(null);
@@ -237,7 +251,8 @@ function App() {
     followNewest();
     report({ type: 'reset' });
   };
-  const pause = () => { setAutoMining(false); cancelMining(); setRemining(null); };
+  // Pause ends the run; the Auto-mine setting stays for the next Play.
+  const pause = () => { setRunning(false); cancelMining(); setRemining(null); };
   const changeTheme = next => { setTheme(next); void telemetry.track('settings_changed', { setting: 'theme', value: next }); };
   const prepareSound = () => { if (soundEnabled.current) void unlockMiningAudio(); };
   const changeMuted = next => {
@@ -280,6 +295,7 @@ function App() {
   };
   const onTamper = (blockIndex, txIndex, amount) => {
     tamperBlock(blockIndex, txIndex, Number(amount));
+    setRunning(false);
     setRepairIndex(blockIndex);
     setHealthOpen(true);
     report({ type: 'block_tampered', blockIndex });
@@ -320,12 +336,12 @@ function App() {
             onToggle={toggleRail} onShowMe={showMe} highlight={showIntro} /></div>
           {showIntro && <MissionIntro onStart={startMissions} onDismiss={dismissIntro} />}
           {view === 'workbench' && <Workbench sim={sim} coinName={coinName} targetSeconds={targetBlockTime}
-            autoMine={autoMining} onAutoMine={setAutoMining} autoTransact={autoTransact} onAutoTransact={setAutoTransact}
+            autoMine={autoMining} onAutoMine={changeAutoMine} repeating={repeating} autoTransact={autoTransact} onAutoTransact={setAutoTransact}
             selectedIndex={shownIndex} held={shownIndex !== null && shownIndex === selectedIndex} onSelect={toggleSelected} onFollowNewest={followNewest} healthOpen={healthOpen} onToggleHealth={() => setHealthOpen(open => !open)}
             lastRound={lastRound} remining={remining} coach={coach}
             identity={identity} boardRows={boardRows}
-            onStartDemo={handleSetup} onMine={handleMine} onPause={pause} onRemine={handleRemine} onTamper={onTamper} onUndo={onUndo}
-            onDifficulty={onDifficulty} onBack={onBack} onCreateTransaction={onCreateTransaction} onCreateWallet={createWallet}
+            onStartDemo={startDemo} onMine={startMining} onPause={pause} onRemine={handleRemine} onTamper={onTamper} onUndo={onUndo}
+            onDifficulty={onDifficulty} onBack={onBack} onCreateTransaction={onCreateTransaction} onCreateWallet={createWallet} onCreateMiner={createMiner}
             onOpenWallet={setWalletDetails} onOpenDetails={setDetails} onOpenTransaction={setPendingTx} onOpenBlockTx={(transaction, blockIndex) => setBlockTx({ transaction, blockIndex })} onOpenChainLab={() => navigate('chain-lab')} error={error} />}
           {view === 'hash-lab' && <div className="wb-view">
             <HashLab key={hashLesson ?? 'free'} lesson={hashLesson} onLessonEvent={hashLesson ? report : undefined}
