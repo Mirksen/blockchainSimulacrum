@@ -5,6 +5,7 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';
 import { join } from 'node:path';
+import process from 'node:process';
 import { chromium } from 'playwright';
 import { variants } from './variants.mjs';
 
