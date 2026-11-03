@@ -157,6 +157,7 @@ export function NextBlockCard({
         Difficulty
         <span className="next-block-stepper-box">
           <button type="button" aria-label="Lower difficulty" disabled={settingsLocked || difficulty <= MIN_DIFFICULTY}
+            title={isFresh || settingsLocked ? undefined : 'Lowering starts a new chain'}
             onClick={() => onDifficulty?.(difficulty - 1)}><MinusIcon /></button>
           <output aria-label="Difficulty">{difficulty}</output>
           <button type="button" aria-label="Raise difficulty" disabled={settingsLocked || difficulty >= MAX_DIFFICULTY}
