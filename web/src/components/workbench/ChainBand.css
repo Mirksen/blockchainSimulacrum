@@ -106,13 +106,14 @@
   color: inherit; font: inherit; text-align: left; cursor: pointer;
 }
 .chain-band-tile-face:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
-.chain-band-tile-top { display: flex; align-items: baseline; gap: var(--s-2); min-width: 0; font-size: 12px; line-height: 20px; white-space: nowrap; }
+/* Keeps its height when empty (block #1 has no mining time), so every tile lines up. */
+.chain-band-tile-top { display: flex; align-items: baseline; gap: var(--s-2); min-width: 0; min-height: 20px; font-size: 12px; line-height: 20px; white-space: nowrap; }
 .chain-band-num {
   position: absolute; left: 0; top: calc(var(--chain-band-above) * -1); line-height: 18px;
   font-size: 14px; font-weight: 600; color: var(--text-2); white-space: nowrap; pointer-events: none;
 }
 .chain-band-tile.is-newest .chain-band-num, .chain-band-tile.is-selected .chain-band-num { color: var(--text); }
-.chain-band-age { min-width: 0; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
+.chain-band-age { margin-left: auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; font-size: 11px; opacity: .85; white-space: nowrap; }
 .chain-band-tag {
   min-width: 0; overflow: hidden; text-overflow: ellipsis;
   font-size: 11px; line-height: 16px; padding: 0 6px; border-radius: 8px; background: var(--blk-tag-bg);

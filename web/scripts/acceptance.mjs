@@ -131,11 +131,25 @@ try {
  assert.deepEqual(await page.getByRole('list',{name:'Wallets'}).locator('.wallets-card-nm').allInnerTexts(), ['Hal','Dorian','Laszlo','Alice','Bob','Chris'], 'Miners first, then the default wallets');
  results.push('Fresh start shows Genesis, the candidate and Start demo with miners Hal, Dorian and Laszlo; the leaderboard ticker opens the leaderboard');
 
+ // Start demo mines only #1; its reward goes out as transfers that wait in the mempool for #2.
  await page.getByRole('button',{name:'Start demo',exact:true}).click();
- await wb.mine(3).waitFor({timeout:30000});
- assert.equal(await wb.tiles().count(), 3);
+ await wb.mine(2).waitFor({timeout:30000});
+ assert.equal(await wb.tiles().count(), 2, 'Start demo mines only block #1');
+ assert.equal(await wb.tile(0).count(), 1);
+ assert.equal(await wb.tile(1).count(), 1);
  assert.equal(await wb.chainPill().innerText(),'Chain valid');
- results.push('Demo distribution mines two valid blocks');
+ const demoTransfers = page.getByRole('list',{name:'Pending transactions'}).locator('li.mempool-card-tx:not(.is-coinbase)').filter({hasText:'Demo distribution'});
+ const walletCount = await page.getByRole('list',{name:'Wallets'}).locator('.wallets-card-nm').count();
+ assert.equal(await demoTransfers.count(), walletCount - 1, 'One demo transfer to each other wallet waits in the mempool');
+ // One click on Mining (Auto-mine off) mines exactly one block: the demo transfers.
+ await wb.mine(2).click();
+ await wb.mine(3).waitFor({timeout:30000});
+ await page.waitForTimeout(1500);
+ assert.equal(await wb.tiles().count(), 3, 'One Mining click adds exactly one block');
+ assert.equal(await wb.mine(3).count(), 1, 'No further block starts after one click');
+ assert.equal(await demoTransfers.count(), 0, 'Block #2 confirmed the demo transfers');
+ assert.equal(await wb.chainPill().innerText(),'Chain valid');
+ results.push('Start demo mines only #1 and leaves the distribution transfers in the mempool; one Mining click mines exactly #2');
 
  // The top bar carries no chain status and no coin pill; the coin label lives in the menu at every width.
  for (const width of WIDTHS) {
@@ -168,9 +182,25 @@ try {
   assert.equal(await num.innerText(), `#${index}`);
   const [numBox, tileBox] = [await num.boundingBox(), await item.locator('.chain-band-tile').boundingBox()];
   assert.ok(numBox.y + numBox.height <= tileBox.y + 1, `#${index} sits above its tile: ${JSON.stringify({numBox,tileBox})}`);
-  assert.match(await item.locator('.chain-band-age').innerText(), /^(just now|\d+ (s|min|h) ago|\d+ days? ago)$/, `Age on tile #${index}`);
+  // The age sits in the tile's bottom line; the top row holds only the tag and the interval.
+  const age = await item.locator('.chain-band-tile-foot .chain-band-age').innerText();
+  assert.match(age, /^(just now|\d+ (min|h) ago|\d+ days? ago)$/, `Age on tile #${index}`);
+  assert.doesNotMatch(age, / s ago/, `No seconds in the age of tile #${index}`);
+  assert.equal(await item.locator('.chain-band-tile-top .chain-band-age').count(), 0, `No age in the top row of tile #${index}`);
+  const topParts = await item.locator('.chain-band-tile-top > *').evaluateAll(parts => parts.map(part => part.className));
+  for (const part of topParts) assert.ok(['chain-band-tag','chain-band-time'].includes(part), `Top row of tile #${index} holds only tag and interval: ${topParts}`);
+  assert.doesNotMatch(await item.locator('.chain-band-tile-face').innerText(), /meets/, `No "meets" on tile #${index}`);
  }
  assert.match(await band.locator('.chain-band-item[data-index="0"] .chain-band-age').innerText(), / ago$/, 'Genesis was mined before this visit');
+ // Ages never show seconds: 20 s on the page clock is still "just now", 80 s is "1 min ago".
+ const tileAges = () => band.locator('.chain-band-tile-foot .chain-band-age').allInnerTexts();
+ await page.clock.fastForward(20000);
+ await page.waitForTimeout(200);
+ for (const index of [1, 2]) assert.equal(await band.locator(`.chain-band-item[data-index="${index}"] .chain-band-age`).innerText(), 'just now', `Tile #${index} after 20 s`);
+ for (const age of await tileAges()) assert.doesNotMatch(age, / s ago/, `No seconds in any tile age: ${age}`);
+ await page.clock.fastForward(60000);
+ for (const index of [1, 2]) await band.locator(`.chain-band-item[data-index="${index}"] .chain-band-age`).filter({hasText:/^1 min ago$/}).waitFor();
+ for (const age of await tileAges()) assert.doesNotMatch(age, / s ago/, `No seconds in any tile age: ${age}`);
  // The pill is the only chain status; a click opens the check line and the checks per block.
  const pill = wb.chainPill();
  const checks = band.getByRole('list',{name:'Checks per block'});
@@ -187,7 +217,7 @@ try {
  await pill.click();
  assert.equal(await pill.getAttribute('aria-expanded'), 'false');
  await checks.waitFor({state:'detached'});
- results.push('Chain band: one scrolling row, block numbers above tiles, ages on tiles; the "Chain valid" pill toggles the checks');
+ results.push('Chain band: one scrolling row, block numbers above tiles, ages in minutes on the tile foot without "meets"; the "Chain valid" pill toggles the checks');
 
  // The block card names no miner in its head; the Next block card shows no link, bits or odds.
  assert.equal(await page.locator('section.selected-block .card-kit-aside').count(), 0, 'A valid block has no aside');
@@ -310,6 +340,16 @@ try {
  assert.match(await wb.tile(2).getAttribute('aria-label'), /hash mismatch/i);
  assert.match(await wb.tile(3).getAttribute('aria-label'), /built on a broken block/i);
  assert.ok(await wb.mine(4).isDisabled());
+ // Tampering opens the checks by itself; the "Chain invalid" pill closes and reopens them.
+ const invalidPill = wb.chainPill().filter({hasText:'Chain invalid'});
+ await checks.waitFor();
+ assert.equal(await invalidPill.getAttribute('aria-expanded'), 'true', 'Tampering opens the checks');
+ await invalidPill.click();
+ await checks.waitFor({state:'detached'});
+ assert.equal(await invalidPill.getAttribute('aria-expanded'), 'false', 'The invalid pill closes the checks');
+ await invalidPill.click();
+ await checks.waitFor();
+ assert.equal(await invalidPill.getAttribute('aria-expanded'), 'true', 'The invalid pill reopens the checks');
  await referenceViews('tampered');
  for (const index of [2, 3]) {
   await page.getByRole('button',{name:`Re-mine block #${index}`,exact:true}).click();
@@ -317,7 +357,7 @@ try {
  }
  await wb.chainPill().filter({hasText:'Chain valid'}).waitFor({timeout:30000});
  await wb.mine(4).waitFor();
- results.push('Tampering is detected; re-mining the broken block and every later one repairs the chain');
+ results.push('Tampering is detected and opens the checks, which the "Chain invalid" pill closes and reopens; re-mining the broken block and every later one repairs the chain');
 
  // A mined block can be recomputed from the bytes it shows, without the app.
  await wb.select(2);
@@ -476,6 +516,14 @@ try {
  await page.getByRole('button',{name:'Auto-mine',exact:true}).click();
  await page.waitForTimeout(2000);
  assert.equal(await wb.tiles().count(), beforeAuto, 'Auto-mine alone starts no block');
+ // Auto-mine on is filled like the Mining button beside it, with the same on-accent text.
+ await page.mouse.move(0, 0);
+ const autoLit = await page.evaluate(() => {
+  const style = selector => getComputedStyle(document.querySelector(selector));
+  const [toggle, play] = [style('.next-block-action .repeat-toggle[aria-pressed="true"]'), style('.next-block-action .btn-primary')];
+  return {toggle:[toggle.backgroundColor, toggle.color], play:[play.backgroundColor, play.color]};
+ });
+ assert.deepEqual(autoLit.toggle, autoLit.play, `Auto-mine on matches the Mining fill and text: ${JSON.stringify(autoLit)}`);
  await page.locator('.next-block .btn-primary').click();
  await wb.tile(beforeAuto + 2).waitFor({timeout:30000});
  await page.getByRole('button',{name:'Auto-mine',exact:true}).click();
@@ -493,7 +541,7 @@ try {
  await menu(page, 'Reset');
  assert.equal(await page.locator('.next-block-lane[data-miner="Newminer4"]').count(), 0, 'Reset removes a created miner');
  await page.getByRole('button',{name:'Start demo',exact:true}).waitFor();
- results.push('Settings change the difficulty; auto-mine continues a run started with Play and stops; a created miner gets a lane, a wallet and its share; reset clears the result');
+ results.push('Settings change the difficulty; Auto-mine on is filled like Mining; auto-mine continues a run started with Play and stops; a created miner gets a lane, a wallet and its share; reset clears the result');
 
  assert.equal(telemetryRequests.length,0,'No telemetry before consent, including all prior mining operations');
  const sharing = () => page.getByLabel('Share usage and technical errors');
@@ -513,15 +561,17 @@ try {
   assert.equal(telemetryRequests.filter(event=>event.event==='app_opened').length,1);
   assert.equal(telemetryRequests.filter(event=>event.event==='demo_started').length,1);
   assert.equal(telemetryRequests.filter(event=>event.event==='demo_completed').length,1);
-  assert.equal(telemetryRequests.filter(event=>event.event==='mining_started').length,2);
+  assert.equal(telemetryRequests.filter(event=>event.event==='mining_started').length,1,'Start demo mines one block');
   const summaries=telemetryRequests.filter(event=>event.event==='mining_completed');
-  assert.equal(summaries.length,2);
+  assert.equal(summaries.length,1);
   for(const summary of summaries) {
    assert.equal(summary.properties.difficulty,1);
    assert.ok(summary.properties.attempt_count>0);
    assert.ok(summary.properties.elapsed_ms>=0);
   }
-  await wb.mine(3).waitFor();
+  // The demo transfers fund Alice once block #2 confirms them.
+  await wb.mine(2).click();
+  await wb.mine(3).waitFor({timeout:30000});
   await page.getByRole('button',{name:'New transaction',exact:true}).click();
   await form.getByRole('combobox',{name:'From'}).selectOption('Alice');
   await form.getByRole('combobox',{name:'To'}).selectOption('Bob');
@@ -547,6 +597,8 @@ try {
   await page.keyboard.press('Escape');
   await menu(page, 'Reset');
   await page.getByRole('button',{name:'Start demo',exact:true}).click();
+  await wb.mine(2).waitFor({timeout:30000});
+  await wb.mine(2).click();
   await wb.mine(3).waitFor({timeout:30000});
   await page.waitForTimeout(100);
   assert.equal(telemetryRequests.length,beforeOptOut,'No sends after opt-out');
@@ -560,6 +612,8 @@ try {
  }
  await menu(page, 'Reset');
  await page.getByRole('button',{name:'Start demo',exact:true}).click();
+ await wb.mine(2).waitFor({timeout:30000});
+ await wb.mine(2).click();
  await wb.mine(3).waitFor({timeout:30000});
  await fitsWidths('Workbench after demo');
 
@@ -585,7 +639,7 @@ try {
  await mobile.route(`${POOL_API}/**`, leaderboardMock);
  await mobile.goto(baseURL);
  await mobile.getByRole('button',{name:'Start demo',exact:true}).click();
- await workbench(mobile).mine(3).waitFor({timeout:30000});
+ await workbench(mobile).mine(2).waitFor({timeout:30000});
  // On phones the vertical timeline carries the same pill; it opens the checks there.
  const mobilePill = workbench(mobile).chainPill();
  assert.equal(await mobilePill.count(), 1);

@@ -128,6 +128,8 @@ async function main() {
     const opened = responseFor('app_opened'); await sharing.check(); await opened;
     await page.keyboard.press('Escape');
     const demo = responseFor('demo_completed'); await page.getByRole('button', { name: 'Start demo', exact: true }).click(); await demo;
+    // The demo mines block #1 only; one Mining click mines #2 with the waiting transfers.
+    const mined = responseFor('mining_completed'); await page.getByRole('button', { name: 'Mining', exact: true }).click(); await mined;
     const exception = responseFor('$exception');
     await page.evaluate(() => {
       const error = new TypeError('synthetic-production-private-marker');
