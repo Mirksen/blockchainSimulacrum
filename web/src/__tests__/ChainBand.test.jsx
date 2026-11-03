@@ -275,6 +275,7 @@ describe('ChainBand scrolling row', () => {
       Object.defineProperty(scroller, 'scrollLeft', { configurable: true, value: 0 });
       Object.defineProperty(scroller, 'clientWidth', { configurable: true, value: 600 });
       Object.defineProperty(scroller, 'scrollWidth', { configurable: true, value: 2400 });
+      fireEvent.wheel(scroller, { deltaX: -1800 });
       fireEvent.scroll(scroller);
       scrollTo.mockClear();
       rerender(<ChainBand views={makeViews(14)} selectedIndex={13} pinned={false} />);
@@ -283,6 +284,20 @@ describe('ChainBand scrolling row', () => {
       Object.defineProperty(scroller, 'scrollLeft', { configurable: true, value: 1800 });
       fireEvent.scroll(scroller);
       rerender(<ChainBand views={makeViews(15)} selectedIndex={14} pinned={false} />);
+      expect(scrollTo).toHaveBeenCalledWith({ left: 2400, behavior: 'smooth' });
+    });
+
+    it('keeps following while its own smooth scroll is still on the way', () => {
+      const { container, rerender } = render(<ChainBand views={makeViews(12)} selectedIndex={11} pinned={false} />);
+      const scroller = container.querySelector('.chain-band-scroll');
+      Object.defineProperty(scroller, 'clientWidth', { configurable: true, value: 600 });
+      Object.defineProperty(scroller, 'scrollWidth', { configurable: true, value: 2400 });
+      rerender(<ChainBand views={makeViews(13)} selectedIndex={12} pinned={false} />);
+      // Halfway through the smooth scroll the row is not at its end yet, and no one touched it.
+      Object.defineProperty(scroller, 'scrollLeft', { configurable: true, value: 900 });
+      fireEvent.scroll(scroller);
+      scrollTo.mockClear();
+      rerender(<ChainBand views={makeViews(14)} selectedIndex={13} pinned={false} />);
       expect(scrollTo).toHaveBeenCalledWith({ left: 2400, behavior: 'smooth' });
     });
   });

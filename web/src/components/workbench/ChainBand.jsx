@@ -379,6 +379,9 @@ export function ChainBand({
   const scrollRef = useRef(null);
   // The row follows the newest block while it is scrolled to its end; scrolling left stops that.
   const atEnd = useRef(true);
+  // True while the row scrolls itself to the newest end: its own scroll events say nothing
+  // about the learner, until the learner takes over with wheel, touch, pointer or keys.
+  const following = useRef(false);
   const count = views.length;
   const newestIndex = count - 1;
   const summary = healthSummary(views);
@@ -388,12 +391,17 @@ export function ChainBand({
 
   const onScroll = () => {
     const el = scrollRef.current;
-    if (el) atEnd.current = el.scrollLeft + el.clientWidth >= el.scrollWidth - END_SLACK;
+    if (!el) return;
+    const end = el.scrollLeft + el.clientWidth >= el.scrollWidth - END_SLACK;
+    if (end) following.current = false;
+    if (end || !following.current) atEnd.current = end;
   };
+  const takeOver = () => { following.current = false; };
   const toEnd = smooth => {
     const el = scrollRef.current;
     if (!el || typeof el.scrollTo !== 'function') return;
     atEnd.current = true;
+    following.current = true;
     el.scrollTo({ left: el.scrollWidth, behavior: smooth ? 'smooth' : 'auto' });
   };
   const mounted = useRef(false);
@@ -403,6 +411,14 @@ export function ChainBand({
     mounted.current = true;
   }, [count]); // eslint-disable-line react-hooks/exhaustive-deps -- `pinned` has its own effect below
   useLayoutEffect(() => { if (!pinned) toEnd(true); }, [pinned]);
+  // A resize moves the row's end; a row that was following stays on the newest block.
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (pinned || !el || typeof ResizeObserver !== 'function') return undefined;
+    const observer = new ResizeObserver(() => { if (atEnd.current) toEnd(false); });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [pinned]);
   // A held or repaired block that sits outside the view scrolls in.
   useLayoutEffect(() => {
     if (!pinned && !repairOrder.length) return;
@@ -431,7 +447,8 @@ export function ChainBand({
         </div>
 
         <CoachMark target="workbench.chain" coach={coach}>
-          <div className="chain-band-scroll" ref={scrollRef} onScroll={onScroll}>
+          <div className="chain-band-scroll" ref={scrollRef} onScroll={onScroll}
+            onWheel={takeOver} onTouchStart={takeOver} onPointerDown={takeOver} onKeyDown={takeOver}>
             <div className="chain-band-row">
               {views.map(view => {
                 const position = repairOrder.indexOf(view.index) + 1;
