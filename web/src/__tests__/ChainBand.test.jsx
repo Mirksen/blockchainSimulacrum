@@ -26,7 +26,8 @@ function makeViews(count = 5, statuses = {}) {
   const tamperedEdits = Object.entries(statuses).filter(([, s]) => s === 'hash-mismatch').map(([i]) => ({ blockIndex: Number(i), txIndex: 0, from: 1.5, to: 2 }));
   return buildBlockViews({ blocks, blockStatus, participants: people, tamperedEdits });
 }
-const keyFigures = { avgSeconds: 3.875, targetSeconds: 10, difficulty: 2, reward: 1.5625, nextHalving: 8 };
+const keyFigures = { targetSeconds: 10, difficulty: 2, reward: 1.5625, nextHalving: 8, halvingInterval: 4,
+  pace: { seconds: 3.875, blocks: 3, from: 1, low: 7, high: 15 }, check: { at: 10, in: 6, next: 3 }, halving: { at: 8, in: 4, reward: 0.78125 } };
 const TAMPERED = { 2: 'hash-mismatch', 3: 'built-on-broken', 4: 'built-on-broken' };
 
 function renderBand(props = {}) {
@@ -49,7 +50,8 @@ describe('ChainBand tiles and selection', () => {
     const numbers = [...container.querySelectorAll('.chain-band-tile > .chain-band-num')].map(num => num.textContent);
     expect(numbers).toEqual(['#0', '#1', '#2', '#3', '#4']);
     expect([...container.querySelectorAll('.chain-band-tile-face .chain-band-num')]).toHaveLength(0);
-    const candidate = screen.getByRole('group', { name: 'Candidate block 5, not mined yet, 2 transactions waiting' });
+    const candidate = screen.getByRole('group', { name: 'Candidate block 5, not mined yet, 2 transactions waiting; '
+      + 'Difficulty check after #10: at 3.9 s per block the difficulty rises to 3; Halving at #8: the reward drops to 0.781' });
     expect(candidate.querySelector('.chain-band-num').textContent).toBe('#5');
     expect(within(candidate).getByText('next')).toBeTruthy();
     expect(within(candidate).getByText('Mine it below')).toBeTruthy();
@@ -109,10 +111,52 @@ describe('ChainBand tiles and selection', () => {
     expect(onSelect).toHaveBeenCalledWith(2);
   });
 
-  it('shows the key figures in the header', () => {
-    renderBand();
+  it('shows the key figures in the header: the pace of the check window, its forecast and the next halving', () => {
+    const { container } = renderBand();
     const figures = screen.getByLabelText('Key figures');
-    expect(figures.textContent.replace(/\s+/g, ' ')).toBe('avg 3.9 s / target 10 s·difficulty 2·reward 1.5625·next halving #8');
+    expect(figures.textContent.replace(/\s+/g, ' ')).toBe('last 3 avg 3.9 s / target 10 s·difficulty 2 → 3 after #10·reward 1.563 → 0.781 in 4 blocks');
+    // The meter: band 7–15 s on a 0–20 s track, tick at the target, the average outside the band in amber.
+    expect(container.querySelector('.kf-meter-band').style.left).toBe('35%');
+    expect(container.querySelector('.kf-meter-tick').style.left).toBe('50%');
+    expect(container.querySelector('.kf-meter-mark').className).toContain('is-out');
+    const [pace, check, reward] = [...figures.querySelectorAll('[data-hint-term]')].map(part => part.getAttribute('data-hint'));
+    expect(pace).toMatch(/the last 3 blocks took 3.9 s each, against the 10 s target.*band \(7 s–15 s\) keeps the difficulty/);
+    expect(check).toMatch(/faster than 7 s adds a leading zero .*slower than 15 s removes one.*At 3.9 s per block the check after #10 raises it to 3\./);
+    expect(reward).toMatch(/It halves every 4 blocks: #8 pays 0.781/);
+  });
+
+  it('marks rule changes beside the block number and times each block against the target', () => {
+    const events = {
+      2: [{ index: 2, kind: 'difficulty', from: 1, to: 2, source: 'check', checked: 1, window: { first: 1, last: 1, seconds: 4.2 } }],
+      4: [{ index: 4, kind: 'halving', from: 3.125, to: 1.5625 }]
+    };
+    const { container } = renderBand({ events });
+    const numbers = [...container.querySelectorAll('.chain-band-tile > .chain-band-num')].map(num => num.textContent);
+    expect(numbers).toEqual(['#0', '#1', '#2↑ difficulty 2', '#3', '#4½ reward 1.563']);
+    expect(tile(4).getAttribute('aria-label')).toContain('Halving: from #4 a block pays 1.563 instead of 3.125');
+    expect(container.querySelectorAll('.chain-band-link.is-epoch')).toHaveLength(2);
+    // Blocks #2–#4 took 2 s each: a fifth of the 0–20 s track, below the 7 s band.
+    const bars = [...container.querySelectorAll('.chain-band-pace')];
+    expect(bars).toHaveLength(3);
+    expect(bars.every(bar => bar.className.includes('is-out'))).toBe(true);
+    expect(bars[0].querySelector('i').style.width).toBe('10%');
+  });
+
+  it('explains a rule change in a note until it is dismissed', () => {
+    const onDismissNote = vi.fn();
+    const { container } = renderBand({ notes: [{ key: 'halving-4', kind: 'halving', icon: '½', title: 'The reward halved with #4.', text: 'A block still needs the same work.' }], onDismissNote });
+    const note = container.querySelector('.kf-note');
+    expect(note.getAttribute('role')).toBe('status');
+    expect(note.textContent).toBe('½The reward halved with #4.A block still needs the same work.Got it');
+    fireEvent.click(screen.getByRole('button', { name: 'Got it' }));
+    expect(onDismissNote).toHaveBeenCalledWith('halving-4');
+  });
+
+  it('leaves the notes to the page in the compact band, which stays at the top', () => {
+    const { container } = renderBand({ compact: true, notes: [{ key: 'halving-4', kind: 'halving', icon: '½', title: 'The reward halved with #4.', text: '' }] });
+    expect(container.querySelector('.kf-note')).toBeNull();
+    // The short key figures fit one line: pace, forecast and the halving countdown.
+    expect(screen.getByLabelText('Key figures').textContent.replace(/\s+/g, ' ')).toBe('3.9 s / 10 s·diff 2 → 3 at #10·½ in 4');
   });
 
   it('marks the candidate while mining and while paused', () => {
@@ -332,5 +376,33 @@ describe('ChainBand selection', () => {
     rerender(<ChainBand views={makeViews(3)} selectedIndex={2} pinned />);
     expect(tile().className).toContain('is-selected');
     expect(tile().querySelector('button').getAttribute('aria-pressed')).toBe('true');
+  });
+});
+
+describe('ChainBand compact (below 1024 px)', () => {
+  it('draws small tiles with number, miner and short hash, without tooltips, and a tap selects the block', () => {
+    const { container, onSelect } = renderBand({ compact: true });
+    const tiles = [...container.querySelectorAll('.chain-band-tile.is-mini')];
+    expect(tiles.map(element => element.querySelector('.chain-band-mini-num').textContent)).toEqual(['#0', '#1', '#2', '#3', '#4']);
+    expect(tiles[0].querySelector('.chain-band-who').textContent).toBe('Genesis');
+    expect(tiles[4].querySelector('.chain-band-who').textContent).toBe('Lars');
+    expect(tiles[4].querySelector('.chain-band-tile-hash').textContent).toBe('0004cc…04');
+    expect(container.querySelector('.chain-band-tile > .chain-band-num')).toBeNull();
+    expect(container.querySelector('.chain-band-tip')).toBeNull();
+    fireEvent.click(tile(2));
+    expect(onSelect).toHaveBeenCalledWith(2);
+    expect(container.querySelector('.chain-band-cand.is-mini').getAttribute('aria-label')).toBe('Candidate block 5, not mined yet, 2 transactions waiting');
+    // The pill carries the visible title; the heading stays for screen readers.
+    expect(screen.getByRole('heading', { name: 'Chain' })).toBeTruthy();
+  });
+
+  it('marks a broken block on its tile and keeps the checks on one line under the tiles', () => {
+    const { container } = renderBand({ compact: true, views: makeViews(5, TAMPERED), healthOpen: true });
+    const broken = container.querySelector('.chain-band-tile.is-mini.is-broken');
+    expect(broken.querySelector('.chain-band-tag.is-bad').textContent).toBe('Hash mismatch');
+    const checks = screen.getByRole('list', { name: 'Checks per block' });
+    expect(checks.querySelectorAll('.chain-band-chk.is-two')).toHaveLength(0);
+    // Open checks replace the key figures in the compact header.
+    expect(container.querySelector('.chain-band-stats')).toBeNull();
   });
 });

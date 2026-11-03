@@ -1,5 +1,6 @@
 import { useId, useLayoutEffect, useRef, useState } from 'react';
 import { MISSIONS, activeStep, earnedBadges, missionStatus, totalXp } from '../../lib/missions';
+import { hint } from '../../lib/hints';
 import './MissionRail.css';
 
 // Mission rail (web/DESIGN.md, "Mission rail").
@@ -72,7 +73,7 @@ function ActiveBody({ info, onShowMe }) {
                 <span id={state === 'current' ? stepTextId : undefined}>{step.text}</span>
                 {state === 'done' && <span className="mission-rail-sr"> (done)</span>}
                 {state === 'current' && (
-                  <button type="button" className="mission-rail-show" aria-describedby={stepTextId} onClick={() => onShowMe?.(current)}>
+                  <button type="button" className="mission-rail-show" aria-describedby={stepTextId} {...hint('mission.show-me')} onClick={() => onShowMe?.(current)}>
                     {Icon.arrow}Show me
                   </button>
                 )}
@@ -124,7 +125,7 @@ function CollapsedAccess({ onToggle, highlight }) {
   return (
     <div className="mission-rail-mini">
       <button type="button" className={`mission-rail-icon-btn mission-rail-access${highlight ? ' mission-rail-invitation' : ''}`}
-        aria-label="Expand mission rail" aria-expanded="false" title="Open missions" onClick={() => onToggle?.()}>
+        aria-label="Expand mission rail" aria-expanded="false" {...hint('mission.open')} onClick={() => onToggle?.()}>
         {Icon.flag}<span>Missions</span>
       </button>
     </div>
@@ -184,7 +185,7 @@ function Bar({ progress, info, onShowMe, onSelectMission, collapsed, onToggle, h
         {!collapsed && current && <span className="mission-rail-bar-prog" aria-hidden="true"><i style={{ width: `${info.fraction * 100}%` }} /></span>}
         <span className="mission-rail-bar-chev">{Icon.chevron}</span>
       </button>
-      {!collapsed && <button type="button" className="mission-rail-hide" onClick={() => { setOpen(false); onToggle?.(); }}>Hide missions</button>}
+      {!collapsed && <button type="button" className="mission-rail-hide" {...hint('mission.collapse')} onClick={() => { setOpen(false); onToggle?.(); }}>Hide missions</button>}
       {open && <MissionSheet progress={progress} info={info} onClose={() => setOpen(false)}
         onShowMe={onShowMe} onSelectMission={onSelectMission} />}
     </div>
@@ -205,7 +206,7 @@ export function MissionRail({ progress, collapsed = false, onToggle, onShowMe, o
             <span className="mission-rail-flag">{Icon.flag}</span>
             <h2>Missions</h2>
             <button type="button" className="mission-rail-icon-btn" aria-label="Collapse mission rail" aria-expanded="true"
-              title="Collapse" onClick={() => onToggle?.()}>{Icon.collapse}</button>
+              {...hint('mission.collapse')} onClick={() => onToggle?.()}>{Icon.collapse}</button>
           </div>
           <Stats info={info} />
           <div className="mission-rail-scroll">

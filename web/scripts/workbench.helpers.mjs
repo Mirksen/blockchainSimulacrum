@@ -15,13 +15,16 @@ export function workbench(page) {
     },
     shown: () => page.locator('section.selected-block .card-kit-title').first(),
     mine: index => page.getByRole('region', { name: new RegExp(`^Next block ${index}(,|$)`) }).getByRole('button', { name: 'Mining', exact: true }),
-    // The one chain status: the pill on the chain band (the vertical timeline below 1024 px).
+    // The one chain status: the pill on the chain band (compact below 1024 px).
     chainPill: () => page.locator('button.chain-band-health-sum:visible'),
     // The sideways-scrolling row of the chain band.
     chainScroll: () => page.locator('.chain-band-scroll'),
-    // Between races a miner's name opens its editor.
-    minerButton: name => page.getByRole('button', { name: `${name}: rename or change hashpower`, exact: true }),
-    minerEditor: name => page.getByRole('group', { name: `Edit miner ${name}`, exact: true })
+    // Between races a miner's name opens its popover with share, attempts and name; during a race
+    // the same popover without the name.
+    minerButton: name => page.getByRole('button', { name: `${name}: hashpower, attempts and name`, exact: true }),
+    liveMinerButton: name => page.getByRole('button', { name: `${name}: hashpower and attempts`, exact: true }),
+    minerEditor: name => page.getByRole('group', { name: `Miner ${name}`, exact: true }),
+    minerDrawer: name => page.getByRole('complementary', { name, exact: true })
   };
 }
 

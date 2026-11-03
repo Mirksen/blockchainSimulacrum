@@ -1,13 +1,16 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { useBlockchain } from './hooks/useBlockchain';
 import { useMinerIdentity } from './hooks/useMinerIdentity';
-import { playMiningSuccessSound, unlockMiningAudio } from './lib/sound';
+import { playMiningSuccessSound, playRecordSound, unlockMiningAudio } from './lib/sound';
+import { ownRow, recordOf } from './lib/records';
 import { telemetry } from './lib/telemetry';
 import * as missions from './lib/missions';
 import { TopBar } from './components/workbench/TopBar';
 import { LeaderboardTicker } from './components/workbench/LeaderboardTicker';
 import { UsageConsent } from './components/UsageConsent';
+import { RecordCelebration } from './components/workbench/RecordCelebration';
 import { SettingsDialog } from './components/workbench/SettingsDialog';
+import { LowerDifficultyDialog } from './components/workbench/LowerDifficultyDialog';
 import { Workbench } from './components/workbench/Workbench';
 import { MissionRail } from './components/workbench/MissionRail';
 import { MissionIntro } from './components/workbench/MissionIntro';
@@ -17,9 +20,12 @@ import { PoolPanel } from './components/PoolPanel';
 import { minerProfileHash, POOL_HASH } from './lib/poolApi';
 import { BlockDetailsModal } from './components/BlockDetailsModal';
 import { ParticipantDetailsModal } from './components/ParticipantDetailsModal';
+import { MinerDrawer } from './components/workbench/MinerDetails';
+import { colorOf } from './components/workbench/minerColors';
 import { TransactionDetailsModal } from './components/TransactionDetailsModal';
+import { HintLayer } from './components/HintLayer';
 import './index.css';
-import { MIN_DIFFICULTY, MAX_DIFFICULTY } from './lib/difficulty';
+import { adjustedDifficulty, averagePace, checkWindowStart, isCheckHeight } from './lib/difficulty';
 import { DEFAULT_FEE_RATE } from './lib/blockchain';
 
 const INITIAL_CONFIG = {
@@ -81,6 +87,8 @@ function App() {
   const [coinName, setCoinName] = useState('powfyicoin');
   const [targetBlockTime, setTargetBlockTime] = useState(10);
   const [showSettings, setShowSettings] = useState(false);
+  // A manual lowering waits here until the learner confirms the new chain.
+  const [lowerTo, setLowerTo] = useState(null);
   const [error, setError] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(null);
   // The block a repair is about: shown while the chain is invalid, never held.
@@ -92,6 +100,8 @@ function App() {
   const [pendingTx, setPendingTx] = useState(null);
   const [blockTx, setBlockTx] = useState(null);
   const [walletDetails, setWalletDetails] = useState(null);
+  // The miner whose drawer is open beside the workbench (web/DESIGN.md, "Miner details").
+  const [minerDetails, setMinerDetails] = useState(null);
   const [workComparison, setWorkComparison] = useState(null);
   // The rail starts collapsed (free play); a first-visit card invites to the missions once.
   const [railCollapsed, setRailCollapsed] = useState(() => readFlag(RAIL_KEY, true));
@@ -104,12 +114,31 @@ function App() {
   const lastAdjustedBlock = useRef(sim.restored ? sim.blocks.length - 1 : 0);
   const [boardKey, setBoardKey] = useState(0);
   const [boardRows, setBoardRows] = useState(null);
-  const onBlockAccepted = useCallback(() => setBoardKey(key => key + 1), []);
+  const [record, setRecord] = useState(null);
+  // A record is what the board gained between the rows before and after an accepted block of
+  // this browser; the ticker's own refreshes and other miners' blocks celebrate nothing.
+  const awaitingBoard = useRef(false);
+  const lastRows = useRef(null);
+  const signingName = useRef(null);
+  const onBlockAccepted = useCallback(() => { awaitingBoard.current = true; setBoardKey(key => key + 1); }, []);
+  const onBoard = useCallback(rows => {
+    if (rows && awaitingBoard.current && lastRows.current) {
+      awaitingBoard.current = false;
+      const found = recordOf(ownRow(lastRows.current, signingName.current), ownRow(rows, signingName.current));
+      if (found) {
+        setRecord({ ...found, name: signingName.current, id: Date.now() });
+        playRecordSound(soundEnabled.current);
+      }
+    }
+    if (rows) lastRows.current = rows;
+    setBoardRows(rows);
+  }, []);
   const identity = useMinerIdentity({ onAccepted: onBlockAccepted });
+  useEffect(() => { signingName.current = identity.signingName; }, [identity.signingName]);
   const { blocks, participants, balances, memPool, chainValid, isMining, isSettingUp, difficulty, halvingInterval,
     minerProgress, miningProgress, createTransaction, mineBlock, setupInitialDistribution, generateRandomTransactions,
     setDifficulty, setHalvingInterval, tamperBlock, undoTamper, remineBlock, resetBlockchain, cancelMining,
-    createWallet, createMiner, renameMiner, backMiner, toggleMiner, setMinerHashpower, describeTx, setSigner } = sim;
+    createWallet, createMiner, renameMiner, backMiner, toggleMiner, setMinerShare, setSlowMotion, slowMotion, minerLuck, raceWinner, describeTx, setSigner } = sim;
   const busy = isMining || isSettingUp;
   const coach = railCollapsed ? null : coachOf(progress);
   const activeMission = missions.activeMission(progress);
@@ -121,14 +150,19 @@ function App() {
   // Keep it visible for this visit until dismissed, opened or navigated away from.
   useEffect(() => { if (showIntro) writeFlag(INTRO_KEY, true); }, [showIntro]);
   useEffect(() => {
-    const onHash = () => { setView(viewFromHash()); setProfile(profileFromHash()); };
+    const onHash = () => {
+      const next = viewFromHash();
+      if (next !== 'workbench') setSlowMotion?.(false);
+      setView(next);
+      setProfile(profileFromHash());
+    };
     globalThis.addEventListener('hashchange', onHash);
     globalThis.addEventListener('popstate', onHash);
     return () => {
       globalThis.removeEventListener('hashchange', onHash);
       globalThis.removeEventListener('popstate', onHash);
     };
-  }, []);
+  }, [setSlowMotion]);
   useEffect(() => { missions.save(browserStorage(), progress); }, [progress]);
   useEffect(() => {
     if (!winner) return;
@@ -140,11 +174,13 @@ function App() {
   const navigate = useCallback(next => {
     writeFlag(INTRO_KEY, true);
     setIntroSeen(true);
+    // Slow motion belongs to the miner drawer, which only the workbench shows.
+    if (next !== 'workbench') setSlowMotion?.(false);
     const hash = next === 'workbench' ? '#/' : `#/${next}`;
     if (globalThis.location.hash !== hash) globalThis.history.pushState(null, '', hash);
     setView(next);
     setProfile(null);
-  }, []);
+  }, [setSlowMotion]);
   const openProfile = useCallback(name => {
     const hash = minerProfileHash(name);
     if (globalThis.location.hash !== hash) globalThis.history.pushState(null, '', hash);
@@ -188,15 +224,11 @@ function App() {
   const adjustDifficulty = useCallback(() => {
     const chainBlocks = sim.blockchain.blockArray;
     const height = chainBlocks.length - 1;
-    if (height < 10 || height % 10 !== 0 || lastAdjustedBlock.current === height) return;
+    if (!isCheckHeight(height) || lastAdjustedBlock.current === height) return;
     lastAdjustedBlock.current = height;
     const current = sim.blockchain.miningDifficulty;
-    // Measured from block #1 at the earliest: the genesis time is a fixed launch moment.
-    const from = Math.max(1, height - 10);
-    const seconds = (chainBlocks[height].time - chainBlocks[from].time) / (height - from);
-    let next = current;
-    if (seconds < targetBlockTime * 0.7 && current < MAX_DIFFICULTY) next = current + 1;
-    else if (seconds > targetBlockTime * 1.5 && current > MIN_DIFFICULTY) next = current - 1;
+    const seconds = averagePace(chainBlocks, checkWindowStart(height), height);
+    const next = adjustedDifficulty(current, seconds, targetBlockTime);
     if (next === current) return;
     setDifficulty(next, { source: 'auto' });
     report({ type: 'difficulty_changed', direction: next > current ? 'up' : 'down' });
@@ -266,11 +298,11 @@ function App() {
     setSelectedIndex(null);
   };
 
-  const reset = () => {
+  const reset = ({ difficulty: startAt } = {}) => {
     setAutoTransact(false);
     changeAutoMine(false);
     setRunning(false);
-    resetBlockchain();
+    resetBlockchain({ miningDifficulty: startAt });
     lastAdjustedBlock.current = 0;
     setWinner(null);
     setError('');
@@ -340,31 +372,52 @@ function App() {
     const result = renameMiner(name, next);
     const renamed = result.participant?.name;
     if (result.success && renamed !== name) {
+      setMinerDetails(current => (current === name ? renamed : current));
       setLastRound(round => round && { ...round, winner: round.winner === name ? renamed : round.winner,
         perMiner: Object.fromEntries(Object.entries(round.perMiner ?? {}).map(([key, value]) => [key === name ? renamed : key, value])) });
     }
     return result;
   };
+  // Raising keeps the chain. Lowering a chain with mined blocks starts a new chain after
+  // a confirmation, so its length keeps meaning work (ADR 0004); the automatic
+  // adjustment calls setDifficulty directly and may lower without one.
   const onDifficulty = value => {
+    if (value < difficulty && blocks.length > 1) { setLowerTo(value); return; }
     setDifficulty(value, { source: 'manual' });
     report({ type: 'difficulty_changed', direction: value > difficulty ? 'up' : 'down', manual: true });
+  };
+  const confirmLower = () => {
+    const value = lowerTo;
+    setLowerTo(null);
+    reset({ difficulty: value });
   };
 
   // A repair shows its block only while the chain is invalid; a click on a tile outranks it.
   const shownIndex = !chainValid && repairIndex !== null ? repairIndex : selectedIndex;
   const wallet = walletDetails && participants.find(p => p.name === walletDetails);
+  // Slow motion is a look at one miner: closing the drawer or opening another miner ends it.
+  const openMiner = name => {
+    if (name !== minerDetails) setSlowMotion?.(false);
+    setMinerDetails(name);
+  };
+  const racingMiners = participants.filter(p => p.isMiner && p.minerEnabled)
+    .map(p => ({ name: p.name, hashpower: p.hashpower, colorKey: p.colorKey, color: colorOf(p.colorKey) ?? undefined }));
+  const shareOfMiner = miner => Math.round(miner.hashpower / racingMiners.reduce((sum, m) => sum + m.hashpower, 0) * 100);
+  const found = minerDetails && participants.find(p => p.name === minerDetails && p.isMiner);
+  const drawerMiner = found ? { ...found, color: colorOf(found.colorKey) ?? undefined } : null;
   // A collapsed rail means free play: the labs open without the mission lesson.
   const hashLesson = !railCollapsed && activeMission ? HASH_LESSONS[activeMission.id] : undefined;
   const chainLesson = !railCollapsed && ['change-the-past', 'follow-stronger-chain'].includes(activeMission?.id);
 
   return (
-    <div className={`app-shell${view === 'workbench' ? ' is-workbench' : ''}${railCollapsed ? ' is-rail-collapsed' : ' is-rail-expanded'}`}
+    <div className={`app-shell${view === 'workbench' ? ' is-workbench' : ''}${view === 'workbench' && drawerMiner ? ' has-miner-drawer' : ''}${railCollapsed ? ' is-rail-collapsed' : ' is-rail-expanded'}`}
       onClickCapture={prepareSound} onKeyDownCapture={prepareSound}>
       <a className="skip-link" href="#workbench">Skip to workbench</a>
+      <HintLayer />
       <TopBar view={view} onNavigate={navigate} coinName={coinName} theme={theme} onTheme={changeTheme}
         muted={muted} onMuted={changeMuted} onReset={reset} onOpenSettings={() => setShowSettings(true)} compact={compact} saveState={sim.saveState} />
       <UsageConsent />
-      <LeaderboardTicker onOpenPool={() => navigate('pool')} onBoard={setBoardRows} refreshKey={boardKey} />
+      <LeaderboardTicker onOpenPool={() => navigate('pool')} onBoard={onBoard} refreshKey={boardKey} ownName={identity.signingName} />
       <div className="wb-shell">
         <div className="wb-rail">
           <MissionRail progress={progress} collapsed={railCollapsed} onToggle={toggleRail} onShowMe={showMe} highlight={showIntro} />
@@ -380,7 +433,7 @@ function App() {
             identity={identity} boardRows={boardRows}
             onStartDemo={startDemo} onMine={startMining} onPause={pause} onRemine={handleRemine} onTamper={onTamper} onUndo={onUndo}
             onDifficulty={onDifficulty} onBack={onBack} onCreateTransaction={onCreateTransaction} onCreateWallet={createWallet} onCreateMiner={createMiner}
-            onRenameMiner={onRenameMiner} onHashpower={setMinerHashpower}
+            onRenameMiner={onRenameMiner} onShare={setMinerShare} onOpenMiner={openMiner} onSlowMotion={setSlowMotion}
             onOpenWallet={setWalletDetails} onOpenDetails={setDetails} onOpenTransaction={setPendingTx} onOpenBlockTx={(transaction, blockIndex) => setBlockTx({ transaction, blockIndex })} onOpenChainLab={() => navigate('chain-lab')} error={error} />}
           {view === 'hash-lab' && <div className="wb-view">
             <HashLab key={hashLesson ?? 'free'} lesson={hashLesson} onLessonEvent={hashLesson ? report : undefined}
@@ -397,9 +450,13 @@ function App() {
         </main>
       </div>
       {winner && <div className="wb-announce" role="status">{winner} mined a block</div>}
+      <RecordCelebration key={record?.id} record={record} name={record?.name} onClose={() => setRecord(null)}
+        onOpenLeaderboard={() => openProfile(record.name)} />
       <SettingsDialog open={showSettings} onClose={() => setShowSettings(false)} coinName={coinName} onCoinName={setCoinName}
         difficulty={difficulty} onDifficulty={onDifficulty} halvingInterval={halvingInterval} onHalvingInterval={setHalvingInterval}
         targetBlockTime={targetBlockTime} onTargetBlockTime={changeTarget} busy={busy} />
+      {lowerTo !== null && <LowerDifficultyDialog from={difficulty} to={lowerTo} blockCount={blocks.length - 1}
+        onConfirm={confirmLower} onCancel={() => setLowerTo(null)} />}
       {details !== null && blocks[details] && <BlockDetailsModal block={blocks[details]} blockIndex={details} blocks={blocks}
         onClose={() => setDetails(null)} participants={participants} describeTx={describeTx} coinName={coinName} />}
       {pendingTx && memPool.includes(pendingTx) && <TransactionDetailsModal transaction={describeTx(pendingTx)} blockIndex={null}
@@ -408,7 +465,13 @@ function App() {
         onClose={() => setBlockTx(null)} coinName={coinName} />}
       {wallet && <ParticipantDetailsModal participant={wallet}
         balance={balances.find(b => b.name === wallet.name)} blocks={blocks} describeTx={describeTx} onClose={() => setWalletDetails(null)}
-        toggleMiner={toggleMiner} setMinerHashpower={setMinerHashpower} isMining={busy} coinName={coinName} />}
+        toggleMiner={toggleMiner} isMining={busy} coinName={coinName}
+        share={wallet.isMiner && wallet.minerEnabled ? shareOfMiner(wallet) : null}
+        onOpenMiner={name => { setWalletDetails(null); openMiner(name); }} />}
+      {view === 'workbench' && drawerMiner && <MinerDrawer key={drawerMiner.publicKey} miner={drawerMiner} miners={racingMiners}
+        progress={minerProgress[drawerMiner.name]} difficulty={difficulty} isMining={busy} winner={raceWinner} luck={minerLuck}
+        slowMotion={slowMotion} onSlowMotion={setSlowMotion} onShare={setMinerShare} onClose={() => openMiner(null)}
+        onOpenForkLab={() => { openMiner(null); setChainExperiment('fork'); navigate('chain-lab'); }} />}
     </div>
   );
 }

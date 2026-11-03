@@ -1,6 +1,5 @@
-import { useMemo } from 'react';
+import { useMemo, useState, useSyncExternalStore } from 'react';
 import { ChainBand } from './ChainBand';
-import { ChainTimeline } from './ChainTimeline';
 import { SelectedBlockCard } from './SelectedBlockCard';
 import { NextBlockCard } from './NextBlockCard';
 import { MinerName } from './MinerName';
@@ -10,13 +9,24 @@ import { ActivityCard } from './ActivityCard';
 import { BlockTransactions } from './BlockTransactions';
 import { buildBlockViews } from './blockView';
 import { MAX_MINERS } from '../../lib/blockchain';
-import { keyFiguresOf, rateOf, repairOf } from './workbenchModel';
+import { chainEventsOf, keyFiguresOf, rateOf, repairOf } from './workbenchModel';
+import { ChainEventNotes, KeyFigureBar } from './KeyFigures';
+import { eventNote } from './keyFigureText';
 import { colorOf } from './minerColors';
 import './Workbench.css';
 
 // The workbench view (web/DESIGN.md, "Information architecture"): chain band and
 // card grid; App frames it with the mission rail. It turns the simulation snapshot
 // into the view models of the presentational components; App owns state and effects.
+
+// Below 1024 px the chain band turns compact and stays at the top while the cards scroll.
+const NARROW = '(max-width: 1023.98px)';
+const subscribeNarrow = notify => {
+  const query = globalThis.matchMedia?.(NARROW);
+  query?.addEventListener?.('change', notify);
+  return () => query?.removeEventListener?.('change', notify);
+};
+const isNarrow = () => Boolean(globalThis.matchMedia?.(NARROW).matches);
 
 // A signed coinbase names its miner in the memo and commits to it in a last output.
 const signerOf = coinbase => (coinbase.outputs.some(output => output.kind === 'commitment') ? coinbase.memo : null);
@@ -25,24 +35,38 @@ export function Workbench({
   sim, coinName, targetSeconds, autoMine, onAutoMine, repeating = false, autoTransact, onAutoTransact, selectedIndex, held = false, onSelect, healthOpen, onToggleHealth,
   lastRound, remining, coach, identity, boardRows,
   onStartDemo, onMine, onPause, onRemine, onTamper, onUndo, onDifficulty, onBack,
-  onCreateTransaction, onCreateWallet, onCreateMiner, onRenameMiner, onHashpower, onOpenWallet, onOpenDetails, onOpenTransaction, onOpenBlockTx, onOpenChainLab, error
+  onCreateTransaction, onCreateWallet, onCreateMiner, onRenameMiner, onShare, onOpenMiner, onSlowMotion, onOpenWallet, onOpenDetails, onOpenTransaction, onOpenBlockTx, onOpenChainLab, error
 }) {
   const { blocks, blockStatus, participants, memPool, balances, tamperedEdits, describeTx, previewTransaction, blockTemplate, difficulty, blockReward, halvingInterval,
-    isMining, isSettingUp, minerProgress, miningProgress, raceWinner, backedMiner } = sim;
+    isMining, isSettingUp, minerProgress, miningProgress, raceWinner, backedMiner, slowMotion = false } = sim;
   const busy = isMining || isSettingUp;
+  const compact = useSyncExternalStore(subscribeNarrow, isNarrow, () => false);
   const height = blocks.length - 1;
   const fresh = height === 0 && memPool.length === 0 && !busy;
   const views = useMemo(() => buildBlockViews({ blocks, blockStatus, participants, tamperedEdits }),
     [blocks, blockStatus, participants, tamperedEdits]);
   const repair = repairOf(blockStatus, tamperedEdits);
   const keyFigures = keyFiguresOf({ blocks, difficulty, blockReward, halvingInterval, targetSeconds });
+  const events = useMemo(() => chainEventsOf({ blocks, difficulty, targetSeconds }), [blocks, difficulty, targetSeconds]);
+  // A rule change explains itself for the block it applies to and the two after it,
+  // unless the learner set it or dismissed the note (web/DESIGN.md, "Key figures").
+  const [dismissed, setDismissed] = useState(() => new Set());
+  const notes = Object.values(events).flat()
+    .filter(event => event.index > height - 3)
+    .map(event => {
+      const note = eventNote(event, { halvingInterval, targetSeconds, coinName });
+      // Keyed by the block it follows, so a reset chain explains its own changes again.
+      return note && { ...note, key: `${note.key}@${blocks[event.index - 1]?.hash}` };
+    })
+    .filter(note => note && !dismissed.has(note.key));
+  const dismissNote = key => setDismissed(current => new Set(current).add(key));
   const nextIndex = blocks.length;
 
   const mode = busy ? 'mining' : fresh ? 'fresh' : repair ? 'repair' : 'idle';
   const candidate = {
     index: nextIndex, txCount: memPool.length,
     state: busy && remining === null ? 'mining' : repair ? 'paused' : fresh ? 'fresh' : 'idle',
-    elapsedMs: miningProgress?.elapsedMs, attempts: miningProgress?.iterations
+    elapsedMs: miningProgress?.elapsedMs, attempts: miningProgress?.iterations, slow: busy && slowMotion
   };
   const miners = participants.filter(p => p.isMiner && p.minerEnabled)
     .map(p => ({ name: p.name, hashpower: p.hashpower, hashrate: rateOf(minerProgress[p.name]), color: colorOf(p.colorKey) ?? undefined }));
@@ -100,16 +124,13 @@ export function Workbench({
   return (
     <>
     {error && <div role="alert" className="wb-error">{error}</div>}
+    <KeyFigureBar keyFigures={keyFigures} height={height} />
     <div className="wb-band">
       <ChainBand views={fresh ? views.slice(0, 1) : views} candidate={candidate} selectedIndex={selected} pinned={pinned} onSelect={onSelect}
-        keyFigures={keyFigures} healthOpen={healthOpen} onToggleHealth={onToggleHealth}
-        coach={workbenchCoach} repairOrder={repairOrder} />
+        keyFigures={keyFigures} events={fresh ? {} : events} notes={notes} onDismissNote={dismissNote} healthOpen={healthOpen} onToggleHealth={onToggleHealth}
+        coach={workbenchCoach} repairOrder={repairOrder} compact={compact} />
     </div>
-    <div className="wb-timeline">
-      <ChainTimeline views={views} candidate={candidate} selectedIndex={selected} pinned={pinned} onSelect={onSelect} onOpenChainLab={onOpenChainLab}
-        keyFigures={keyFigures} healthOpen={healthOpen} onToggleHealth={onToggleHealth}
-        coach={workbenchCoach} repairOrder={repairOrder} />
-    </div>
+    {compact && notes.length > 0 && <div className="wb-notes"><ChainEventNotes notes={notes} onDismiss={dismissNote} /></div>}
     <div className="wb-grid">
       <div className="wb-selected">
         <SelectedBlockCard block={selectedBlock} status={blockStatus[selected]} prevHash={blocks[selected - 1]?.hash ?? null}
@@ -125,7 +146,7 @@ export function Workbench({
           onStartDemo={onStartDemo} onMine={onMine} onPause={onPause} onRemine={onRemine}
           repair={repair ? { ...repair, onUndo } : null} miners={miners} race={race} lastRound={lastRound}
           backedMiner={backedMiner} onBack={onBack} coach={workbenchCoach}
-          onCreateMiner={onCreateMiner} onRenameMiner={onRenameMiner} onHashpower={onHashpower} minersFull={participants.filter(p => p.isMiner).length >= MAX_MINERS}
+          onCreateMiner={onCreateMiner} onRenameMiner={onRenameMiner} onShare={onShare} onOpenMiner={onOpenMiner} perMiner={minerProgress} slowMotion={busy && slowMotion} onSlowMotion={onSlowMotion} minersFull={participants.filter(p => p.isMiner).length >= MAX_MINERS}
           signature={<MinerName identity={identity} rows={boardRows} locked={busy} />} />
       </div>
       <div className="wb-wallets">

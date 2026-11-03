@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import './cardKit.css';
+import { hint, term } from '../../lib/hints';
 import './BlockTransactions.css';
 
 // The transactions of the shown block, a part of its card (web/DESIGN.md, "Card grid").
@@ -27,7 +28,7 @@ function Flow({ tx }) {
   return (
     <div className="block-tx-flow">
       <div className="block-tx-side">
-        <span className="block-tx-label">In</span>
+        <span className="block-tx-label" {...term('block.tx-in')}>In</span>
         {tx.coinbase
           ? <span className="block-tx-coin"><span>Coinbase · new coins</span></span>
           : tx.inputs.map((input, i) => (
@@ -35,7 +36,7 @@ function Flow({ tx }) {
           ))}
       </div>
       <div className="block-tx-side">
-        <span className="block-tx-label">Out</span>
+        <span className="block-tx-label" {...term('block.tx-out')}>Out</span>
         {tx.outputs.map(output => (
           <span key={output.index} className="block-tx-coin">
             <span>{output.kind === 'memo' ? 'Memo' : output.owner ?? 'Unknown'}{output.kind === 'change' ? ' · change' : ''}{output.spent ? ` · spent${output.spentIn != null ? ` in #${output.spentIn}` : ''}` : ''}</span>
@@ -52,7 +53,7 @@ export function BlockTransactions({ transactions = [], onOpenDetails, editedTx =
   return (
     <section className="block-tx" aria-label="Transactions">
       <div className="block-tx-head">
-        <h3 className="card-kit-title">Transactions</h3>
+        <h3 className="card-kit-title" {...term('block.transactions')}>Transactions</h3>
         <span className="card-kit-pill is-none">{transactions.length}</span>
       </div>
       <ul className="block-tx-list" aria-label="Transactions">
@@ -61,7 +62,7 @@ export function BlockTransactions({ transactions = [], onOpenDetails, editedTx =
           const edited = editedTx.includes(i);
           return (
             <li key={i} className={`block-tx-item${open ? ' is-open' : ''}${edited ? ' is-edited' : ''}`}>
-              <button type="button" className="block-tx-row" aria-expanded={open} onClick={() => setOpenId(open ? null : i)}>
+              <button type="button" className="block-tx-row" aria-expanded={open} {...hint('block.tx-row', Boolean(tx.coinbase))} onClick={() => setOpenId(open ? null : i)}>
                 <b>{tx.coinbase ? 'Coinbase' : tx.from} → {tx.to}</b>
                 <small>{edited ? 'edited after mining' : summary(tx)}</small>
                 <span className="block-tx-amt">{trimmed(tx.amount)}</span>
@@ -69,8 +70,8 @@ export function BlockTransactions({ transactions = [], onOpenDetails, editedTx =
               {open && (
                 <div className="block-tx-detail">
                   <Flow tx={tx} />
-                  <div className="block-tx-id"><span className="block-tx-label">TXID</span><code>{tx.txid}</code></div>
-                  <button type="button" className="block-tx-more" onClick={() => onOpenDetails?.(tx)}>Scripts, signature and raw bytes</button>
+                  <div className="block-tx-id"><span className="block-tx-label" {...term('block.txid')}>TXID</span><code>{tx.txid}</code></div>
+                  <button type="button" className="block-tx-more" {...hint('block.tx-raw')} onClick={() => onOpenDetails?.(tx)}>Scripts, signature and raw bytes</button>
                 </div>
               )}
             </li>

@@ -1,15 +1,19 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { CoachMark } from './CoachMark';
+import { ChainEventNotes, KeyFigures } from './KeyFigures';
+import { epochMark, upcomingOf } from './keyFigureText';
 import {
-  brokenBefore, candidateCopy, formatAge, formatInterval, formatSeconds, healthSummary, linkInto, ordinal, pendingLink,
+  brokenBefore, candidateCopy, formatAge, formatInterval, healthSummary, linkInto, ordinal, pendingLink,
   shortHash, stateOf, statusLabel, zerosOf
 } from './blockView';
+import { hint, term } from '../../lib/hints';
 import './ChainBand.css';
 
 // Chain band (web/DESIGN.md, "Chain band"): #0 … newest left to right, then the
 // dashed candidate, in one row that scrolls sideways with the touchpad; hairline links,
 // full-hash tooltip with Copy, key figures, and the "Chain valid" pill that opens the
-// checks. Presentational: data and callbacks in props.
+// checks. Presentational: data and callbacks in props. `compact` (below 1024 px) draws
+// small tiles without tooltips for the sticky band on phones and tablets.
 
 // One shared clock for every "… ago": only the ages re-render, every few seconds.
 const clock = {
@@ -49,7 +53,7 @@ export function DownIcon() {
   return <svg width="10" height="10" viewBox="0 0 12 12" aria-hidden="true"><path d="M6 2v8M2.5 6.5L6 10l3.5-3.5" stroke="currentColor" strokeWidth="1.6" fill="none" strokeLinecap="round" strokeLinejoin="round" /></svg>;
 }
 
-/* ---------- shared pieces (also used by ChainTimeline) ---------- */
+/* ---------- shared pieces ---------- */
 
 // Copy with a guarded clipboard: no clipboard, no error, no "Copied".
 export function CopyButton({ text, label = 'Copy full hash', className = '' }) {
@@ -95,33 +99,38 @@ export function BoldBlocks({ text }) {
   return text.split(/(#\d+)/).map((part, i) => (/^#\d+$/.test(part) ? <b key={i}>{part}</b> : part));
 }
 
-export function KeyFigures({ keyFigures, className = '', short = false }) {
-  if (!keyFigures) return null;
-  const { avgSeconds, targetSeconds, difficulty, reward, nextHalving } = keyFigures;
-  const avg = formatSeconds(avgSeconds);
-  const target = formatSeconds(targetSeconds)?.replace('.0 s', ' s');
-  const parts = [];
-  if (avg || target) {
-    parts.push(<span key="avg">{avg ? <>avg <b>{avg}</b></> : 'no blocks timed yet'}{target ? ` / target ${target}` : ''}</span>);
-  }
-  if (difficulty !== undefined && difficulty !== null) parts.push(<span key="d">difficulty <b>{difficulty}</b></span>);
-  if (reward !== undefined && reward !== null) parts.push(<span key="r">reward <b>{reward}</b></span>);
-  if (nextHalving !== undefined && nextHalving !== null) parts.push(<span key="h">{short ? 'halving' : 'next halving'} <b>#{nextHalving}</b></span>);
-  return (
-    <span className={className} aria-label="Key figures">
-      {parts.flatMap((part, i) => (i === 0 ? [part] : [<span key={`s${i}`} className="chain-band-sep" aria-hidden="true">·</span>, part]))}
-    </span>
-  );
-}
-
 function targetZeros(view) {
   return view.difficulty > 0 ? '0'.repeat(view.difficulty) : null;
 }
 
+/* ---------- rule changes on the chain: difficulty and halving marks ---------- */
+
+function EpochMarks({ events }) {
+  if (!events?.length) return null;
+  return events.map(event => {
+    const mark = epochMark(event);
+    return <span key={event.kind} className={`chain-band-epoch is-${mark.kind}`} {...term('chain.change', mark)}>{mark.text}</span>;
+  });
+}
+
+// Each block's time against the target: a thin bar at its foot, 0 … twice the target,
+// with a tick at the target; amber when the block alone falls outside the band.
+function PaceBar({ seconds, pace }) {
+  if (!pace || !Number.isFinite(seconds)) return null;
+  const share = Math.min(1, Math.max(0, seconds / (pace.target * 2)));
+  const outside = seconds < pace.low || seconds > pace.high;
+  return (
+    <span className={`chain-band-pace${outside ? ' is-out' : ''}`} aria-hidden="true">
+      <i style={{ width: `${share * 100}%` }} />
+    </span>
+  );
+}
+
 /* ---------- tile ---------- */
 
-function tileLabel(view, { newest, selected, repairPosition }) {
+function tileLabel(view, { newest, selected, repairPosition, events }) {
   const parts = [view.isGenesis ? 'Genesis block 0' : `Block ${view.index}`];
+  (events ?? []).forEach(event => parts.push(epochMark(event).title));
   if (newest) parts.push('newest');
   if (selected) parts.push('selected');
   if (view.status !== 'valid') parts.push(statusLabel(view.status).toLowerCase());
@@ -166,7 +175,7 @@ function FullHash({ hash, miss = 0 }) {
   );
 }
 
-function Tile({ view, views, newest, selected, pinned, repairPosition, shade, onSelect, tipEnd }) {
+function Tile({ view, views, newest, selected, pinned, repairPosition, shade, onSelect, tipEnd, events, pace }) {
   const tipId = useId();
   const state = stateOf(view);
   const mismatch = view.status === 'hash-mismatch';
@@ -181,12 +190,14 @@ function Tile({ view, views, newest, selected, pinned, repairPosition, shade, on
       {repairPosition ? (
         <span className={`chain-band-order${repairPosition === 1 ? ' is-next' : ''}`} aria-hidden="true">{repairPosition}</span>
       ) : null}
-      <span className="chain-band-num" aria-hidden="true">#{view.index}</span>
+      <span className="chain-band-num" aria-hidden="true">#{view.index}<EpochMarks events={events} /></span>
       <button type="button" className="chain-band-tile-face" aria-pressed={selected && pinned} aria-describedby={tipId}
-        aria-label={tileLabel(view, { newest, selected, repairPosition })} onClick={() => onSelect?.(view.index)}>
+        aria-label={tileLabel(view, { newest, selected, repairPosition, events })} onClick={() => onSelect?.(view.index)}>
         <span className="chain-band-tile-top">
           {tag && <span className={`chain-band-tag${state === 'broken' ? ' is-bad' : ''}`}>{tag}</span>}
-          {state !== 'broken' && time && <span className="chain-band-time" title="Time since the previous block">{time}</span>}
+          {state !== 'broken' && time && <span className="chain-band-time" title={pace
+            ? `Time since the previous block · target ${pace.target} s; the difficulty check averages ten blocks`
+            : 'Time since the previous block'}>{time}</span>}
         </span>
         <span className="chain-band-tile-by">
           <span className={`chain-band-av is-${view.minerKey}`} aria-hidden="true">{view.isGenesis ? 'G' : view.minerName.charAt(0).toUpperCase()}</span>
@@ -213,6 +224,7 @@ function Tile({ view, views, newest, selected, pinned, repairPosition, shade, on
           ) : <Age time={view.time} />}
         </span>
       </button>
+      {state !== 'broken' && <PaceBar seconds={view.isGenesis ? null : view.seconds} pace={pace} />}
       <div className={`chain-band-tip${tipEnd ? ' is-end' : ''}`} role="tooltip" id={tipId}>
         <div className="chain-band-tip-head">Block #{view.index} · full hash<CopyButton text={shownHash} label={`Copy full hash of block ${view.index}`} /></div>
         {mismatch ? (
@@ -232,20 +244,71 @@ function Tile({ view, views, newest, selected, pinned, repairPosition, shade, on
   );
 }
 
-function Link({ link }) {
+// Compact tile below 1024 px (web/DESIGN.md, "Screen sizes"): number, miner and short
+// hash on a small block; a tap selects it like a full tile and the Block card below
+// carries the details, so there is no tooltip.
+function MiniTile({ view, newest, selected, pinned, repairPosition, shade, onSelect, pace }) {
+  const state = stateOf(view);
+  const mismatch = view.status === 'hash-mismatch';
+  const classes = ['chain-band-tile', 'is-mini', newest && 'is-newest', selected && (pinned ? 'is-selected' : 'is-current'),
+    state === 'broken' && 'is-broken', state === 'dependent' && 'is-dependent'].filter(Boolean).join(' ');
+  const time = view.isGenesis ? null : formatInterval(view.seconds);
+  const shownHash = mismatch ? view.computedHash : view.storedHash;
   return (
-    <span className={`chain-band-link is-${link.state}`} tabIndex={0} aria-label={link.label}>
+    <div className={classes} data-h={shade} data-status={view.status}>
+      {repairPosition ? (
+        <span className={`chain-band-order${repairPosition === 1 ? ' is-next' : ''}`} aria-hidden="true">{repairPosition}</span>
+      ) : null}
+      <button type="button" className="chain-band-tile-face" aria-pressed={selected && pinned}
+        aria-label={tileLabel(view, { newest, selected, repairPosition })} onClick={() => onSelect?.(view.index)}>
+        <span className="chain-band-tile-top">
+          <b className="chain-band-mini-num">#{view.index}</b>
+          {state === 'broken'
+            ? <span className="chain-band-tag is-bad">{statusLabel(view.status)}</span>
+            : view.isGenesis ? <span className="chain-band-time">genesis</span> : time && <span className="chain-band-time">{time}</span>}
+        </span>
+        <span className="chain-band-tile-by">
+          <span className={`chain-band-av is-${view.minerKey}`} aria-hidden="true">{view.isGenesis ? 'G' : view.minerName.charAt(0).toUpperCase()}</span>
+          <span className="chain-band-who">{view.isGenesis ? 'Genesis' : view.minerName}</span>
+        </span>
+        <span className="chain-band-tile-hash"><ShortHash hash={shownHash} miss={mismatch ? Math.min(view.difficulty, 6) : 0} zeroClass="chain-band-lz" missClass="chain-band-lz" /></span>
+      </button>
+      {state !== 'broken' && <PaceBar seconds={view.isGenesis ? null : view.seconds} pace={pace} />}
+    </div>
+  );
+}
+
+function MiniCandidate({ candidate }) {
+  const copy = candidateCopy(candidate);
+  const state = candidate.state ?? 'idle';
+  return (
+    <div className={`chain-band-cand is-mini is-${state}`} role="group" aria-label={copy.label} aria-busy={state === 'mining' || undefined}>
+      <span className="chain-band-tile-top">
+        <b className="chain-band-mini-num">#{candidate.index}</b><span className="chain-band-tag">{copy.tag}</span>
+      </span>
+      <span className="chain-band-tile-by">{copy.tries ? <span><b>{copy.tries}</b> tries</span> : <span>{copy.what}</span>}</span>
+      <span className="chain-band-time">{copy.time}</span>
+      {state === 'mining' && <span className="chain-band-mine-line" aria-hidden="true" />}
+    </div>
+  );
+}
+
+function Link({ link, epoch = false }) {
+  return (
+    <span className={`chain-band-link is-${link.state}${epoch ? ' is-epoch' : ''}`} tabIndex={0} aria-label={link.label}>
       <span className="chain-band-link-dot" aria-hidden="true" />
       <span className="chain-band-ltip" role="tooltip"><b>{link.title}</b> · {link.text}</span>
     </span>
   );
 }
 
-function Candidate({ candidate }) {
+function Candidate({ candidate, upcoming = [] }) {
   const copy = candidateCopy(candidate);
   const state = candidate.state ?? 'idle';
+  const ahead = state === 'idle' || state === 'mining' ? upcoming : [];
   return (
-    <div className={`chain-band-cand is-${state}`} role="group" aria-label={copy.label} aria-busy={state === 'mining' || undefined}>
+    <div className={`chain-band-cand is-${state}`} role="group" aria-label={[copy.label, ...ahead.map(mark => mark.title)].join('; ')}
+      aria-busy={state === 'mining' || undefined} {...hint('chain.candidate')}>
       <span className="chain-band-num" aria-hidden="true">#{candidate.index}</span>
       <span className="chain-band-tile-top">
         <span className="chain-band-tag">{copy.tag}</span><span className="chain-band-time">{copy.time}</span>
@@ -253,6 +316,11 @@ function Candidate({ candidate }) {
       <span className="chain-band-tile-by">
         {copy.tries ? <span>{copy.what} · <b>{copy.tries}</b> tries</span> : copy.what}
       </span>
+      {ahead.length > 0 && (
+        <span className="chain-band-ahead" aria-hidden="true">
+          {ahead.map(mark => <span key={mark.key} className={`chain-band-epoch is-${mark.kind}`} {...term('chain.change', mark)}>{mark.text}</span>)}
+        </span>
+      )}
       <span className="chain-band-tile-prev">
         {candidate.prevHash ? <>prev <span className="chain-band-mono">{shortHash(candidate.prevHash)}</span> · #{candidate.index - 1}</> : `on #${candidate.index - 1}`}
       </span>
@@ -331,8 +399,8 @@ function HealthLine({ summary, healthOpen, onToggleHealth, stripId, compact = fa
       <span role="status" className="chain-band-health-status">
         {onToggleHealth ? (
           <button type="button" className="chain-band-health-sum" aria-expanded={Boolean(healthOpen)} aria-controls={stripId}
-            title={healthOpen ? 'Hide the checks' : 'Show the checks behind this'} onClick={onToggleHealth}>{pill}</button>
-        ) : <span className="chain-band-health-sum">{pill}</span>}
+            {...hint('chain.health', valid, healthOpen)} onClick={onToggleHealth}>{pill}</button>
+        ) : <span className="chain-band-health-sum" {...hint('chain.health', valid, true)}>{pill}</span>}
       </span>
       {healthOpen && (
         <span className="chain-band-health-text">
@@ -369,10 +437,11 @@ const END_SLACK = 48;
 
 export function ChainBand({
   views = [], candidate = { index: 1, txCount: 0, state: 'idle' }, selectedIndex = null, pinned = true, onSelect,
-  keyFigures, healthOpen = false, onToggleHealth, coach = null, repairOrder = []
+  keyFigures, events = {}, notes = [], onDismissNote, healthOpen = false, onToggleHealth, coach = null, repairOrder = [], compact = false
 }) {
   const stripId = useId();
   const scrollRef = useRef(null);
+  const pace = keyFigures?.pace ? { low: keyFigures.pace.low, high: keyFigures.pace.high, target: keyFigures.targetSeconds } : null;
   // The row follows the newest block while it is scrolled to its end; scrolling left stops that.
   const atEnd = useRef(true);
   // True while the row scrolls itself to the newest end: its own scroll events say nothing
@@ -383,7 +452,8 @@ export function ChainBand({
   const summary = healthSummary(views);
   const invalid = !summary.valid;
   const cand = { ...candidate, prevHash: candidate.prevHash ?? views[newestIndex]?.storedHash };
-  const twoLine = invalid;
+  // Compact cells sit under compact tiles on one line; the block card explains the details.
+  const twoLine = invalid && !compact;
 
   const onScroll = () => {
     const el = scrollRef.current;
@@ -434,13 +504,15 @@ export function ChainBand({
   };
 
   return (
-    <section className={`chain-band${invalid ? ' is-invalid' : ''}`} aria-label="Chain">
+    <section className={`chain-band${invalid ? ' is-invalid' : ''}${compact ? ' is-compact' : ''}`} aria-label="Chain">
       <div className="chain-band-inner">
         <div className={`chain-band-header chain-band-health${healthOpen ? ' is-open' : ''}${invalid ? ' is-invalid' : ''}`}>
-          <h2>Chain</h2>
-          <HealthLine summary={summary} healthOpen={healthOpen} onToggleHealth={onToggleHealth} stripId={stripId} />
-          <KeyFigures keyFigures={keyFigures} className="chain-band-stats" />
+          <h2 {...term('chain.title')}>Chain</h2>
+          <HealthLine summary={summary} healthOpen={healthOpen} onToggleHealth={onToggleHealth} stripId={stripId} compact={compact} />
+          {!(compact && healthOpen) && <KeyFigures keyFigures={keyFigures} className="chain-band-stats" short={compact} />}
         </div>
+        {/* The compact band stays at the top; its notes go under it, in the page (Workbench). */}
+        {!compact && <ChainEventNotes notes={notes} onDismiss={onDismissNote} />}
 
         <CoachMark target="workbench.chain" coach={coach}>
           <div className="chain-band-scroll" ref={scrollRef} onScroll={onScroll}
@@ -448,17 +520,20 @@ export function ChainBand({
             <div className="chain-band-row">
               {views.map(view => {
                 const position = repairOrder.indexOf(view.index) + 1;
+                const tile = { view, newest: view.index === newestIndex, selected: selectedIndex === view.index, pinned,
+                  repairPosition: position || null, shade: shadeOf(view), onSelect };
                 return (
                   <div key={view.index} className={`chain-band-item${view.isGenesis ? ' is-first' : ''}`} data-index={view.index}>
-                    {!view.isGenesis && <Link link={linkInto(view, views[view.index - 1])} />}
-                    <Tile view={view} views={views} newest={view.index === newestIndex} selected={selectedIndex === view.index} pinned={pinned}
-                      repairPosition={position || null} shade={shadeOf(view)} onSelect={onSelect} tipEnd={view.index === newestIndex && count > 1} />
+                    {!view.isGenesis && <Link link={linkInto(view, views[view.index - 1])} epoch={Boolean(events[view.index]?.length)} />}
+                    {compact
+                      ? <MiniTile {...tile} pace={pace} />
+                      : <Tile {...tile} views={views} tipEnd={view.index === newestIndex && count > 1} events={events[view.index]} pace={pace} />}
                   </div>
                 );
               })}
               <div className="chain-band-item is-cand">
-                {count > 0 && <Link link={pendingLink(cand.index, cand.state)} />}
-                <Candidate candidate={cand} />
+                {count > 0 && <Link link={pendingLink(cand.index, cand.state)} epoch={Boolean(events[cand.index]?.length)} />}
+                {compact ? <MiniCandidate candidate={cand} /> : <Candidate candidate={cand} upcoming={upcomingOf(keyFigures, events[cand.index])} />}
                 <span className="chain-band-depth" aria-hidden="true" />
               </div>
             </div>

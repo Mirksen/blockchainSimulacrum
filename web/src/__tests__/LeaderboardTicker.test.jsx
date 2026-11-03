@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { LeaderboardTicker, TICKER_REFRESH_MS } from '../components/workbench/LeaderboardTicker';
 import { findsOf } from '../lib/poolProof';
 import { getLeaderboard } from '../lib/poolApi';
+import { HINTS } from '../lib/hints';
 
 vi.mock('../lib/poolApi', async importOriginal => ({ ...(await importOriginal()), getLeaderboard: vi.fn() }));
 
@@ -46,6 +47,7 @@ describe('LeaderboardTicker', () => {
     expect(band.querySelectorAll('.leaderboard-ticker-list[aria-hidden="true"]')).toHaveLength(1);
 
     const button = screen.getByRole('button', { name: 'Leaderboard, 2 miners, leader test-miner-a with 4 zeros. Open the leaderboard' });
+    expect(button.getAttribute('data-hint')).toBe(HINTS['pool.ticker'].text);
     fireEvent.click(button);
     expect(onOpenPool).toHaveBeenCalledTimes(1);
   });
@@ -73,6 +75,17 @@ describe('LeaderboardTicker', () => {
     expect(onBoard).toHaveBeenCalledWith([]);
     fireEvent.click(screen.getByRole('button', { name: 'Leaderboard, no blocks yet. Open the leaderboard' }));
     expect(onOpenPool).toHaveBeenCalledTimes(1);
+  });
+
+  it('marks the visitor\'s own row with "you"', async () => {
+    vi.mocked(getLeaderboard).mockResolvedValue(board(ROWS));
+    render(<LeaderboardTicker onOpenPool={() => {}} ownName="test-miner-b" />);
+    await flush();
+    const list = ticker().querySelector('.leaderboard-ticker-list:not([aria-hidden])');
+    const own = list.querySelectorAll('.leaderboard-ticker-row.is-own');
+    expect(own).toHaveLength(1);
+    expect(own[0].querySelector('.leaderboard-ticker-name').textContent).toBe('test-miner-b');
+    expect(own[0].querySelector('.leaderboard-ticker-you').textContent).toBe('you');
   });
 
   it('derives the special finds from what the board says', () => {

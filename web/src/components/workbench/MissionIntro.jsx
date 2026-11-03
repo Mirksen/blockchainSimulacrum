@@ -1,4 +1,5 @@
 import { useId } from 'react';
+import { hint } from '../../lib/hints';
 import './MissionIntro.css';
 
 // The first-visit invitation from PR16, kept in the page flow so free play stays usable.
@@ -15,8 +16,8 @@ export function MissionIntro({ onStart, onDismiss }) {
         <p className="mission-intro-storage">Progress stays in this browser.</p>
       </div>
       <div className="mission-intro-actions">
-        <button type="button" className="btn-tinted" onClick={onStart}>Start missions</button>
-        <button type="button" className="card-kit-btn is-ghost" onClick={onDismiss}>Don't show again</button>
+        <button type="button" className="btn-tinted" {...hint('mission.start')} onClick={onStart}>Start missions</button>
+        <button type="button" className="card-kit-btn is-ghost" {...hint('mission.dismiss')} onClick={onDismiss}>Don't show again</button>
       </div>
     </section>
   );

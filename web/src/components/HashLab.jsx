@@ -2,6 +2,7 @@ import { useEffect, useReducer, useRef } from 'react';
 import { changedPositions, createTrial, findNonce, INITIAL_MESSAGE, meetsTarget, parseNonce, SEARCH_LIMIT } from '../lib/hashLab';
 import { CoachMark } from './workbench/CoachMark';
 import { HeaderBytes } from './HeaderBytes';
+import { hint, term } from '../lib/hints';
 import './HashLab.css';
 
 const initialState = ({ difficulty = 2, comparison = null } = {}) => ({ message: INITIAL_MESSAGE, nonce: '0', difficulty,
@@ -37,7 +38,7 @@ function reducer(state, action) {
 function SearchComparison({ comparison }) {
   if (!comparison) return null;
   return <section className="hash-lab-results" aria-label="Proof-of-work search comparison">
-    <h3>Your proof-of-work searches</h3>
+    <h3 {...term('lab.hash.searches')}>Your proof-of-work searches</h3>
     <p>Recorded searches use the same message <code>{comparison.message}</code> and start at nonce {comparison.startNonce}.</p>
     <table>
       <caption>Successful searches in this experiment</caption>
@@ -47,7 +48,7 @@ function SearchComparison({ comparison }) {
         return <tr key={target}>
           <th scope="row">{target === 1 ? 'One zero' : 'Two zeros'} <code>({'0'.repeat(target)})</code></th>
           <td>{result ? result.attempts.toLocaleString() : 'Not found yet'}</td>
-          <td>{result ? <>{result.nonce.toLocaleString()}<details><summary>Hash</summary><code>{result.hash}</code></details></> : '—'}</td>
+          <td>{result ? <>{result.nonce.toLocaleString()}<details><summary {...hint('lab.hash.result-hash')}>Hash</summary><code>{result.hash}</code></details></> : '—'}</td>
         </tr>;
       })}</tbody>
     </table>
@@ -124,52 +125,55 @@ export function HashLab({ onClose, lesson, onLessonEvent, coach = null, workComp
     <header className="hash-lab-header">
       <div><h2 id="hash-lab-title">{lesson === 'work' ? 'Same message. A stricter target.' : 'Small change. New fingerprint.'}</h2>
         <p>{lesson === 'work' ? 'Compare two searches, each beginning at nonce 0.' : 'A hash is repeatable. Finding one that starts with zeros takes trial and error.'}</p></div>
-      {lesson === 'hash' && <button className="btn btn-transparent" onClick={reset}>Reset lab</button>}
-      {!lesson && <button className="btn btn-transparent" onClick={() => { invalidateSearch(); onClose(); }}>Back to simulator</button>}
+      {lesson === 'hash' && <button className="btn btn-transparent" {...hint('lab.hash.reset')} onClick={reset}>Reset lab</button>}
+      {!lesson && <button className="btn btn-transparent" {...hint('lab.back')} onClick={() => { invalidateSearch(); onClose(); }}>Back to simulator</button>}
     </header>
 
     <div className="hash-lab-workbench">
       <div className="hash-lab-inputs">
         <label htmlFor="hash-lab-message">Message</label>
         <CoachMark target="hash-lab.message" coach={coach}>
-          <textarea id="hash-lab-message" value={message} readOnly={lesson === 'work'} maxLength={1000} rows={3}
+          <textarea id="hash-lab-message" value={message} readOnly={lesson === 'work'} maxLength={1000} rows={3} {...hint('lab.hash.message', lesson === 'work')}
             onChange={lesson === 'work' ? undefined : event => edit({ message: event.target.value })} aria-describedby="hash-lab-message-help" />
         </CoachMark>
         <p id="hash-lab-message-help" className="hash-lab-help">{lesson === 'work' ? 'The message is held fixed so the two searches are comparable.' : 'Try changing one character, then changing it back.'}</p>
-        <label htmlFor="hash-lab-nonce">Nonce <span className="hash-lab-help">{lesson === 'work' ? 'the number the search changes' : 'a number you can change'}</span></label>
+        <label htmlFor="hash-lab-nonce" {...term('lab.hash.nonce', lesson === 'work')}>Nonce <span className="hash-lab-help">{lesson === 'work' ? 'the number the search changes' : 'a number you can change'}</span></label>
         <div className="hash-lab-nonce-row">
           <input id="hash-lab-nonce" inputMode="numeric" value={nonce} readOnly={lesson === 'work'} onChange={lesson === 'work' ? undefined : event => edit({ nonce: event.target.value })}
-            aria-invalid={!!error} aria-describedby={error ? 'hash-lab-error' : 'hash-lab-nonce-help'} />
-          {lesson !== 'work' && <button className="btn btn-default" disabled={!!error || Number(nonce) >= Number.MAX_SAFE_INTEGER}
-            onClick={() => edit({ nonce: String(parseNonce(nonce) + 1) })}>Next nonce</button>}
+            aria-invalid={!!error} aria-describedby={error ? 'hash-lab-error' : 'hash-lab-nonce-help'} {...hint('lab.hash.nonce', lesson === 'work')} />
+          {lesson !== 'work' && <span className="hint-wrap is-fixed" {...hint('lab.hash.next-nonce')}><button className="btn btn-default" disabled={!!error || Number(nonce) >= Number.MAX_SAFE_INTEGER}
+            onClick={() => edit({ nonce: String(parseNonce(nonce) + 1) })}>Next nonce</button></span>}
         </div>
         <p id="hash-lab-nonce-help" className="hash-lab-help">Same message + same nonce = same hash.</p>
         {error && <p id="hash-lab-error" className="hash-lab-error" role="alert">{error} The hash below keeps the last valid input.</p>}
       </div>
 
       <div className="hash-lab-output">
-        <div className="hash-lab-hash-label"><h3>Double SHA-256 fingerprint</h3>
-          <span className={targetMet ? 'hash-lab-target-met' : ''}>{error ? 'Waiting for valid input' : targetMet ? 'Target met' : 'Target not met'}</span></div>
+        <div className="hash-lab-hash-label"><h3 {...term('lab.hash.fingerprint')}>Double SHA-256 fingerprint</h3>
+          <span className={targetMet ? 'hash-lab-target-met' : ''} {...term('lab.hash.target', targetMet, difficulty, !!error)}>{error ? 'Waiting for valid input' : targetMet ? 'Target met' : 'Target not met'}</span></div>
         <div className="hash-lab-fingerprint" role="img" aria-label={`Double SHA-256 hash: ${trial.hash}`}>
           {[...trial.hash].map((character, index) => <span key={index} aria-hidden="true"
             className={changed[index] ? 'hash-lab-changed' : undefined}>{character}</span>)}
         </div>
         <p className="hash-lab-comparison">{previousHash ? <><strong>{changedCount} of 64</strong> hex characters changed from the previous displayed hash. Marked characters changed.</> : 'Each character is hexadecimal: 0–9 or a–f. Edit the input to compare fingerprints.'}</p>
-        {previousHash && <details className="hash-lab-previous"><summary>Previous hash</summary><code>{previousHash}</code></details>}
+        {previousHash && <details className="hash-lab-previous"><summary {...hint('lab.hash.previous')}>Previous hash</summary><code>{previousHash}</code></details>}
       </div>
     </div>
 
     {lesson !== 'hash' && <div className="hash-lab-mining">
       <div><label htmlFor="hash-lab-difficulty">Find a hash starting with</label>
-        <select id="hash-lab-difficulty" value={difficulty} onChange={event => edit({ difficulty: Number(event.target.value), ...(lesson === 'work' ? { nonce: '0' } : {}) })}>
+        <select id="hash-lab-difficulty" {...hint('lab.hash.target-select')} value={difficulty} onChange={event => edit({ difficulty: Number(event.target.value), ...(lesson === 'work' ? { nonce: '0' } : {}) })}>
           <option value="1">0 — one zero</option><option value="2">00 — two zeros</option>{lesson !== 'work' && <option value="3">000 — three zeros</option>}
         </select>
         <p className="hash-lab-help">Each extra zero makes a match about 16 times less likely per attempt. The target is part of the header, so each target tests different hashes and a stricter one can occasionally get lucky.</p></div>
       <CoachMark target="hash-lab.search" coach={coach}>
         <div className="hash-lab-search-actions">
-          {searching ? <button className="btn btn-negative" onClick={() => { activeSearch.current?.abort(); dispatch({ type: 'stopping' }); }}>Stop search</button>
-            : <button className="btn btn-emphasized" disabled={!!error} onClick={search}>Find a nonce</button>}
-          <button className="btn btn-transparent" onClick={reset}>Reset lab</button>
+          {/* One wrapper in both states, so the button stays the same node and keeps its focus. */}
+          <span className="hint-wrap" {...(searching ? hint('lab.hash.stop') : hint('lab.hash.find', lesson === 'work'))}>
+            {searching ? <button className="btn btn-negative" onClick={() => { activeSearch.current?.abort(); dispatch({ type: 'stopping' }); }}>Stop search</button>
+              : <button className="btn btn-emphasized" disabled={!!error} onClick={search}>Find a nonce</button>}
+          </span>
+          <button className="btn btn-transparent" {...hint('lab.hash.reset')} onClick={reset}>Reset lab</button>
         </div>
       </CoachMark>
     </div>}
@@ -177,7 +181,7 @@ export function HashLab({ onClose, lesson, onLessonEvent, coach = null, workComp
     {lesson !== 'hash' && <p className="hash-lab-help">Search starts at {lesson === 'work' ? 'nonce 0' : 'the displayed nonce'} and checks up to {SEARCH_LIMIT.toLocaleString()} candidates. Editing an input cancels the search.</p>}
     <SearchComparison comparison={state.comparison} />
 
-    <details className="hash-lab-preimage"><summary>What exactly are we hashing?</summary>
+    <details className="hash-lab-preimage"><summary {...hint('lab.hash.preimage')}>What exactly are we hashing?</summary>
       <p>These 80 bytes are a Bitcoin block header. Your message stands in for the transactions: its double SHA-256 is the merkle root, so punctuation and spaces count too. The target fills the bits field, which is why choosing another target changes the hash.</p>
       <HeaderBytes header={trial.header} hash={trial.hash} />
       <p>Blocks in the simulator use the same 80 bytes with a real merkle root and the previous block’s hash. Your lab experiments never change the chain.</p>

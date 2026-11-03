@@ -5,6 +5,7 @@ import { getChallenge, getLeaderboard, isValidPoolName, minerProfileHash, NAME_H
   submitProof } from '../lib/poolApi';
 import { formatDifficulty, GENESIS, hashDifficulty, leadingZeros, poolCandidate, signatureOf, verifyRow } from '../lib/poolProof';
 import { runSearch } from '../lib/powSearch';
+import { hint, term } from '../lib/hints';
 import { MinerProfile } from './MinerProfile';
 import './PoolPanel.css';
 
@@ -34,10 +35,10 @@ function ShortHash({ hash }) {
 function Verification({ row }) {
   const check = verifyRow(row);
   return <div className="pool-panel-verify" role="status">
-    <p>Double SHA-256 of the 80-byte block header</p>
+    <p {...term('pool.header-check')}>Double SHA-256 of the 80-byte block header</p>
     <code className="pool-panel-preimage">{check.header}</code>
     <p>is <code className="pool-panel-preimage">{check.hash}</code></p>
-    <p>Its coinbase commits to <code className="pool-panel-preimage">{check.commitment}</code></p>
+    <p {...term('pool.commitment')}>Its coinbase commits to <code className="pool-panel-preimage">{check.commitment}</code></p>
     <p className={check.matches ? 'pool-panel-verify-ok' : 'pool-panel-error'}>
       {check.matches ? `Matches the listed hash: ${zerosLabel(row.bestZeros)}, signed by ${row.name} in round ${row.round.height}.`
         : 'Does not match the listed hash and name.'}</p>
@@ -47,8 +48,9 @@ function Verification({ row }) {
 function BoardTable({ id, rows, open, onToggle, onOpenProfile }) {
   return <div className="pool-panel-table" tabIndex={0} role="region" aria-labelledby={id}>
     <table>
-      <thead><tr><th scope="col">Rank</th><th scope="col">Name</th><th scope="col">Best hash</th><th scope="col">Zeros</th>
-        <th scope="col">Difficulty</th><th scope="col">Blocks</th><th scope="col"><span className="pool-panel-sr">Check</span></th></tr></thead>
+      <thead><tr><th scope="col" {...term('pool.rank')}>Rank</th><th scope="col" {...term('pool.miner-name')}>Name</th>
+        <th scope="col" {...term('pool.best-hash')}>Best hash</th><th scope="col" {...term('pool.zeros')}>Zeros</th>
+        <th scope="col" {...term('pool.difficulty')}>Difficulty</th><th scope="col" {...term('pool.blocks')}>Blocks</th><th scope="col"><span className="pool-panel-sr">Check</span></th></tr></thead>
       <tbody>{rows.map((row, index) => {
         const key = `${id}:${row.name}-${row.bestHash}`;
         const isOpen = open === key;
@@ -56,7 +58,7 @@ function BoardTable({ id, rows, open, onToggle, onOpenProfile }) {
           <tr>
             <td>{index + 1}</td>
             <td className="pool-panel-cell-name">{onOpenProfile
-              ? <a href={minerProfileHash(row.name)} onClick={event => {
+              ? <a href={minerProfileHash(row.name)} {...hint('pool.profile-link', row.name)} onClick={event => {
                 if (!plainClick(event)) return;
                 event.preventDefault();
                 onOpenProfile(row.name);
@@ -66,7 +68,7 @@ function BoardTable({ id, rows, open, onToggle, onOpenProfile }) {
             <td>{row.bestZeros}</td>
             <td>{formatDifficulty(row.difficulty)}</td>
             <td>{formatNumber(row.proofs)}</td>
-            <td><button type="button" className="btn btn-transparent pool-panel-verify-btn" aria-expanded={isOpen}
+            <td><button type="button" className="btn btn-transparent pool-panel-verify-btn" aria-expanded={isOpen} {...hint('pool.verify')}
               aria-label={`Verify the proof of ${row.name}`} onClick={() => onToggle(isOpen ? null : key)}>Verify</button></td>
           </tr>
           {isOpen && <tr className="pool-panel-verify-row"><td colSpan={7}><Verification row={row} /></td></tr>}
@@ -249,13 +251,14 @@ export function PoolPanel({ name, onNameChange, onClose, onAccepted, refreshKey 
     <header className="pool-panel-header">
       <div><h2 id="pool-panel-title">Leaderboard</h2>
         <p>Every block mined under a name lands here. The best hash wins, and anyone can check it.</p></div>
-      <button className="btn btn-transparent" onClick={() => { if (run.current) stop(); onClose(); }}>Back to simulator</button>
+      <button className="btn btn-transparent" {...hint('pool.back')} onClick={() => { if (run.current) stop(); onClose(); }}>Back to simulator</button>
     </header>
 
     {profile !== null && <MinerProfile key={profile} name={profile} ownName={name} refreshKey={refreshKey} onBack={onCloseProfile} />}
     {profile === null && <>
     <section className="pool-panel-board" aria-labelledby="pool-panel-round-title">
-      <h3 id="pool-panel-round-title">Last 144 blocks{recent ? <> · Bitcoin #{recent.from}–<a href={blockLink(recent.to)} target="_blank" rel="noreferrer">#{recent.to}</a></> : ''}</h3>
+      <h3 id="pool-panel-round-title" {...term('pool.recent')}>Last 144 blocks{recent ? <> · Bitcoin #{recent.from}–<a href={blockLink(recent.to)} target="_blank" rel="noreferrer"
+        {...hint('pool.bitcoin-block', recent.to)}>#{recent.to}</a></> : ''}</h3>
       {board.state === 'loading' && <p className="pool-panel-help">Loading the leaderboard…</p>}
       {board.state === 'unavailable' && <p className="pool-panel-board-note">{UNAVAILABLE}</p>}
       {board.state === 'ready' && (!recent || recent.rows.length === 0) &&
@@ -265,20 +268,20 @@ export function PoolPanel({ name, onNameChange, onClose, onAccepted, refreshKey 
     </section>
 
     <section className="pool-panel-board" aria-labelledby="pool-panel-board-title">
-      <h3 id="pool-panel-board-title">All time · top 20</h3>
+      <h3 id="pool-panel-board-title" {...term('pool.all-time')}>All time · top 20</h3>
       {board.state === 'ready' && board.allTime.length === 0 && <p className="pool-panel-help">No blocks yet.</p>}
       {board.state === 'ready' && board.allTime.length > 0 &&
         <BoardTable id="pool-panel-board-title" rows={board.allTime} open={openRow} onToggle={setOpenRow} onOpenProfile={onOpenProfile} />}
-      <p className="pool-panel-help pool-panel-genesis">Genesis <code>{GENESIS.hash.slice(0, 16)}…</code>, built on Bitcoin block {GENESIS.anchor.height}.
+      <p className="pool-panel-help pool-panel-genesis" {...term('pool.genesis')}>Genesis <code>{GENESIS.hash.slice(0, 16)}…</code>, built on Bitcoin block {GENESIS.anchor.height}.
         {GENESIS.status === 'bridge' && ' A bridge until the final genesis is mined on 31 October 2026; the board starts again then.'}</p>
     </section>
     </>}
 
-    <h3 className="pool-panel-mine-title">Keep mining for a better hash</h3>
+    <h3 className="pool-panel-mine-title" {...term('pool.mine-title')}>Keep mining for a better hash</h3>
     <p className="pool-panel-help">The simulator's blocks are easy. Here your browser searches on its own until you stop it, always for one more zero.</p>
 
     <div className="pool-panel-join">
-      <div className="pool-panel-name">
+      <div className="pool-panel-name" {...hint('pool.name')}>
         <label htmlFor="pool-panel-name">Name on the leaderboard</label>
         <input id="pool-panel-name" value={name} maxLength={20} autoComplete="nickname" spellCheck={false} disabled={joined}
           onChange={event => onNameChange(event.target.value)} onKeyDown={event => { if (event.key === 'Enter') join(); }}
@@ -288,18 +291,19 @@ export function PoolPanel({ name, onNameChange, onClose, onAccepted, refreshKey 
           ? <p id="pool-panel-name-error" className="pool-panel-error" role="alert">{nameRefused ? NAME_UNAVAILABLE_MESSAGE : NAME_HINT}</p>
           : <p id="pool-panel-name-help" className="pool-panel-help">{NAME_HINT} Shown publicly and part of every block. Names are not unique; others can mine using the same name.</p>}
       </div>
-      {joined ? <button className="btn btn-negative" onClick={stop}>Stop</button>
-        : <button className="btn btn-emphasized" onClick={join}>Join</button>}
+      {joined ? <button className="btn btn-negative" {...hint('pool.stop')} onClick={stop}>Stop</button>
+        : <button className="btn btn-emphasized" {...hint('pool.join')} onClick={join}>Join</button>}
     </div>
 
     <p className={`pool-panel-status${phase === 'unavailable' || phase === 'error' ? ' pool-panel-status-problem' : ''}`} role="status">{status}</p>
 
     <dl className="pool-panel-stats">
-      <div><dt>Round</dt><dd>{round ? <a href={blockLink(round.height)} target="_blank" rel="noreferrer">#{round.height}</a> : '—'}</dd></div>
-      <div><dt>Attempts this round</dt><dd>{formatNumber(stats.attempts)}</dd></div>
-      <div><dt>Hashes per second</dt><dd>{formatNumber(stats.rate)}</dd></div>
-      <div><dt>Accepted blocks</dt><dd>{formatNumber(stats.accepted)}</dd></div>
-      <div><dt>Your best this round</dt><dd>{stats.bestHash
+      <div><dt {...term('pool.round')}>Round</dt><dd>{round ? <a href={blockLink(round.height)} target="_blank" rel="noreferrer"
+        {...hint('pool.bitcoin-block', round.height)}>#{round.height}</a> : '—'}</dd></div>
+      <div><dt {...term('pool.attempts')}>Attempts this round</dt><dd>{formatNumber(stats.attempts)}</dd></div>
+      <div><dt {...term('pool.rate')}>Hashes per second</dt><dd>{formatNumber(stats.rate)}</dd></div>
+      <div><dt {...term('pool.accepted')}>Accepted blocks</dt><dd>{formatNumber(stats.accepted)}</dd></div>
+      <div><dt {...term('pool.best')}>Your best this round</dt><dd>{stats.bestHash
         ? `${leadingZeros(stats.bestHash)} · ${formatDifficulty(hashDifficulty(stats.bestHash))}` : '—'}</dd></div>
     </dl>
 

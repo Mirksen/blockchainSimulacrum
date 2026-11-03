@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { createBlockchain, DEFAULT_FEE, DEFAULT_FEE_RATE, FEE_RATES } from '../lib/blockchain';
-import { runSearch } from '../lib/powSearch';
+import { createSearchControl, runSearch } from '../lib/powSearch';
 import { MIN_DIFFICULTY, MAX_DIFFICULTY } from '../lib/difficulty';
 import { telemetry, failureCode } from '../lib/telemetry';
 import { loadChain, saveChain } from '../lib/chainStore';
@@ -53,7 +53,7 @@ export function useBlockchain(config = {}, { storage = null } = {}) {
     // rendering reads a fresh snapshot published after each model change.
     const [controller] = useState(() => {
         const saved = storage ? loadChain(storage) : null;
-        return { chain: saved ?? createBlockchain(config), restored: Boolean(saved), config, run: null, setup: null, backed: null, signer: null };
+        return { chain: saved ?? createBlockchain(config), restored: Boolean(saved), config, run: null, setup: null, backed: null, signer: null, slow: false };
     });
     const [view, setView] = useState(() => snapshot(controller.chain));
     const [saveState, setSaveState] = useState(storage ? 'saved' : 'unavailable');
@@ -66,6 +66,11 @@ export function useBlockchain(config = {}, { storage = null } = {}) {
     const [selectedBlock, setSelectedBlock] = useState(null);
     const [backedMiner, setBackedMiner] = useState(null);
     const [lastDifficultyChange, setLastDifficultyChange] = useState(null);
+    // Slow motion: the race tries one nonce every SLOW_MS until it is switched off or the race ends.
+    const [slowMotion, setSlowMotionState] = useState(false);
+    // This session's luck per miner (by public key): blocks won and the sum of its shares
+    // at the end of each race, the blocks it should have won on average.
+    const [minerLuck, setMinerLuck] = useState({ races: 0, perMiner: {} });
     const publish = useCallback(() => {
         setView(snapshot(controller.chain));
         if (storage) setSaveState(saveChain(storage, controller.chain));
@@ -125,14 +130,31 @@ export function useBlockchain(config = {}, { storage = null } = {}) {
         setHashAttempts([]);
         const attempts = [];
         const start = run.startedAt;
+        let candidates;
+        // Each miner's current rate: attempts per second over the last quarter second or more,
+        // smoothed, so a share change shows within a second instead of in the race average.
+        const pace = {};
+        const rateNow = (name, iterations, now) => {
+            const last = pace[name];
+            // A new round of the search (next extraNonce) counts from zero again: start over.
+            if (!last || iterations < last.iterations) { pace[name] = { iterations, at: now, rate: last?.rate ?? null }; return pace[name].rate; }
+            if (now - last.at < 250) return last.rate;
+            const recent = (iterations - last.iterations) / ((now - last.at) / 1000);
+            pace[name] = { iterations, at: now, rate: last.rate === null ? recent : (last.rate + recent) / 2 };
+            return pace[name].rate;
+        };
         // All three updates happen in one synchronous callback, so React batches
         // them into a single render per progress event.
         const report = (entrantProgress, featured, total) => {
             const elapsedMs = Date.now() - start;
             setMinerProgress(Object.fromEntries(miners.map(miner => {
                 const entrant = entrantProgress[miner.name];
+                const rate = rateNow(miner.name, entrant.attempts, Date.now());
+                // stream, best and zeroCounts cover this search; header is the candidate's first 76 bytes.
                 return [miner.name, { nonce: entrant.nonce, hash: entrant.hash, iterations: entrant.attempts,
-                    zeros: entrant.zeros, peakZeros: entrant.peakZeros ?? entrant.zeros, elapsedMs }];
+                    zeros: entrant.zeros, peakZeros: entrant.peakZeros ?? entrant.zeros, elapsedMs, rate,
+                    stream: entrant.stream ?? [], best: entrant.best ?? null, zeroCounts: entrant.zeroCounts ?? [],
+                    header: candidates?.get(miner.name)?.header ?? null }];
             })));
             const lead = entrantProgress[featured];
             setMiningProgress({ nonce: lead.nonce, hash: lead.hash, iterations: total, elapsedMs });
@@ -148,15 +170,16 @@ export function useBlockchain(config = {}, { storage = null } = {}) {
             // expensive mining.
             let round = 0;
             let earlier = 0; // Attempts of finished rounds.
-            let candidates;
             let result;
+            // Hashpower and slow motion change while the race runs, through this control.
+            run.control = createSearchControl({ weights: Object.fromEntries(miners.map(miner => [miner.name, miner.hashpower])), slow: controller.slow });
             do {
                 candidates = prepare(round++);
                 result = await runSearch({
                     // Each miner tries `hashpower` consecutive nonces per turn from its own random start.
                     entrants: miners.map(miner => ({ id: miner.name, weight: miner.hashpower,
                         header: candidates.get(miner.name).header, startNonce: Math.floor(Math.random() * 10000) + 1 })),
-                    bits: candidates.get(miners[0].name).bits, signal: run.stop.signal,
+                    bits: candidates.get(miners[0].name).bits, signal: run.stop.signal, control: run.control, detail: true,
                     onProgress: progress => {
                         if (!isCurrent()) return;
                         run.attempts = earlier + progress.attempts;
@@ -175,6 +198,12 @@ export function useBlockchain(config = {}, { storage = null } = {}) {
             remember([{ id: result.winner, nonce: result.nonce, hash: result.hash }]);
             report(result.entrants, result.winner, run.attempts);
             setRaceWinner(result.winner);
+            const total = miners.reduce((sum, miner) => sum + miner.hashpower, 0);
+            setMinerLuck(luck => ({ races: luck.races + 1, perMiner: Object.fromEntries([...Object.entries(luck.perMiner),
+                ...miners.map(miner => {
+                    const before = luck.perMiner[miner.publicKey] ?? { won: 0, expected: 0 };
+                    return [miner.publicKey, { won: before.won + (miner.name === result.winner ? 1 : 0), expected: before.expected + miner.hashpower / total }];
+                })]) }));
             publish();
             run.finished = true;
             if (run.tracked) void telemetry.track('mining_completed', { ...miningMetrics(run), block_height: chain.blockArray.length - 1 });
@@ -186,6 +215,12 @@ export function useBlockchain(config = {}, { storage = null } = {}) {
             void telemetry.reportError(error, 'mining', true);
             return { success: false, error: error.message, code: 'unexpected' };
         } finally {
+            // Slow motion is one look at one race: it ends with that race, found, paused or
+            // stale, so Auto-mine's next block and every later race run at full speed again.
+            if (controller.slow) {
+                controller.slow = false;
+                setSlowMotionState(false);
+            }
             if (controller.run === run) {
                 controller.run = null;
                 setIsMining(false);
@@ -379,11 +414,17 @@ export function useBlockchain(config = {}, { storage = null } = {}) {
         setBackedMiner(name);
         return { success: true, error: null };
     }, [controller]);
-    const resetBlockchain = useCallback(() => {
+    // A reset keeps the settings. `miningDifficulty` starts the new chain at another
+    // difficulty: lowering it manually is only allowed together with a new chain, so
+    // a chain of easier blocks never outgrows one that took more work (ADR 0004).
+    const resetBlockchain = useCallback(({ miningDifficulty: next } = {}) => {
         const previous_block_count = controller.chain.blockArray.length - 1;
         cancelMining('reset');
         void telemetry.track('chain_reset', { previous_block_count });
-        const { miningDifficulty, halvingEvent } = controller.chain;
+        const { miningDifficulty: previous, halvingEvent } = controller.chain;
+        const valid = Number.isInteger(next) && next >= MIN_DIFFICULTY && next <= MAX_DIFFICULTY;
+        const miningDifficulty = valid ? next : previous;
+        if (miningDifficulty !== previous) void telemetry.track('difficulty_changed', { previous, value: miningDifficulty });
         controller.chain = createBlockchain({ ...controller.config, miningDifficulty, halvingEvent });
         controller.restored = false;
         setSelectedBlock(null);
@@ -394,6 +435,7 @@ export function useBlockchain(config = {}, { storage = null } = {}) {
         controller.backed = null;
         setBackedMiner(null);
         setLastDifficultyChange(null);
+        setMinerLuck({ races: 0, perMiner: {} });
         publish();
     }, [cancelMining, controller, publish]);
     const generateRandomTransactions = useCallback(() => {
@@ -431,20 +473,27 @@ export function useBlockchain(config = {}, { storage = null } = {}) {
         publish();
         void telemetry.track('settings_changed', { setting: 'miner_enabled', value: miner.minerEnabled });
     }, [controller, publish]);
-    const setMinerHashpower = useCallback((name, value) => {
-        if (controller.run || controller.setup || !Number.isFinite(Number(value))) return;
+    // A miner's share of the enabled miners' hashpower, in percent; the others give way in
+    // proportion. Also during a race: the running search takes the new weights from its next turn.
+    const setMinerShare = useCallback((name, percent) => {
         const miner = controller.chain.getParticipantByName(name);
-        if (!miner?.isMiner) return;
-        const n = Math.max(1, Math.min(10, Math.round(Number(value))));
-        if (n === miner.hashpower) return;
-        controller.chain.setMinerHashpower(name, n);
+        if (!miner?.isMiner || !miner.minerEnabled) return;
+        const before = controller.chain.getActiveMiners().map(p => p.hashpower).join();
+        const weights = controller.chain.setMinerShare(name, percent);
+        if (!weights || controller.chain.getActiveMiners().map(p => p.hashpower).join() === before) return;
+        controller.run?.control?.update({ weights });
         publish();
-        void telemetry.track('settings_changed', { setting: 'hashpower', value: n });
+        void telemetry.track('settings_changed', { setting: 'hashpower', value: miner.hashpower });
     }, [controller, publish]);
+    const setSlowMotion = useCallback(on => {
+        controller.slow = Boolean(on);
+        controller.run?.control?.update({ slow: controller.slow });
+        setSlowMotionState(controller.slow);
+    }, [controller]);
     const getActiveMiners = useCallback(() => controller.chain.getActiveMiners(), [controller]);
     return { ...view, restored: controller.restored, saveState, isMining, isSettingUp, miningProgress, minerProgress, raceWinner, hashAttempts, selectedBlock,
-        backedMiner, lastDifficultyChange,
+        backedMiner, lastDifficultyChange, slowMotion, minerLuck,
         setSelectedBlock, createTransaction, previewTransaction, mineBlock, mineEmptyBlock: mineBlock, setupInitialDistribution,
         generateRandomTransactions, setDifficulty, setHalvingInterval, tamperBlock, undoTamper, remineBlock,
-        resetBlockchain, cancelMining, toggleMiner, setMinerHashpower, getActiveMiners, createWallet, createMiner, renameMiner, backMiner, setSigner };
+        resetBlockchain, cancelMining, toggleMiner, setMinerShare, setSlowMotion, getActiveMiners, createWallet, createMiner, renameMiner, backMiner, setSigner };
 }

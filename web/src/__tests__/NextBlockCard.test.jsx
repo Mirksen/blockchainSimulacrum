@@ -64,16 +64,16 @@ describe('NextBlockCard', () => {
 
   it('the share follows hashpower, so a miner without a measured rate still has its share', () => {
     const three = [{ name: 'Lars', hashpower: 5, hashrate: 12000 }, { name: 'Minas', hashpower: 5, hashrate: 9000 }, { name: 'Hal', hashpower: 10 }];
-    render(<NextBlockCard {...base} mode="idle" miners={three} onHashpower={vi.fn()} />);
+    render(<NextBlockCard {...base} mode="idle" miners={three} onShare={vi.fn()} />);
     expect(card().textContent).not.toContain('Odds per block');
     expect(document.querySelector('.next-block-lanes').classList.contains('is-compact')).toBe(true);
     const shareOf = name => {
-      fireEvent.click(screen.getByRole('button', { name: `${name}: rename or change hashpower` }));
-      const editor = screen.getByRole('group', { name: `Edit miner ${name}` });
-      return within(editor).getByLabelText(/^Chance to find the next block/).textContent;
+      fireEvent.click(screen.getByRole('button', { name: `${name}: hashpower, attempts and name` }));
+      const popover = screen.getByRole('group', { name: `Miner ${name}` });
+      return within(popover).getByRole('slider').getAttribute('aria-valuetext');
     };
-    expect(shareOf('Lars')).toBe('25 %');
-    expect(shareOf('Hal')).toBe('50 %');
+    expect(shareOf('Lars')).toBe('25 %, 25 % chance to find the next block');
+    expect(shareOf('Hal')).toBe('50 %, 50 % chance to find the next block');
   });
 
   it('Create miner shows the refusal and is disabled while the race is full', () => {
@@ -185,6 +185,18 @@ describe('NextBlockCard', () => {
     } finally { cleanup(); vi.useRealTimers(); }
   });
 
+  it('mining in slow motion: the header says so and offers Normal speed', () => {
+    const onSlowMotion = vi.fn();
+    const { rerender } = render(<NextBlockCard {...base} mode="mining" race={race} slowMotion onSlowMotion={onSlowMotion} />);
+    expect(card().textContent).toContain('Slow motion · 4 tries/s');
+    expect(card().textContent).not.toContain('Mining block #5…');
+    fireEvent.click(screen.getByRole('button', { name: 'Normal speed' }));
+    expect(onSlowMotion).toHaveBeenCalledWith(false);
+    rerender(<NextBlockCard {...base} mode="mining" race={race} onSlowMotion={onSlowMotion} />);
+    expect(card().textContent).toContain('Mining block #5…');
+    expect(screen.queryByRole('button', { name: 'Normal speed' })).toBeNull();
+  });
+
   it('mining: Play becomes Pause, the live race shows checked hashes and time', () => {
     const onPause = vi.fn();
     render(<NextBlockCard {...base} mode="mining" race={race} backedMiner="Minas" onPause={onPause} />);
@@ -286,19 +298,19 @@ describe('NextBlockCard', () => {
   });
 });
 
-describe('NextBlockCard miner editor', () => {
+describe('NextBlockCard miner popover', () => {
   const racers = [{ name: 'Lars', hashpower: 5 }, { name: 'Minas', hashpower: 3 }, { name: 'Hal', hashpower: 4 }];
   const openEditor = name => {
-    const who = screen.getByRole('button', { name: `${name}: rename or change hashpower` });
+    const who = screen.getByRole('button', { name: `${name}: hashpower, attempts and name` });
     fireEvent.click(who);
     expect(who.getAttribute('aria-expanded')).toBe('true');
-    return screen.getByRole('group', { name: `Edit miner ${name}` });
+    return screen.getByRole('group', { name: `Miner ${name}` });
   };
 
   it('renames a miner with Enter and closes the editor', () => {
     const onRenameMiner = vi.fn(() => ({ success: true, error: null }));
     render(<NextBlockCard {...base} mode="idle" lastRound={lastRound} onRenameMiner={onRenameMiner} />);
-    expect(screen.queryByRole('group', { name: /^Edit miner/ })).toBeNull();
+    expect(screen.queryByRole('group', { name: /^Miner / })).toBeNull();
     const editor = openEditor('Minas');
     const name = within(editor).getByRole('textbox', { name: 'Name' });
     expect(name.value).toBe('Minas');
@@ -306,7 +318,7 @@ describe('NextBlockCard miner editor', () => {
     fireEvent.keyDown(name, { key: 'Enter' });
     expect(onRenameMiner).toHaveBeenCalledTimes(1);
     expect(onRenameMiner).toHaveBeenCalledWith('Minas', 'Quill');
-    expect(screen.queryByRole('group', { name: /^Edit miner/ })).toBeNull();
+    expect(screen.queryByRole('group', { name: /^Miner / })).toBeNull();
   });
 
   it('commits the name when the field is left and skips an unchanged name', () => {
@@ -332,46 +344,81 @@ describe('NextBlockCard miner editor', () => {
     expect(alert.textContent).toBe('A wallet named Minas already exists.');
     expect(name.getAttribute('aria-invalid')).toBe('true');
     expect(name.getAttribute('aria-describedby')).toBe(alert.id);
-    expect(screen.getByRole('group', { name: 'Edit miner Lars' })).toBeTruthy();
+    expect(screen.getByRole('group', { name: 'Miner Lars' })).toBeTruthy();
     // Typing again clears the error.
     fireEvent.change(name, { target: { value: 'Quill' } });
     expect(within(editor).queryByRole('alert')).toBeNull();
   });
 
-  it('sets the hashpower with a slider from 1 to 10 and shows the share of all hashpower', () => {
-    const onHashpower = vi.fn();
-    const { rerender } = render(<NextBlockCard {...base} mode="idle" miners={racers} onHashpower={onHashpower} />);
-    const editor = openEditor('Lars');
-    const slider = within(editor).getByRole('slider');
-    expect(slider.getAttribute('min')).toBe('1');
-    expect(slider.getAttribute('max')).toBe('10');
-    expect(slider.value).toBe('5');
+  it('sets the share with a slider from 5 to 90 % and shows what the others keep', () => {
+    const onShare = vi.fn();
+    const { rerender } = render(<NextBlockCard {...base} mode="idle" miners={racers} onShare={onShare} />);
+    const popover = openEditor('Lars');
+    const slider = within(popover).getByRole('slider', { name: "Lars's share of the hashpower" });
+    expect(slider.getAttribute('min')).toBe('5');
+    expect(slider.getAttribute('max')).toBe('90');
     // 5 of 12 rounds to 42 %.
-    expect(within(editor).getByLabelText(/^Chance to find the next block/).textContent).toBe('42 %');
-    expect(slider.getAttribute('aria-valuetext')).toBe('42 % chance to find the next block');
-    fireEvent.change(slider, { target: { value: '9' } });
-    expect(onHashpower).toHaveBeenCalledWith('Lars', 9);
-    rerender(<NextBlockCard {...base} mode="idle" miners={[{ name: 'Lars', hashpower: 9 }, ...racers.slice(1)]} onHashpower={onHashpower} />);
-    // 9 of 16 rounds to 56 %.
-    expect(screen.getByLabelText(/^Chance to find the next block/).textContent).toBe('56 %');
+    expect(slider.value).toBe('42');
+    expect(slider.getAttribute('aria-valuetext')).toBe('42 %, 42 % chance to find the next block');
+    expect(popover.textContent).toContain('Takes from the others in proportion: Minas 25 % · Hal 33 %');
+    fireEvent.change(slider, { target: { value: '60' } });
+    expect(onShare).toHaveBeenCalledWith('Lars', 60);
+    rerender(<NextBlockCard {...base} mode="idle" miners={[{ name: 'Lars', hashpower: 60 }, { name: 'Minas', hashpower: 17 }, { name: 'Hal', hashpower: 23 }]} onShare={onShare} />);
+    expect(within(screen.getByRole('group', { name: 'Miner Lars' })).getByRole('slider').value).toBe('60');
+  });
+
+  it('opens the miner drawer from the popover', () => {
+    const onOpenMiner = vi.fn();
+    render(<NextBlockCard {...base} mode="idle" miners={racers} onShare={vi.fn()} onOpenMiner={onOpenMiner} />);
+    fireEvent.click(within(openEditor('Hal')).getByRole('button', { name: 'All details →' }));
+    expect(onOpenMiner).toHaveBeenCalledWith('Hal');
   });
 
   it('closes with Escape and opens one editor at a time', () => {
-    render(<NextBlockCard {...base} mode="idle" miners={racers} onHashpower={vi.fn()} onRenameMiner={vi.fn()} />);
+    render(<NextBlockCard {...base} mode="idle" miners={racers} onShare={vi.fn()} onRenameMiner={vi.fn()} />);
     const editor = openEditor('Lars');
     openEditor('Hal');
-    expect(screen.getAllByRole('group', { name: /^Edit miner/ })).toHaveLength(1);
-    expect(screen.queryByRole('group', { name: 'Edit miner Lars' })).toBeNull();
+    expect(screen.getAllByRole('group', { name: /^Miner / })).toHaveLength(1);
+    expect(screen.queryByRole('group', { name: 'Miner Lars' })).toBeNull();
     expect(editor.isConnected).toBe(false);
-    fireEvent.keyDown(within(screen.getByRole('group', { name: 'Edit miner Hal' })).getByRole('slider'), { key: 'Escape' });
-    expect(screen.queryByRole('group', { name: /^Edit miner/ })).toBeNull();
+    fireEvent.keyDown(within(screen.getByRole('group', { name: 'Miner Hal' })).getByRole('slider'), { key: 'Escape' });
+    expect(screen.queryByRole('group', { name: /^Miner / })).toBeNull();
   });
 
-  it('offers no editor during a race or without handlers', () => {
-    const { rerender } = render(<NextBlockCard {...base} mode="mining" race={race} onRenameMiner={vi.fn()} onHashpower={vi.fn()} />);
-    expect(screen.queryByRole('button', { name: /rename or change hashpower/ })).toBeNull();
+  it('opens during a race too, with the share and the newest attempts but no name field', () => {
+    const live = { ...race, perMiner: { ...race.perMiner, Lars: { ...race.perMiner.Lars, elapsedMs: 3400,
+      stream: [{ nonce: 3217, hash: '1f00aa', zeros: 0 }, { nonce: 3218, hash: '0a11bb', zeros: 1 }] } } };
+    const onShare = vi.fn();
+    render(<NextBlockCard {...base} mode="mining" race={live} miners={[{ name: 'Lars', hashpower: 5 }, { name: 'Minas', hashpower: 5 }]}
+      onRenameMiner={vi.fn()} onShare={onShare} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Lars: hashpower and attempts' }));
+    const popover = screen.getByRole('group', { name: 'Miner Lars' });
+    expect(within(popover).queryByRole('textbox', { name: 'Name' })).toBeNull();
+    fireEvent.change(within(popover).getByRole('slider'), { target: { value: '70' } });
+    expect(onShare).toHaveBeenCalledWith('Lars', 70);
+    const rows = within(within(popover).getByRole('table', { name: 'Newest attempts of Lars' })).getAllByRole('row').slice(1);
+    // Newest first.
+    expect(rows.map(row => row.textContent)).toEqual(['3,2180a11bb1', '3,2171f00aa0']);
+  });
+
+  it('shows the attempts of every miner side by side with All streams', () => {
+    const live = { ...race, perMiner: { Lars: { ...race.perMiner.Lars, stream: [{ nonce: 3218, hash: '00ffee', zeros: 2 }] },
+      Minas: { ...race.perMiner.Minas, stream: [{ nonce: 1048, hash: 'abcdef', zeros: 0 }] } } };
+    render(<NextBlockCard {...base} mode="mining" race={live} onShare={vi.fn()} />);
+    const toggle = screen.getByRole('button', { name: 'All streams' });
+    expect(toggle.getAttribute('aria-pressed')).toBe('false');
+    fireEvent.click(toggle);
+    const wall = screen.getByLabelText('Attempts of every miner');
+    expect(within(wall).getByRole('table', { name: 'Newest attempts of Lars' }).textContent).toContain('00ffee');
+    expect(within(wall).getByRole('table', { name: 'Newest attempts of Minas' }).textContent).toContain('abcdef');
+    expect(screen.getByRole('button', { name: 'Hide streams' }).getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('offers no popover without handlers', () => {
+    const { rerender } = render(<NextBlockCard {...base} mode="mining" race={race} />);
+    expect(screen.queryByRole('button', { name: /hashpower and attempts/ })).toBeNull();
     rerender(<NextBlockCard {...base} mode="idle" lastRound={lastRound} />);
-    expect(screen.queryByRole('button', { name: /rename or change hashpower/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /hashpower, attempts and name/ })).toBeNull();
   });
 });
 

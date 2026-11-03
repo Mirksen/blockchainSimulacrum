@@ -242,14 +242,14 @@ export function healthSummary(views) {
 
 // Text of the candidate in each state.
 export function candidateCopy(candidate) {
-  const { index, txCount = 0, state = 'idle', elapsedMs, attempts } = candidate;
+  const { index, txCount = 0, state = 'idle', elapsedMs, attempts, slow = false } = candidate;
   const tx = `${txCount} tx`;
   switch (state) {
     case 'mining': {
       const elapsed = formatSeconds((elapsedMs ?? 0) / 1000);
       const tries = Number.isFinite(attempts) ? attempts.toLocaleString('en-US') : null;
-      return { tag: 'mining', time: elapsed, what: tx, tries, down: 'Race below',
-        label: `Candidate block ${index}, being mined for ${elapsed.replace(' s', ' seconds')}, ${txCount} transactions${tries ? `, ${tries} tries so far` : ''}` };
+      return { tag: slow ? 'slow motion' : 'mining', time: elapsed, what: tx, tries, down: 'Race below',
+        label: `Candidate block ${index}, being mined${slow ? ' in slow motion' : ''} for ${elapsed.replace(' s', ' seconds')}, ${txCount} transactions${tries ? `, ${tries} tries so far` : ''}` };
     }
     case 'paused':
       return { tag: 'paused', time: 'not mined', what: `${tx} waiting`, down: 'Repair below',

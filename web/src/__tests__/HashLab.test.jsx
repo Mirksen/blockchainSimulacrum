@@ -74,4 +74,9 @@ describe('HashLab independent interaction', () => {
     await act(async () => { await vi.runAllTimersAsync(); });
     expect(screen.queryByRole('status')).toBeNull();
   });
+  it('explains the search in a hint bubble', () => {
+    render(<HashLab onClose={() => {}} />);
+    expect(screen.getByRole('button', { name: 'Find a nonce' }).closest('[data-hint]').getAttribute('data-hint'))
+      .toContain('starting at the nonce shown, until the fingerprint meets the target. It checks at most 50,000 candidates');
+  });
 });

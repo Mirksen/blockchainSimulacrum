@@ -40,8 +40,10 @@ missing:
 Workbench difficulty is selectable from 1 to 10 leading hexadecimal zeros in
 both the card stepper and Settings. The upper settings are experiments, even
 when a block is impractical to find. Each extra zero means 16 times the expected
-attempts. Pause stops the active search without committing an unfinished block;
-the user can then lower the difficulty and start a new search.
+attempts. Pause stops the active search without committing an unfinished block.
+Raising the difficulty keeps the chain; lowering it by hand starts a new chain
+after a confirmation dialog, so a longer chain always took more work (ADR 0004).
+The automatic adjustment every 10 blocks may lower it without one.
 
 ## Language and tone
 
@@ -60,6 +62,32 @@ show stays out.
 
 Titles carry no full stop. Numbers use tabular figures; hashes and amounts
 use the monospace font.
+
+### Hints
+
+Every control and every term a beginner may not know explains itself on
+mouse hover and keyboard focus (Mirko, 2026-11-03). The reader has never
+mined a block: a hint says what the thing is, what a click does and why it
+matters, in one to three plain sentences (at most 320 characters), and is
+as exact as the code. "Back Hal" says "Bet on Hal to win the next race, just
+for fun: nothing is at stake", not "Back this miner".
+
+- The texts live in `src/lib/hints/` (one catalog per area); components take
+  them with `hint(key)` for controls and `term(key)` for words and labels.
+  `term()` adds a quiet dotted underline, so a learner sees what explains
+  itself. An unknown key throws.
+- One bubble (`HintLayer`, mounted once in `App.jsx`) shows them, in the top
+  layer above dialogs. Escape, a click and scrolling close it.
+- Touch screens have no hover (Mirko, 2026-11-03), so a tap on a control
+  stays a plain click. A tap on a term that is not itself a control opens its
+  bubble. For everything else the top bar shows a "?" (explain mode) where the
+  primary pointer cannot hover: while it is on, a clear layer catches every
+  tap and explains what lies under the finger, and a banner at the bottom
+  ends it with Done. Nothing acts until then.
+- A control that can be disabled carries its hint on a `.hint-wrap` span.
+- Native `title` stays only where it reveals raw data (a full txid) and
+  inside the chain tiles and links, which have their own tooltip; elsewhere
+  it never explains.
 
 ## Information architecture
 
@@ -140,7 +168,21 @@ decision, 2026-10-27):
   most blocks, latest find. It pauses on hover and focus, is static under
   `prefers-reduced-motion`, invites to the first block while the board is
   empty and disappears quietly when the leaderboard server is unavailable.
-  Clicking it opens the Leaderboard tab.
+  Clicking it opens the Leaderboard tab. The visitor's own row shows their
+  name in the accent with a quiet "you". Below 1024 px it stays at the top
+  while the page scrolls ("Screen sizes").
+- **Record celebration** (Mirko, 2026-11-03): when a block of this browser
+  is accepted and the all-time board afterwards shows a record for the
+  visitor's name, a card drops in at the top with a confetti burst and a
+  short fanfare (with Sound on): "You are on the leaderboard!" (first time
+  on the board), "New rank: #N" (a better rank), "Rank #1 of all time!" or
+  "New best: N zeros" (more leading zeros at the same rank). It names the
+  rank or zeros in a gold badge and the visitor's name, offers
+  "Leaderboard" (the visitor's profile) and ×, closes after 6 s, on Escape
+  or with ×, holds while pointer or focus rest on it and never blocks the
+  page. The ticker's own refreshes and other miners' blocks celebrate
+  nothing. Under `prefers-reduced-motion` the card fades in without
+  confetti.
 - **Missions and the learning path are one track** (Mirko). The three guided
   experiments become missions; the learning path dialog goes away. A
   mission names the view it needs, switches to that tab and marks the
@@ -227,9 +269,43 @@ decision, 2026-10-27):
 - **Links between tiles are a 1 px hairline with a small neutral dot.** No
   icon, no badge, no color while intact. Hover explains the link ("Link
   intact · #3 stores the hash of #2"). Red or amber only when broken.
-- **Key figures** are one quiet line in the band header: average block time
-  against the target, difficulty, reward, next halving. No key-figure tile,
-  no chart in the band.
+- **Key figures teach the rules, not only the state** (Mirko, 2026-11-03,
+  workshop variants B + D with the forecast of A). They stay one line in the band
+  header, but every figure says what happens next, so a learner can predict the
+  next change and watch it come true. No key-figure tile, no chart in the band.
+  - **Pace:** a small meter (0 to twice the target, the band that keeps the
+    difficulty, a tick at the target, the average as a marker, amber outside the
+    band) and "last 5 avg 13.8 s / target 10 s". The average covers only the blocks
+    the next difficulty check measures, never the whole chain.
+  - **Difficulty check:** after every tenth block the last ten are averaged; under
+    70 % of the target adds a leading zero, over 150 % removes one, in between it
+    stays (`lib/difficulty.js`, the one rule for App and display). The line forecasts
+    it: "difficulty 6 → stays after #30" or "→ 7 after #30"; hover names the band.
+  - **Reward:** rounded to three significant digits, with the next halving as a
+    countdown: "reward 0.0488 → 0.0244 in 3 blocks".
+  - **On the chain:** each tile ends in a thin pace bar (its time against the target,
+    tick at the target, amber outside the band). Where a rule changed, the block
+    number carries a mark ("↑ difficulty 6" blue, "½ reward 0.0488" amber) and the link
+    into it becomes a dashed divider; hover names the cause ("the check after #20
+    measured 6.1 s per block" or "set by hand"). The candidate names what comes:
+    "check in 5" and "½ in 3" (hover: the forecast), or the difficulty already
+    changed for it.
+  - **The moment explains itself:** after a check changed the difficulty or a block
+    halved the reward, a calm note under the band header gives cause and effect
+    ("Difficulty rose from 5 to 6 after #20. Blocks #11–#20 took 6.1 s on average,
+    faster than 7 s …"). It stays for that block and the two after it or until "Got
+    it"; a difficulty the learner set by hand gets no note. Below 1024 px the notes
+    sit under the sticky compact band and scroll with the page, so the band keeps
+    its height.
+  - **Kept in view:** from 1024 px on, once the chain scrolls out of view, a slim
+    bar at the top of the main column repeats the key figures ("Chain #25" and the
+    line); it slides in and out, and appears without motion under reduced motion.
+    Below 1024 px the compact band with its short key figures stays at the top
+    itself, so there is no second bar. The compact tiles keep the pace bar and the
+    dashed divider; their marks and the candidate's forecast stay on wide screens.
+  - **Hover explains:** every figure and mark carries its hint (`chain.block-time`,
+    `chain.check`, `chain.reward`, `chain.change`) with the rule and the forecast
+    in numbers.
 - **Chain health is one pill** beside the title, "Chain valid" or "Chain
   invalid": the only standing chain status in the product (Mirko,
   2026-11-03). A click on it shows the line "N of N hashes meet their target ·
@@ -269,21 +345,42 @@ decision, 2026-10-27):
   "Mining" between races, "Re-mine block #K" during a repair. Nothing else: not "Start demo",
   not during a race or a repeating run, not while typing, with Cmd/Ctrl/Alt, on key repeat or
   under an open dialog.
-- **Miner editor** (Mirko, 2026-11-03): between races a click on a miner's name opens a small
-  editor under its lane: a name for this session only (blocks and transactions store scripts, so
-  every view shows it; the color stays; a reset restores the defaults) and a hashpower slider
-  (1–10) labelled with the miner's share of all hashpower in percent, its chance to find the next
-  block. There is no standing odds line.
+- **Miner details** (Mirko, 2026-11-03, replaces the miner editor): a click on a miner's name
+  opens a **popover** under its lane, between races and during one: its **share** of the racing
+  miners' hashpower as a slider from 5 to 90 %, which is its chance to find the next block; the
+  others give way in their previous proportion. A change applies at once, also in a running race
+  from the miner's next turn, so its stream visibly speeds up or slows down. The popover shows the
+  attempts per second, what a block takes alone at that rate and its five newest attempts; between
+  races it also holds the name for this session (blocks and transactions store scripts, so every
+  view shows it; the color stays; a reset restores the defaults). "All details →" opens the
+  **miner drawer** at the right edge, beside the workbench (not modal; on wide screens the
+  workbench makes room): the share slider with the share bar of all miners, attempts per second,
+  chance, time alone and attempts this round; the **live attempts** (nonce, hash with the zeros
+  that meet the target green and the first character that does not red, zero count; newest first;
+  the honest note that the list shows the newest of each update), **Freeze** to read them and
+  **Slow motion** (one attempt every quarter second for the whole race, drawn by weight, each
+  explained step by step, with what a block takes at that pace). Slow motion is one look at one
+  race (Mirko, 2026-11-03): it ends when the block is found or the race is paused, when the drawer
+  closes or shows another miner, and when the learner leaves the workbench, so Auto-mine's next
+  block runs at full speed. While it is on, the Next block header says "Slow motion · 4 tries/s"
+  with "Normal speed" instead of "Mining block #N…", and the candidate tile says "slow motion";
+  the **best hash** of the round (the smallest); a **histogram** of the
+  round's attempts by leading zeros against what chance predicts (each zero 16 times rarer);
+  **luck** (blocks won against the summed share, only after five races this session); and
+  **what it hashes**: the header fields with the nonce ticking. Above 50 % a hint says the miner
+  could rewrite the chain and opens Competing branches in the Chain lab. During a race **All
+  streams** under the lanes shows every miner's attempts side by side, each with its slider. The
+  wallet details show the share and link to the drawer instead of a second slider.
 - **Create miner** (Mirko, 2026-11-02): a quiet "Create miner" link at the right under the lanes
   opens a name form under the lanes, like "Create wallet". The new miner is also a wallet, shares
-  the wallets' name rules, starts at 0 and races from the next block at hashpower 5 of 10; it
+  the wallets' name rules, starts at 0 and races from the next block with an equal share of the hashpower; it
   shows a lane and a wallet row at once. It is offered between races only, never during a live
   race or a repair. At most four miners race; from three on the lanes get slimmer so Mempool and
   Wallets keep their lists at the reference size.
 - **Wallets:** a narrow column with name and balance, sized for the five sample
   wallets plus one the learner creates; more wallets scroll inside the card and
   "Create wallet" stays in its header. Role, blocks won and hash rate appear
-  where the card is wider; blocks won and hashpower are in the wallet details.
+  where the card is wider; blocks won and the share of a miner are in the wallet details.
 - **Mempool:** pending transactions with their coins, change, fee, size and fee rate, one line
   each where the card is narrow, in the order the next block's miner takes them, and the coinbase
   line "added when #N is mined" with reward plus the fees of what fits. Under the header a quiet
@@ -351,8 +448,9 @@ it; type size never changes with the viewport.
 | ≥ 2200 wide | Content capped at ~2160 px and centered; the background continues. |
 | < 830 tall (e.g. 1366 × 657) | The page scrolls vertically; cards keep their density instead of squeezing. |
 | 1024–1279 wide | Collapsed Missions entry unless explicitly opened; tiles keep their width; the row scrolls sideways. Below 1200 the Block card stays left and Next block, Mempool and Wallets stack on the right; the page scrolls. |
-| 768–1023 wide | Mission rail becomes a bar on top; the chain becomes a vertical timeline (newest on top, candidate first); then Next block, Mempool, Block and Wallets, one under the other. |
-| < 768 wide | Phone: compact top bar, mission bar, vertical timeline, health line, key-figure line, then Next block, Mempool, Block, Wallets. The race sits directly under the chain. |
+| 768–1023 wide | Mission rail becomes a bar on top; the chain becomes the **compact band**: one sideways-swiping row of small purple blocks (number, time, miner, short hash; no tooltip), the candidate at its end, the "Chain valid" pill and short key figures above it. A tap holds a block like a click on a full tile. Then Next block, Mempool, Block and Wallets, one under the other. |
+| < 768 wide | Phone: compact top bar, mission bar, compact band, then Next block, Mempool, Block, Wallets. The race sits directly under the chain. |
+| < 1024 wide, scrolled | **The leaderboard ticker and the compact band stay at the top** (Mirko, 2026-11-03), the band right under the ticker, together at most 140 px; top bar and mission bar scroll away and the cards scroll beneath. They take their own room in the layout and never cover content at rest. Open checks add one line of pills under the small blocks. |
 
 No size scrolls sideways.
 
@@ -397,12 +495,14 @@ and validity states are semantic tokens.
 | Card | Panel surface, 1 px line, no shadow; header with title, status pill and at most one action |
 | Next block card | Miner name, primary action, Auto-mine, difficulty stepper, race lanes; live race state; repair state |
 | Repeat toggle | "Auto" with the repeat icon, joined right of its action; pressed takes the look of that action (filled beside Mining, tinted beside New transaction); the card gives height, border and outer corners |
-| Race lane | Miner, nonce, current hash with checked leading characters, progress, Back action, result |
+| Race lane | Miner (opens its popover), nonce, current hash with checked leading characters, progress, Back action, result |
+| Miner popover / drawer | Share slider, attempts per second, newest attempts; the drawer adds Freeze, Slow motion, best hash, zero histogram, luck and the header with its ticking nonce |
 | Coach ring | Ring plus small label on the element a mission step needs |
 | Key-value rows | Label, mono value, quiet explanation |
 | Wallet row | Avatar, name, role, hash rate for miners, balance in mono |
 | Mission rail | Open and collapsed forms, steps with done/current/locked |
 | Tooltip | Overlay surface, mono content, Copy |
+| Hint | Overlay surface, bold title, plain explaining text in the UI font, arrow to its element; one at a time (see "Hints") |
 
 Rules for every workbench component (`src/components/workbench/`):
 
