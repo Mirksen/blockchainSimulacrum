@@ -17,7 +17,9 @@ async function observeAudio(page) {
       const result = connect.call(this, destination, ...args);
       if (destination === this.context.destination) {
         const meter = this.context.createAnalyser();
-        meter.fftSize = 512;
+        // The largest window (about 0.7 s at 48 kHz): each read covers far more than the
+        // 8 ms between reads, so a timer delayed on a busy runner cannot miss the short cue.
+        meter.fftSize = 32768;
         connect.call(this, meter);
         meters.push(meter);
       }
