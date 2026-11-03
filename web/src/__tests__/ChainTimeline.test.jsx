@@ -21,7 +21,8 @@ function makeViews(statuses = {}) {
   });
   return buildBlockViews({ blocks, blockStatus, participants: people, tamperedEdits: [] });
 }
-const keyFigures = { avgSeconds: 3.875, targetSeconds: 10, difficulty: 2, reward: 1.5625, nextHalving: 8 };
+const keyFigures = { targetSeconds: 10, difficulty: 2, reward: 1.5625, nextHalving: 8, halvingInterval: 4,
+  pace: { seconds: 3.875, blocks: 3, from: 1, low: 7, high: 15 }, check: { at: 10, in: 6, next: 3 }, halving: { at: 8, in: 4, reward: 0.78125 } };
 
 function renderTimeline(props = {}) {
   const handlers = { onSelect: vi.fn(), onToggleHealth: vi.fn(), onOpenChainLab: vi.fn() };
@@ -91,6 +92,6 @@ describe('ChainTimeline', () => {
     const cells = within(screen.getByRole('list', { name: 'Checks per block' })).getAllByRole('listitem');
     expect(cells.map(cell => cell.getAttribute('aria-label').split(':')[0])).toEqual(['Block 5', 'Block 4', 'Block 3', 'Block 2', 'Block 1', 'Block 0']);
     expect(cells[0].getAttribute('aria-label')).toBe('Block 5: being mined');
-    expect(screen.getByLabelText('Key figures').textContent.replace(/\s+/g, ' ')).toBe('avg 3.9 s / target 10 s·difficulty 2·reward 1.5625·halving #8');
+    expect(screen.getByLabelText('Key figures').textContent.replace(/\s+/g, ' ')).toBe('3.9 s / 10 s·diff 2 → 3 at #10·reward 1.563 · ½ in 4');
   });
 });

@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { ChainBand } from './ChainBand';
 import { ChainTimeline } from './ChainTimeline';
 import { SelectedBlockCard } from './SelectedBlockCard';
@@ -10,7 +10,9 @@ import { ActivityCard } from './ActivityCard';
 import { BlockTransactions } from './BlockTransactions';
 import { buildBlockViews } from './blockView';
 import { MAX_MINERS } from '../../lib/blockchain';
-import { keyFiguresOf, rateOf, repairOf } from './workbenchModel';
+import { chainEventsOf, keyFiguresOf, rateOf, repairOf } from './workbenchModel';
+import { KeyFigureBar } from './KeyFigures';
+import { eventNote } from './keyFigureText';
 import { colorOf } from './minerColors';
 import './Workbench.css';
 
@@ -36,6 +38,19 @@ export function Workbench({
     [blocks, blockStatus, participants, tamperedEdits]);
   const repair = repairOf(blockStatus, tamperedEdits);
   const keyFigures = keyFiguresOf({ blocks, difficulty, blockReward, halvingInterval, targetSeconds });
+  const events = useMemo(() => chainEventsOf({ blocks, difficulty, targetSeconds }), [blocks, difficulty, targetSeconds]);
+  // A rule change explains itself for the block it applies to and the two after it,
+  // unless the learner set it or dismissed the note (web/DESIGN.md, "Key figures").
+  const [dismissed, setDismissed] = useState(() => new Set());
+  const notes = Object.values(events).flat()
+    .filter(event => event.index > height - 3)
+    .map(event => {
+      const note = eventNote(event, { halvingInterval, targetSeconds, coinName });
+      // Keyed by the block it follows, so a reset chain explains its own changes again.
+      return note && { ...note, key: `${note.key}@${blocks[event.index - 1]?.hash}` };
+    })
+    .filter(note => note && !dismissed.has(note.key));
+  const dismissNote = key => setDismissed(current => new Set(current).add(key));
   const nextIndex = blocks.length;
 
   const mode = busy ? 'mining' : fresh ? 'fresh' : repair ? 'repair' : 'idle';
@@ -100,14 +115,15 @@ export function Workbench({
   return (
     <>
     {error && <div role="alert" className="wb-error">{error}</div>}
+    <KeyFigureBar keyFigures={keyFigures} height={height} />
     <div className="wb-band">
       <ChainBand views={fresh ? views.slice(0, 1) : views} candidate={candidate} selectedIndex={selected} pinned={pinned} onSelect={onSelect}
-        keyFigures={keyFigures} healthOpen={healthOpen} onToggleHealth={onToggleHealth}
+        keyFigures={keyFigures} events={fresh ? {} : events} notes={notes} onDismissNote={dismissNote} healthOpen={healthOpen} onToggleHealth={onToggleHealth}
         coach={workbenchCoach} repairOrder={repairOrder} />
     </div>
     <div className="wb-timeline">
       <ChainTimeline views={views} candidate={candidate} selectedIndex={selected} pinned={pinned} onSelect={onSelect} onOpenChainLab={onOpenChainLab}
-        keyFigures={keyFigures} healthOpen={healthOpen} onToggleHealth={onToggleHealth}
+        keyFigures={keyFigures} notes={notes} onDismissNote={dismissNote} healthOpen={healthOpen} onToggleHealth={onToggleHealth}
         coach={workbenchCoach} repairOrder={repairOrder} />
     </div>
     <div className="wb-grid">

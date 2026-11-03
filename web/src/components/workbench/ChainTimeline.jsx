@@ -1,11 +1,12 @@
 import { useId, useState } from 'react';
 import { CoachMark } from './CoachMark';
 import {
-  CandidateCell, ChevronIcon, CopyButton, DownIcon, HashText, HealthCell, HealthLine, KeyFigures, ShortHash
+  CandidateCell, ChevronIcon, CopyButton, DownIcon, HashText, HealthCell, HealthLine, ShortHash
 } from './ChainBand';
 import {
   brokenBefore, candidateCopy, formatInterval, healthSummary, linkInto, ordinal, pendingLink, shortHash, stateOf, statusLabel
 } from './blockView';
+import { ChainEventNotes, KeyFigures } from './KeyFigures';
 import './ChainTimeline.css';
 
 // Chain as a vertical timeline for screens below 1024 px (web/DESIGN.md,
@@ -121,7 +122,7 @@ function Row({ view, views, newest, selected, pinned, open, onTap, repairPositio
 
 export function ChainTimeline({
   views = [], candidate = { index: 1, txCount: 0, state: 'idle' }, selectedIndex = null, pinned = true, onSelect, onOpenChainLab,
-  keyFigures, healthOpen = false, onToggleHealth, coach = null, repairOrder = []
+  keyFigures, notes = [], onDismissNote, healthOpen = false, onToggleHealth, coach = null, repairOrder = []
 }) {
   const stripId = useId();
   const [openIndex, setOpenIndex] = useState(null);
@@ -146,6 +147,7 @@ export function ChainTimeline({
         <span className="chain-timeline-sub">{count} {count === 1 ? 'block' : 'blocks'} · newest on top</span>
         <span className="chain-timeline-aside">tap a block for its hash</span>
       </div>
+      <ChainEventNotes notes={notes} onDismiss={onDismissNote} />
       <CoachMark target="workbench.chain" coach={coach}>
         <ol className="chain-timeline-list">
           <li className="chain-timeline-row is-cand">

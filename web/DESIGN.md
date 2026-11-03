@@ -220,9 +220,35 @@ decision, 2026-10-27):
 - **Links between tiles are a 1 px hairline with a small neutral dot.** No
   icon, no badge, no color while intact. Hover explains the link ("Link
   intact · #3 stores the hash of #2"). Red or amber only when broken.
-- **Key figures** are one quiet line in the band header: average block time
-  against the target, difficulty, reward, next halving. No key-figure tile,
-  no chart in the band.
+- **Key figures teach the rules, not only the state** (Mirko, 2026-11-03,
+  workshop variants B + D with the forecast of A). They stay one line in the band
+  header, but every figure says what happens next, so a learner can predict the
+  next change and watch it come true. No key-figure tile, no chart in the band.
+  - **Pace:** a small meter (0 to twice the target, the band that keeps the
+    difficulty, a tick at the target, the average as a marker, amber outside the
+    band) and "last 5 avg 13.8 s / target 10 s". The average covers only the blocks
+    the next difficulty check measures, never the whole chain.
+  - **Difficulty check:** after every tenth block the last ten are averaged; under
+    70 % of the target adds a leading zero, over 150 % removes one, in between it
+    stays (`lib/difficulty.js`, the one rule for App and display). The line forecasts
+    it: "difficulty 6 → stays after #30" or "→ 7 after #30"; hover names the band.
+  - **Reward:** rounded to three significant digits, with the next halving as a
+    countdown: "reward 0.0488 → 0.0244 in 3 blocks".
+  - **On the chain:** each tile ends in a thin pace bar (its time against the target,
+    tick at the target, amber outside the band). Where a rule changed, the block
+    number carries a mark ("↑ difficulty 6" blue, "½ reward 0.0488" amber) and the link
+    into it becomes a dashed divider; hover names the cause ("the check after #20
+    measured 6.1 s per block" or "set by hand"). The candidate names what comes:
+    "check in 5" and "½ in 3" (hover: the forecast), or the difficulty already
+    changed for it.
+  - **The moment explains itself:** after a check changed the difficulty or a block
+    halved the reward, a calm note under the band header gives cause and effect
+    ("Difficulty rose from 5 to 6 after #20. Blocks #11–#20 took 6.1 s on average,
+    faster than 7 s …"). It stays for that block and the two after it or until "Got
+    it"; a difficulty the learner set by hand gets no note.
+  - **Kept in view:** once the chain scrolls out of view, a slim bar at the top of
+    the main column repeats the key figures ("Chain #25" and the line); it slides
+    in and out, and appears without motion under reduced motion.
 - **Chain health is one pill** beside the title, "Chain valid" or "Chain
   invalid": the only standing chain status in the product (Mirko,
   2026-11-03). A click on it shows the line "N of N hashes meet their target ·
@@ -345,7 +371,7 @@ it; type size never changes with the viewport.
 | < 830 tall (e.g. 1366 × 657) | The page scrolls vertically; cards keep their density instead of squeezing. |
 | 1024–1279 wide | Collapsed Missions entry unless explicitly opened; tiles keep their width; the row scrolls sideways. Below 1200 the Block card stays left and Next block, Mempool and Wallets stack on the right; the page scrolls. |
 | 768–1023 wide | Mission rail becomes a bar on top; the chain becomes a vertical timeline (newest on top, candidate first); then Next block, Mempool, Block and Wallets, one under the other. |
-| < 768 wide | Phone: compact top bar, mission bar, vertical timeline, health line, key-figure line, then Next block, Mempool, Block, Wallets. The race sits directly under the chain. |
+| < 768 wide | Phone: compact top bar, mission bar, vertical timeline, health line, key-figure line (short form, also the kept-in-view bar), then Next block, Mempool, Block, Wallets. The race sits directly under the chain. |
 
 No size scrolls sideways.
 

@@ -164,8 +164,8 @@
 .chain-timeline-strip { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; margin: 2px 0 var(--s-2); }
 .chain-timeline-strip .chain-band-chk { justify-content: flex-start; padding: 0 10px; }
 .chain-timeline-strip .chain-band-chk.is-two { align-items: flex-start; }
-.chain-timeline-figs { margin: 0; height: 20px; overflow: hidden; text-overflow: ellipsis; font-size: 12px; line-height: 20px; color: var(--text-3); white-space: nowrap; }
-.chain-timeline-figs > span { display: inline-flex; gap: 6px; }
+.chain-timeline-figs { margin: 0; font-size: 12px; line-height: 20px; color: var(--text-3); }
+.chain-timeline-figs > .kf { flex-wrap: wrap; row-gap: 0; column-gap: 6px; }
 .chain-timeline-figs b { color: var(--text-2); font-weight: 600; }
 
 /* smallest phones (< 340 px of row): drop the time column, let the name shrink */

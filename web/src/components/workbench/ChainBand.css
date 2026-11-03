@@ -369,3 +369,30 @@ button.chain-band-health-sum:focus-visible { outline: 2px solid var(--focus); ou
 
 /* each check sits under its block */
 .chain-band-strip .chain-band-chk { flex: none; width: var(--chain-band-tile-w); }
+
+/* ---------- rule changes and pace (web/DESIGN.md "Key figures") ---------- */
+/* a mark beside the block number where a rule changed: difficulty (blue) or halving (amber) */
+.chain-band-num { display: flex; align-items: center; gap: var(--s-2); }
+.chain-band-epoch {
+  flex: none; display: inline-block; padding: 0 6px; border-radius: 8px;
+  font-size: 11px; line-height: 16px; font-weight: 500; white-space: nowrap; pointer-events: auto; cursor: help;
+  color: var(--text-2); background: var(--panel-3);
+}
+.chain-band-epoch.is-up, .chain-band-epoch.is-down { color: var(--coach); background: var(--blue-bg); }
+.chain-band-epoch.is-halving { color: var(--amber); background: var(--amber-bg); }
+/* the link into such a block becomes a dashed divider, up into the number row */
+.chain-band-link.is-epoch::after {
+  content: ""; position: absolute; top: calc(var(--chain-band-above) * -1 + 6px); bottom: 0;
+  left: calc(var(--block-depth) + (100% - var(--block-depth)) / 2);
+  border-left: 1px dashed var(--line-3);
+}
+/* the candidate names what the next blocks bring */
+.chain-band-ahead { display: flex; gap: 4px; min-width: 0; overflow: hidden; }
+/* each block's time against the target: thin bar at the foot, tick at the target */
+.chain-band-pace {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 3px; z-index: 1; pointer-events: none;
+  background: color-mix(in srgb, var(--blk-0-side) 70%, transparent);
+}
+.chain-band-pace i { position: absolute; left: 0; top: 0; bottom: 0; background: color-mix(in srgb, var(--blk-text) 62%, transparent); }
+.chain-band-pace.is-out i { background: var(--amber); }
+.chain-band-pace::after { content: ""; position: absolute; left: 50%; top: -2px; width: 1px; height: 5px; background: var(--blk-text); opacity: .7; }
