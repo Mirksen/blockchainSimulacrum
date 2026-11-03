@@ -15,6 +15,9 @@ export const WORKBENCH_HINTS = {
   'nav.hash-lab': { title: 'Hash lab', text: 'The hash function on its own. Type any text and see its fingerprint change completely, then search for a number (nonce) that makes the fingerprint start with zeros.' },
   'nav.chain-lab': { title: 'Chain lab', text: 'Three toy blocks you edit by hand. Change old data, watch the links break and repair them by re-mining. Also: competing branches and payment proofs.' },
   'nav.pool': { title: 'Leaderboard', text: 'A shared scoreboard for everyone on this site. Blocks you mine under your name are sent there; the hash with the most leading zeros ranks highest.' },
+  'menu.explain': on => ({ title: 'Explain mode', text: on
+    ? 'Explain mode is on: tap any button, number or word to see what it means. Tap here or Done to use the simulator again.'
+    : 'For touch screens. Turn it on, then tap any button, number or word to see what it means. Nothing you tap acts until you tap Done.' }),
   'menu.more': { title: 'More', text: 'Reset the simulation, open the settings, switch the sound and the light or dark theme.' },
   'menu.reset': { title: 'Reset', text: 'Start over: a new chain with only the genesis block and an empty mempool; added wallets and miners go. Difficulty, coin name, halving interval and block time stay as set; a workbench mission in progress starts its steps again.' },
   'menu.settings': { title: 'Settings', text: 'Coin name, mining difficulty, halving interval and target block time.' },

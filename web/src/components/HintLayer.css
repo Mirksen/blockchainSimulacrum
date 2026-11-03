@@ -20,6 +20,20 @@
 @keyframes hint-layer-in { from { opacity: 0; } to { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .hint-layer { animation: none; } }
 
+/* Explain mode (touch screens): a clear layer over the page catches every tap, so a tap
+   explains instead of acting; the page still scrolls under it. The banner names the mode
+   and ends it. Open modal dialogs stay above both and keep working. */
+.hint-help-catch { position: fixed; inset: 0; z-index: 900; background: transparent; cursor: help; }
+.hint-help-banner {
+  position: fixed; z-index: 910; left: 50%; bottom: max(12px, env(safe-area-inset-bottom));
+  transform: translateX(-50%); width: max-content; max-width: calc(100vw - 24px); box-sizing: border-box;
+  display: flex; align-items: center; gap: 12px; padding: 8px 8px 8px 14px;
+  border-radius: var(--r-lg); border: 1px solid var(--focus); background: var(--overlay); color: var(--text-2);
+  box-shadow: 0 18px 40px -10px var(--shadow); font: 13px/19px var(--ui);
+}
+.hint-help-banner b { color: var(--text); font-weight: 600; }
+.hint-help-banner .btn { flex: none; }
+
 /* A control that can be disabled carries its hint on this wrapper: a disabled button gets no
    reliable hover. It lays out like the button inside it. */
 .hint-wrap { display: inline-flex; }
