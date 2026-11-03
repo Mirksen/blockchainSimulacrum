@@ -73,7 +73,8 @@ Terms used in code, tests and docs of proofofwork.fyi. Decisions that shape them
 - **Wallet (created)** — a non-miner participant the learner adds with `chain.addWallet(name)`;
   2–16 letters or digits, unique regardless of letter case.
 - **Miner (created)** — a participant the learner adds with `chain.addMiner(name)`: a wallet that
-  also races, with the wallets' name rules and name space, hashpower 5 and no coins. It joins from
+  also races, with the wallets' name rules and name space, the average hashpower of the racing
+  miners (an equal share) and no coins. It joins from
   the next race; at most `MAX_MINERS` (4) miners, so next to the defaults Hal, Dorian and Laszlo
   one more; it takes the spare miner color. Not to be confused with the visitor's **miner name**
   on the leaderboard.
@@ -81,6 +82,13 @@ Terms used in code, tests and docs of proofofwork.fyi. Decisions that shape them
   wallets' name rules. Blocks and transactions store scripts, not names, so every view follows; the
   participant keeps its keys and its **color key** (fixed at creation). A reset restores the defaults.
 - **Backing** — the learner's pick of a miner before a race; the result reports `backedWon`.
+- **Hashpower / share** — a miner's `hashpower` is a weight of 1–100: the nonces it tries per turn.
+  Its **share** is its weight over the racing (enabled) miners' weights, in percent: its chance to
+  find the next block. `chain.setMinerShare(name, percent)` sets 5–90 % and gives the other racing
+  miners the rest in their previous proportion, so the weights add up to 100. It may change during a
+  race: the running search takes the new weights from the next turn.
+- **Luck** — per miner this session: blocks won against the sum of its shares at the end of each
+  race, the blocks it should have won on average. Not saved.
 
 - **Saved chain** — `web/src/lib/chainStore.js`: what the simulator keeps in `localStorage`
   (`proofofwork-chain`) to survive a reload: the blocks as stored (header fields and raw transaction
@@ -100,6 +108,13 @@ Terms used in code, tests and docs of proofofwork.fyi. Decisions that shape them
   and hashes only the tail. For a header that start is its first 64 bytes.
 - **Entrant** — one participant of a search (a miner, or the visitor in the pool) with a `weight`:
   the number of consecutive nonces it tries per round.
+- **Search control** — `createSearchControl()`: live settings of a running search, `weights` by
+  entrant id (from the next turn on) and `slow` (**slow motion**: one attempt every `SLOW_MS`,
+  entrants drawn by weight, every attempt reported). A worker search receives each update as a
+  message.
+- **Search detail** — with `detail`, each entrant's snapshot also carries its **stream** (the newest
+  `STREAM_LIMIT` attempts), its **best** attempt (the smallest hash) and `zeroCounts` (attempts by
+  leading zeros, the last bucket holding `COUNT_ZEROS` or more). The miner race uses it.
 
 ## Labs
 

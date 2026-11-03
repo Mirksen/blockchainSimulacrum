@@ -39,7 +39,7 @@ export class Participant {
     this.seedPhrase = wallet.seedPhrase;
     // Miner properties
     this.isMiner = isMiner;
-    this.hashpower = 5; // 1-10 scale, affects mining speed
+    this.hashpower = 5; // A weight (1–100): the nonces the miner tries per turn; its share of all weights is its chance
     this.minerEnabled = true; // Can toggle miner on/off
     this.blocksWon = 0; // Counter for blocks mined
     this.activeMiner = false; // Legacy compatibility
@@ -119,6 +119,12 @@ function proofProblem(candidate, nonce, hash) {
 const WALLET_NAME = /^[A-Za-z0-9]{2,16}$/;
 // Race lanes stay readable in the Next block card up to this many miners.
 export const MAX_MINERS = 4;
+// Hashpower is a weight of 1–100; a learner sets a miner's share of the enabled miners'
+// hashpower in percent, between MIN_SHARE and MAX_SHARE.
+export const MAX_HASHPOWER = 100;
+export const MIN_SHARE = 5;
+export const MAX_SHARE = 90;
+const clampHashpower = value => Math.max(1, Math.min(MAX_HASHPOWER, Math.round(Number(value) || 5)));
 export const DEFAULT_FEE = 0.00000001;
 // Block space, scaled down from Bitcoin's so that a few transfers already compete for it:
 // a block is at most MAX_BLOCK_BYTES, of which BLOCK_RESERVED_BYTES stay free for the
@@ -192,9 +198,14 @@ export class Blockchain {
     if (this.participants.filter(p => p.isMiner).length >= MAX_MINERS) {
       return { success: false, error: `At most ${MAX_MINERS} miners race in this simulation.` };
     }
+    // The new miner joins with the average hashpower of the enabled miners: an equal share.
+    const racing = this.getActiveMiners();
     const result = this.addNamed(name, true);
     // Three default miners leave room for one more: it gets the spare miner color.
-    if (result.success) result.participant.colorKey = 'spare';
+    if (result.success) {
+      result.participant.colorKey = 'spare';
+      if (racing.length) result.participant.hashpower = clampHashpower(racing.reduce((sum, p) => sum + p.hashpower, 0) / racing.length);
+    }
     return result;
   }
 
@@ -259,9 +270,32 @@ export class Blockchain {
   setMinerHashpower(name, hashpower) {
     const participant = this.getParticipantByName(name);
     if (participant && participant.isMiner) {
-      participant.hashpower = Math.max(1, Math.min(10, hashpower));
+      participant.hashpower = clampHashpower(hashpower);
     }
     return participant;
+  }
+
+  // Gives an enabled miner `percent` of the enabled miners' hashpower (MIN_SHARE–MAX_SHARE).
+  // The others share the rest in their previous proportion; the weights then add up to 100.
+  // Returns the new weights by name, or null when the miner does not race or races alone.
+  setMinerShare(name, percent) {
+    const racing = this.getActiveMiners();
+    const miner = racing.find(p => p.name === name);
+    if (!miner || racing.length < 2 || !Number.isFinite(Number(percent))) return null;
+    const share = Math.max(MIN_SHARE, Math.min(MAX_SHARE, Math.round(Number(percent))));
+    const others = racing.filter(p => p !== miner);
+    const rest = MAX_HASHPOWER - share;
+    const before = others.reduce((sum, p) => sum + p.hashpower, 0);
+    // Largest remainders keep the sum exact; every other miner keeps at least weight 1.
+    const exact = others.map(p => (before > 0 ? p.hashpower / before : 1 / others.length) * rest);
+    const weights = exact.map(value => Math.max(1, Math.floor(value)));
+    let left = rest - weights.reduce((sum, w) => sum + w, 0);
+    const order = exact.map((value, i) => i).sort((a, b) => (exact[b] - Math.floor(exact[b])) - (exact[a] - Math.floor(exact[a])));
+    for (let k = 0; left > 0; k++, left--) weights[order[k % order.length]]++;
+    for (let k = 0; left < 0; k++) { const i = order[order.length - 1 - (k % order.length)]; if (weights[i] > 1) { weights[i]--; left++; } }
+    miner.hashpower = share;
+    others.forEach((p, i) => { p.hashpower = weights[i]; });
+    return Object.fromEntries(racing.map(p => [p.name, p.hashpower]));
   }
 
   incrementBlocksWon(minerPublicKey) {

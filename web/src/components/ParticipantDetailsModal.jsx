@@ -40,7 +40,8 @@ export function ParticipantDetailsModal({
     describeTx,
     onClose,
     toggleMiner,
-    setMinerHashpower,
+    share = null,
+    onOpenMiner,
     isMining,
     coinName = 'powfyicoin'
 }) {
@@ -161,19 +162,15 @@ export function ParticipantDetailsModal({
                             </div>
                             <div className="details-modal-hashpower" {...hint('details.hashpower')}>
                                 <span className="details-modal-hashpower-label">Hashpower</span>
-                                <input
-                                    type="range"
-                                    min="1"
-                                    max="10"
-                                    value={participant.hashpower || 5}
-                                    onChange={(e) => setMinerHashpower?.(participant.name, parseInt(e.target.value))}
-                                    disabled={isMining}
-                                    aria-label="Miner hashpower"
-                                />
-                                <span className="details-modal-hashpower-value">{participant.hashpower || 5}/10</span>
+                                <span className="details-modal-hashpower-value">{share === null ? 'not racing' : `${share} %`}</span>
+                                {onOpenMiner && (
+                                    <button type="button" className="details-modal-btn" onClick={() => onOpenMiner(participant.name)}>
+                                        Miner details
+                                    </button>
+                                )}
                             </div>
                             <p className="details-modal-note">
-                                Higher hashpower = more iterations per round = faster mining
+                                Its share of the racing miners' hashpower is its chance to find the next block. Change it and watch its attempts in the miner details.
                             </p>
                         </div>
                     )}
