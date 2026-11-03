@@ -1,20 +1,24 @@
 import { Fragment, useEffect, useRef, useState } from 'react';
 import { le } from '../../../shared/bitcoin-block.mjs';
 import { MAX_NONCE } from '../lib/blockHeader';
-import { getChallenge, getLeaderboard, isValidPoolName, NAME_HINT, NAME_UNAVAILABLE_MESSAGE, submitProof } from '../lib/poolApi';
+import { getChallenge, getLeaderboard, isValidPoolName, minerProfileHash, NAME_HINT, NAME_UNAVAILABLE_MESSAGE, POOL_UNAVAILABLE_MESSAGE,
+  submitProof } from '../lib/poolApi';
 import { formatDifficulty, GENESIS, hashDifficulty, leadingZeros, poolCandidate, signatureOf, verifyRow } from '../lib/poolProof';
 import { runSearch } from '../lib/powSearch';
+import { MinerProfile } from './MinerProfile';
 import './PoolPanel.css';
 
 // How long one search runs before the panel asks the pool again whether its round is still in the window.
 export const ROUND_CHECK_MS = 60_000;
-const UNAVAILABLE = 'The leaderboard server is unavailable right now. The simulator keeps working.';
+const UNAVAILABLE = POOL_UNAVAILABLE_MESSAGE;
 // The first hash this page looks for; each accepted one raises the goal by a zero.
 export const FIRST_GOAL_ZEROS = 5;
 const formatNumber = value => Number(value).toLocaleString('en-US');
 const blockLink = height => `https://mempool.space/block/${height}`;
 
 const isAbort = error => error?.name === 'AbortError';
+// A plain click stays in this page; a modified click opens the link as the browser does.
+const plainClick = event => event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey;
 const isUnavailable = error => !error?.status || error.status >= 500 || error.status === 429;
 const randomStartNonce = () => Math.floor(Math.random() * 2 ** 32);
 const emptyStats = { attempts: 0, rate: 0, accepted: 0, bestHash: null };
@@ -40,7 +44,7 @@ function Verification({ row }) {
   </div>;
 }
 
-function BoardTable({ id, rows, open, onToggle }) {
+function BoardTable({ id, rows, open, onToggle, onOpenProfile }) {
   return <div className="pool-panel-table" tabIndex={0} role="region" aria-labelledby={id}>
     <table>
       <thead><tr><th scope="col">Rank</th><th scope="col">Name</th><th scope="col">Best hash</th><th scope="col">Zeros</th>
@@ -51,7 +55,13 @@ function BoardTable({ id, rows, open, onToggle }) {
         return <Fragment key={key}>
           <tr>
             <td>{index + 1}</td>
-            <td className="pool-panel-cell-name">{row.name}</td>
+            <td className="pool-panel-cell-name">{onOpenProfile
+              ? <a href={minerProfileHash(row.name)} onClick={event => {
+                if (!plainClick(event)) return;
+                event.preventDefault();
+                onOpenProfile(row.name);
+              }}>{row.name}</a>
+              : row.name}</td>
             <td><ShortHash hash={row.bestHash} /></td>
             <td>{row.bestZeros}</td>
             <td>{formatDifficulty(row.difficulty)}</td>
@@ -66,7 +76,10 @@ function BoardTable({ id, rows, open, onToggle }) {
   </div>;
 }
 
-export function PoolPanel({ name, onNameChange, onClose, onAccepted, refreshKey = 0, firstGoalZeros = FIRST_GOAL_ZEROS }) {
+// `profile` is the miner name whose profile replaces the two lists (from the URL, `#/pool/<name>`);
+// a name on the board calls onOpenProfile, the profile's back link onCloseProfile.
+export function PoolPanel({ name, onNameChange, onClose, onAccepted, refreshKey = 0, firstGoalZeros = FIRST_GOAL_ZEROS,
+  profile = null, onOpenProfile, onCloseProfile }) {
   const [triedJoin, setTriedJoin] = useState(false);
   const [phase, setPhase] = useState('idle');
   const [round, setRound] = useState(null);
@@ -239,6 +252,8 @@ export function PoolPanel({ name, onNameChange, onClose, onAccepted, refreshKey 
       <button className="btn btn-transparent" onClick={() => { if (run.current) stop(); onClose(); }}>Back to simulator</button>
     </header>
 
+    {profile !== null && <MinerProfile key={profile} name={profile} ownName={name} refreshKey={refreshKey} onBack={onCloseProfile} />}
+    {profile === null && <>
     <section className="pool-panel-board" aria-labelledby="pool-panel-round-title">
       <h3 id="pool-panel-round-title">Last 144 blocks{recent ? <> · Bitcoin #{recent.from}–<a href={blockLink(recent.to)} target="_blank" rel="noreferrer">#{recent.to}</a></> : ''}</h3>
       {board.state === 'loading' && <p className="pool-panel-help">Loading the leaderboard…</p>}
@@ -246,17 +261,18 @@ export function PoolPanel({ name, onNameChange, onClose, onAccepted, refreshKey 
       {board.state === 'ready' && (!recent || recent.rows.length === 0) &&
         <p className="pool-panel-help">No blocks in the last day. Mine one to lead the board.</p>}
       {board.state === 'ready' && recent?.rows.length > 0 &&
-        <BoardTable id="pool-panel-round-title" rows={recent.rows} open={openRow} onToggle={setOpenRow} />}
+        <BoardTable id="pool-panel-round-title" rows={recent.rows} open={openRow} onToggle={setOpenRow} onOpenProfile={onOpenProfile} />}
     </section>
 
     <section className="pool-panel-board" aria-labelledby="pool-panel-board-title">
       <h3 id="pool-panel-board-title">All time · top 20</h3>
       {board.state === 'ready' && board.allTime.length === 0 && <p className="pool-panel-help">No blocks yet.</p>}
       {board.state === 'ready' && board.allTime.length > 0 &&
-        <BoardTable id="pool-panel-board-title" rows={board.allTime} open={openRow} onToggle={setOpenRow} />}
+        <BoardTable id="pool-panel-board-title" rows={board.allTime} open={openRow} onToggle={setOpenRow} onOpenProfile={onOpenProfile} />}
       <p className="pool-panel-help pool-panel-genesis">Genesis <code>{GENESIS.hash.slice(0, 16)}…</code>, built on Bitcoin block {GENESIS.anchor.height}.
         {GENESIS.status === 'bridge' && ' A bridge until the final genesis is mined on 31 October 2026; the board starts again then.'}</p>
     </section>
+    </>}
 
     <h3 className="pool-panel-mine-title">Keep mining for a better hash</h3>
     <p className="pool-panel-help">The simulator's blocks are easy. Here your browser searches on its own until you stop it, always for one more zero.</p>

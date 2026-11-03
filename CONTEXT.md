@@ -107,6 +107,10 @@ Terms used in code, tests and docs of proofofwork.fyi. Decisions that shape them
   block's place in a chain, which lives in one browser.
 - **Best hash** — the smallest hash of a name; it decides the rank. The server keeps one block per
   name and round, plus how many were sent.
+- **Miner profile** — the public page of one miner name (`#/pool/<name>`, `GET /api/miner?name=`):
+  every round the name has a block in (newest Bitcoin block first, at most 200), with its ranks in
+  the last-144 window and all time, the places it would have on those boards. A hidden name answers
+  like an unknown one. Names match exactly, as the board groups them.
 
 ## Hosting
 
