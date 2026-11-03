@@ -41,6 +41,24 @@ afterEach(() => {
 });
 
 describe('useMinerIdentity', () => {
+  it('aborts an open pool request on unmount and ignores its late answer', async () => {
+    let resolve;
+    let signal;
+    vi.mocked(getChallenge).mockImplementation((name, options) => {
+      signal = options?.signal;
+      return new Promise(done => { resolve = () => done(offerFor(name)); });
+    });
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const hook = renderHook(() => useMinerIdentity());
+    await act(() => vi.advanceTimersByTimeAsync(0));
+    expect(getChallenge).toHaveBeenCalledTimes(1);
+    expect(signal.aborted).toBe(false);
+    hook.unmount();
+    expect(signal.aborted).toBe(true);
+    await act(async () => { resolve(); await Promise.resolve(); });
+    expect(errors).not.toHaveBeenCalled();
+  });
+
   it('starts every visit with a generated name, keeps it and asks the pool at once', async () => {
     const first = renderHook(() => useMinerIdentity());
     const { name, signingName } = first.result.current;
