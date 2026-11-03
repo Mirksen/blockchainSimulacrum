@@ -151,7 +151,9 @@ decision, 2026-10-27):
   **block and transaction details** open from the Block card.
 - **Fresh start:** before the demo is set up, the chain band shows only
   Genesis and the candidate, and the single primary in the Next block card
-  is "Start demo".
+  is "Start demo". Like every Play it mines one block (Mirko, 2026-11-03): #1,
+  then its reward goes to the other wallets as transfers that wait in the
+  mempool for #2.
 - **Stop mining** is the Pause action of the running race; Auto-mine is the Repeat toggle joined to Play/Pause in the Next block card.
   **Auto-mine is a setting, not a start** (Mirko, 2026-11-02): it starts off and never
   starts or stops a search by itself. Play ("Mining", or "Start demo" on a fresh chain)
@@ -163,9 +165,9 @@ decision, 2026-10-27):
   fills the empty mempool with sample transactions between rounds.
   **Repeat toggle form** (Mirko, 2026-11-03, workshop round 1, variant 1): a slim add-on
   joined to the right of its action, an icon and the visible label "Auto" (the accessible
-  name stays "Auto-mine" or "Auto-transact"). On is tinted (blue tint, blue text), never
-  filled, so the action beside it stays the one filled or tinted invitation; an inset seam
-  separates the two.
+  name stays "Auto-mine" or "Auto-transact"). On takes the look of the action it joins
+  (Mirko, 2026-11-03): beside Mining it lights up filled blue like Mining, and the joined
+  pair glows; beside the tinted New transaction it is tinted. An inset seam separates the two.
 - **Auto-transact** starts off. Its Repeat toggle is joined to the right of "New
   transaction" in the Mempool header, in the same form as Auto-mine beside Mining, and
   explains its behavior on hover. It fills only an empty mempool with eight sample
@@ -187,8 +189,8 @@ decision, 2026-10-27):
 - Reads **left to right as a timeline**: #0 Genesis on the left, the newest
   block on the right, then the **dashed candidate** "#N next · k tx waiting".
 - The **block number stands above its tile** ("#3"). The tile shows how long
-  ago the block was mined ("just now", "2 min ago", from its header time,
-  ticking), the time it took to mine, miner, tx count, stored previous hash and
+  ago the block was mined in its bottom line ("just now", "2 min ago", from its
+  header time; never seconds, so nothing ticks while you watch), the time it took to mine, miner, tx count, stored previous hash and
   the **short hash** (first 6 + last 2 characters, `0080a3…4d`) with its
   leading zeros highlighted. Hover or keyboard focus shows the full hash with
   **Copy**.
@@ -204,8 +206,8 @@ decision, 2026-10-27):
   invalid": the only standing chain status in the product (Mirko,
   2026-11-03). A click on it shows the line "N of N hashes meet their target ·
   N of N links intact" (or the causes) and the per-block checks aligned under
-  the tiles; another click hides them. They open by themselves when the chain
-  is invalid.
+  the tiles; another click hides them. They open by themselves when a block
+  is tampered with, and the pill closes them like any other time.
 - **The Block card follows the newest block.** A click on a tile holds that
   block, also while new blocks are mined; a second click lets go. A held tile has the strong white frame, the followed newest a thin one.
   Tampering and re-mining show their block while the chain is invalid, without
@@ -355,7 +357,7 @@ and validity states are semantic tokens.
 | Chain health | One line, collapsible strip of per-block checks on the tile column grid |
 | Card | Panel surface, 1 px line, no shadow; header with title, status pill and at most one action |
 | Next block card | Miner name, primary action, Auto-mine, difficulty stepper, race lanes; live race state; repair state |
-| Repeat toggle | "Auto" with the repeat icon, joined right of its action; pressed is tinted, never filled; the card gives height, border and outer corners |
+| Repeat toggle | "Auto" with the repeat icon, joined right of its action; pressed takes the look of that action (filled beside Mining, tinted beside New transaction); the card gives height, border and outer corners |
 | Race lane | Miner, nonce, current hash with checked leading characters, progress, Back action, result |
 | Coach ring | Ring plus small label on the element a mission step needs |
 | Key-value rows | Label, mono value, quiet explanation |

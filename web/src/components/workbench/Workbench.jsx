@@ -97,12 +97,12 @@ export function Workbench({
     {error && <div role="alert" className="wb-error">{error}</div>}
     <div className="wb-band">
       <ChainBand views={fresh ? views.slice(0, 1) : views} candidate={candidate} selectedIndex={selected} pinned={pinned} onSelect={onSelect}
-        keyFigures={keyFigures} healthOpen={healthOpen || Boolean(repair)} onToggleHealth={onToggleHealth}
+        keyFigures={keyFigures} healthOpen={healthOpen} onToggleHealth={onToggleHealth}
         coach={workbenchCoach} repairOrder={repairOrder} />
     </div>
     <div className="wb-timeline">
       <ChainTimeline views={views} candidate={candidate} selectedIndex={selected} pinned={pinned} onSelect={onSelect} onOpenChainLab={onOpenChainLab}
-        keyFigures={keyFigures} healthOpen={healthOpen || Boolean(repair)} onToggleHealth={onToggleHealth}
+        keyFigures={keyFigures} healthOpen={healthOpen} onToggleHealth={onToggleHealth}
         coach={workbenchCoach} repairOrder={repairOrder} />
     </div>
     <div className="wb-grid">

@@ -191,7 +191,7 @@ function App() {
   const handleSetup = useCallback(async () => {
     const result = await setupInitialDistribution();
     endRoundUnlessRepeating();
-    finishRound(result);
+    if (finishRound(result)) pendingRound.current = { index: 1, result };
     return result;
   }, [endRoundUnlessRepeating, finishRound, setupInitialDistribution]);
   const startMining = () => { setRunning(true); return handleMine(); };

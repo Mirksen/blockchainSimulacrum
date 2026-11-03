@@ -11,7 +11,7 @@ import './ChainBand.css';
 // full-hash tooltip with Copy, key figures, and the "Chain valid" pill that opens the
 // checks. Presentational: data and callbacks in props.
 
-// One shared clock for every "… ago": only the ages re-render each second.
+// One shared clock for every "… ago": only the ages re-render, every few seconds.
 const clock = {
   now: Math.floor(Date.now() / 1000), listeners: new Set(), timer: null,
   subscribe(listener) {
@@ -20,7 +20,7 @@ const clock = {
       clock.timer = setInterval(() => {
         clock.now = Math.floor(Date.now() / 1000);
         clock.listeners.forEach(notify => notify());
-      }, 1000);
+      }, 5000);
     }
     return () => {
       clock.listeners.delete(listener);
@@ -170,7 +170,6 @@ function Tile({ view, views, newest, selected, pinned, repairPosition, shade, on
   const tipId = useId();
   const state = stateOf(view);
   const mismatch = view.status === 'hash-mismatch';
-  const zeros = targetZeros(view);
   const classes = ['chain-band-tile', newest && 'is-newest', selected && (pinned ? 'is-selected' : 'is-current'),
     state === 'broken' && 'is-broken', state === 'dependent' && 'is-dependent'].filter(Boolean).join(' ');
   const tag = view.isGenesis ? 'genesis' : state === 'broken' ? statusLabel(view.status) : newest ? 'newest' : null;
@@ -186,7 +185,6 @@ function Tile({ view, views, newest, selected, pinned, repairPosition, shade, on
       <button type="button" className="chain-band-tile-face" aria-pressed={selected && pinned} aria-describedby={tipId}
         aria-label={tileLabel(view, { newest, selected, repairPosition })} onClick={() => onSelect?.(view.index)}>
         <span className="chain-band-tile-top">
-          <Age time={view.time} />
           {tag && <span className={`chain-band-tag${state === 'broken' ? ' is-bad' : ''}`}>{tag}</span>}
           {state !== 'broken' && time && <span className="chain-band-time" title="Time since the previous block">{time}</span>}
         </span>
@@ -212,9 +210,7 @@ function Tile({ view, views, newest, selected, pinned, repairPosition, shade, on
           <span className="chain-band-tile-hash"><ShortHash hash={shownHash} miss={Math.min(miss, 6)} zeroClass="chain-band-lz" missClass="chain-band-lz" /></span>
           {mismatch ? (
             <span className="chain-band-meets is-bad">{Math.min(view.zerosNow, view.difficulty)}/{view.difficulty} zeros</span>
-          ) : zeros ? (
-            <span className="chain-band-meets">meets {zeros}</span>
-          ) : null}
+          ) : <Age time={view.time} />}
         </span>
       </button>
       <div className={`chain-band-tip${tipEnd ? ' is-end' : ''}`} role="tooltip" id={tipId}>

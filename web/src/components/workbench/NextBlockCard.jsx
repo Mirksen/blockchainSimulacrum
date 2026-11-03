@@ -238,7 +238,7 @@ function LastRound({ miners, lastRound, race, difficulty, backedMiner, onBack, c
     summary = <>Last round #{lastRound.index}: <span className="next-block-winner" style={{ color: minerColor(miners.find(m => m.name === lastRound.winner) ?? { name: lastRound.winner }) }}>{lastRound.winner}</span> won at nonce <b>{count(lastRound.nonce)}</b> · <b>{count(lastRound.attempts)}</b> tries · <b>{seconds(lastRound.elapsedMs)}</b></>;
   } else {
     summary = isFresh
-      ? <>Start demo mines block #1, shares its reward with the other wallets, then mines #2.</>
+      ? <>Start demo mines block #1 and shares its reward with the other wallets; the transfers wait for #2.</>
       : <>No round yet. Mine a block to watch the miners race.</>;
   }
   return (

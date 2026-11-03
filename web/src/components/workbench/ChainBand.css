@@ -112,7 +112,7 @@
   font-size: 14px; font-weight: 600; color: var(--text-2); white-space: nowrap; pointer-events: none;
 }
 .chain-band-tile.is-newest .chain-band-num, .chain-band-tile.is-selected .chain-band-num { color: var(--text); }
-.chain-band-age { min-width: 0; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
+.chain-band-age { margin-left: auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; font-size: 11px; opacity: .85; white-space: nowrap; }
 .chain-band-tag {
   min-width: 0; overflow: hidden; text-overflow: ellipsis;
   font-size: 11px; line-height: 16px; padding: 0 6px; border-radius: 8px; background: var(--blk-tag-bg);
