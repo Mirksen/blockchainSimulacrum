@@ -101,9 +101,9 @@ export async function verifyMiningControlsAndSound(browser, baseURL, output) {
     assert.equal(await page.getByRole('button', { name: 'Pause', exact: true }).isVisible(), true, 'Repeat off keeps the current search running');
     assert.equal(await wb.tiles().count(), 1);
     delayed.release();
-    await wb.mine(3).waitFor({ timeout: 30000 });
+    await wb.mine(2).waitFor({ timeout: 30000 });
     await page.waitForTimeout(2200);
-    assert.equal(await wb.tiles().count(), 3, 'The demo started by Play finishes; no further block starts');
+    assert.equal(await wb.tiles().count(), 2, 'The demo started by Play finishes block #1; no further block starts');
     assert.equal(page.workers().length, 0, 'No further search starts');
     const audible = await audioSnapshot(page);
     assert.equal(audible.contexts, 1);
@@ -113,27 +113,29 @@ export async function verifyMiningControlsAndSound(browser, baseURL, output) {
     await page.screenshot({ path: join(output, 'automine-finish-current.png') });
 
     const mutedRun = holdNextWorker();
-    await wb.mine(3).click();
+    await wb.mine(2).click();
     await waitForRequest(mutedRun);
     await page.getByRole('button', { name: 'More', exact: true }).click();
     await sound().click();
     assert.equal(await sound().getAttribute('aria-pressed'), 'false');
     await page.keyboard.press('Escape');
     mutedRun.release();
-    await wb.mine(4).waitFor({ timeout: 30000 });
+    await wb.mine(3).waitFor({ timeout: 30000 });
     await page.waitForTimeout(800);
     assert.equal((await audioSnapshot(page)).starts, audible.starts, 'Muting during a search silences its result');
+    assert.equal(await wb.tiles().count(), 3, 'One Mining click mines exactly one block');
 
     const enabledRun = holdNextWorker();
-    await wb.mine(4).click();
+    await wb.mine(3).click();
     await waitForRequest(enabledRun);
     await page.getByRole('button', { name: 'More', exact: true }).click();
     await sound().click();
     assert.equal(await sound().getAttribute('aria-pressed'), 'true');
     await page.keyboard.press('Escape');
     enabledRun.release();
-    await wb.mine(5).waitFor({ timeout: 30000 });
+    await wb.mine(4).waitFor({ timeout: 30000 });
     await page.waitForTimeout(800);
+    assert.equal(await wb.tiles().count(), 4, 'One Mining click mines exactly one block');
     const enabled = await audioSnapshot(page);
     assert.equal(enabled.contexts, 1, 'Later results reuse the gesture-unlocked context');
     assert.ok(enabled.starts > audible.starts, 'Re-enabling during a search sounds its result');
@@ -141,6 +143,14 @@ export async function verifyMiningControlsAndSound(browser, baseURL, output) {
     assert.equal(await transact.getAttribute('aria-pressed'), 'false');
     assert.match(await transact.getAttribute('title'), /empty mempool/);
     await transact.click();
+    // Auto-transact on stays tinted; only Auto-mine takes the Mining fill.
+    assert.equal(await transact.getAttribute('aria-pressed'), 'true');
+    await page.mouse.move(0, 0);
+    const tinted = await page.evaluate(() => [
+      getComputedStyle(document.querySelector('.mempool-card-action .repeat-toggle[aria-pressed="true"]')).backgroundColor,
+      getComputedStyle(document.querySelector('.next-block-action .btn-primary')).backgroundColor
+    ]);
+    assert.notEqual(tinted[0], tinted[1], `Auto-transact on is tinted, not filled like Mining: ${JSON.stringify(tinted)}`);
     const pending = page.locator('.mempool-card-tx:not(.is-coinbase)');
     await pending.first().waitFor();
     const pendingCount = await pending.count();
@@ -164,7 +174,7 @@ export async function verifyMiningControlsAndSound(browser, baseURL, output) {
       }
     }
     assert.deepEqual(errors, []);
-    return [`Mining controls: Auto-mine alone starts nothing; Repeat off finishes the active block and starts no next block; real browser audio is running, peak ${audible.peak.toFixed(4)}; mid-search mute/unmute applies and one context is reused`];
+    return [`Mining controls: Auto-mine alone starts nothing; Repeat off finishes the active block (Start demo mines only #1) and starts no next block; one Mining click mines one block; Auto-transact stays tinted; real browser audio is running, peak ${audible.peak.toFixed(4)}; mid-search mute/unmute applies and one context is reused`];
   } finally {
     nextGate?.release();
     activeGate?.release();
