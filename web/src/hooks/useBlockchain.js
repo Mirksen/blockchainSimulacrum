@@ -408,11 +408,17 @@ export function useBlockchain(config = {}, { storage = null } = {}) {
         setBackedMiner(name);
         return { success: true, error: null };
     }, [controller]);
-    const resetBlockchain = useCallback(() => {
+    // A reset keeps the settings. `miningDifficulty` starts the new chain at another
+    // difficulty: lowering it manually is only allowed together with a new chain, so
+    // a chain of easier blocks never outgrows one that took more work (ADR 0004).
+    const resetBlockchain = useCallback(({ miningDifficulty: next } = {}) => {
         const previous_block_count = controller.chain.blockArray.length - 1;
         cancelMining('reset');
         void telemetry.track('chain_reset', { previous_block_count });
-        const { miningDifficulty, halvingEvent } = controller.chain;
+        const { miningDifficulty: previous, halvingEvent } = controller.chain;
+        const valid = Number.isInteger(next) && next >= MIN_DIFFICULTY && next <= MAX_DIFFICULTY;
+        const miningDifficulty = valid ? next : previous;
+        if (miningDifficulty !== previous) void telemetry.track('difficulty_changed', { previous, value: miningDifficulty });
         controller.chain = createBlockchain({ ...controller.config, miningDifficulty, halvingEvent });
         controller.restored = false;
         setSelectedBlock(null);

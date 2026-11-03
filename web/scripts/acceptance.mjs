@@ -670,19 +670,40 @@ try {
  await mobile.goto(baseURL);
  await mobile.getByRole('button',{name:'Start demo',exact:true}).click();
  await workbench(mobile).mine(2).waitFor({timeout:30000});
- // On phones the vertical timeline carries the same pill; it opens the checks there.
+ // On phones the compact band carries the same pill; it opens the checks there.
  const mobilePill = workbench(mobile).chainPill();
  assert.equal(await mobilePill.count(), 1);
  assert.equal(await mobilePill.innerText(), 'Chain valid');
- assert.equal(await mobilePill.evaluate(el => Boolean(el.closest('section.chain-timeline'))), true, 'The phone pill sits on the timeline');
- const mobileChecks = mobile.locator('section.chain-timeline').getByRole('list',{name:'Checks per block'});
+ assert.equal(await mobilePill.evaluate(el => Boolean(el.closest('section.chain-band.is-compact'))), true, 'The phone pill sits on the compact band');
+ const mobileChecks = mobile.locator('section.chain-band').getByRole('list',{name:'Checks per block'});
  await mobilePill.click();
  assert.equal(await mobilePill.getAttribute('aria-expanded'), 'true');
  await mobileChecks.waitFor();
  await mobilePill.click();
  await mobileChecks.waitFor({state:'detached'});
  assert.equal(await mobile.locator('.top-bar-chain').count(), 0);
- results.push('Phone: the timeline shows the same "Chain valid" pill and it toggles the checks');
+ results.push('Phone: the compact band shows the same "Chain valid" pill and it toggles the checks');
+ // The ticker and the compact band stay at the top, one under the other, while the cards scroll.
+ const stuck = async () => mobile.evaluate(() => {
+  const ticker = document.querySelector('.leaderboard-ticker').getBoundingClientRect();
+  const band = document.querySelector('.wb-band').getBoundingClientRect();
+  return { ticker: Math.round(ticker.top), tickerBottom: Math.round(ticker.bottom), band: Math.round(band.top), bandBottom: Math.round(band.bottom), scrollY: Math.round(scrollY) };
+ });
+ await mobile.evaluate(() => scrollTo(0, document.documentElement.scrollHeight));
+ await settle(mobile);
+ const scrolled = await stuck();
+ assert.ok(scrolled.scrollY > 300, JSON.stringify(scrolled));
+ assert.equal(scrolled.ticker, 0, `ticker stays on top: ${JSON.stringify(scrolled)}`);
+ assert.ok(Math.abs(scrolled.band - scrolled.tickerBottom) <= 1, `band sits under the ticker: ${JSON.stringify(scrolled)}`);
+ assert.ok(scrolled.bandBottom - scrolled.ticker <= 140, `ticker and band take at most 140 px: ${JSON.stringify(scrolled)}`);
+ await mobile.screenshot({path:join(output,'mobile-scrolled.png')});
+ // A tap on a small tile holds that block in the Block card below.
+ await workbench(mobile).tile(1).click();
+ assert.equal(await workbench(mobile).tile(1).getAttribute('aria-pressed'), 'true');
+ await workbench(mobile).tile(1).click();
+ await mobile.evaluate(() => scrollTo(0, 0));
+ await settle(mobile);
+ results.push(`Phone: ticker and compact chain stay on top while the page scrolls (${scrolled.bandBottom} px), a tap selects a block`);
  await mobile.screenshot({path:join(output,'mobile.png')});
  await mobile.screenshot({path:join(output,'mobile-full.png'),fullPage:true});
  const mobileLayout = await mobile.evaluate(()=>({width:innerWidth,scroll:document.documentElement.scrollWidth,height:document.documentElement.scrollHeight}));

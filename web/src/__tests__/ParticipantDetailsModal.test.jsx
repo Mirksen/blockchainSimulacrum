@@ -3,6 +3,7 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
 import { ParticipantDetailsModal } from '../components/ParticipantDetailsModal';
 import { Participant } from '../lib/blockchain';
+import { HINTS } from '../lib/hints';
 
 // Native dialog behavior is exercised by the browser acceptance checks.
 vi.mock('../components/Modal', () => ({ Modal: ({ children }) => <div role="dialog">{children}</div> }));
@@ -22,6 +23,15 @@ it('verifies recovery locally without changing the participant or its miner sett
   expect(screen.getByRole('status').textContent).toBe('Verified: this phrase recovers the same demo public key.');
   expect(participant).toEqual(before);
   expect(screen.getByText(/empty passphrase/)).toBeTruthy();
+});
+
+it('explains the recovery phrase and its check through hints, also while the button is locked', () => {
+  const participant = Participant.fromSeedPhrase('Fixture Miner', PHRASE, true);
+  render(<ParticipantDetailsModal participant={participant} blocks={[]} onClose={() => {}} isMining />);
+  expect(screen.getByText('Demo recovery phrase (BIP39)').getAttribute('data-hint')).toBe(HINTS['details.recovery-phrase'].text);
+  const verify = screen.getByRole('button', { name: 'Verify recovery' });
+  expect(verify.disabled).toBe(true);
+  expect(verify.closest('[data-hint]').getAttribute('data-hint')).toBe(HINTS['details.verify-recovery'].text);
 });
 
 it('shows a fixed failure message if phrase and public key do not match', () => {

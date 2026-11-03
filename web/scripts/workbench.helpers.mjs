@@ -15,7 +15,7 @@ export function workbench(page) {
     },
     shown: () => page.locator('section.selected-block .card-kit-title').first(),
     mine: index => page.getByRole('region', { name: new RegExp(`^Next block ${index}(,|$)`) }).getByRole('button', { name: 'Mining', exact: true }),
-    // The one chain status: the pill on the chain band (the vertical timeline below 1024 px).
+    // The one chain status: the pill on the chain band (compact below 1024 px).
     chainPill: () => page.locator('button.chain-band-health-sum:visible'),
     // The sideways-scrolling row of the chain band.
     chainScroll: () => page.locator('.chain-band-scroll'),

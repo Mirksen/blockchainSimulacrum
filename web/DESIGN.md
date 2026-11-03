@@ -40,8 +40,10 @@ missing:
 Workbench difficulty is selectable from 1 to 10 leading hexadecimal zeros in
 both the card stepper and Settings. The upper settings are experiments, even
 when a block is impractical to find. Each extra zero means 16 times the expected
-attempts. Pause stops the active search without committing an unfinished block;
-the user can then lower the difficulty and start a new search.
+attempts. Pause stops the active search without committing an unfinished block.
+Raising the difficulty keeps the chain; lowering it by hand starts a new chain
+after a confirmation dialog, so a longer chain always took more work (ADR 0004).
+The automatic adjustment every 10 blocks may lower it without one.
 
 ## Language and tone
 
@@ -60,6 +62,27 @@ show stays out.
 
 Titles carry no full stop. Numbers use tabular figures; hashes and amounts
 use the monospace font.
+
+### Hints
+
+Every control and every term a beginner may not know explains itself on
+mouse hover and keyboard focus (Mirko, 2026-11-03). The reader has never
+mined a block: a hint says what the thing is, what a click does and why it
+matters, in one to three plain sentences (at most 320 characters), and is
+as exact as the code. "Back Hal" says "Bet on Hal to win the next race, just
+for fun: nothing is at stake", not "Back this miner".
+
+- The texts live in `src/lib/hints/` (one catalog per area); components take
+  them with `hint(key)` for controls and `term(key)` for words and labels.
+  `term()` adds a quiet dotted underline, so a learner sees what explains
+  itself. An unknown key throws.
+- One bubble (`HintLayer`, mounted once in `App.jsx`) shows them, in the top
+  layer above dialogs. A touch tap never opens it; Escape, a click and
+  scrolling close it.
+- A control that can be disabled carries its hint on a `.hint-wrap` span.
+- Native `title` stays only where it reveals raw data (a full txid) and
+  inside the chain tiles and links, which have their own tooltip; elsewhere
+  it never explains.
 
 ## Information architecture
 
@@ -140,7 +163,21 @@ decision, 2026-10-27):
   most blocks, latest find. It pauses on hover and focus, is static under
   `prefers-reduced-motion`, invites to the first block while the board is
   empty and disappears quietly when the leaderboard server is unavailable.
-  Clicking it opens the Leaderboard tab.
+  Clicking it opens the Leaderboard tab. The visitor's own row shows their
+  name in the accent with a quiet "you". Below 1024 px it stays at the top
+  while the page scrolls ("Screen sizes").
+- **Record celebration** (Mirko, 2026-11-03): when a block of this browser
+  is accepted and the all-time board afterwards shows a record for the
+  visitor's name, a card drops in at the top with a confetti burst and a
+  short fanfare (with Sound on): "You are on the leaderboard!" (first time
+  on the board), "New rank: #N" (a better rank), "Rank #1 of all time!" or
+  "New best: N zeros" (more leading zeros at the same rank). It names the
+  rank or zeros in a gold badge and the visitor's name, offers
+  "Leaderboard" (the visitor's profile) and ×, closes after 6 s, on Escape
+  or with ×, holds while pointer or focus rest on it and never blocks the
+  page. The ticker's own refreshes and other miners' blocks celebrate
+  nothing. Under `prefers-reduced-motion` the card fades in without
+  confetti.
 - **Missions and the learning path are one track** (Mirko). The three guided
   experiments become missions; the learning path dialog goes away. A
   mission names the view it needs, switches to that tab and marks the
@@ -360,8 +397,9 @@ it; type size never changes with the viewport.
 | ≥ 2200 wide | Content capped at ~2160 px and centered; the background continues. |
 | < 830 tall (e.g. 1366 × 657) | The page scrolls vertically; cards keep their density instead of squeezing. |
 | 1024–1279 wide | Collapsed Missions entry unless explicitly opened; tiles keep their width; the row scrolls sideways. Below 1200 the Block card stays left and Next block, Mempool and Wallets stack on the right; the page scrolls. |
-| 768–1023 wide | Mission rail becomes a bar on top; the chain becomes a vertical timeline (newest on top, candidate first); then Next block, Mempool, Block and Wallets, one under the other. |
-| < 768 wide | Phone: compact top bar, mission bar, vertical timeline, health line, key-figure line, then Next block, Mempool, Block, Wallets. The race sits directly under the chain. |
+| 768–1023 wide | Mission rail becomes a bar on top; the chain becomes the **compact band**: one sideways-swiping row of small purple blocks (number, time, miner, short hash; no tooltip), the candidate at its end, the "Chain valid" pill and short key figures above it. A tap holds a block like a click on a full tile. Then Next block, Mempool, Block and Wallets, one under the other. |
+| < 768 wide | Phone: compact top bar, mission bar, compact band, then Next block, Mempool, Block, Wallets. The race sits directly under the chain. |
+| < 1024 wide, scrolled | **The leaderboard ticker and the compact band stay at the top** (Mirko, 2026-11-03), the band right under the ticker, together at most 140 px; top bar and mission bar scroll away and the cards scroll beneath. They take their own room in the layout and never cover content at rest. Open checks add one line of pills under the small blocks. |
 
 No size scrolls sideways.
 
@@ -413,6 +451,7 @@ and validity states are semantic tokens.
 | Wallet row | Avatar, name, role, hash rate for miners, balance in mono |
 | Mission rail | Open and collapsed forms, steps with done/current/locked |
 | Tooltip | Overlay surface, mono content, Copy |
+| Hint | Overlay surface, bold title, plain explaining text in the UI font, arrow to its element; one at a time (see "Hints") |
 
 Rules for every workbench component (`src/components/workbench/`):
 

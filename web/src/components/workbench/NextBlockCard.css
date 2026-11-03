@@ -98,6 +98,7 @@
   font-size: 12px; color: var(--text-3); white-space: nowrap; overflow: hidden;
 }
 .next-block-foot b { color: var(--text-2); font-weight: 600; }
+.next-block-new-wrap { flex: none; margin-left: auto; }
 .next-block-new {
   flex: none; margin-left: auto; display: inline-flex; align-items: center; gap: 6px; padding: 0; border: 0; background: none;
   color: var(--blue); font: 500 12px/16px var(--ui); cursor: pointer; white-space: nowrap;

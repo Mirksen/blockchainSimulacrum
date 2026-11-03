@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { CoachMark } from './CoachMark';
 import { formatInterval, issueText } from './blockView';
 import './cardKit.css';
+import { hint, term } from '../../lib/hints';
 import './SelectedBlockCard.css';
 import { colorOf } from './minerColors';
 
@@ -74,7 +75,7 @@ function CopyButton({ value, label }) {
     } catch { /* Clipboard refused: keep the Copy label. */ }
   };
   return (
-    <button type="button" className="card-kit-copy" onClick={copy} aria-label={copied ? `${label} copied` : `Copy ${label}`}>
+    <button type="button" className="card-kit-copy" onClick={copy} aria-label={copied ? `${label} copied` : `Copy ${label}`} {...hint('block.copy')}>
       {copied ? 'Copied' : 'Copy'}
     </button>
   );
@@ -151,7 +152,7 @@ function TamperEditor({ block, onSubmit, onCancel }) {
       </div>
       {error && <p className="card-kit-error" role="alert" id={errorId}>{error}</p>}
       <div className="card-kit-form-actions">
-        <button type="submit" className="card-kit-btn">Change amount</button>
+        <button type="submit" className="card-kit-btn" {...hint('block.change-amount')}>Change amount</button>
         <button type="button" className="card-kit-btn is-ghost" onClick={onCancel}>Cancel</button>
         <span className="card-kit-t3 selected-block-editor-hint">{editConsequence(transactions[Number(txIndex)])}</span>
       </div>
@@ -199,30 +200,30 @@ export function SelectedBlockCard({ block, status, prevHash, edit, onOpenDetails
 
   const hashRow = kind === 'hash-mismatch' ? (
     <>
-      <div className="card-kit-kv is-wrap"><dt>Hash now</dt><dd>
+      <div className="card-kit-kv is-wrap"><dt {...term('block.hash-now')}>Hash now</dt><dd>
         <FullHash hash={computedHash} /><CopyButton key={`${block.index}:${computedHash}`} value={computedHash} label="hash" />
         <span className="card-kit-bad">{Math.min(leadingZeros(computedHash), difficulty)}/{difficulty} zeros</span>
         <span className="card-kit-t3">· does not start with {target}</span>
       </dd></div>
-      <div className="card-kit-kv is-wrap"><dt>As mined</dt><dd>
+      <div className="card-kit-kv is-wrap"><dt {...term('block.as-mined')}>As mined</dt><dd>
         <FullHash hash={storedHash} struck />
         <span className="card-kit-t3">{block.isNewest ? 'the hash stored when it was mined' : `what #${block.index + 1} still stores as its previous hash`}</span>
       </dd></div>
     </>
   ) : (
-    <div className="card-kit-kv"><dt>Hash</dt><dd>
+    <div className="card-kit-kv"><dt {...term('block.hash')}>Hash</dt><dd>
       <FullHash hash={block.hash} /><CopyButton key={`${block.index}:${block.hash}`} value={block.hash} label="hash" />
     </dd></div>
   );
 
   const previousRow = (
-    <div className={`card-kit-kv${linkIntact && !block.anchor ? '' : ' is-wrap'}`}><dt>Previous</dt><dd>
+    <div className={`card-kit-kv${linkIntact && !block.anchor ? '' : ' is-wrap'}`}><dt {...term('block.previous', isGenesis)}>Previous</dt><dd>
       {isGenesis ? (block.anchor
         ? <><FullHash hash={block.anchor.hash} /><span className="card-kit-t3">= Bitcoin block #{block.anchor.height}</span></>
         : <span className="card-kit-t3">none · Genesis is the first block</span>) : linkIntact ? (
         <>
           <FullHash hash={block.previousHash} />
-          <span className="card-kit-ok" title={`Link intact: this is the hash of #${block.index - 1}`}>
+          <span className="card-kit-ok" {...hint('block.link-intact', block.index - 1)}>
             <CheckIcon />= #{block.index - 1}<span className="card-kit-sr">, the hash of the block before, link intact</span>
           </span>
         </>
@@ -237,7 +238,7 @@ export function SelectedBlockCard({ block, status, prevHash, edit, onOpenDetails
   );
 
   const nonceRow = kind === 'hash-mismatch' ? null : (
-    <div className="card-kit-kv"><dt>Nonce</dt><dd>
+    <div className="card-kit-kv"><dt {...term('block.nonce')}>Nonce</dt><dd>
       <span>{Number(block.nonce ?? 0).toLocaleString('en-US')}</span>
       <span className="card-kit-t3">· makes the double SHA-256 of 80 bytes start with {target}</span>
     </dd></div>
@@ -250,7 +251,7 @@ export function SelectedBlockCard({ block, status, prevHash, edit, onOpenDetails
     block.reward != null ? `reward ${formatAmount(block.reward)}` : null
   ].filter(Boolean);
   const minerRow = (
-    <div className="card-kit-kv"><dt>Miner</dt><dd>
+    <div className="card-kit-kv"><dt {...term('block.miner')}>Miner</dt><dd>
       {minerName ? (
         <><Avatar name={minerName} colorKey={block.minerKey} /><span>{minerName}</span>{minerFacts.length > 0 && <span className="card-kit-t3">· {minerFacts.join(' · ')}</span>}</>
       ) : <span className="card-kit-t3">{isGenesis ? 'none · Genesis was mined once before launch' : 'unknown'}</span>}
@@ -260,15 +261,15 @@ export function SelectedBlockCard({ block, status, prevHash, edit, onOpenDetails
   const firstEdit = edits[0];
   const editedTx = firstEdit ? transactions[firstEdit.txIndex] : null;
   const lastRow = firstEdit ? (
-    <div className="card-kit-kv"><dt>Your edit</dt><dd>
+    <div className="card-kit-kv"><dt {...term('block.your-edit')}>Your edit</dt><dd>
       <span className="selected-block-edit">{editedTx ? txLabel(editedTx) : `tx ${firstEdit.txIndex + 1}`}{' '}
         <span className="card-kit-t3">{formatAmount(firstEdit.from)}</span> → <b>{formatAmount(firstEdit.to)}</b></span>
       <span className="card-kit-t3">· tx {firstEdit.txIndex + 1} of {transactions.length}{edits.length > 1 ? ` · ${edits.length - 1} more` : ''}</span>
     </dd></div>
   ) : (
-    <div className="card-kit-kv"><dt>Merkle root</dt><dd>
+    <div className="card-kit-kv"><dt {...term('block.merkle-root')}>Merkle root</dt><dd>
       <FullHash hash={block.txRoot} />
-      <span className="card-kit-ok" title="This hash commits to every transaction of the block">{transactions.length} tx</span>
+      <span className="card-kit-ok" {...hint('block.tx-count')}>{transactions.length} tx</span>
     </dd></div>
   );
 
@@ -278,7 +279,7 @@ export function SelectedBlockCard({ block, status, prevHash, edit, onOpenDetails
     <section className={`card-kit selected-block is-${kind}`} aria-label={`Block ${block.index}`}>
       <div className="card-kit-head">
         <h2 className="card-kit-title">Block #{block.index}</h2>
-        <span className={`card-kit-pill ${pill.cls}`}>{kind === 'valid' ? <CheckIcon /> : <i aria-hidden="true" />}{pill.text}</span>
+        <span className={`card-kit-pill ${pill.cls}`} {...hint('block.status', kind)}>{kind === 'valid' ? <CheckIcon /> : <i aria-hidden="true" />}{pill.text}</span>
         {aside && <span className="card-kit-aside">{aside}</span>}
       </div>
       <dl className="card-kit-kv-list selected-block-rows">
@@ -300,19 +301,20 @@ export function SelectedBlockCard({ block, status, prevHash, edit, onOpenDetails
           onSubmit={(txIndex, amount) => { setEditorFor(null); onTamper(block.index, txIndex, amount); }} />
       ) : (
         <div className="selected-block-actions">
-          <button type="button" className="card-kit-btn" onClick={() => onOpenChainLab?.(block.index)}>
+          <button type="button" className="card-kit-btn" {...hint('block.chain-lab')} onClick={() => onOpenChainLab?.(block.index)}>
             Open in Chain lab<ExternalIcon />
           </button>
           {edits.length > 0 ? (
-            <button type="button" className="card-kit-btn" onClick={() => onUndo?.(block.index)}><UndoIcon />Undo edit</button>
+            <button type="button" className="card-kit-btn" {...hint('block.undo')} onClick={() => onUndo?.(block.index)}><UndoIcon />Undo edit</button>
           ) : (
             <CoachMark target="workbench.selected-block.tamper" coach={coach} placement="above" className="selected-block-coach">
-              <button type="button" className="card-kit-btn" disabled={!canTamper}
-                title={canTamper ? 'Change one transaction amount in this block' : 'This block has no transaction to change'}
-                onClick={() => setEditorFor(block.index)}><PenIcon />Tamper with this block</button>
+              <span className="hint-wrap" {...hint('block.tamper', canTamper)}>
+                <button type="button" className="card-kit-btn" disabled={!canTamper}
+                  onClick={() => setEditorFor(block.index)}><PenIcon />Tamper with this block</button>
+              </span>
             </CoachMark>
           )}
-          <button type="button" className="card-kit-btn is-ghost selected-block-details" onClick={() => onOpenDetails?.(block.index)}>Details</button>
+          <button type="button" className="card-kit-btn is-ghost selected-block-details" {...hint('block.details')} onClick={() => onOpenDetails?.(block.index)}>Details</button>
         </div>
       )}
       {children}

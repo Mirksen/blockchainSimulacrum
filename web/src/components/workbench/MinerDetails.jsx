@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { headerFields, le } from '../../../../shared/bitcoin-block.mjs';
 import { MAX_SHARE, MIN_SHARE } from '../../lib/blockchain';
 import { COUNT_ZEROS } from '../../lib/powSearch';
+import { hint } from '../../lib/hints';
 import { duration, expectedAttempts, minerColor, rateOf, shareOf } from './minerDetailsModel';
 import './cardKit.css';
 import './MinerDetails.css';
@@ -30,7 +31,7 @@ export function ShareSlider({ miner, miners, onShare, compact = false, note = tr
     <div className={`miner-share${compact ? ' is-compact' : ''}`} style={{ '--miner-color': minerColor(miner) }}>
       <div className="miner-share-row">
         <input id={id} type="range" min={MIN_SHARE} max={MAX_SHARE} step="1" value={alone ? 100 : Math.min(MAX_SHARE, Math.max(MIN_SHARE, share))}
-          disabled={alone || !onShare} aria-label={`${miner.name}'s share of the hashpower`}
+          disabled={alone || !onShare} aria-label={`${miner.name}'s share of the hashpower`} {...hint('next.hashpower')}
           aria-valuetext={`${share} %, ${share} % chance to find the next block`}
           onChange={event => onShare?.(miner.name, Number(event.target.value))} />
         <output htmlFor={id} className="miner-share-value">{share} %</output>

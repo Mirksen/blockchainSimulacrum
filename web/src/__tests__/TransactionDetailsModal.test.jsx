@@ -5,6 +5,7 @@ import { ParticipantDetailsModal } from '../components/ParticipantDetailsModal';
 import { TransactionDetailsModal } from '../components/TransactionDetailsModal';
 import { candidateHash, createBlockchain } from '../lib/blockchain';
 import { meetsTarget } from '../../../shared/bitcoin-block.mjs';
+import { HINTS } from '../lib/hints';
 
 vi.mock('../components/Modal', () => ({ Modal: ({ children }) => <div role="dialog">{children}</div> }));
 afterEach(cleanup);
@@ -49,6 +50,7 @@ describe('TransactionDetailsModal', () => {
     expect(screen.getByText(view.txid)).toBeTruthy();
     expect(screen.getByText(view.hex)).toBeTruthy();
     expect(screen.getByText(`Raw bytes (${view.size} bytes)`)).toBeTruthy();
+    expect(screen.getByText('Transaction ID (TXID)').getAttribute('data-hint')).toBe(HINTS['details.txid'].text);
     expect(screen.getAllByText(/^OP_DUP OP_HASH160 [0-9a-f]{40} OP_EQUALVERIFY OP_CHECKSIG$/).length).toBeGreaterThan(0);
   });
 

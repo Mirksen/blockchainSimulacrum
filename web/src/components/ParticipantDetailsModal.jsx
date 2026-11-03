@@ -4,6 +4,7 @@ import { TransactionDetailsModal } from './TransactionDetailsModal';
 import { Participant } from '../lib/blockchain';
 import { WALLET_DERIVATION_PATH } from '../lib/wallet';
 import { colorOf } from './workbench/minerColors';
+import { hint, term } from '../lib/hints';
 
 // Wallet and miner colors that have a token in styles/tokens.css.
 
@@ -104,7 +105,7 @@ export function ParticipantDetailsModal({
                             </span>
                         )}
                     </h2>
-                    <button type="button" className="details-modal-close" aria-label="Close details" onClick={onClose}>
+                    <button type="button" className="details-modal-close" aria-label="Close details" {...hint('details.close')} onClick={onClose}>
                         <CloseIcon />
                     </button>
                 </div>
@@ -114,7 +115,7 @@ export function ParticipantDetailsModal({
                         <div className="balance-amount">
                             {balance?.balance?.toFixed(8) || '0.00000000'}
                         </div>
-                        <div className="details-modal-balance-label">{coinName}</div>
+                        <div className="details-modal-balance-label" {...term('details.balance')}>{coinName}</div>
                     </div>
 
                     <div className="details-modal-stats">
@@ -122,25 +123,25 @@ export function ParticipantDetailsModal({
                             <div className="details-modal-stat-value">
                                 +{totalReceived.toFixed(4)}
                             </div>
-                            <div className="details-modal-stat-label">Total received</div>
+                            <div className="details-modal-stat-label" {...term('details.received')}>Total received</div>
                         </div>
                         <div className="details-modal-stat">
                             <div className="details-modal-stat-value">
                                 -{totalSent.toFixed(4)}
                             </div>
-                            <div className="details-modal-stat-label">Total sent</div>
+                            <div className="details-modal-stat-label" {...term('details.sent')}>Total sent</div>
                         </div>
                         {participant.isMiner && (
                             <div className="details-modal-stat">
                                 <div className="details-modal-stat-value">
                                     {miningRewards.toFixed(4)}
                                 </div>
-                                <div className="details-modal-stat-label">Mining rewards</div>
+                                <div className="details-modal-stat-label" {...term('details.rewards')}>Mining rewards</div>
                             </div>
                         )}
                         <div className="details-modal-stat">
                             <div className="details-modal-stat-value">{txHistory.length}</div>
-                            <div className="details-modal-stat-label">Total TXs</div>
+                            <div className="details-modal-stat-label" {...term('details.tx-total')}>Total TXs</div>
                         </div>
                     </div>
 
@@ -148,16 +149,18 @@ export function ParticipantDetailsModal({
                         <div className="details-modal-miner">
                             <div className="details-modal-miner-head">
                                 <span className="details-modal-miner-title">Miner settings</span>
-                                <button
-                                    type="button"
-                                    className={`details-modal-btn${participant.minerEnabled ? ' is-on' : ''}`}
-                                    onClick={() => toggleMiner?.(participant.name)}
-                                    disabled={isMining}
-                                >
-                                    {participant.minerEnabled ? 'Enabled' : 'Disabled'}
-                                </button>
+                                <span className="hint-wrap" {...hint('details.miner-enabled', participant.minerEnabled)}>
+                                    <button
+                                        type="button"
+                                        className={`details-modal-btn${participant.minerEnabled ? ' is-on' : ''}`}
+                                        onClick={() => toggleMiner?.(participant.name)}
+                                        disabled={isMining}
+                                    >
+                                        {participant.minerEnabled ? 'Enabled' : 'Disabled'}
+                                    </button>
+                                </span>
                             </div>
-                            <div className="details-modal-hashpower">
+                            <div className="details-modal-hashpower" {...hint('details.hashpower')}>
                                 <span className="details-modal-hashpower-label">Hashpower</span>
                                 <span className="details-modal-hashpower-value">{share === null ? 'not racing' : `${share} %`}</span>
                                 {onOpenMiner && (
@@ -173,7 +176,7 @@ export function ParticipantDetailsModal({
                     )}
 
                     <div className="details-modal-section">
-                        <div className="details-modal-label">Coins ({coins.length} unspent {coins.length === 1 ? 'output' : 'outputs'})</div>
+                        <div className="details-modal-label" {...term('details.coins')}>Coins ({coins.length} unspent {coins.length === 1 ? 'output' : 'outputs'})</div>
                         <p className="details-modal-note">The balance is the sum of these coins. A wallet stores no total.</p>
                         {coins.length > 0 ? (
                             <ul className="details-modal-coins" aria-label="Unspent outputs">
@@ -189,19 +192,19 @@ export function ParticipantDetailsModal({
                     </div>
 
                     <div className="details-modal-section">
-                        <div className="details-modal-label">Address</div>
+                        <div className="details-modal-label" {...term('details.address')}>Address</div>
                         <div className="details-modal-hash">{participant.address}</div>
                     </div>
 
                     <div className="details-modal-section">
-                        <div className="details-modal-label">Demo public key</div>
+                        <div className="details-modal-label" {...term('details.public-key')}>Demo public key</div>
                         <div className="details-modal-hash">
                             {participant.publicKey}
                         </div>
                     </div>
 
                     <div className="details-modal-section">
-                        <div className="details-modal-label">Demo recovery phrase (BIP39)</div>
+                        <div className="details-modal-label" {...term('details.recovery-phrase')}>Demo recovery phrase (BIP39)</div>
                         <p className="details-modal-note">These words recover this demo key. Resetting still clears the simulated ledger. Never use this simulation for real funds.</p>
                         <div className="details-modal-seed">
                             {participant.seedPhrase?.split(' ').map((word, idx) => (
@@ -212,9 +215,11 @@ export function ParticipantDetailsModal({
                             )) || <span>No seed phrase available</span>}
                         </div>
                         <p className="details-modal-note">Derivation: <code>{WALLET_DERIVATION_PATH}</code>, empty passphrase.</p>
-                        <button type="button" className="details-modal-btn" onClick={verifyRecovery} disabled={isMining}>
-                            Verify recovery
-                        </button>
+                        <span className="hint-wrap" {...hint('details.verify-recovery')}>
+                            <button type="button" className="details-modal-btn" onClick={verifyRecovery} disabled={isMining}>
+                                Verify recovery
+                            </button>
+                        </span>
                         {recoveryResult?.publicKey === participant.publicKey && (
                             <p role="status" className={`details-modal-result${recoveryResult.verified ? ' is-ok' : ''}`}>
                                 {recoveryResult.verified
@@ -225,7 +230,7 @@ export function ParticipantDetailsModal({
                     </div>
 
                     <div className="details-modal-section">
-                        <div className="details-modal-label">
+                        <div className="details-modal-label" {...term('details.history')}>
                             Transaction history ({txHistory.length})
                         </div>
                         <div className="details-modal-list">
@@ -239,7 +244,7 @@ export function ParticipantDetailsModal({
                                         key={idx}
                                         className="details-modal-row"
                                         onClick={() => setSelectedTransaction(item)} role="button" tabIndex={0} aria-label={`Transaction in block ${item.blockIndex}: ${item.amount}`} onKeyDown={event => { if (event.target === event.currentTarget && ['Enter', ' '].includes(event.key)) { event.preventDefault(); event.currentTarget.click(); } }}
-                                        title="Click for details"
+                                        {...hint('details.history-row', item.isMiningReward ? 'reward' : item.isIncoming ? 'incoming' : 'outgoing')}
                                     >
                                         <div className="details-modal-row-icon">
                                             {item.isMiningReward ? <RewardIcon /> : item.isIncoming ? <IncomingIcon /> : <OutgoingIcon />}

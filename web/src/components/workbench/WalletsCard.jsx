@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { CreateNameForm } from './CreateNameForm';
 import './cardKit.css';
+import { hint, term } from '../../lib/hints';
 import './WalletsCard.css';
 import { colorOf } from './minerColors';
 
@@ -27,15 +28,15 @@ export function WalletsCard({ wallets = [], coinName = 'powfyicoin', onOpenWalle
   return (
     <section className="card-kit wallets-card" aria-label="Wallets">
       <div className="card-kit-head">
-        <h2 className="card-kit-title">Wallets</h2>
+        <h2 className="card-kit-title" {...term('wallets.title')}>Wallets</h2>
         <span className="card-kit-aside wallets-card-aside">{wallets.length} {wallets.length === 1 ? 'wallet' : 'wallets'} · {coinName} · virtual</span>
-        <button type="button" className="wallets-card-new" aria-expanded={creating} onClick={() => setCreating(open => !open)}><PlusIcon />Create wallet</button>
+        <button type="button" className="wallets-card-new" aria-expanded={creating} {...hint('wallets.create')} onClick={() => setCreating(open => !open)}><PlusIcon />Create wallet</button>
       </div>
       <ul className="wallets-card-list" aria-label="Wallets">
         {wallets.length === 0 && <li className="card-kit-empty">No wallets yet.<small>Create one below.</small></li>}
         {wallets.map(wallet => (
           <li key={wallet.name}>
-            <button type="button" className="wallets-card-row" onClick={() => onOpenWallet?.(wallet.name)}
+            <button type="button" className="wallets-card-row" onClick={() => onOpenWallet?.(wallet.name)} {...hint('wallets.row', wallet.name, wallet.isMiner)}
               aria-label={`Open ${wallet.name}, balance ${balanceText(wallet.balance)} ${coinName}`}>
               <Avatar name={wallet.name} colorKey={wallet.colorKey} />
               <span className="wallets-card-nm">{wallet.name}</span>

@@ -113,7 +113,7 @@ describe('MempoolCard', () => {
     expect(screen.getByRole('meter', { name: 'Block space of #7' }).getAttribute('aria-valuenow')).toBe('250');
     expect(text).toContain('250 B · 20 sat/B');
     expect(text).toContain('226 B · 1 sat/B');
-    expect(screen.getByText('waits · block full').title).toContain('higher fee per byte');
+    expect(screen.getByText('waits · block full').getAttribute('data-hint')).toContain('higher fee per byte');
     expect(screen.getByText('waits for its parent')).toBeTruthy();
     expect(screen.getByText('orphaned by an edit').className).toContain('is-invalid');
     expect(document.querySelectorAll('.mempool-card-tx.is-waiting')).toHaveLength(3);

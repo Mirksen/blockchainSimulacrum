@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useState } from 'react';
 import { getMiner, isValidPoolName, minerProfileHash, POOL_HASH, POOL_UNAVAILABLE_MESSAGE, UNKNOWN_MINER_MESSAGE } from '../lib/poolApi';
 import { formatDifficulty, leadingZeros, verifyRow } from '../lib/poolProof';
+import { hint, term } from '../lib/hints';
 import './MinerProfile.css';
 
 const blockLink = height => `https://mempool.space/block/${height}`;
@@ -22,10 +23,10 @@ function FullHash({ hash }) {
 function Verification({ block }) {
   const check = verifyRow(block);
   return <div className="miner-profile-verify" role="status">
-    <p>Double SHA-256 of the 80-byte block header</p>
+    <p {...term('pool.header-check')}>Double SHA-256 of the 80-byte block header</p>
     <code className="miner-profile-preimage">{check.header}</code>
     <p>is <code className="miner-profile-preimage">{check.hash}</code></p>
-    <p>Its coinbase commits to <code className="miner-profile-preimage">{check.commitment}</code></p>
+    <p {...term('pool.commitment')}>Its coinbase commits to <code className="miner-profile-preimage">{check.commitment}</code></p>
     <p className={check.matches ? 'miner-profile-verify-ok' : 'miner-profile-verify-bad'}>
       {check.matches ? `Matches the listed hash: ${zerosLabel(block.bestZeros)}, signed by ${block.name} in round ${block.round.height}.`
         : 'Does not match the listed hash and name.'}</p>
@@ -36,19 +37,20 @@ function Rounds({ blocks }) {
   const [open, setOpen] = useState(null);
   return <div className="miner-profile-table" tabIndex={0} role="region" aria-labelledby="miner-profile-rounds-title">
     <table>
-      <thead><tr><th scope="col">Bitcoin block</th><th scope="col">Zeros</th><th scope="col">Difficulty</th><th scope="col">Blocks</th>
-        <th scope="col">Found</th><th scope="col"><span className="miner-profile-sr">Check</span></th></tr></thead>
+      <thead><tr><th scope="col" {...term('pool.round-block')}>Bitcoin block</th><th scope="col" {...term('pool.zeros')}>Zeros</th>
+        <th scope="col" {...term('pool.difficulty')}>Difficulty</th><th scope="col" {...term('pool.round-blocks')}>Blocks</th>
+        <th scope="col" {...term('pool.found')}>Found</th><th scope="col"><span className="miner-profile-sr">Check</span></th></tr></thead>
       <tbody>{blocks.map(block => {
         const key = `${block.round.height}:${block.round.hash}`;
         const isOpen = open === key;
         return <Fragment key={key}>
           <tr>
-            <td><a href={blockLink(block.round.height)} target="_blank" rel="noreferrer">#{block.round.height}</a></td>
+            <td><a href={blockLink(block.round.height)} target="_blank" rel="noreferrer" {...hint('pool.bitcoin-block', block.round.height)}>#{block.round.height}</a></td>
             <td>{block.bestZeros}</td>
             <td>{formatDifficulty(block.difficulty)}</td>
             <td>{formatNumber(block.proofs)}</td>
             <td><time dateTime={new Date(block.foundAt).toISOString()}>{formatTime(block.foundAt)}</time></td>
-            <td><button type="button" className="btn btn-transparent miner-profile-verify-btn" aria-expanded={isOpen}
+            <td><button type="button" className="btn btn-transparent miner-profile-verify-btn" aria-expanded={isOpen} {...hint('pool.verify')}
               aria-label={`Verify the block of round ${block.round.height}`} onClick={() => setOpen(isOpen ? null : key)}>Verify</button></td>
           </tr>
           {isOpen && <tr className="miner-profile-verify-row"><td colSpan={6}><Verification block={block} /></td></tr>}
@@ -95,14 +97,14 @@ export function MinerProfile({ name, ownName = '', refreshKey = 0, onBack }) {
   }
 
   return <section className="miner-profile" aria-labelledby="miner-profile-title">
-    <a className="miner-profile-back" href={POOL_HASH} onClick={event => {
+    <a className="miner-profile-back" href={POOL_HASH} {...hint('pool.profile-back')} onClick={event => {
       if (!onBack || !plainClick(event)) return;
       event.preventDefault();
       onBack();
     }}><span aria-hidden="true">← </span>Leaderboard</a>
     <div className="miner-profile-head">
-      <h3 id="miner-profile-title">{name}{ownName !== '' && ownName === name && <span className="miner-profile-you">you</span>}</h3>
-      {state === 'ready' && <button type="button" className="btn btn-transparent miner-profile-copy" onClick={copyLink}>Copy link</button>}
+      <h3 id="miner-profile-title">{name}{ownName !== '' && ownName === name && <span className="miner-profile-you" {...term('pool.you')}>you</span>}</h3>
+      {state === 'ready' && <button type="button" className="btn btn-transparent miner-profile-copy" {...hint('pool.copy-link')} onClick={copyLink}>Copy link</button>}
     </div>
     {copied && <p className="miner-profile-help" role="status">{copied}</p>}
     {state === 'loading' && <p className="miner-profile-help">Loading the profile…</p>}
@@ -110,13 +112,13 @@ export function MinerProfile({ name, ownName = '', refreshKey = 0, onBack }) {
     {state === 'unavailable' && <p className="miner-profile-note">{POOL_UNAVAILABLE_MESSAGE}</p>}
     {state === 'ready' && <>
       <dl className="miner-profile-stats">
-        <div><dt>Rank · last 144 blocks</dt><dd>{formatRank(miner.rank.window)}</dd></div>
-        <div><dt>Rank · all time</dt><dd>{formatRank(miner.rank.allTime)}</dd></div>
-        <div><dt>Rounds</dt><dd>{formatNumber(blocks.length)}</dd></div>
-        <div><dt>Blocks sent</dt><dd>{formatNumber(sent)}</dd></div>
+        <div><dt {...term('pool.rank-recent')}>Rank · last 144 blocks</dt><dd>{formatRank(miner.rank.window)}</dd></div>
+        <div><dt {...term('pool.rank-all-time')}>Rank · all time</dt><dd>{formatRank(miner.rank.allTime)}</dd></div>
+        <div><dt {...term('pool.rounds')}>Rounds</dt><dd>{formatNumber(blocks.length)}</dd></div>
+        <div><dt {...term('pool.blocks-sent')}>Blocks sent</dt><dd>{formatNumber(sent)}</dd></div>
       </dl>
-      {best && <div className="miner-profile-best"><span className="miner-profile-label">Best hash</span><FullHash hash={best} /></div>}
-      <h4 id="miner-profile-rounds-title" className="miner-profile-rounds-title">Rounds</h4>
+      {best && <div className="miner-profile-best"><span className="miner-profile-label" {...term('pool.profile-best')}>Best hash</span><FullHash hash={best} /></div>}
+      <h4 id="miner-profile-rounds-title" className="miner-profile-rounds-title" {...term('pool.rounds')}>Rounds</h4>
       <Rounds blocks={blocks} />
     </>}
   </section>;

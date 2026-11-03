@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { NAME_HINT, NAME_UNAVAILABLE_MESSAGE } from '../../lib/poolApi';
+import { hint } from '../../lib/hints';
 import './MinerName.css';
 
 // The visitor's name at the top of the Next block card (web/DESIGN.md, "Miner name"): it
@@ -40,7 +41,7 @@ export function MinerName({ identity, rows, locked = false }) {
     <div className={`miner-name${inviting ? ' is-generated' : ' is-chosen'}`}>
       <label className="miner-name-label" htmlFor="miner-name-input">{inviting ? 'Enter your name' : 'Your name'}</label>
       <input id="miner-name-input" className="miner-name-input" value={name} maxLength={20} placeholder="Enter your name"
-        autoComplete="nickname" spellCheck={false} disabled={locked} title={locked ? 'Locked while a block is being mined' : undefined}
+        autoComplete="nickname" spellCheck={false} disabled={locked} {...hint('next.your-name', locked)}
         onChange={event => setName(event.target.value)}
         onBlur={() => { setChoosing(false); if (name === '') setName(fallback); }}
         onFocus={event => { if (generated) { setChoosing(true); event.target.select(); } }} aria-invalid={valid ? undefined : 'true'}

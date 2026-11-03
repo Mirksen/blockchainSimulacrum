@@ -1,6 +1,5 @@
-import { useMemo } from 'react';
+import { useMemo, useSyncExternalStore } from 'react';
 import { ChainBand } from './ChainBand';
-import { ChainTimeline } from './ChainTimeline';
 import { SelectedBlockCard } from './SelectedBlockCard';
 import { NextBlockCard } from './NextBlockCard';
 import { MinerName } from './MinerName';
@@ -18,6 +17,15 @@ import './Workbench.css';
 // card grid; App frames it with the mission rail. It turns the simulation snapshot
 // into the view models of the presentational components; App owns state and effects.
 
+// Below 1024 px the chain band turns compact and stays at the top while the cards scroll.
+const NARROW = '(max-width: 1023.98px)';
+const subscribeNarrow = notify => {
+  const query = globalThis.matchMedia?.(NARROW);
+  query?.addEventListener?.('change', notify);
+  return () => query?.removeEventListener?.('change', notify);
+};
+const isNarrow = () => Boolean(globalThis.matchMedia?.(NARROW).matches);
+
 // A signed coinbase names its miner in the memo and commits to it in a last output.
 const signerOf = coinbase => (coinbase.outputs.some(output => output.kind === 'commitment') ? coinbase.memo : null);
 
@@ -30,6 +38,7 @@ export function Workbench({
   const { blocks, blockStatus, participants, memPool, balances, tamperedEdits, describeTx, previewTransaction, blockTemplate, difficulty, blockReward, halvingInterval,
     isMining, isSettingUp, minerProgress, miningProgress, raceWinner, backedMiner } = sim;
   const busy = isMining || isSettingUp;
+  const compact = useSyncExternalStore(subscribeNarrow, isNarrow, () => false);
   const height = blocks.length - 1;
   const fresh = height === 0 && memPool.length === 0 && !busy;
   const views = useMemo(() => buildBlockViews({ blocks, blockStatus, participants, tamperedEdits }),
@@ -103,12 +112,7 @@ export function Workbench({
     <div className="wb-band">
       <ChainBand views={fresh ? views.slice(0, 1) : views} candidate={candidate} selectedIndex={selected} pinned={pinned} onSelect={onSelect}
         keyFigures={keyFigures} healthOpen={healthOpen} onToggleHealth={onToggleHealth}
-        coach={workbenchCoach} repairOrder={repairOrder} />
-    </div>
-    <div className="wb-timeline">
-      <ChainTimeline views={views} candidate={candidate} selectedIndex={selected} pinned={pinned} onSelect={onSelect} onOpenChainLab={onOpenChainLab}
-        keyFigures={keyFigures} healthOpen={healthOpen} onToggleHealth={onToggleHealth}
-        coach={workbenchCoach} repairOrder={repairOrder} />
+        coach={workbenchCoach} repairOrder={repairOrder} compact={compact} />
     </div>
     <div className="wb-grid">
       <div className="wb-selected">

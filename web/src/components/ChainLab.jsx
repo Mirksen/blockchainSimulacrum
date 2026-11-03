@@ -5,6 +5,7 @@ import { CoachMark } from './workbench/CoachMark';
 import { ForkExperiment } from './ForkExperiment';
 import { HeaderBytes } from './HeaderBytes';
 import { MerkleProof } from './MerkleProof';
+import { hint, term } from '../lib/hints';
 import './ChainLab.css';
 
 const TITLES = { repair: 'Change the past. Follow the links.', fork: 'Competing branches', merkle: 'Prove a payment' };
@@ -81,21 +82,21 @@ export function ChainLab({ onClose, embedded = false, onLessonEvent, coach = nul
     <header className="chain-lab-header">
       <div><h2 id="chain-lab-title">{TITLES[shownExperiment] ?? TITLES.repair}</h2>
         <p>{INTROS[shownExperiment] ?? INTROS.repair}</p></div>
-      {!embedded && <button className="btn btn-transparent" onClick={() => { cancel(); onClose(); }}>Back to simulator</button>}
+      {!embedded && <button className="btn btn-transparent" {...hint('lab.back')} onClick={() => { cancel(); onClose(); }}>Back to simulator</button>}
     </header>
     <nav className="chain-lab-experiments" aria-label="Chain lab experiment">
-      <button type="button" className="btn btn-default" aria-pressed={shownExperiment === 'repair'}
+      <button type="button" className="btn btn-default" aria-pressed={shownExperiment === 'repair'} {...hint('lab.chain.repair')}
         onClick={() => switchExperiment('repair')}>Repair a chain</button>
-      <button type="button" className="btn btn-default" aria-pressed={shownExperiment === 'fork'}
+      <button type="button" className="btn btn-default" aria-pressed={shownExperiment === 'fork'} {...hint('lab.chain.fork')}
         onClick={() => switchExperiment('fork')}>Competing branches</button>
-      <button type="button" className="btn btn-default" aria-pressed={shownExperiment === 'merkle'}
+      <button type="button" className="btn btn-default" aria-pressed={shownExperiment === 'merkle'} {...hint('lab.chain.merkle')}
         onClick={() => switchExperiment('merkle')}>Prove a payment</button>
     </nav>
     {shownExperiment === 'fork' ? <ForkExperiment onLessonEvent={onLessonEvent} coach={coach} />
       : shownExperiment === 'merkle' ? <MerkleProof /> : <>
     <div className="chain-lab-summary">
-      <p className={consistent ? 'chain-lab-positive' : 'chain-lab-negative'}><strong>{consistent ? 'Toy chain consistent' : 'Toy chain inconsistent'}</strong></p>
-      <button className="btn btn-default" onClick={reset}>Reset chain lab</button>
+      <p className={consistent ? 'chain-lab-positive' : 'chain-lab-negative'}><strong {...term('lab.chain.status', consistent)}>{consistent ? 'Toy chain consistent' : 'Toy chain inconsistent'}</strong></p>
+      <button className="btn btn-default" {...hint('lab.chain.reset')} onClick={reset}>Reset chain lab</button>
     </div>
     <p className="chain-lab-help">Change Block 1’s data, then re-mine 1, 2 and 3. The target is one leading hex zero. Editing data leaves the stored hashes and links untouched.</p>
     <ol className="chain-lab-blocks">
@@ -104,32 +105,35 @@ export function ChainLab({ onClose, embedded = false, onLessonEvent, coach = nul
         return <li key={block.number}>
           <article aria-labelledby={`chain-block-${index}-title`} className="chain-lab-block">
             <header><h3 id={`chain-block-${index}-title`}>Block {block.number}</h3>
-              <span className={check.valid ? 'chain-lab-positive' : 'chain-lab-negative'}>{check.valid ? 'Valid through here' : 'Invalid through here'}</span></header>
+              <span className={check.valid ? 'chain-lab-positive' : 'chain-lab-negative'} {...term('lab.chain.valid', check.valid)}>{check.valid ? 'Valid through here' : 'Invalid through here'}</span></header>
             <label htmlFor={`chain-data-${index}`}>Block {block.number} data</label>
             <CoachMark target={index === 0 ? 'chain-lab.block-1' : undefined} coach={index === 0 ? coach : null}>
-              <textarea id={`chain-data-${index}`} rows={2} maxLength={300} value={block.data}
+              <textarea id={`chain-data-${index}`} rows={2} maxLength={300} value={block.data} {...hint('lab.chain.data', block.number)}
                 onChange={event => edit(index, { data: event.target.value })} />
             </CoachMark>
-            <label htmlFor={`chain-nonce-${index}`}>Block {block.number} nonce</label>
+            <label htmlFor={`chain-nonce-${index}`} {...term('lab.chain.nonce')}>Block {block.number} nonce</label>
             <input id={`chain-nonce-${index}`} inputMode="numeric" value={block.nonce}
-              aria-invalid={!!check.error} aria-describedby={check.error ? `chain-error-${index}` : undefined}
+              aria-invalid={!!check.error} aria-describedby={check.error ? `chain-error-${index}` : undefined} {...hint('lab.chain.nonce')}
               onChange={event => edit(index, { nonce: event.target.value })} />
             {check.error && <p id={`chain-error-${index}`} className="chain-lab-negative" role="alert">{check.error}</p>}
             <dl className="chain-lab-hashes">
-              <dt>Previous stored hash{index === 0 ? ' (starting anchor)' : ''}</dt><dd><code>{block.previousHash}</code></dd>
-              <dt>Stored hash</dt><dd><code>{block.hash}</code></dd>
+              <dt {...term('lab.chain.previous', index === 0)}>Previous stored hash{index === 0 ? ' (starting anchor)' : ''}</dt><dd><code>{block.previousHash}</code></dd>
+              <dt {...term('lab.chain.stored')}>Stored hash</dt><dd><code>{block.hash}</code></dd>
             </dl>
             <ul className="chain-lab-checks" aria-label={`Block ${block.number} checks`}>
-              <li className={check.hashMatches ? 'chain-lab-positive' : 'chain-lab-negative'}>{check.hashMatches ? 'Hash matches input' : 'Hash does not match input'}</li>
-              <li className={check.workValid ? 'chain-lab-positive' : 'chain-lab-negative'}>{check.workValid ? 'Stored hash meets target' : 'Stored hash misses target'}</li>
-              <li className={check.linkMatches ? 'chain-lab-positive' : 'chain-lab-negative'}>{check.linkMatches ? 'Previous link matches' : 'Previous link does not match'}</li>
-              {index > 0 && <li className={check.ancestorsValid ? 'chain-lab-positive' : 'chain-lab-negative'}>{check.ancestorsValid ? 'Earlier blocks valid' : 'Earlier block invalid'}</li>}
+              <li className={check.hashMatches ? 'chain-lab-positive' : 'chain-lab-negative'} {...term('lab.chain.check-hash', check.hashMatches)}>{check.hashMatches ? 'Hash matches input' : 'Hash does not match input'}</li>
+              <li className={check.workValid ? 'chain-lab-positive' : 'chain-lab-negative'} {...term('lab.chain.check-target', check.workValid)}>{check.workValid ? 'Stored hash meets target' : 'Stored hash misses target'}</li>
+              <li className={check.linkMatches ? 'chain-lab-positive' : 'chain-lab-negative'} {...term('lab.chain.check-link', check.linkMatches)}>{check.linkMatches ? 'Previous link matches' : 'Previous link does not match'}</li>
+              {index > 0 && <li className={check.ancestorsValid ? 'chain-lab-positive' : 'chain-lab-negative'} {...term('lab.chain.check-ancestors', check.ancestorsValid)}>{check.ancestorsValid ? 'Earlier blocks valid' : 'Earlier block invalid'}</li>}
             </ul>
             <CoachMark target={index === firstBroken ? 'chain-lab.remine' : undefined} coach={index === firstBroken ? coach : null}>
-              {searching === index ? <button className="btn btn-negative" onClick={() => active.current?.abort()}>Stop search</button>
-                : <button className="btn btn-emphasized" disabled={!!check.error || searching !== null} onClick={() => mine(index)}>Re-mine Block {block.number}</button>}
+              {/* One wrapper in both states, so the button stays the same node and keeps its focus. */}
+              <span className="hint-wrap" {...(searching === index ? hint('lab.chain.stop') : hint('lab.chain.remine', block.number))}>
+                {searching === index ? <button className="btn btn-negative" onClick={() => active.current?.abort()}>Stop search</button>
+                  : <button className="btn btn-emphasized" disabled={!!check.error || searching !== null} onClick={() => mine(index)}>Re-mine Block {block.number}</button>}
+              </span>
             </CoachMark>
-            <details className="chain-lab-input"><summary>Inspect Block {block.number} input</summary>
+            <details className="chain-lab-input"><summary {...hint('lab.chain.inspect', block.number)}>Inspect Block {block.number} input</summary>
               <p>Double SHA-256 hashes these 80 header bytes. The block’s data stands in for its transactions: the merkle root is its double SHA-256.</p>
               {check.trial ? <HeaderBytes header={check.trial.header} hash={check.trial.hash} /> : <code>Enter a valid nonce to inspect the input.</code>}
               <p>Re-mining uses the preceding stored hash and searches nonces from zero. A successful result replaces only this block.</p>
