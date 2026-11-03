@@ -15,7 +15,13 @@ export function workbench(page) {
     },
     shown: () => page.locator('section.selected-block .card-kit-title').first(),
     mine: index => page.getByRole('region', { name: new RegExp(`^Next block ${index}(,|$)`) }).getByRole('button', { name: 'Mining', exact: true }),
-    chainPill: () => page.locator('.top-bar-chain')
+    // The one chain status: the pill on the chain band (the vertical timeline below 1024 px).
+    chainPill: () => page.locator('button.chain-band-health-sum:visible'),
+    // The sideways-scrolling row of the chain band.
+    chainScroll: () => page.locator('.chain-band-scroll'),
+    // Between races a miner's name opens its editor.
+    minerButton: name => page.getByRole('button', { name: `${name}: rename or change hashpower`, exact: true }),
+    minerEditor: name => page.getByRole('group', { name: `Edit miner ${name}`, exact: true })
   };
 }
 
