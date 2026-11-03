@@ -4,9 +4,9 @@
 // (blocks, blockStatus, participants, tamperedEdits) of useBlockchain.
 
 import { GENESIS } from '../../lib/poolProof';
+import { colorKeyOf } from './minerColors';
 
 const BROKEN_STATUSES = new Set(['hash-mismatch', 'signature-invalid', 'transaction-invalid', 'link-broken']);
-const KNOWN_MINERS = new Set(['lars', 'minas', 'alice', 'bob', 'chris']);
 
 // First 6 + last 2 characters with "…" (web/DESIGN.md, "Chain band").
 export function shortHash(hash) {
@@ -29,6 +29,18 @@ export function formatSeconds(seconds) {
 }
 
 // "7 s": a header's time has whole seconds, so an interval between blocks has too.
+// How long ago a block was mined, from its header time: "just now", "12 s ago", "3 min ago".
+export function formatAge(time, now = Math.floor(Date.now() / 1000)) {
+  if (!Number.isFinite(time) || !Number.isFinite(now)) return null;
+  const seconds = Math.max(0, now - time);
+  if (seconds < 5) return 'just now';
+  if (seconds < 60) return `${seconds} s ago`;
+  if (seconds < 3600) return `${Math.floor(seconds / 60)} min ago`;
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)} h ago`;
+  const days = Math.floor(seconds / 86400);
+  return `${days} ${days === 1 ? 'day' : 'days'} ago`;
+}
+
 export function formatInterval(seconds) {
   return Number.isFinite(seconds) ? `${Math.max(0, seconds)} s` : null;
 }
@@ -58,7 +70,8 @@ export function buildBlockViews({ blocks = [], blockStatus = [], participants = 
     const isGenesis = index === 0;
     const miner = isGenesis ? null : minerOf(block, participants);
     const minerName = isGenesis ? 'Genesis' : (miner?.name ?? 'Unknown miner');
-    const minerKey = isGenesis ? 'genesis' : (KNOWN_MINERS.has(minerName.toLowerCase()) ? minerName.toLowerCase() : 'other');
+    // The color key stays with a miner through a rename; a miner without a color is 'other'.
+    const minerKey = isGenesis ? 'genesis' : (colorKeyOf(miner?.colorKey ?? minerName) ?? 'other');
     const previous = blocks[index - 1];
     // The genesis block has a fixed launch time, so block #1 has no mining interval.
     const seconds = index > 1 && Number.isFinite(block.time) && Number.isFinite(previous?.time)
@@ -77,6 +90,7 @@ export function buildBlockViews({ blocks = [], blockStatus = [], participants = 
       minerKey,
       txCount: (block.transactions ?? []).length,
       seconds,
+      time: Number.isFinite(block.time) ? block.time : null,
       storedHash,
       computedHash,
       prevHash: isGenesis ? null : (block.previousHash ?? ''),
@@ -224,24 +238,6 @@ export function healthSummary(views) {
     issues,
     firstBroken: views.find(view => view.status !== 'valid')?.index ?? null
   };
-}
-
-// Visible window of the band per container tier (see ChainBand.css):
-// a: < 1114 px, b: 1114-1239 px, c: >= 1240 px. `full` blocks fit without the
-// "‹ N earlier" control; with the control `withEarlier` blocks stay visible.
-export const BAND_TIERS = Object.freeze({
-  a: { full: 3, withEarlier: 3 },
-  b: { full: 5, withEarlier: 4 },
-  c: { full: 5, withEarlier: 5 }
-});
-
-export function bandWindow(count) {
-  const result = {};
-  for (const [tier, { full, withEarlier }] of Object.entries(BAND_TIERS)) {
-    const hidden = count > full ? count - withEarlier : 0;
-    result[tier] = { hidden, visible: count - hidden };
-  }
-  return result;
 }
 
 // Text of the candidate in each state.

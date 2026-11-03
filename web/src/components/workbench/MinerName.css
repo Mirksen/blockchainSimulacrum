@@ -4,8 +4,20 @@
   margin-top: var(--s-2); padding: 6px var(--s-3); border: 1px solid var(--line-2); border-radius: var(--r-md);
   background: var(--panel);
 }
-.miner-name.is-generated { border-color: var(--blue-line); background: var(--blue-bg); }
-.miner-name.is-generated .miner-name-input { border-color: var(--blue); box-shadow: 0 0 0 1px var(--blue), 0 0 14px var(--blue-glow); }
+/* Inviting: a generated name. Larger, blue, the field glows; the eye lands here first. */
+.miner-name.is-generated {
+  padding: 10px var(--s-3); border-color: var(--blue); background: var(--blue-bg);
+  box-shadow: 0 0 0 3px var(--blue-bg), 0 10px 26px -14px var(--blue-glow);
+}
+.miner-name.is-generated .miner-name-label { font-size: 15px; color: var(--coach); }
+.miner-name.is-generated .miner-name-input {
+  height: 38px; font-size: 15px; border-color: var(--blue); box-shadow: 0 0 0 1px var(--blue), 0 0 14px var(--blue-glow);
+}
+/* Chosen: the name steps back into a quiet line. */
+.miner-name.is-chosen { padding: 2px 0; border-color: transparent; background: transparent; }
+.miner-name.is-chosen .miner-name-label { font-weight: 500; color: var(--text-3); }
+.miner-name.is-chosen .miner-name-input { height: 28px; border-color: var(--line-2); background: transparent; }
+.miner-name.is-chosen .miner-name-status:not(.is-problem) { color: var(--text-3); }
 .miner-name-label { font-size: 13px; font-weight: 600; color: var(--text); white-space: nowrap; }
 .miner-name-input {
   width: 100%; min-width: 0; height: 32px; padding: 0 10px; border: 1px solid var(--line-3); border-radius: var(--r-sm);

@@ -50,8 +50,9 @@
   --red-bg: rgba(255, 122, 122, 0.13);
 
   /* miners and wallets */
-  --lars: #f5a524;
-  --minas: #a78bfa;
+  --hal: #f5a524;
+  --dorian: #a78bfa;
+  --laszlo: #f472b6;
   --alice: #93c5fd;
   --bob: #86efac;
   --chris: #7dd3fc;
@@ -160,8 +161,9 @@ html[data-theme="light"] {
   --red-bg: rgba(196, 43, 43, 0.10);
 
   /* miners and wallets: saturated fills that carry white letters */
-  --lars: #b45309;
-  --minas: #7c3aed;
+  --hal: #b45309;
+  --dorian: #7c3aed;
+  --laszlo: #be185d;
   --alice: #1f62d1;
   --bob: #15803d;
   --chris: #0e7490;

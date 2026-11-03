@@ -1,16 +1,39 @@
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useId, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { CoachMark } from './CoachMark';
 import {
-  bandWindow, brokenBefore, candidateCopy, formatInterval, formatSeconds, healthSummary, linkInto, ordinal, pendingLink,
+  brokenBefore, candidateCopy, formatAge, formatInterval, formatSeconds, healthSummary, linkInto, ordinal, pendingLink,
   shortHash, stateOf, statusLabel, zerosOf
 } from './blockView';
 import './ChainBand.css';
 
 // Chain band (web/DESIGN.md, "Chain band"): #0 … newest left to right, then the
-// dashed candidate; hairline links, full-hash tooltip with Copy, key-figure line
-// and the collapsible chain health line. Presentational: data and callbacks in props.
+// dashed candidate, in one row that scrolls sideways with the touchpad; hairline links,
+// full-hash tooltip with Copy, key figures, and the "Chain valid" pill that opens the
+// checks. Presentational: data and callbacks in props.
 
-const TIERS = ['a', 'b', 'c'];
+// One shared clock for every "… ago": only the ages re-render each second.
+const clock = {
+  now: Math.floor(Date.now() / 1000), listeners: new Set(), timer: null,
+  subscribe(listener) {
+    clock.listeners.add(listener);
+    if (!clock.timer) {
+      clock.timer = setInterval(() => {
+        clock.now = Math.floor(Date.now() / 1000);
+        clock.listeners.forEach(notify => notify());
+      }, 1000);
+    }
+    return () => {
+      clock.listeners.delete(listener);
+      if (!clock.listeners.size) { clearInterval(clock.timer); clock.timer = null; }
+    };
+  },
+  read: () => clock.now
+};
+export function Age({ time, className = 'chain-band-age' }) {
+  const now = useSyncExternalStore(clock.subscribe, clock.read, clock.read);
+  const text = formatAge(time, now);
+  return text ? <span className={className}>{text}</span> : null;
+}
 
 /* ---------- icons (inline SVG, no emoji) ---------- */
 function CheckIcon({ size = 10 }) {
@@ -24,12 +47,6 @@ export function ChevronIcon({ className }) {
 }
 export function DownIcon() {
   return <svg width="10" height="10" viewBox="0 0 12 12" aria-hidden="true"><path d="M6 2v8M2.5 6.5L6 10l3.5-3.5" stroke="currentColor" strokeWidth="1.6" fill="none" strokeLinecap="round" strokeLinejoin="round" /></svg>;
-}
-function RightIcon() {
-  return <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M1.5 7h10M8.5 4l3 3-3 3" stroke="currentColor" strokeWidth="1.4" fill="none" strokeLinecap="round" strokeLinejoin="round" /></svg>;
-}
-function LeftIcon() {
-  return <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M8.5 3L4.5 7l4 4" stroke="currentColor" strokeWidth="1.6" fill="none" strokeLinecap="round" strokeLinejoin="round" /></svg>;
 }
 
 /* ---------- shared pieces (also used by ChainTimeline) ---------- */
@@ -157,7 +174,7 @@ function Tile({ view, views, newest, selected, pinned, repairPosition, shade, on
   const classes = ['chain-band-tile', newest && 'is-newest', selected && (pinned ? 'is-selected' : 'is-current'),
     state === 'broken' && 'is-broken', state === 'dependent' && 'is-dependent'].filter(Boolean).join(' ');
   const tag = view.isGenesis ? 'genesis' : state === 'broken' ? statusLabel(view.status) : newest ? 'newest' : null;
-  const time = view.isGenesis ? 'start' : formatInterval(view.seconds);
+  const time = view.isGenesis ? null : formatInterval(view.seconds);
   const shownHash = mismatch ? view.computedHash : view.storedHash;
   const miss = mismatch ? view.difficulty : 0;
   return (
@@ -165,12 +182,13 @@ function Tile({ view, views, newest, selected, pinned, repairPosition, shade, on
       {repairPosition ? (
         <span className={`chain-band-order${repairPosition === 1 ? ' is-next' : ''}`} aria-hidden="true">{repairPosition}</span>
       ) : null}
+      <span className="chain-band-num" aria-hidden="true">#{view.index}</span>
       <button type="button" className="chain-band-tile-face" aria-pressed={selected && pinned} aria-describedby={tipId}
         aria-label={tileLabel(view, { newest, selected, repairPosition })} onClick={() => onSelect?.(view.index)}>
         <span className="chain-band-tile-top">
-          <b>#{view.index}</b>
+          <Age time={view.time} />
           {tag && <span className={`chain-band-tag${state === 'broken' ? ' is-bad' : ''}`}>{tag}</span>}
-          {state !== 'broken' && time && <span className="chain-band-time">{time}</span>}
+          {state !== 'broken' && time && <span className="chain-band-time" title="Time since the previous block">{time}</span>}
         </span>
         <span className="chain-band-tile-by">
           <span className={`chain-band-av is-${view.minerKey}`} aria-hidden="true">{view.isGenesis ? 'G' : view.minerName.charAt(0).toUpperCase()}</span>
@@ -232,8 +250,9 @@ function Candidate({ candidate }) {
   const state = candidate.state ?? 'idle';
   return (
     <div className={`chain-band-cand is-${state}`} role="group" aria-label={copy.label} aria-busy={state === 'mining' || undefined}>
+      <span className="chain-band-num" aria-hidden="true">#{candidate.index}</span>
       <span className="chain-band-tile-top">
-        <b>#{candidate.index}</b><span className="chain-band-tag">{copy.tag}</span><span className="chain-band-time">{copy.time}</span>
+        <span className="chain-band-tag">{copy.tag}</span><span className="chain-band-time">{copy.time}</span>
       </span>
       <span className="chain-band-tile-by">
         {copy.tries ? <span>{copy.what} · <b>{copy.tries}</b> tries</span> : copy.what}
@@ -306,50 +325,37 @@ function Cell({ cell, twoLine }) {
   );
 }
 
-function worstCell(hidden, twoLine) {
-  const first = hidden[0].index;
-  const last = hidden.at(-1).index;
-  const range = first === last ? `#${first}` : `#${first}–#${last}`;
-  const broken = hidden.filter(view => stateOf(view) === 'broken');
-  const dependent = hidden.filter(view => stateOf(view) === 'dependent');
-  if (broken.length) {
-    return { cls: 'is-broken', label: `Blocks ${first} to ${last}: ${broken.length} broken`, st: `${range} · ${broken.length} broken`, dt: <>show earlier blocks</>, one: <><b>{range}</b><span>{broken.length} broken</span></> };
-  }
-  if (dependent.length) {
-    return { cls: 'is-dependent', label: `Blocks ${first} to ${last}: built on a broken block`, st: 'Built on a broken block', dt: <>{range}</>, one: <><b>{range}</b><span>built on broken</span></> };
-  }
-  const cell = { cls: 'is-ok', label: `Blocks ${first} to ${last} valid: hashes and links intact`, st: `${range} · valid`, dt: <><CheckIcon /> hashes · links intact</>,
-    one: <><b>{range}</b><span className="chain-band-ok"><CheckIcon /></span></> };
-  return twoLine ? { ...cell, one: undefined } : cell;
-}
-
+// The one standing chain status: a pill. A click opens the checks behind it.
 function HealthLine({ summary, healthOpen, onToggleHealth, stripId, compact = false }) {
   const { valid, minedCount, hashOk, linkOk, hashPhrase, issues } = summary;
+  const label = valid ? 'Chain valid' : 'Chain invalid';
+  const pill = <><i aria-hidden="true" /><b>{label}</b></>;
   return (
-    <div className="chain-band-health-line">
-      <span className="chain-band-health-text" role="status">
-        <span className="chain-band-health-sum"><i aria-hidden="true" /><b>{valid ? 'Chain valid' : 'Chain invalid'}</b></span>
-        {minedCount === 0 ? (
-          <><span className="chain-band-sep" aria-hidden="true">·</span><span>Genesis only · no links yet</span></>
-        ) : (
-          <>
-            <span className="chain-band-sep" aria-hidden="true">·</span>
-            <span><b>{compact ? `${hashOk}/${minedCount}` : `${hashOk} of ${minedCount}`}</b> {compact ? hashPhrase.replace('hashes start with', 'start').replace('hashes meet their target', 'meet target') : hashPhrase}</span>
-            <span className="chain-band-sep" aria-hidden="true">·</span>
-            {valid || compact ? (
-              <span><b>{compact ? `${linkOk}/${minedCount}` : `${linkOk} of ${minedCount}`}</b> {compact ? 'links' : 'links intact'}</span>
-            ) : (
-              <span className="chain-band-health-issues"><BoldBlocks text={issues.join('; ')} /></span>
-            )}
-          </>
-        )}
+    <span className="chain-band-health-line">
+      <span role="status" className="chain-band-health-status">
+        {onToggleHealth ? (
+          <button type="button" className="chain-band-health-sum" aria-expanded={Boolean(healthOpen)} aria-controls={stripId}
+            title={healthOpen ? 'Hide the checks' : 'Show the checks behind this'} onClick={onToggleHealth}>{pill}</button>
+        ) : <span className="chain-band-health-sum">{pill}</span>}
       </span>
-      {onToggleHealth && (
-        <button type="button" className="chain-band-health-toggle" aria-expanded={Boolean(healthOpen)} aria-controls={stripId} onClick={onToggleHealth}>
-          {healthOpen ? 'Hide checks' : 'Show checks'}<ChevronIcon />
-        </button>
+      {healthOpen && (
+        <span className="chain-band-health-text">
+          {minedCount === 0 ? (
+            <span>Genesis only · no links yet</span>
+          ) : (
+            <>
+              <span><b>{compact ? `${hashOk}/${minedCount}` : `${hashOk} of ${minedCount}`}</b> {compact ? hashPhrase.replace('hashes start with', 'start').replace('hashes meet their target', 'meet target') : hashPhrase}</span>
+              <span className="chain-band-sep" aria-hidden="true">·</span>
+              {valid || compact ? (
+                <span><b>{compact ? `${linkOk}/${minedCount}` : `${linkOk} of ${minedCount}`}</b> {compact ? 'links' : 'links intact'}</span>
+              ) : (
+                <span className="chain-band-health-issues"><BoldBlocks text={issues.join('; ')} /></span>
+              )}
+            </>
+          )}
+        </span>
       )}
-    </div>
+    </span>
   );
 }
 export function HealthCell({ view, views, twoLine }) {
@@ -362,53 +368,52 @@ export { HealthLine };
 
 /* ---------- band ---------- */
 
+// How close to the right edge still counts as following the newest block.
+const END_SLACK = 48;
+
 export function ChainBand({
   views = [], candidate = { index: 1, txCount: 0, state: 'idle' }, selectedIndex = null, pinned = true, onSelect,
   keyFigures, healthOpen = false, onToggleHealth, coach = null, repairOrder = []
 }) {
   const stripId = useId();
-  // The newest block of the visible window; null follows the chain as it grows.
-  const [topIndex, setTopIndex] = useState(null);
-  // Letting go of a held block returns to the newest, so the window follows too.
-  const [wasPinned, setWasPinned] = useState(pinned);
-  if (wasPinned !== pinned) {
-    setWasPinned(pinned);
-    if (!pinned) setTopIndex(null);
-  }
-  const bandRef = useRef(null);
-  const [tierNow, setTierNow] = useState('c');
-  useEffect(() => {
-    const band = bandRef.current;
-    if (!band || typeof ResizeObserver !== 'function') return undefined;
-    const observer = new ResizeObserver(([entry]) => {
-      const width = entry.contentRect.width;
-      setTierNow(width < 1114 ? 'a' : width < 1240 ? 'b' : 'c');
-    });
-    observer.observe(band);
-    return () => observer.disconnect();
-  }, []);
+  const scrollRef = useRef(null);
+  // The row follows the newest block while it is scrolled to its end; scrolling left stops that.
+  const atEnd = useRef(true);
   const count = views.length;
   const newestIndex = count - 1;
   const summary = healthSummary(views);
   const invalid = !summary.valid;
-  const windows = bandWindow(count);
-  const anyHidden = TIERS.some(tier => windows[tier].hidden > 0);
   const cand = { ...candidate, prevHash: candidate.prevHash ?? views[newestIndex]?.storedHash };
   const twoLine = invalid;
 
-  // Blocks skipped at the newest end, per tier: the window never runs past block #0.
-  const wanted = topIndex === null ? 0 : Math.max(0, newestIndex - topIndex);
-  const offsetOf = tier => Math.min(wanted, windows[tier].hidden);
-  const older = tier => windows[tier].hidden - offsetOf(tier);
-  const paged = offsetOf(tierNow) > 0;
-  const moveTo = offset => setTopIndex(offset > 0 ? newestIndex - offset : null);
-  const step = windows[tierNow].visible;
-
-  const hiddenClasses = age => TIERS.filter(tier => age < offsetOf(tier) || age >= offsetOf(tier) + windows[tier].visible).map(tier => `is-hidden-${tier}`).join(' ');
-  const rootClasses = ['chain-band', invalid && 'is-invalid', paged && 'is-paged',
-    ...TIERS.filter(tier => windows[tier].hidden > 0).map(tier => `has-earlier-${tier}`)].filter(Boolean).join(' ');
-
-  const earlierRange = tier => (older(tier) === 1 ? '#0' : `#0 – #${older(tier) - 1}`);
+  const onScroll = () => {
+    const el = scrollRef.current;
+    if (el) atEnd.current = el.scrollLeft + el.clientWidth >= el.scrollWidth - END_SLACK;
+  };
+  const toEnd = smooth => {
+    const el = scrollRef.current;
+    if (!el || typeof el.scrollTo !== 'function') return;
+    atEnd.current = true;
+    el.scrollTo({ left: el.scrollWidth, behavior: smooth ? 'smooth' : 'auto' });
+  };
+  const mounted = useRef(false);
+  // A new block, or letting go of a held one, brings the newest end into view.
+  useLayoutEffect(() => {
+    if (!pinned && atEnd.current) toEnd(mounted.current);
+    mounted.current = true;
+  }, [count]); // eslint-disable-line react-hooks/exhaustive-deps -- `pinned` has its own effect below
+  useLayoutEffect(() => { if (!pinned) toEnd(true); }, [pinned]);
+  // A held or repaired block that sits outside the view scrolls in.
+  useLayoutEffect(() => {
+    if (!pinned && !repairOrder.length) return;
+    const el = scrollRef.current;
+    const tile = el?.querySelector(`[data-index="${selectedIndex}"]`);
+    if (!el || !tile || typeof el.scrollTo !== 'function') return;
+    const left = tile.offsetLeft;
+    const right = left + tile.offsetWidth;
+    if (left < el.scrollLeft) el.scrollTo({ left: left - END_SLACK, behavior: 'smooth' });
+    else if (right > el.scrollLeft + el.clientWidth) el.scrollTo({ left: right - el.clientWidth + END_SLACK, behavior: 'smooth' });
+  }, [selectedIndex, pinned, repairOrder.length]);
 
   const shadeOf = view => {
     if (view.isGenesis) return 0;
@@ -417,86 +422,53 @@ export function ChainBand({
   };
 
   return (
-    <section ref={bandRef} className={rootClasses} aria-label="Chain">
+    <section className={`chain-band${invalid ? ' is-invalid' : ''}`} aria-label="Chain">
       <div className="chain-band-inner">
-        <div className="chain-band-header">
+        <div className={`chain-band-header chain-band-health${healthOpen ? ' is-open' : ''}${invalid ? ' is-invalid' : ''}`}>
           <h2>Chain</h2>
-          <span className="chain-band-grows"><RightIcon />grows to the right · {count} {count === 1 ? 'block' : 'blocks'}</span>
-          <span className="chain-band-sep chain-band-hint" aria-hidden="true">·</span>
-          <span className="chain-band-hint">click a block to hold it, again to follow the newest · hover for the full hash</span>
+          <HealthLine summary={summary} healthOpen={healthOpen} onToggleHealth={onToggleHealth} stripId={stripId} />
           <KeyFigures keyFigures={keyFigures} className="chain-band-stats" />
         </div>
 
         <CoachMark target="workbench.chain" coach={coach}>
-          <div className="chain-band-row">
-            {anyHidden && (
-              <div className="chain-band-item is-earlier">
-                <button type="button" className="chain-band-earlier" disabled={older(tierNow) === 0}
-                  onClick={() => moveTo(Math.min(windows[tierNow].hidden, offsetOf(tierNow) + step))}>
-                  <LeftIcon />
-                  {TIERS.map(tier => windows[tier].hidden > 0 && (
-                    <span key={tier} className={`chain-band-tier-${tier}`}>
-                      {older(tier) > 0 ? <>{older(tier)} earlier<small>{earlierRange(tier)}</small></> : <>Oldest<small>this is #0</small></>}
-                    </span>
-                  ))}
-                </button>
-              </div>
-            )}
-            {views.map(view => {
-              const age = newestIndex - view.index;
-              const position = repairOrder.indexOf(view.index) + 1;
-              return (
-                <div key={view.index} className={`chain-band-item${view.isGenesis ? ' is-first' : ''} ${hiddenClasses(age)}`.trim()}>
-                  {!view.isGenesis && <Link link={linkInto(view, views[view.index - 1])} />}
-                  <Tile view={view} views={views} newest={view.index === newestIndex} selected={selectedIndex === view.index} pinned={pinned}
-                    repairPosition={position || null} shade={shadeOf(view)} onSelect={onSelect} tipEnd={view.index === newestIndex && count > 1} />
-                </div>
-              );
-            })}
-            <div className="chain-band-item is-cand">
-              {count > 0 && <Link link={paged ? { state: 'pending', title: 'Newer blocks', text: 'The chain continues here', label: 'Newer blocks follow' } : pendingLink(cand.index, cand.state)} />}
-              {paged ? (
-                <button type="button" className="chain-band-newer" onClick={() => moveTo(Math.max(0, offsetOf(tierNow) - step))}>
-                  <span>{offsetOf(tierNow)} newer<small>{`up to #${newestIndex}`}</small></span>
-                  <RightIcon />
-                </button>
-              ) : <Candidate candidate={cand} />}
-              <span className="chain-band-depth" aria-hidden="true" />
-            </div>
-          </div>
-        </CoachMark>
-
-        <div className={`chain-band-health${healthOpen ? ' is-open' : ''}${invalid ? ' is-invalid' : ''}`}>
-          <HealthLine summary={summary} healthOpen={healthOpen} onToggleHealth={onToggleHealth} stripId={stripId} />
-          {healthOpen && (
-            <div className="chain-band-row chain-band-strip" id={stripId} role="list" aria-label="Checks per block">
-              {anyHidden && (
-                <div className="chain-band-item is-earlier">
-                  {TIERS.map(tier => windows[tier].hidden > 0 && (
-                    <div key={tier} className={`chain-band-earlier-cell chain-band-tier-${tier}`}>
-                      <Cell cell={worstCell(views.slice(0, windows[tier].hidden), twoLine)} twoLine={twoLine} />
-                    </div>
-                  ))}
-                </div>
-              )}
+          <div className="chain-band-scroll" ref={scrollRef} onScroll={onScroll}>
+            <div className="chain-band-row">
               {views.map(view => {
-                const age = newestIndex - view.index;
-                const link = view.isGenesis ? null : linkInto(view, views[view.index - 1]);
+                const position = repairOrder.indexOf(view.index) + 1;
                 return (
-                  <div key={view.index} className={`chain-band-item${view.isGenesis ? ' is-first' : ''} ${hiddenClasses(age)}`.trim()}>
-                    {link && <span className={`chain-band-chk-link is-${link.state}`} aria-hidden="true" />}
-                    <HealthCell view={view} views={views} twoLine={twoLine} />
+                  <div key={view.index} className={`chain-band-item${view.isGenesis ? ' is-first' : ''}`} data-index={view.index}>
+                    {!view.isGenesis && <Link link={linkInto(view, views[view.index - 1])} />}
+                    <Tile view={view} views={views} newest={view.index === newestIndex} selected={selectedIndex === view.index} pinned={pinned}
+                      repairPosition={position || null} shade={shadeOf(view)} onSelect={onSelect} tipEnd={view.index === newestIndex && count > 1} />
                   </div>
                 );
               })}
               <div className="chain-band-item is-cand">
-                {count > 0 && <span className="chain-band-chk-link is-pending" aria-hidden="true" />}
-                <CandidateCell candidate={cand} twoLine={twoLine} />
+                {count > 0 && <Link link={pendingLink(cand.index, cand.state)} />}
+                <Candidate candidate={cand} />
                 <span className="chain-band-depth" aria-hidden="true" />
               </div>
             </div>
-          )}
-        </div>
+            {healthOpen && (
+              <div className={`chain-band-row chain-band-strip${invalid ? ' is-invalid' : ''}`} id={stripId} role="list" aria-label="Checks per block">
+                {views.map(view => {
+                  const link = view.isGenesis ? null : linkInto(view, views[view.index - 1]);
+                  return (
+                    <div key={view.index} className={`chain-band-item${view.isGenesis ? ' is-first' : ''}`}>
+                      {link && <span className={`chain-band-chk-link is-${link.state}`} aria-hidden="true" />}
+                      <HealthCell view={view} views={views} twoLine={twoLine} />
+                    </div>
+                  );
+                })}
+                <div className="chain-band-item is-cand">
+                  {count > 0 && <span className="chain-band-chk-link is-pending" aria-hidden="true" />}
+                  <CandidateCell candidate={cand} twoLine={twoLine} />
+                  <span className="chain-band-depth" aria-hidden="true" />
+                </div>
+              </div>
+            )}
+          </div>
+        </CoachMark>
       </div>
     </section>
   );

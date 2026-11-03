@@ -1,9 +1,11 @@
+import { useState } from 'react';
 import { NAME_HINT, NAME_UNAVAILABLE_MESSAGE } from '../../lib/poolApi';
 import './MinerName.css';
 
 // The visitor's name at the top of the Next block card (web/DESIGN.md, "Miner name"): it
 // signs every block this browser mines and sends each one to the leaderboard. A visitor
-// starts with a generated name; the field glows until they choose their own.
+// starts with a generated name; until they choose their own the strip invites them ("Enter your
+// name"), afterwards it steps back. While they type it keeps inviting, so it does not jump.
 const OFFLINE = 'The leaderboard server is unavailable right now. Your blocks stay in your chain.';
 
 const rankOf = (rows, name) => {
@@ -31,13 +33,17 @@ export function MinerName({ identity, rows, locked = false }) {
   const { name, signingName, fallback, generated, setName, valid } = identity;
   const status = statusOf(identity, rankOf(rows, signingName));
   const problem = Boolean(status.problem);
+  // Set on focus of a generated name: the invitation holds until the field is left.
+  const [choosing, setChoosing] = useState(false);
+  const inviting = generated || choosing;
   return (
-    <div className={`miner-name${generated ? ' is-generated' : ''}`}>
-      <label className="miner-name-label" htmlFor="miner-name-input">Your miner name</label>
-      <input id="miner-name-input" className="miner-name-input" value={name} maxLength={20} placeholder={fallback}
+    <div className={`miner-name${inviting ? ' is-generated' : ' is-chosen'}`}>
+      <label className="miner-name-label" htmlFor="miner-name-input">{inviting ? 'Enter your name' : 'Your name'}</label>
+      <input id="miner-name-input" className="miner-name-input" value={name} maxLength={20} placeholder="Enter your name"
         autoComplete="nickname" spellCheck={false} disabled={locked} title={locked ? 'Locked while a block is being mined' : undefined}
-        onChange={event => setName(event.target.value)} onBlur={() => { if (name === '') setName(fallback); }}
-        onFocus={event => { if (generated) event.target.select(); }} aria-invalid={valid ? undefined : 'true'}
+        onChange={event => setName(event.target.value)}
+        onBlur={() => { setChoosing(false); if (name === '') setName(fallback); }}
+        onFocus={event => { if (generated) { setChoosing(true); event.target.select(); } }} aria-invalid={valid ? undefined : 'true'}
         aria-describedby="miner-name-status" />
       <p id="miner-name-status" className={`miner-name-status${problem ? ' is-problem' : status.done ? ' is-done' : ''}`} role="status">{status.text}</p>
     </div>

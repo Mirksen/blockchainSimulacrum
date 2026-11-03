@@ -4,6 +4,7 @@ import { TransactionDetailsModal } from './TransactionDetailsModal';
 import { HeaderBytes } from './HeaderBytes';
 import { transactionRoot } from '../lib/blockchain';
 import { headerHex } from '../../../shared/bitcoin-block.mjs';
+import { colorOf } from './workbench/minerColors';
 
 const CloseIcon = () => (
     <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M3.5 3.5l7 7M10.5 3.5l-7 7" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg>
@@ -34,8 +35,7 @@ export function BlockDetailsModal({
     const views = (block.transactions ?? []).map(describeTx);
     const minerName = views.find(view => view.coinbase)?.to;
     const miner = participants.find(p => p.name === minerName);
-    const minerColorClass = miner?.name?.toLowerCase() === 'minas' ? 'minas' :
-        miner?.name?.toLowerCase() === 'lars' ? 'lars' : null;
+    const minerColor = miner ? colorOf(miner.colorKey ?? miner.name) : null;
 
     const recomputedRoot = transactionRoot(block.transactions || []);
     const rootChanged = block.txRoot !== undefined && block.txRoot !== recomputedRoot;
@@ -54,8 +54,8 @@ export function BlockDetailsModal({
                 <div className="details-modal-head">
                     <h2 className="details-modal-title">
                         <span>{blockIndex === 0 ? 'Genesis block' : `Block #${blockIndex}`}</span>
-                        {miner && minerColorClass && (
-                            <span className="details-modal-pill" style={{ '--dot': `var(--${minerColorClass})` }}>
+                        {miner && minerColor && (
+                            <span className="details-modal-pill" style={{ '--dot': minerColor }}>
                                 <i aria-hidden="true" />Mined by {miner.name}
                             </span>
                         )}

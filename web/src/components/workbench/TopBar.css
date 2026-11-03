@@ -23,14 +23,6 @@
 .top-bar-end { position: relative; margin-left: auto; display: flex; align-items: center; gap: var(--s-3); }
 .top-bar.is-compact .top-bar-end { gap: var(--s-2); }
 
-.top-bar-pill {
-  display: inline-flex; align-items: center; gap: var(--s-2); height: 28px; padding: 0 var(--s-3);
-  border-radius: 14px; font-size: 13px; border: 1px solid var(--line); color: var(--text-2); white-space: nowrap;
-}
-.top-bar-pill i { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
-.top-bar-chain.is-ok { color: var(--green); background: var(--green-bg); border-color: transparent; font-weight: 500; }
-.top-bar-chain.is-bad { color: var(--red); background: var(--red-bg); border-color: transparent; font-weight: 600; }
-
 .top-bar-more {
   width: 32px; height: 32px; display: grid; place-items: center; padding: 0; border-radius: var(--r-sm);
   border: 1px solid var(--line); background: transparent; color: var(--text-2); cursor: pointer;
@@ -80,10 +72,3 @@
 .top-bar-usage .analytics-control p { margin: var(--s-2) 0 0; }
 .top-bar-usage .analytics-control label { display: flex; align-items: flex-start; gap: var(--s-2); margin-top: var(--s-2); color: var(--text); }
 
-/* 768-1023: the coin pill moves into the menu so the tabs keep their room. */
-@media (max-width: 1023.98px) {
-  .top-bar-coin { display: none; }
-}
-@media (min-width: 1024px) {
-  .top-bar-menu-coin.is-narrow-only { display: none; }
-}

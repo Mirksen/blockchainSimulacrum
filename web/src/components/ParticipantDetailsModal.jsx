@@ -3,9 +3,9 @@ import { useState } from 'react';
 import { TransactionDetailsModal } from './TransactionDetailsModal';
 import { Participant } from '../lib/blockchain';
 import { WALLET_DERIVATION_PATH } from '../lib/wallet';
+import { colorOf } from './workbench/minerColors';
 
 // Wallet and miner colors that have a token in styles/tokens.css.
-const KNOWN_COLORS = ['lars', 'minas', 'alice', 'bob', 'chris'];
 
 const CloseIcon = () => (
     <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M3.5 3.5l7 7M10.5 3.5l-7 7" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg>
@@ -26,9 +26,9 @@ const ChevronIcon = () => (
 
 const shortTxid = txid => `${txid.slice(0, 8)}…${txid.slice(-4)}`;
 
-function Avatar({ name }) {
-    const key = String(name).toLowerCase();
-    const style = KNOWN_COLORS.includes(key) ? { '--av-color': `var(--${key})` } : undefined;
+function Avatar({ name, colorKey }) {
+    const color = colorOf(colorKey ?? name);
+    const style = color ? { '--av-color': color } : undefined;
     return <span className={`details-modal-av${style ? '' : ' is-plain'}`} style={style} aria-hidden="true">{String(name).charAt(0).toUpperCase()}</span>;
 }
 
@@ -95,7 +95,7 @@ export function ParticipantDetailsModal({
             <div className="details-modal participant-details-modal" onClick={e => e.stopPropagation()}>
                 <div className="details-modal-head">
                     <h2 className="details-modal-title">
-                        <Avatar name={participant.name} />
+                        <Avatar name={participant.name} colorKey={participant.colorKey} />
                         <span>{participant.name}</span>
                         {participant.isMiner && (
                             <span className="details-modal-pill">

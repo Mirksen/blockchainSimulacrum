@@ -6,10 +6,11 @@
   container: chain-band / inline-size;
   --chain-band-page-x: var(--s-6);
   --chain-band-tile-h: 140px;
-  --chain-band-tile-max: 280px;
-  --chain-band-link-w: clamp(28px, 2.85cqi, 36px);
-  --chain-band-earlier-w: 88px;
-  --chain-band-cols: 6;
+  --chain-band-tile-w: 184px;
+  --chain-band-link-w: 32px;
+  /* room above the tiles for their numbers, below them for the full-hash tooltip */
+  --chain-band-above: calc(26px + var(--block-depth));
+  --chain-band-below: 220px;
   --chain-band-order-size: 22px;
   --chain-band-chk-h-tall: 36px;
   /* state colors (tampered.html, r5-v6), derived from tokens */
@@ -45,37 +46,39 @@
 .chain-band-zero { color: var(--green); font-weight: 700; }
 .chain-band-bad { color: var(--red); font-weight: 700; }
 
-/* ---------- header: title, order, hint, quiet key figures ---------- */
+/* ---------- header: title, chain status pill, quiet key figures ---------- */
 .chain-band-header {
   display: flex; align-items: center; gap: 10px; height: 26px; min-width: 0;
   font-size: 12px; line-height: 16px; color: var(--text-3); white-space: nowrap;
 }
 .chain-band-header h2 { font-size: 13px; font-weight: 600; color: var(--text); }
-.chain-band-grows { display: inline-flex; align-items: center; gap: 6px; }
 .chain-band-stats {
   margin-left: auto; display: flex; align-items: center; gap: 10px; min-width: 0;
   overflow: hidden; color: var(--text-3);
 }
 .chain-band-stats b { color: var(--text-2); font-weight: 600; }
 
-/* ---------- row: [earlier] [#0] [link #1] … [link cand depth]; the strip uses the same items ---------- */
-.chain-band-row { display: flex; align-items: stretch; min-width: 0; margin-top: calc(14px + var(--block-depth)); }
-.chain-band-item {
-  position: relative; display: flex; min-width: 0;
-  flex: 1 1 var(--chain-band-link-w);
-  max-width: calc(var(--chain-band-tile-max) + var(--chain-band-link-w));
+/* ---------- scroller: the touchpad scrolls the chain sideways, no buttons, no scrollbar ----------
+   The tooltip under a tile must not be clipped by the scroller, so the scroller reaches
+   --chain-band-below further down (taken back by a negative margin) and lets clicks
+   there through to the cards; only its rows take the pointer. */
+.chain-band-scroll {
+  overflow-x: auto; overflow-y: hidden; overscroll-behavior-x: contain; scrollbar-width: none;
+  margin: 0 calc(var(--chain-band-page-x) * -1) calc(var(--chain-band-below) * -1);
+  padding: var(--chain-band-above) var(--chain-band-page-x) var(--chain-band-below);
+  pointer-events: none;
 }
-.chain-band-item.is-first { flex-basis: 0; max-width: var(--chain-band-tile-max); }
-.chain-band-item.is-cand {
-  flex-basis: calc(var(--chain-band-link-w) + var(--block-depth));
-  max-width: calc(var(--chain-band-tile-max) + var(--chain-band-link-w) + var(--block-depth));
-}
-.chain-band-item.is-earlier { display: none; flex: 0 0 var(--chain-band-earlier-w); max-width: none; }
+.chain-band-scroll::-webkit-scrollbar { display: none; }
+.chain-band-scroll > * { pointer-events: auto; }
+
+/* ---------- row: [#0] [link #1] … [link cand depth]; the strip uses the same items ---------- */
+.chain-band-row { display: flex; align-items: stretch; width: max-content; }
+.chain-band-item { position: relative; display: flex; flex: none; }
 .chain-band-depth { flex: 0 0 var(--block-depth); }
 
 /* ---------- block tile (3D) ---------- */
 .chain-band-tile {
-  position: relative; flex: 1 1 0; min-width: 0; height: var(--chain-band-tile-h);
+  position: relative; flex: none; width: var(--chain-band-tile-w); height: var(--chain-band-tile-h);
   color: var(--blk-text); background: var(--blk-4);
 }
 .chain-band-tile::before {
@@ -104,7 +107,12 @@
 }
 .chain-band-tile-face:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
 .chain-band-tile-top { display: flex; align-items: baseline; gap: var(--s-2); min-width: 0; font-size: 12px; line-height: 20px; white-space: nowrap; }
-.chain-band-tile-top b { font-size: 17px; font-weight: 600; }
+.chain-band-num {
+  position: absolute; left: 0; top: calc(var(--chain-band-above) * -1); line-height: 18px;
+  font-size: 14px; font-weight: 600; color: var(--text-2); white-space: nowrap; pointer-events: none;
+}
+.chain-band-tile.is-newest .chain-band-num, .chain-band-tile.is-selected .chain-band-num { color: var(--text); }
+.chain-band-age { min-width: 0; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
 .chain-band-tag {
   min-width: 0; overflow: hidden; text-overflow: ellipsis;
   font-size: 11px; line-height: 16px; padding: 0 6px; border-radius: 8px; background: var(--blk-tag-bg);
@@ -132,8 +140,9 @@
   width: 18px; height: 18px; flex: none; border-radius: 5px; display: inline-grid; place-items: center;
   font-size: 10px; font-weight: 700; color: var(--on-light); background: var(--panel-3);
 }
-.chain-band-av.is-lars { background: var(--lars); }
-.chain-band-av.is-minas { background: var(--minas); }
+.chain-band-av.is-hal { background: var(--hal); }
+.chain-band-av.is-dorian { background: var(--dorian); }
+.chain-band-av.is-laszlo { background: var(--laszlo); }
 .chain-band-av.is-alice { background: var(--alice); }
 .chain-band-av.is-bob { background: var(--bob); }
 .chain-band-av.is-chris { background: var(--chris); }
@@ -216,7 +225,7 @@
 
 /* ---------- candidate tile at the growing end ---------- */
 .chain-band-cand {
-  position: relative; flex: 1 1 0; min-width: 0; height: var(--chain-band-tile-h); padding: 12px 16px;
+  position: relative; flex: none; width: var(--chain-band-tile-w); height: var(--chain-band-tile-h); padding: 12px 16px;
   display: flex; flex-direction: column; justify-content: space-between; overflow: visible; color: var(--text);
   background: repeating-linear-gradient(135deg, var(--pend-a) 0 8px, var(--pend-b) 8px 16px);
   outline: 1px dashed var(--pend-line); outline-offset: -1px;
@@ -230,6 +239,7 @@
   background: var(--pend-side); transform: skewY(-45deg); transform-origin: top left;
 }
 .chain-band-cand .chain-band-tag { flex: none; background: var(--blue-bg); color: var(--coach); }
+.chain-band-cand .chain-band-num { color: var(--text-3); }
 .chain-band-cand .chain-band-time { min-width: 0; overflow: hidden; text-overflow: ellipsis; color: var(--text-3); opacity: 1; }
 .chain-band-cand .chain-band-tile-by { color: var(--text-2); }
 .chain-band-cand .chain-band-tile-by span { overflow: hidden; text-overflow: ellipsis; }
@@ -256,19 +266,6 @@
   .chain-band-mine-line::after { animation: chain-band-mine-drift 3.6s ease-in-out infinite alternate; }
 }
 @keyframes chain-band-mine-drift { from { transform: translateX(-20%); } to { transform: translateX(220%); } }
-
-/* ---------- "‹ N earlier" control ---------- */
-.chain-band-earlier {
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
-  width: 100%; min-width: 0; height: var(--chain-band-tile-h); padding: 0 var(--s-2);
-  border: 1px solid var(--line); border-radius: var(--r-md); background: transparent;
-  color: var(--text-2); font: 12px/16px var(--ui); cursor: pointer; white-space: nowrap;
-}
-.chain-band-earlier svg { color: var(--text-3); margin-bottom: 2px; }
-.chain-band-earlier small { display: block; font-size: 11px; color: var(--text-3); }
-.chain-band-earlier:hover { background: var(--panel); border-color: var(--line-3); color: var(--text); }
-.chain-band-earlier:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
-.chain-band-tier-a, .chain-band-tier-b, .chain-band-tier-c { display: none; flex-direction: column; align-items: center; }
 
 /* ---------- full-hash tooltip on hover and focus ---------- */
 .chain-band-tip {
@@ -310,33 +307,29 @@
 .chain-band-copy:hover { border-color: var(--blue); }
 .chain-band-copy:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 
-/* ---------- chain health: one quiet line, per-block checks when open ---------- */
-.chain-band-health { margin-top: 10px; }
+/* ---------- chain status: one pill; a click shows the checks behind it ---------- */
 .chain-band-health-line {
-  display: flex; align-items: center; gap: 10px; height: 28px; min-width: 0;
+  display: flex; align-items: center; gap: 10px; min-width: 0;
   font-size: 12px; line-height: 16px; color: var(--text-3); white-space: nowrap;
 }
+.chain-band-health-status { display: inline-flex; flex: none; }
 .chain-band-health-text { display: flex; align-items: center; gap: 10px; min-width: 0; overflow: hidden; }
 .chain-band-health-line b { color: var(--text-2); font-weight: 600; }
-.chain-band-health-sum { display: inline-flex; align-items: center; gap: 6px; color: var(--green); }
-.chain-band-health-line .chain-band-health-sum b { color: var(--green); }
-.chain-band-health-sum i { width: var(--link-dot-size); height: var(--link-dot-size); border-radius: 50%; background: var(--green); }
-.chain-band-health.is-invalid .chain-band-health-sum,
-.chain-band-health.is-invalid .chain-band-health-sum b { color: var(--red); }
-.chain-band-health.is-invalid .chain-band-health-sum i { background: var(--red); }
-.chain-band-health-issues { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-.chain-band-health-toggle {
-  margin-left: auto; flex: none; display: inline-flex; align-items: center; gap: 6px; height: 24px;
-  padding: 0 6px 0 var(--s-2); border-radius: var(--r-sm); border: 0; background: transparent;
-  color: var(--text-2); font: 12px/16px var(--ui); cursor: pointer;
+.chain-band-health-sum {
+  display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 10px; margin: 0;
+  border: 1px solid var(--green-line); border-radius: 12px; background: var(--green-bg);
+  color: var(--green); font: 12px/16px var(--ui);
 }
-.chain-band-health-toggle:hover { background: var(--panel-2); color: var(--text); }
-.chain-band-health-toggle:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
-.chain-band-health-toggle svg { transition: transform .15s; }
-.chain-band-health.is-open .chain-band-health-toggle svg { transform: rotate(180deg); }
+button.chain-band-health-sum { cursor: pointer; }
+button.chain-band-health-sum:hover { border-color: var(--green); }
+button.chain-band-health-sum:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.chain-band-health-line .chain-band-health-sum b { color: inherit; }
+.chain-band-health-sum i { width: var(--link-dot-size); height: var(--link-dot-size); border-radius: 50%; background: currentColor; }
+.chain-band-health.is-invalid .chain-band-health-sum { color: var(--red); border-color: var(--red); background: var(--red-bg); }
+.chain-band-health-issues { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 
-.chain-band-strip { align-items: center; margin-top: var(--s-2); }
-.chain-band-health.is-invalid .chain-band-strip { align-items: stretch; }
+.chain-band-strip { align-items: center; margin-top: var(--s-3); }
+.chain-band-strip.is-invalid, .chain-band-health.is-invalid .chain-band-strip { align-items: stretch; }
 .chain-band-chk {
   display: flex; align-items: center; justify-content: center; gap: 6px; flex: 1 1 0; height: 26px; min-width: 0;
   padding: 0 var(--s-2); overflow: hidden; border-radius: 13px; border: 1px solid var(--line-3); background: var(--panel);
@@ -366,55 +359,11 @@
 .chain-band-chk-link.is-pending::before { background: repeating-linear-gradient(90deg, var(--link-line) 0 3px, transparent 3px 6px); }
 .chain-band-chk-link.is-dependent::before { background: var(--chain-band-amber-line); }
 .chain-band-chk-link.is-broken::before { background: var(--red); }
-.chain-band-earlier-cell { display: none; flex: 1 1 0; min-width: 0; }
-.chain-band-earlier-cell .chain-band-chk { height: 100%; }
-.chain-band-earlier-cell .chain-band-chk:not(.is-two) { height: 26px; }
 
-/* ---------- fluid: container tiers (band width), no sideways scroll ---------- */
-@container chain-band (max-width: 1209.98px) {
-  .chain-band-tile-face, .chain-band-cand { padding-left: var(--s-3); padding-right: var(--s-3); }
-  .chain-band-meets { display: none; }
-}
-@container chain-band (max-width: 1179.98px) {
-  .chain-band-hint { display: none; }
-}
-/* tier a: < 1114 px, tiles would drop below ~150 px: newest 3 + candidate */
-@container chain-band (max-width: 1113.98px) {
-  .chain-band-row { --chain-band-cols: 4; }
-  .chain-band.has-earlier-a .chain-band-item.is-earlier { display: flex; }
-  .chain-band-earlier .chain-band-tier-a { display: flex; }
-  .chain-band-earlier-cell.chain-band-tier-a { display: block; }
-  .chain-band-item.is-hidden-a { display: none; }
-  .chain-band-tile-face, .chain-band-cand { padding-left: var(--s-4); padding-right: var(--s-4); }
-  .chain-band-meets { display: inline; }
-}
-/* tier b: 1114-1239 px: up to 5 blocks, or newest 4 next to the earlier control */
-@container chain-band (min-width: 1114px) and (max-width: 1239.98px) {
-  .chain-band.has-earlier-b .chain-band-item.is-earlier { display: flex; }
-  .chain-band-earlier .chain-band-tier-b { display: flex; }
-  .chain-band-earlier-cell.chain-band-tier-b { display: block; }
-  .chain-band-item.is-hidden-b { display: none; }
-}
-/* tier c: >= 1240 px: up to 5 blocks, also next to the earlier control */
-@container chain-band (min-width: 1240px) {
-  .chain-band.has-earlier-c .chain-band-item.is-earlier { display: flex; }
-  .chain-band-earlier .chain-band-tier-c { display: flex; }
-  .chain-band-earlier-cell.chain-band-tier-c { display: block; }
-  .chain-band-item.is-hidden-c { display: none; }
-}
-/* very narrow hosts (the workbench shows ChainTimeline below 1024 px): header keeps title and key figures */
-@container chain-band (max-width: 599.98px) {
-  .chain-band-hint, .chain-band-grows { display: none; }
+/* ---------- narrow hosts (the workbench shows ChainTimeline below 1024 px) ---------- */
+@container chain-band (max-width: 899.98px) {
+  .chain-band-health-text { display: none; }
 }
 
-/* older blocks in view: the slot of the candidate leads back to the newer ones */
-.chain-band-newer {
-  flex: 1 1 0; min-width: 0; height: var(--chain-band-tile-h); display: flex; align-items: center; justify-content: center; gap: var(--s-2);
-  border: 1px dashed var(--line-3); border-radius: var(--r-md); background: transparent; color: var(--text-2); font: 12px/16px var(--ui); cursor: pointer;
-}
-.chain-band-newer span { display: flex; flex-direction: column; align-items: center; }
-.chain-band-newer small { font-size: 11px; color: var(--text-3); }
-.chain-band-newer:hover { background: var(--panel); color: var(--text); }
-.chain-band-newer:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
-.chain-band-earlier:disabled { cursor: default; opacity: .6; }
-.chain-band.is-paged .chain-band-strip .chain-band-item.is-cand { visibility: hidden; }
+/* each check sits under its block */
+.chain-band-strip .chain-band-chk { flex: none; width: var(--chain-band-tile-w); }

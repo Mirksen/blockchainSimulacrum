@@ -3,7 +3,8 @@ import { AnalyticsControl } from '../AnalyticsControl';
 import './TopBar.css';
 
 // Top bar of the rebuilt shell (web/DESIGN.md, "Information architecture"):
-// brand, the four views, coin label, chain pill and the overflow menu.
+// brand, the four views and the overflow menu (its last line names the virtual coin).
+// The chain status lives once, on the chain itself.
 // Presentational: the parent owns the view (and the URL hash), theme, sound and
 // settings. Navigation links carry their hash for "open in new tab"; a plain
 // click calls onNavigate(view) and leaves the hash to the parent.
@@ -54,7 +55,7 @@ function NavLinks({ view, onSelect, className }) {
 }
 
 export function TopBar({
-  view = 'workbench', onNavigate, coinName = 'powfyicoin', chainValid = true,
+  view = 'workbench', onNavigate, coinName = 'powfyicoin',
   theme = 'dark', onTheme, muted = false, onMuted, onReset, onOpenSettings, compact = false,
 }) {
   const [open, setOpen] = useState(false);
@@ -113,10 +114,6 @@ export function TopBar({
         </nav>
       )}
       <div className="top-bar-end" ref={rootRef} onKeyDown={onKeyDown} onBlur={onBlur}>
-        {!compact && <span className="top-bar-pill top-bar-coin">{coinLabel}</span>}
-        <span className={`top-bar-pill top-bar-chain ${chainValid ? 'is-ok' : 'is-bad'}`}>
-          <i aria-hidden="true" />{chainValid ? 'Chain valid' : 'Chain invalid'}
-        </span>
         <button ref={buttonRef} type="button" className="top-bar-more"
           aria-label={compact ? 'Menu' : 'More'} title={compact ? 'Menu' : 'More: Reset, Settings, sound, theme'}
           aria-expanded={open} aria-controls={open ? menuId : undefined}
@@ -149,7 +146,7 @@ export function TopBar({
             <div className="top-bar-menu-section top-bar-usage">
               <AnalyticsControl />
             </div>
-            <p className={`top-bar-menu-coin${compact ? '' : ' is-narrow-only'}`}>{coinLabel}</p>
+            <p className="top-bar-menu-coin">{coinLabel}</p>
           </div>
         )}
       </div>
