@@ -391,6 +391,9 @@ button.chain-band-health-sum:focus-visible { outline: 2px solid var(--focus); ou
 .chain-band.is-compact .chain-band-health-line { min-width: auto; flex: 0 1 auto; }
 .chain-band.is-compact .chain-band-health-sum { height: 22px; padding: 0 var(--s-2); }
 .chain-band.is-compact .chain-band-stats, .chain-band.is-compact .chain-band-health-text { gap: 6px; font-size: 11px; }
+/* the short key figures wrap to a second line rather than losing the reward */
+.chain-band.is-compact .chain-band-header { height: auto; min-height: 24px; }
+.chain-band.is-compact .chain-band-stats { flex: 1 1 0; flex-wrap: wrap; justify-content: flex-end; row-gap: 0; line-height: 16px; }
 .chain-band.is-compact .chain-band-ltip { display: none; }
 .chain-band.is-compact .chain-band-scroll { scroll-snap-type: x proximity; scroll-padding-inline: var(--chain-band-page-x); }
 .chain-band.is-compact .chain-band-item { scroll-snap-align: start; }

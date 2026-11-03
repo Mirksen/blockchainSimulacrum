@@ -511,7 +511,8 @@ export function ChainBand({
           <HealthLine summary={summary} healthOpen={healthOpen} onToggleHealth={onToggleHealth} stripId={stripId} compact={compact} />
           {!(compact && healthOpen) && <KeyFigures keyFigures={keyFigures} className="chain-band-stats" short={compact} />}
         </div>
-        <ChainEventNotes notes={notes} onDismiss={onDismissNote} />
+        {/* The compact band stays at the top; its notes go under it, in the page (Workbench). */}
+        {!compact && <ChainEventNotes notes={notes} onDismiss={onDismissNote} />}
 
         <CoachMark target="workbench.chain" coach={coach}>
           <div className="chain-band-scroll" ref={scrollRef} onScroll={onScroll}

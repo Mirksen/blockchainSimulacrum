@@ -282,7 +282,9 @@ decision, 2026-10-27):
     halved the reward, a calm note under the band header gives cause and effect
     ("Difficulty rose from 5 to 6 after #20. Blocks #11–#20 took 6.1 s on average,
     faster than 7 s …"). It stays for that block and the two after it or until "Got
-    it"; a difficulty the learner set by hand gets no note.
+    it"; a difficulty the learner set by hand gets no note. Below 1024 px the notes
+    sit under the sticky compact band and scroll with the page, so the band keeps
+    its height.
   - **Kept in view:** from 1024 px on, once the chain scrolls out of view, a slim
     bar at the top of the main column repeats the key figures ("Chain #25" and the
     line); it slides in and out, and appears without motion under reduced motion.

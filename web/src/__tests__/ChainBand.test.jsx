@@ -152,6 +152,11 @@ describe('ChainBand tiles and selection', () => {
     expect(onDismissNote).toHaveBeenCalledWith('halving-4');
   });
 
+  it('leaves the notes to the page in the compact band, which stays at the top', () => {
+    const { container } = renderBand({ compact: true, notes: [{ key: 'halving-4', kind: 'halving', icon: '½', title: 'The reward halved with #4.', text: '' }] });
+    expect(container.querySelector('.kf-note')).toBeNull();
+  });
+
   it('marks the candidate while mining and while paused', () => {
     const views = makeViews();
     const { rerender } = renderBand({ views, candidate: { index: 5, txCount: 2, state: 'mining', elapsedMs: 3400, attempts: 148 } });

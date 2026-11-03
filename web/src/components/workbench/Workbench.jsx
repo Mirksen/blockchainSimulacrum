@@ -10,7 +10,7 @@ import { BlockTransactions } from './BlockTransactions';
 import { buildBlockViews } from './blockView';
 import { MAX_MINERS } from '../../lib/blockchain';
 import { chainEventsOf, keyFiguresOf, rateOf, repairOf } from './workbenchModel';
-import { KeyFigureBar } from './KeyFigures';
+import { ChainEventNotes, KeyFigureBar } from './KeyFigures';
 import { eventNote } from './keyFigureText';
 import { colorOf } from './minerColors';
 import './Workbench.css';
@@ -130,6 +130,7 @@ export function Workbench({
         keyFigures={keyFigures} events={fresh ? {} : events} notes={notes} onDismissNote={dismissNote} healthOpen={healthOpen} onToggleHealth={onToggleHealth}
         coach={workbenchCoach} repairOrder={repairOrder} compact={compact} />
     </div>
+    {compact && notes.length > 0 && <div className="wb-notes"><ChainEventNotes notes={notes} onDismiss={dismissNote} /></div>}
     <div className="wb-grid">
       <div className="wb-selected">
         <SelectedBlockCard block={selectedBlock} status={blockStatus[selected]} prevHash={blocks[selected - 1]?.hash ?? null}
