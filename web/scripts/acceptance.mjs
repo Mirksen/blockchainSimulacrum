@@ -744,8 +744,9 @@ try {
  const listRow = mobile.locator('section.chain-timeline').getByRole('button',{name:/^Block 1(,|$)/});
  await listRow.click();
  assert.equal(await listRow.getAttribute('aria-expanded'), 'true');
- await mobile.getByRole('button',{name:'Copy full hash of block 1'}).waitFor();
- await mobile.getByRole('button',{name:'Open in Chain lab'}).waitFor();
+ const listChain = mobile.locator('section.chain-timeline');
+ await listChain.getByRole('button',{name:'Copy full hash of block 1'}).waitFor();
+ await listChain.getByRole('button',{name:'Open in Chain lab'}).waitFor();
  await listRow.click();
  await mobile.reload();
  await mobile.locator('.wb-band.is-list section.chain-timeline').waitFor({timeout:30000});
