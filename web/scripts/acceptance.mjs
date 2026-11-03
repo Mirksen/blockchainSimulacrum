@@ -240,18 +240,21 @@ try {
  await form.getByRole('combobox',{name:'To'}).selectOption('Bob');
  await form.getByLabel('Amount (powfyicoin)',{exact:true}).fill('0.1');
  await form.getByLabel(/^Reference/).fill('Synthetic acceptance transfer');
- assert.match(await form.getByRole('status').innerText(), /Spends 1 coin \(0\.60\) · 0\.10 to Bob · 0\.49999999 change · 0\.00000001 fee/);
+ // Priced at the default 5 sat/B from its estimated size (the longest signature).
+ assert.match(await form.getByRole('status').innerText(), /Spends 1 coin \(0\.60\) · 0\.10 to Bob · 0\.4999867 change · 0\.0000133 fee \(about 266 B at 5 sat\/B\)/);
+ assert.equal(await form.getByLabel('Fee rate').inputValue(), '5');
  await form.getByRole('button',{name:'Add to mempool'}).click();
  const pendingList = page.getByRole('list',{name:'Pending transactions'});
  await pendingList.getByText('Synthetic acceptance transfer').waitFor();
- assert.match(await pendingList.innerText(), /1 coin · 0\.49999999 change · 0\.00000001 fee/);
+ assert.match(await pendingList.innerText(), /1 coin · 0\.4999867 change · 0\.0000133 fee · 26[56] B · 5 sat\/B/);
+ assert.match(await page.getByRole('region',{name:'Mempool'}).innerText(), /Block space #3\s+26[56] B of 1,300 B/);
  await pendingList.getByRole('button',{name:/^Details of Alice to Bob/}).click();
  const pendingDialog = page.getByRole('dialog',{name:'Transaction details',exact:true});
  await pendingDialog.getByRole('list',{name:'Outputs'}).waitFor();
  assert.equal(await pendingDialog.getByRole('list',{name:'Outputs'}).getByRole('listitem').count(), 3, 'Payment, change and memo');
  await page.keyboard.press('Escape');
  await pendingDialog.waitFor({state:'hidden'});
- results.push('The form previews coins, change and fee; a pending transaction shows its inputs and outputs');
+ results.push('The form previews coins, change, fee, size and fee rate; a pending transaction shows its inputs, outputs and the next block\'s space');
  await wb.mine(3).click();
  await wb.mine(4).waitFor({timeout:30000});
  assert.equal(await page.getByText('Synthetic acceptance transfer').count(), 0, 'The mined transfer left the mempool');
