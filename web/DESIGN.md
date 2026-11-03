@@ -52,7 +52,7 @@ show stays out.
 | Rule | Instead of | Better |
 |---|---|---|
 | Buttons are verb plus object where the context is not unique | "Add" | "New transaction" |
-| Status says what holds, with its basis | "OK" | "Chain valid · 5 of 5 hashes start with 00 · 4 of 4 links intact" |
+| Status says what holds, with its basis on request | "OK" | "Chain valid", a click adds "5 of 5 hashes start with 00 · 4 of 4 links intact" |
 | Invalid states name the cause and never overclaim | "Chain broken from #2 on" | #2 "Hash mismatch"; #3 "Built on a broken block" (its own link is intact) |
 | The coin is virtual, not "not real" | "no real coins" | "powfyicoin · virtual" |
 | A hint says what happens next | "Mempool" | "goes into #5", "added when #5 is mined" |
@@ -64,9 +64,10 @@ use the monospace font.
 ## Information architecture
 
 - **Top bar:** brand, navigation **Workbench · Hash lab · Chain lab · Mining
-  pool**, the coin label "powfyicoin · virtual", the chain status pill, and an
-  overflow menu (Reset, Settings, sound, theme, usage sharing); the
-  leaderboard ticker runs directly below it.
+  pool**, and an overflow menu (Reset, Settings, sound, theme, usage sharing)
+  whose last line names the coin "powfyicoin · virtual"; the leaderboard
+  ticker runs directly below it. The chain status is not repeated here
+  (Mirko, 2026-11-03): it lives once, on the chain.
 - **Workbench is the start page.** It shows the whole simulation at once:
   1. **Mission rail** on the left (collapsible).
   2. **Chain band** across the full width of the main column.
@@ -101,8 +102,11 @@ decision, 2026-10-27):
   the tab is in the URL (`#/hash-lab`, `#/chain-lab`, `#/pool`).
 - **Miner name** (Mirko, 2026-11-01): the strip at the top of the Next block
   card holds the visitor's name, in every mode. A visitor starts with a
-  generated name from Bitcoin's history (`Not-Satoshi-4`); the field glows
-  until they choose their own, and an emptied field returns to it. It locks
+  generated name from Bitcoin's history (`Not-Satoshi-4`); until they choose
+  their own the strip invites them: label "Enter your name", larger, blue, the
+  field glows. Once a name is chosen the strip steps back to a quiet line
+  ("Your name") (Mirko, 2026-11-03). An emptied field returns to the generated
+  name. It locks
   during a race. One line says what happens to the next block and what
   became of the last one, with the rank. The Leaderboard tab shows the same
   name.
@@ -182,30 +186,37 @@ decision, 2026-10-27):
 
 - Reads **left to right as a timeline**: #0 Genesis on the left, the newest
   block on the right, then the **dashed candidate** "#N next · k tx waiting".
-- Each block tile shows number, time to mine, miner, tx count, stored
-  previous hash and the **short hash** (first 6 + last 2 characters,
-  `0080a3…4d`) with its leading zeros highlighted. Hover or keyboard focus
-  shows the full hash with **Copy**.
+- The **block number stands above its tile** ("#3"). The tile shows how long
+  ago the block was mined ("just now", "2 min ago", from its header time,
+  ticking), the time it took to mine, miner, tx count, stored previous hash and
+  the **short hash** (first 6 + last 2 characters, `0080a3…4d`) with its
+  leading zeros highlighted. Hover or keyboard focus shows the full hash with
+  **Copy**.
+- **No hint text in the header** (Mirko, 2026-11-03): no "grows to the right",
+  no "click a block …"; the band explains itself.
 - **Links between tiles are a 1 px hairline with a small neutral dot.** No
   icon, no badge, no color while intact. Hover explains the link ("Link
   intact · #3 stores the hash of #2"). Red or amber only when broken.
 - **Key figures** are one quiet line in the band header: average block time
   against the target, difficulty, reward, next halving. No key-figure tile,
   no chart in the band.
-- **Chain health** is one collapsible line under the tiles, collapsed by
-  default; "Show checks" opens per-block checks aligned under the tiles. It
-  opens by itself when the chain is invalid.
+- **Chain health is one pill** beside the title, "Chain valid" or "Chain
+  invalid": the only standing chain status in the product (Mirko,
+  2026-11-03). A click on it shows the line "N of N hashes meet their target ·
+  N of N links intact" (or the causes) and the per-block checks aligned under
+  the tiles; another click hides them. They open by themselves when the chain
+  is invalid.
 - **The Block card follows the newest block.** A click on a tile holds that
-  block, also while new blocks are mined; a second click or "Show newest" lets
-  go. A held tile has the strong white frame, the followed newest a thin one.
+  block, also while new blocks are mined; a second click lets go. A held tile has the strong white frame, the followed newest a thin one.
   Tampering and re-mining show their block while the chain is invalid, without
   holding it: once the chain is valid again the card follows the newest block,
   or the block the learner holds.
-- **Older blocks page within the one row.** "‹ N earlier" moves the window back
-  by its width, so the band keeps its height and the cards stay where they are.
-  While older blocks are in view the candidate's place reads "N newer"; the
-  window stays on its blocks when new ones arrive. Letting go of a held block
-  returns to the newest.
+- **The row scrolls sideways with the touchpad** (Mirko, 2026-11-03): all
+  blocks sit in one row of fixed-width tiles; a horizontal swipe moves through
+  them. No paging buttons, no visible scrollbar, no swipe-back navigation at
+  the edges. While the row is at its newest end it follows new blocks;
+  scrolled back it stays on its blocks. Letting go of a held block returns to
+  the newest; a held or repaired block outside the view scrolls in.
 
 ### Card grid
 
@@ -221,10 +232,15 @@ decision, 2026-10-27):
   one line each. A click opens one in place: inputs, outputs and the whole TXID;
   scripts, signature and raw bytes stay one click further in the dialog.
 - **Next block:** the one primary action "Mining" with Play, an adjacent Repeat toggle for Auto-mine,
-  difficulty stepper with its compact `bits`, and the last round as one lane per miner (Lars, Minas)
-  with "Back Lars / Back Minas". While mining it becomes the **live race** in
-  place. "Odds per block" follows each miner's hashpower, the nonces it tries per turn.
-- **Create miner** (Mirko, 2026-11-02): a quiet "Create miner" link at the right of the odds line
+  difficulty stepper, and the last round as one lane per miner (Hal, Dorian, Laszlo by default)
+  with "Back Hal / Back Dorian / Back Laszlo". While mining it becomes the **live race** in
+  place. The header names no predecessor and the stepper no `bits` (Mirko, 2026-11-03).
+- **Miner editor** (Mirko, 2026-11-03): between races a click on a miner's name opens a small
+  editor under its lane: a name for this session only (blocks and transactions store scripts, so
+  every view shows it; the color stays; a reset restores the defaults) and a hashpower slider
+  (1–10) labelled with the miner's share of all hashpower in percent, its chance to find the next
+  block. There is no standing odds line.
+- **Create miner** (Mirko, 2026-11-02): a quiet "Create miner" link at the right under the lanes
   opens a name form under the lanes, like "Create wallet". The new miner is also a wallet, shares
   the wallets' name rules, starts at 0 and races from the next block at hashpower 5 of 10; it
   shows a lane and a wallet row at once. It is offered between races only, never during a live
@@ -263,7 +279,7 @@ decision, 2026-10-27):
 - When expanded, the rail lists the missions of the track with progress;
   the active mission is expanded with its steps, a hint and its reward.
 - When missions are open, the current step **marks the element it needs
-  with a coach ring** and a small label ("Step 3 · back Minas").
+  with a coach ring** and a small label ("Step 3 · back Hal").
 
 ## Interaction patterns
 
@@ -274,7 +290,7 @@ Every flow covers its states, not only the success path.
 | Idle | Mining is the primary action; New transaction glows as the second invitation. |
 | Mining | The Next block card becomes the live race: per miner the current nonce and hash, leading characters checked against the target, attempts and elapsed time against the target time. The Play primary becomes Pause in the same place; the header says "Mining block #N…". The adjacent Repeat toggle stays available as a setting, and Pause also stays available between the blocks of a run that Auto-mine continues. The candidate tile says "mining". Mempool rows read "being mined into #N". New transaction stays available without glow. |
 | Block found | The new tile appears on the right with a short calm highlight; the race line becomes "Last round". No confetti. |
-| Tampered | The changed block turns red with "Hash mismatch" and its new hash (the stored one struck through). Descendants turn amber with "Built on a broken block"; their own links are intact and say so. The chain pill says "Chain invalid", health opens, Mine pauses with "Paused while the chain is invalid", and the single primary becomes "Re-mine block #2". When the edit breaks a ledger rule (a signature, a spent coin, a coinbase claiming too much) re-mining cannot help, so the primary is "Undo edit in block #2" with the reason beside it. Red only for the broken block and its direct status. |
+| Tampered | The changed block turns red with "Hash mismatch" and its new hash (the stored one struck through). Descendants turn amber with "Built on a broken block"; their own links are intact and say so. The chain pill says "Chain invalid", the checks open, Mine pauses with "Paused while the chain is invalid", and the single primary becomes "Re-mine block #2". When the edit breaks a ledger rule (a signature, a spent coin, a coinbase claiming too much) re-mining cannot help, so the primary is "Undo edit in block #2" with the reason beside it. Red only for the broken block and its direct status. |
 | Empty | A sentence that says what is recorded ("No transactions waiting.") and the next step under it. |
 | Error | Plain text plus a way to retry; inputs stay. |
 
@@ -289,11 +305,11 @@ it; type size never changes with the viewport.
 
 | Viewport | Behavior |
 |---|---|
-| ≥ 1200 wide and ≥ 830 tall | Fills the screen without scrolling. Extra height goes to lists (wallets, mempool), extra width to block tiles (up to ~280 px each) and cards; never to empty padding. |
+| ≥ 1200 wide and ≥ 830 tall | Fills the screen without scrolling. Extra height goes to lists (wallets, mempool), extra width to more block tiles in view and to cards; never to empty padding. |
 | ≥ 1100 tall | The Activity card appears as row 3 and takes the height lists cannot fill. |
 | ≥ 2200 wide | Content capped at ~2160 px and centered; the background continues. |
 | < 830 tall (e.g. 1366 × 657) | The page scrolls vertically; cards keep their density instead of squeezing. |
-| 1024–1279 wide | Collapsed Missions entry unless explicitly opened; tiles narrower (min ~150 px); earlier blocks behind a "‹ N earlier" control. Below 1200 the Block card stays left and Next block, Mempool and Wallets stack on the right; the page scrolls. |
+| 1024–1279 wide | Collapsed Missions entry unless explicitly opened; tiles keep their width; the row scrolls sideways. Below 1200 the Block card stays left and Next block, Mempool and Wallets stack on the right; the page scrolls. |
 | 768–1023 wide | Mission rail becomes a bar on top; the chain becomes a vertical timeline (newest on top, candidate first); then Next block, Mempool, Block and Wallets, one under the other. |
 | < 768 wide | Phone: compact top bar, mission bar, vertical timeline, health line, key-figure line, then Next block, Mempool, Block, Wallets. The race sits directly under the chain. |
 
@@ -313,7 +329,7 @@ and validity states are semantic tokens.
 | Text | `--text`, `--text-2`, `--text-3`, `--on-accent` | `#e7edf8`, `#a3b2cf`, `#6c7d9e` |
 | Action | `--blue`, `--blue-bg`, `--blue-line`, `--glow-action`, `--focus` | `#4d8dff`; one shared glow for Mine block and New transaction |
 | Status | `--green`, `--amber`, `--red` with `-bg` tints | always paired with text |
-| Miners and wallets | `--lars` (amber), `--minas` (violet), `--alice`, `--bob`, `--chris` | |
+| Miners and wallets | `--hal` (amber), `--dorian` (violet), `--laszlo` (pink), `--alice`, `--bob`, `--chris` | fixed per participant at creation, kept through a rename |
 | Coach | `--coach`, `--coach-ring`, `--coach-glow` | light blue |
 | Block tiles | `--blk-0` … `--blk-4`, `--blk-top`, `--blk-side`, `--blk-hash-bg` | blue-violet gradients, only on tiles |
 | Candidate | `--pend-*` | dashed, muted |
@@ -332,8 +348,8 @@ and validity states are semantic tokens.
 
 | Component | Contract |
 |---|---|
-| Top bar | Brand, four-tab navigation, coin label, chain status pill, overflow menu; below 768 px the tabs fold into the menu |
-| Block tile | Number, time, miner chip, tx count, stored previous hash, short hash with highlighted zeros; states `is-selected` (held), `is-current` (followed), `is-newest`, `is-broken`, `is-dependent`; full-hash tooltip with Copy on hover and keyboard focus |
+| Top bar | Brand, four-tab navigation, overflow menu (with the coin label); below 768 px the tabs fold into the menu |
+| Block tile | Number above, age ("2 min ago"), time to mine, miner chip, tx count, stored previous hash, short hash with highlighted zeros; states `is-selected` (held), `is-current` (followed), `is-newest`, `is-broken`, `is-dependent`; full-hash tooltip with Copy on hover and keyboard focus |
 | Candidate tile | Dashed; idle "next", mining "mining · 3.4 s", paused while invalid |
 | Link | 1 px hairline with a neutral 6 px dot; `is-broken` red, `is-dependent` amber; explaining tooltip |
 | Chain health | One line, collapsible strip of per-block checks on the tile column grid |
