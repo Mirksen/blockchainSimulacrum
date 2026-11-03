@@ -701,9 +701,11 @@ try {
  const phoneRowBox = await mobile.locator('.chain-band.is-compact .chain-band-scroll').boundingBox();
  await mobile.mouse.move(phoneRowBox.x + phoneRowBox.width / 2, phoneRowBox.y + phoneRowBox.height / 2);
  await mobile.mouse.wheel(-400, 0);
- await settle(mobile);
- const swiped = await mobile.evaluate(() => Math.round(document.querySelector('.chain-band.is-compact .chain-band-scroll').scrollLeft));
- assert.ok(swiped < row.left, `the row scrolls back toward Genesis: ${row.left} -> ${swiped}`);
+ // The browser scrolls after the wheel event; wait for the row to move rather than reading at once.
+ const rowLeft = () => mobile.evaluate(() => Math.round(document.querySelector('.chain-band.is-compact .chain-band-scroll').scrollLeft));
+ await mobile.waitForFunction(left => document.querySelector('.chain-band.is-compact .chain-band-scroll').scrollLeft < left - 50, row.left, {timeout:10000})
+  .catch(async () => assert.fail(`the row scrolls back toward Genesis: ${row.left} -> ${await rowLeft()}`));
+ const swiped = await rowLeft();
  // Only the ticker stays at the top; the compact band scrolls away with the cards.
  const stuck = async () => mobile.evaluate(() => {
   const ticker = document.querySelector('.leaderboard-ticker').getBoundingClientRect();
