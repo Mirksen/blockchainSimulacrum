@@ -1,0 +1,28 @@
+/* The one explaining bubble (HintLayer.jsx). Overlay surface like the full-hash tooltip,
+   but body text in the UI font: it explains, it does not show data. */
+.hint-layer {
+  position: fixed; inset: auto; top: 0; left: 0; margin: 0; z-index: 1000;
+  max-width: min(320px, calc(100vw - 16px)); padding: 10px 12px; box-sizing: border-box;
+  border-radius: var(--r-md); border: 1px solid var(--line-3); background: var(--overlay); color: var(--text-2);
+  box-shadow: 0 18px 40px -10px var(--shadow);
+  font: 13px/19px var(--ui); text-align: left; white-space: normal; overflow: visible;
+  pointer-events: none;
+  animation: hint-layer-in 120ms ease-out;
+}
+.hint-layer-title { display: block; margin-bottom: 2px; color: var(--text); font-weight: 600; }
+.hint-layer-text { display: block; }
+.hint-layer::before {
+  content: ""; position: absolute; left: calc(var(--hint-arrow, 50%) - 5px); width: 10px; height: 10px;
+  transform: rotate(45deg); background: var(--overlay);
+}
+.hint-layer[data-side="below"]::before { top: -6px; border-left: 1px solid var(--line-3); border-top: 1px solid var(--line-3); }
+.hint-layer[data-side="above"]::before { bottom: -6px; border-right: 1px solid var(--line-3); border-bottom: 1px solid var(--line-3); }
+@keyframes hint-layer-in { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .hint-layer { animation: none; } }
+
+/* A term that explains itself on hover (`term()` in src/lib/hints): a quiet dotted
+   underline. Controls (`hint()`) keep their look. */
+[data-hint-term] {
+  text-decoration-line: underline; text-decoration-style: dotted; text-decoration-thickness: 1px;
+  text-decoration-color: var(--text-3); text-underline-offset: 3px; cursor: help;
+}

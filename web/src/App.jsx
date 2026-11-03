@@ -17,6 +17,7 @@ import { minerProfileHash, POOL_HASH } from './lib/poolApi';
 import { BlockDetailsModal } from './components/BlockDetailsModal';
 import { ParticipantDetailsModal } from './components/ParticipantDetailsModal';
 import { TransactionDetailsModal } from './components/TransactionDetailsModal';
+import { HintLayer } from './components/HintLayer';
 import './index.css';
 import { MIN_DIFFICULTY, MAX_DIFFICULTY } from './lib/difficulty';
 import { DEFAULT_FEE_RATE } from './lib/blockchain';
@@ -360,6 +361,7 @@ function App() {
     <div className={`app-shell${view === 'workbench' ? ' is-workbench' : ''}${railCollapsed ? ' is-rail-collapsed' : ' is-rail-expanded'}`}
       onClickCapture={prepareSound} onKeyDownCapture={prepareSound}>
       <a className="skip-link" href="#workbench">Skip to workbench</a>
+      <HintLayer />
       <TopBar view={view} onNavigate={navigate} coinName={coinName} theme={theme} onTheme={changeTheme}
         muted={muted} onMuted={changeMuted} onReset={reset} onOpenSettings={() => setShowSettings(true)} compact={compact} saveState={sim.saveState} />
       <LeaderboardTicker onOpenPool={() => navigate('pool')} onBoard={setBoardRows} refreshKey={boardKey} />
