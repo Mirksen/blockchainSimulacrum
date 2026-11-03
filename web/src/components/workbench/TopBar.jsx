@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { AnalyticsControl } from '../AnalyticsControl';
+import { hint } from '../../lib/hints';
 import './TopBar.css';
 
 // Top bar of the rebuilt shell (web/DESIGN.md, "Information architecture"):
@@ -49,7 +50,7 @@ function NavLinks({ view, onSelect, className }) {
     <ul className={className}>
       {VIEWS.map(item => (
         <li key={item.id}>
-          <a href={item.href} className={item.id === view ? 'is-current' : undefined}
+          <a href={item.href} className={item.id === view ? 'is-current' : undefined} {...hint(`nav.${item.id}`)}
             aria-current={item.id === view ? 'page' : undefined}
             onClick={event => { if (!plainClick(event)) return; event.preventDefault(); onSelect(item.id); }}>
             {item.label}
@@ -121,7 +122,7 @@ export function TopBar({
       )}
       <div className="top-bar-end" ref={rootRef} onKeyDown={onKeyDown} onBlur={onBlur}>
         <button ref={buttonRef} type="button" className="top-bar-more"
-          aria-label={compact ? 'Menu' : 'More'} title={compact ? 'Menu' : 'More: Reset, Settings, sound, theme'}
+          aria-label={compact ? 'Menu' : 'More'} {...hint('menu.more')}
           aria-expanded={open} aria-controls={open ? menuId : undefined}
           onClick={() => (open ? close() : setOpen(true))}>
           {compact ? Icon.menu : Icon.more}
@@ -134,17 +135,17 @@ export function TopBar({
               </nav>
             )}
             <div className="top-bar-menu-section">
-              <button type="button" className="top-bar-item" onClick={() => { close(); onReset?.(); }}>
+              <button type="button" className="top-bar-item" {...hint('menu.reset')} onClick={() => { close(); onReset?.(); }}>
                 {Icon.reset}<span>Reset</span>
               </button>
-              <button type="button" className="top-bar-item" onClick={() => { close(); onOpenSettings?.(); }}>
+              <button type="button" className="top-bar-item" {...hint('menu.settings')} onClick={() => { close(); onOpenSettings?.(); }}>
                 {Icon.settings}<span>Settings</span>
               </button>
-              <button type="button" className="top-bar-item" aria-pressed={!muted} onClick={() => onMuted?.(!muted)}>
+              <button type="button" className="top-bar-item" aria-pressed={!muted} {...hint('menu.sound', muted)} onClick={() => onMuted?.(!muted)}>
                 {muted ? Icon.soundOff : Icon.soundOn}<span>Sound</span>
                 <span className="top-bar-item-state">{muted ? 'off' : 'on'}</span>
               </button>
-              <button type="button" className="top-bar-item" onClick={() => onTheme?.(nextTheme)}>
+              <button type="button" className="top-bar-item" {...hint('menu.theme', nextTheme)} onClick={() => onTheme?.(nextTheme)}>
                 {nextTheme === 'light' ? Icon.sun : Icon.moon}
                 <span>{nextTheme === 'light' ? 'Light theme' : 'Dark theme'}</span>
               </button>

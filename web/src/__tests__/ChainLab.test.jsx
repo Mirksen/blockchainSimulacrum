@@ -93,4 +93,9 @@ describe('ChainLab interaction', () => {
     expect(screen.getByRole('status').textContent).toContain('Stopped after 0 attempts');
     expect(screen.getByText('Toy chain consistent')).toBeTruthy();
   });
+  it('explains re-mining in a hint bubble', () => {
+    render(<ChainLab onClose={() => {}} />);
+    expect(screen.getByRole('button', { name: 'Re-mine Block 2' }).closest('[data-hint]').getAttribute('data-hint'))
+      .toContain('Search nonces from 0 until Block 2’s hash starts with a zero');
+  });
 });

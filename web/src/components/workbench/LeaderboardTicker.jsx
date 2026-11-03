@@ -1,6 +1,7 @@
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import { getLeaderboard } from '../../lib/poolApi';
 import { findsOf, formatDifficulty } from '../../lib/poolProof';
+import { hint } from '../../lib/hints';
 import './LeaderboardTicker.css';
 
 // Slim band under the top bar that runs the all-time pool leaderboard from right to left
@@ -92,7 +93,7 @@ export function LeaderboardTicker({ onOpenPool, onBoard, refreshKey = 0, refresh
 
   return (
     <div className={classes} data-testid="leaderboard-ticker">
-      <button type="button" className="leaderboard-ticker-button" aria-label={label} onClick={() => onOpenPool?.()}
+      <button type="button" className="leaderboard-ticker-button" aria-label={label} {...hint('pool.ticker')} onClick={() => onOpenPool?.()}
         onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)}
         onFocus={() => setPaused(true)} onBlur={() => setPaused(false)}>
         <span className="leaderboard-ticker-title">

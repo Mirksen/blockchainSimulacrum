@@ -1,6 +1,7 @@
 import { useId, useState } from 'react';
 import { BLOCK_SIZES, LISTED_LIMIT, sampleBlock, txidOf, verifyProof } from '../lib/merkleLab';
 import { HeaderBytes } from './HeaderBytes';
+import { hint, term } from '../lib/hints';
 import './MerkleProof.css';
 
 const DEFAULT_SIZE = 16;
@@ -66,50 +67,50 @@ export function MerkleProof() {
   return <section className="merkle-proof" aria-labelledby={`${id}-title`}>
     <header className="merkle-proof-header">
       <h2 id={`${id}-title`}>Is this payment in the block?</h2>
-      <button type="button" className="btn btn-default" onClick={reset}>Reset example</button>
+      <button type="button" className="btn btn-default" {...hint('lab.merkle.reset')} onClick={reset}>Reset example</button>
     </header>
 
     <div className="merkle-proof-controls">
       <fieldset className="merkle-proof-sizes"><legend>Block size</legend>
-        {BLOCK_SIZES.map(option => <label key={option}>
+        {BLOCK_SIZES.map(option => <label key={option} {...hint('lab.merkle.size', option)}>
           <input type="radio" name={`${id}-size`} value={option} checked={size === option} onChange={() => changeSize(option)} />
           {count(option, 'transaction')}
         </label>)}
       </fieldset>
-      <p className="merkle-proof-saving"><strong>{hashes(top)} instead of {count(size, 'transaction')}</strong>
+      <p className="merkle-proof-saving"><strong {...term('lab.merkle.saving')}>{hashes(top)} instead of {count(size, 'transaction')}</strong>
         <span>plus the 80-byte header: the light client never downloads the other payments.</span></p>
     </div>
 
     {size <= LISTED_LIMIT ? <div className="merkle-proof-list">
       <h3>Transactions in the block</h3>
       <ol start={0}>{block.texts.map((payment, position) => <li key={position}>
-        <button type="button" className="merkle-proof-tx" aria-pressed={position === index} onClick={() => choose(position)}>
+        <button type="button" className="merkle-proof-tx" aria-pressed={position === index} {...hint('lab.merkle.tx', position)} onClick={() => choose(position)}>
           <span className="merkle-proof-tx-number">Tx {position}</span>{' '}<span>{payment}</span>
         </button>
       </li>)}</ol>
     </div> : <div className="merkle-proof-pick">
       <label htmlFor={`${id}-index`}>Transaction number (0–{(size - 1).toLocaleString('en-US')})</label>
-      <input id={`${id}-index`} inputMode="numeric" value={indexInput} aria-invalid={indexInvalid}
+      <input id={`${id}-index`} inputMode="numeric" value={indexInput} aria-invalid={indexInvalid} {...hint('lab.merkle.pick')}
         aria-describedby={indexInvalid ? `${id}-index-error` : undefined} onChange={event => typeIndex(event.target.value)} />
       {indexInvalid && <p id={`${id}-index-error`} className="merkle-proof-error">Enter a whole number from 0 to {(size - 1).toLocaleString('en-US')}. The proof still shows transaction {index}.</p>}
       <p className="merkle-proof-hint">The other {count(size - 1, 'transaction')} stay hidden: the proof does not need them.</p>
     </div>}
 
     <div className="merkle-proof-header-card">
-      <h3>Block header (what the light client holds)</h3>
+      <h3 {...term('lab.merkle.header')}>Block header (what the light client holds)</h3>
       <dl className="merkle-proof-kv">
-        <dt>Merkle root</dt><dd><code>{block.root}</code></dd>
-        <dt>Block hash</dt><dd><code>{block.hash}</code></dd>
+        <dt {...term('lab.merkle.root')}>Merkle root</dt><dd><code>{block.root}</code></dd>
+        <dt {...term('lab.merkle.block-hash')}>Block hash</dt><dd><code>{block.hash}</code></dd>
       </dl>
-      <details><summary>Inspect the 80 header bytes</summary><HeaderBytes header={block.header} hash={block.hash} /></details>
+      <details><summary {...hint('lab.merkle.inspect')}>Inspect the 80 header bytes</summary><HeaderBytes header={block.header} hash={block.hash} /></details>
     </div>
 
     <div className="merkle-proof-payment">
       <label htmlFor={`${id}-text`}>Payment text of transaction {index}</label>
-      <textarea id={`${id}-text`} rows={2} maxLength={300} value={paymentText} onChange={event => setText(event.target.value)} />
+      <textarea id={`${id}-text`} rows={2} maxLength={300} value={paymentText} {...hint('lab.merkle.text')} onChange={event => setText(event.target.value)} />
     </div>
 
-    <h3 className="merkle-proof-path-title">Proof path for transaction {index}</h3>
+    <h3 className="merkle-proof-path-title" {...term('lab.merkle.path')}>Proof path for transaction {index}</h3>
     <ol className="merkle-proof-path" aria-label="Proof path">
       {result.steps.map(step => {
         const failed = step.level === result.failedAt;
@@ -125,7 +126,7 @@ export function MerkleProof() {
           <code className="merkle-proof-hash">{step.hash ?? 'Cannot compute: an input below is not a hash.'}</code>
           {sibling && <div className="merkle-proof-sibling">
             <label htmlFor={`${id}-sibling-${step.level}`}>Sibling at level {step.level} (on the {sibling.side})</label>
-            <input id={`${id}-sibling-${step.level}`} className="merkle-proof-hash-input" spellCheck={false} value={sibling.hash}
+            <input id={`${id}-sibling-${step.level}`} className="merkle-proof-hash-input" spellCheck={false} value={sibling.hash} {...hint('lab.merkle.sibling', sibling.side)}
               aria-invalid={siblingInvalid} aria-describedby={siblingInvalid ? `${id}-sibling-${step.level}-error` : undefined}
               onChange={event => setSiblings(current => ({ ...current, [step.level]: event.target.value.trim() }))} />
             {siblingInvalid && <p id={`${id}-sibling-${step.level}-error`} className="merkle-proof-error">Enter 64 hexadecimal characters.</p>}
@@ -135,8 +136,8 @@ export function MerkleProof() {
     </ol>
 
     <dl className="merkle-proof-kv merkle-proof-compare">
-      <dt>Computed root</dt><dd><code>{result.computedRoot ?? 'Cannot compute'}</code></dd>
-      <dt>Header’s merkle root</dt><dd><code>{block.root}</code></dd>
+      <dt {...term('lab.merkle.computed')}>Computed root</dt><dd><code>{result.computedRoot ?? 'Cannot compute'}</code></dd>
+      <dt {...term('lab.merkle.root')}>Header’s merkle root</dt><dd><code>{block.root}</code></dd>
     </dl>
     <p className={`merkle-proof-verdict ${result.valid ? 'merkle-proof-positive' : 'merkle-proof-negative'}`} role="status">
       <strong>{result.valid ? 'Payment proven' : 'Payment not proven'}</strong> · {verdict}</p>

@@ -243,4 +243,10 @@ describe('ForkExperiment', () => {
     expect(within(branch('Alternative')).getByText('16 work units')).toBeTruthy();
     expect(screen.getByText('0 / 12 new blocks')).toBeTruthy();
   });
+
+  it('explains hash power in a hint bubble', () => {
+    render(<ForkExperiment />);
+    expect(screen.getByRole('slider', { name: 'Alternative hash power' }).getAttribute('data-hint'))
+      .toContain('The share is each branch’s chance to find the next block.');
+  });
 });

@@ -1,5 +1,6 @@
 import { useId, useLayoutEffect, useRef } from 'react';
 import './SettingsDialog.css';
+import { term } from '../../lib/hints';
 import { MIN_DIFFICULTY, MAX_DIFFICULTY } from '../../lib/difficulty';
 
 // "Settings" dialog of the overflow menu (web/DESIGN.md, "Existing features in the
@@ -38,14 +39,14 @@ function Dialog({ onClose, coinName, onCoinName, difficulty, onDifficulty, halvi
 
         <div className="settings-dialog-fields">
           <label className="settings-dialog-field">
-            <span className="settings-dialog-label">Coin name</span>
+            <span className="settings-dialog-label" {...term('settings.coin')}>Coin name</span>
             <span className="settings-dialog-control">
               <input aria-label="Coin name" value={coinName} maxLength={16} onChange={event => onCoinName?.(event.target.value)} />
               <span className="settings-dialog-unit">· virtual</span>
             </span>
           </label>
           <label className="settings-dialog-field">
-            <span className="settings-dialog-label">Mining difficulty</span>
+            <span className="settings-dialog-label" {...term('settings.difficulty')}>Mining difficulty</span>
             <span className="settings-dialog-control">
               <input aria-label="Mining difficulty" type="range" min={MIN_DIFFICULTY} max={MAX_DIFFICULTY} step="1" value={difficulty} disabled={busy}
                 aria-describedby={lockedBy} onChange={event => onDifficulty?.(Number(event.target.value))} />
@@ -53,7 +54,7 @@ function Dialog({ onClose, coinName, onCoinName, difficulty, onDifficulty, halvi
             </span>
           </label>
           <label className="settings-dialog-field">
-            <span className="settings-dialog-label">Halving interval</span>
+            <span className="settings-dialog-label" {...term('settings.halving')}>Halving interval</span>
             <span className="settings-dialog-control">
               <input aria-label="Halving interval" type="number" min="2" max="100" value={halvingInterval} disabled={busy}
                 aria-describedby={lockedBy} onChange={event => onHalvingInterval?.(Number(event.target.value))} />
@@ -61,7 +62,7 @@ function Dialog({ onClose, coinName, onCoinName, difficulty, onDifficulty, halvi
             </span>
           </label>
           <label className="settings-dialog-field">
-            <span className="settings-dialog-label">Target block time</span>
+            <span className="settings-dialog-label" {...term('settings.block-time')}>Target block time</span>
             <span className="settings-dialog-control">
               <input aria-label="Target block time" type="number" min="1" max="60" value={targetBlockTime} disabled={busy}
                 aria-describedby={lockedBy} onChange={event => {
