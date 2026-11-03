@@ -374,3 +374,53 @@ describe('NextBlockCard miner editor', () => {
     expect(screen.queryByRole('button', { name: /rename or change hashpower/ })).toBeNull();
   });
 });
+
+describe('NextBlockCard M key', () => {
+  const pressM = (target = document.body, options = {}) => fireEvent.keyDown(target, { key: 'm', ...options });
+  it('mines between races, like the button that announces it', () => {
+    const onMine = vi.fn();
+    render(<NextBlockCard {...base} mode="idle" lastRound={lastRound} onMine={onMine} />);
+    expect(screen.getByRole('button', { name: 'Mining' }).getAttribute('aria-keyshortcuts')).toBe('M');
+    pressM();
+    pressM(document.body, { key: 'M' });
+    expect(onMine).toHaveBeenCalledTimes(2);
+  });
+  it('re-mines the next block of a repair', () => {
+    const onRemine = vi.fn();
+    const onMine = vi.fn();
+    render(<NextBlockCard {...base} mode="repair" repair={{ next: 3, order: [2, 3, 4] }} onRemine={onRemine} onMine={onMine} />);
+    pressM();
+    expect(onRemine).toHaveBeenCalledWith(3);
+    expect(onMine).not.toHaveBeenCalled();
+  });
+  it('does nothing where no button announces it: demo, race, undo-only repair', () => {
+    const onMine = vi.fn();
+    const onStartDemo = vi.fn();
+    const onRemine = vi.fn();
+    const { rerender } = render(<NextBlockCard {...base} mode="fresh" index={1} onMine={onMine} onStartDemo={onStartDemo} />);
+    pressM();
+    rerender(<NextBlockCard {...base} mode="mining" race={race} onMine={onMine} />);
+    pressM();
+    rerender(<NextBlockCard {...base} mode="idle" repeating onMine={onMine} />);
+    pressM();
+    rerender(<NextBlockCard {...base} mode="repair" repair={{ next: 2, order: [2], undoOnly: true, onUndo: vi.fn() }} onRemine={onRemine} />);
+    pressM();
+    expect(onMine).not.toHaveBeenCalled();
+    expect(onStartDemo).not.toHaveBeenCalled();
+    expect(onRemine).not.toHaveBeenCalled();
+  });
+  it('stays off while typing, with a modifier, on key repeat and under an open dialog', () => {
+    const onMine = vi.fn();
+    render(<><input aria-label="Some field" /><NextBlockCard {...base} mode="idle" lastRound={lastRound} onMine={onMine} /></>);
+    pressM(screen.getByRole('textbox', { name: 'Some field' }));
+    for (const modifier of ['metaKey', 'ctrlKey', 'altKey', 'repeat']) pressM(document.body, { [modifier]: true });
+    const dialog = document.createElement('dialog');
+    dialog.setAttribute('open', '');
+    document.body.append(dialog);
+    pressM();
+    dialog.remove();
+    expect(onMine).not.toHaveBeenCalled();
+    pressM();
+    expect(onMine).toHaveBeenCalledTimes(1);
+  });
+});

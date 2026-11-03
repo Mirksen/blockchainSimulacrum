@@ -1,4 +1,4 @@
-import { useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { CoachMark } from './CoachMark';
 import { CreateNameForm } from './CreateNameForm';
 import { RepeatToggle } from './RepeatToggle';
@@ -29,6 +29,29 @@ import { colorOf } from './minerColors';
 // Between races a click on a miner opens its editor: onRenameMiner(name, next) -> { success, error }
 // renames it for this session, onHashpower(name, value) sets its hashpower (1–10), shown as its
 // share of all hashpower: its chance to find the next block.
+
+// The "M" key presses the button that announces it (aria-keyshortcuts="M"): Mining between
+// races, "Re-mine block #K" during a repair. It stays off while the learner types, with a
+// modifier held, on key repeat and while a dialog is open.
+function isTyping(target) {
+  return Boolean(target?.closest?.('input, textarea, select, [contenteditable=""], [contenteditable="true"]'));
+}
+function useMineKey(action) {
+  const latest = useRef(action);
+  useEffect(() => { latest.current = action; });
+  useEffect(() => {
+    const onKeyDown = event => {
+      if (event.key !== 'm' && event.key !== 'M') return;
+      if (event.repeat || event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey) return;
+      if (isTyping(event.target) || document.querySelector('dialog[open]')) return;
+      if (!latest.current) return;
+      event.preventDefault();
+      latest.current();
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, []);
+}
 
 function formatAmount(value) {
   if (typeof value !== 'number' || !Number.isFinite(value)) return String(value ?? '');
@@ -145,6 +168,10 @@ export function NextBlockCard({
 
   const running = isMining || (repeating && !isRepair);
   const startsDemo = isFresh;
+  const repairNext = repair?.next ?? repair?.order?.[0];
+  useMineKey(isRepair
+    ? (repair && !repair.undoOnly && repairNext !== undefined ? () => onRemine?.(repairNext) : null)
+    : (!running && !startsDemo ? () => onMine?.() : null));
   // Keep the same button mounted so keyboard focus follows Play → Pause → Play.
   const action = (
     <CoachMark target={running || isRepair || startsDemo ? undefined : "workbench.mine"} coach={running || isRepair || startsDemo ? null : coach} className="next-block-coach-inline">

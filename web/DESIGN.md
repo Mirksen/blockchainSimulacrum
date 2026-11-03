@@ -258,6 +258,10 @@ decision, 2026-10-27):
   difficulty stepper, and the last round as one lane per miner (Hal, Dorian, Laszlo by default)
   with "Back Hal / Back Dorian / Back Laszlo". While mining it becomes the **live race** in
   place. The header names no predecessor and the stepper no `bits` (Mirko, 2026-11-03).
+- **Key M** (Mirko, 2026-11-03) presses the button that announces it (`aria-keyshortcuts="M"`):
+  "Mining" between races, "Re-mine block #K" during a repair. Nothing else: not "Start demo",
+  not during a race or a repeating run, not while typing, with Cmd/Ctrl/Alt, on key repeat or
+  under an open dialog.
 - **Miner editor** (Mirko, 2026-11-03): between races a click on a miner's name opens a small
   editor under its lane: a name for this session only (blocks and transactions store scripts, so
   every view shows it; the color stays; a reset restores the defaults) and a hashpower slider
