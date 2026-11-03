@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { useBlockchain } from './hooks/useBlockchain';
 import { useMinerIdentity } from './hooks/useMinerIdentity';
-import { playMiningSuccessSound, unlockMiningAudio } from './lib/sound';
+import { playMiningSuccessSound, playRecordSound, unlockMiningAudio } from './lib/sound';
+import { ownRow, recordOf } from './lib/records';
 import { telemetry } from './lib/telemetry';
 import * as missions from './lib/missions';
 import { TopBar } from './components/workbench/TopBar';
 import { LeaderboardTicker } from './components/workbench/LeaderboardTicker';
+import { RecordCelebration } from './components/workbench/RecordCelebration';
 import { SettingsDialog } from './components/workbench/SettingsDialog';
 import { Workbench } from './components/workbench/Workbench';
 import { MissionRail } from './components/workbench/MissionRail';
@@ -103,8 +105,27 @@ function App() {
   const lastAdjustedBlock = useRef(sim.restored ? sim.blocks.length - 1 : 0);
   const [boardKey, setBoardKey] = useState(0);
   const [boardRows, setBoardRows] = useState(null);
-  const onBlockAccepted = useCallback(() => setBoardKey(key => key + 1), []);
+  const [record, setRecord] = useState(null);
+  // A record is what the board gained between the rows before and after an accepted block of
+  // this browser; the ticker's own refreshes and other miners' blocks celebrate nothing.
+  const awaitingBoard = useRef(false);
+  const lastRows = useRef(null);
+  const signingName = useRef(null);
+  const onBlockAccepted = useCallback(() => { awaitingBoard.current = true; setBoardKey(key => key + 1); }, []);
+  const onBoard = useCallback(rows => {
+    if (rows && awaitingBoard.current && lastRows.current) {
+      awaitingBoard.current = false;
+      const found = recordOf(ownRow(lastRows.current, signingName.current), ownRow(rows, signingName.current));
+      if (found) {
+        setRecord({ ...found, name: signingName.current, id: Date.now() });
+        playRecordSound(soundEnabled.current);
+      }
+    }
+    if (rows) lastRows.current = rows;
+    setBoardRows(rows);
+  }, []);
   const identity = useMinerIdentity({ onAccepted: onBlockAccepted });
+  useEffect(() => { signingName.current = identity.signingName; }, [identity.signingName]);
   const { blocks, participants, balances, memPool, chainValid, isMining, isSettingUp, difficulty, halvingInterval,
     minerProgress, miningProgress, createTransaction, mineBlock, setupInitialDistribution, generateRandomTransactions,
     setDifficulty, setHalvingInterval, tamperBlock, undoTamper, remineBlock, resetBlockchain, cancelMining,
@@ -362,7 +383,7 @@ function App() {
       <a className="skip-link" href="#workbench">Skip to workbench</a>
       <TopBar view={view} onNavigate={navigate} coinName={coinName} theme={theme} onTheme={changeTheme}
         muted={muted} onMuted={changeMuted} onReset={reset} onOpenSettings={() => setShowSettings(true)} compact={compact} saveState={sim.saveState} />
-      <LeaderboardTicker onOpenPool={() => navigate('pool')} onBoard={setBoardRows} refreshKey={boardKey} />
+      <LeaderboardTicker onOpenPool={() => navigate('pool')} onBoard={onBoard} refreshKey={boardKey} ownName={identity.signingName} />
       <div className="wb-shell">
         <div className="wb-rail">
           <MissionRail progress={progress} collapsed={railCollapsed} onToggle={toggleRail} onShowMe={showMe} highlight={showIntro} />
@@ -395,6 +416,8 @@ function App() {
         </main>
       </div>
       {winner && <div className="wb-announce" role="status">{winner} mined a block</div>}
+      <RecordCelebration key={record?.id} record={record} name={record?.name} onClose={() => setRecord(null)}
+        onOpenLeaderboard={() => openProfile(record.name)} />
       <SettingsDialog open={showSettings} onClose={() => setShowSettings(false)} coinName={coinName} onCoinName={setCoinName}
         difficulty={difficulty} onDifficulty={onDifficulty} halvingInterval={halvingInterval} onHalvingInterval={setHalvingInterval}
         targetBlockTime={targetBlockTime} onTargetBlockTime={changeTarget} busy={busy} />

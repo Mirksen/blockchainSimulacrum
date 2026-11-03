@@ -362,10 +362,71 @@ button.chain-band-health-sum:focus-visible { outline: 2px solid var(--focus); ou
 .chain-band-chk-link.is-dependent::before { background: var(--chain-band-amber-line); }
 .chain-band-chk-link.is-broken::before { background: var(--red); }
 
-/* ---------- narrow hosts (the workbench shows ChainTimeline below 1024 px) ---------- */
+/* ---------- narrow hosts ---------- */
 @container chain-band (max-width: 899.98px) {
-  .chain-band-health-text { display: none; }
+  .chain-band:not(.is-compact) .chain-band-health-text { display: none; }
 }
+
+/* ---------- compact band below 1024 px (web/DESIGN.md, "Screen sizes") ----------
+   Small tiles that stay at the top of the page while the cards scroll beneath: number,
+   miner and short hash; no tooltip, so the scroller needs no room above or below. */
+.chain-band.is-compact {
+  --chain-band-page-x: var(--s-4);
+  --chain-band-tile-h: 64px;
+  --chain-band-tile-w: 112px;
+  --chain-band-link-w: 16px;
+  --chain-band-above: calc(var(--block-depth) + 2px);
+  --chain-band-below: 2px;
+  --block-depth: 5px;
+  background: var(--bg);
+  box-shadow: 0 10px 18px -16px var(--shadow);
+}
+.chain-band.is-compact .chain-band-inner { padding: 6px var(--chain-band-page-x) 8px; }
+.chain-band.is-compact .chain-band-header { height: 24px; gap: var(--s-2); }
+/* the pill already says "Chain valid": the heading stays for screen readers only */
+.chain-band.is-compact .chain-band-header h2 {
+  position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;
+}
+/* the pill never shrinks under the key figures; the figures give way */
+.chain-band.is-compact .chain-band-health-line { min-width: auto; flex: 0 1 auto; }
+.chain-band.is-compact .chain-band-health-sum { height: 22px; padding: 0 var(--s-2); }
+.chain-band.is-compact .chain-band-stats, .chain-band.is-compact .chain-band-health-text { gap: 6px; font-size: 11px; }
+.chain-band.is-compact .chain-band-ltip { display: none; }
+.chain-band.is-compact .chain-band-scroll { scroll-snap-type: x proximity; scroll-padding-inline: var(--chain-band-page-x); }
+.chain-band.is-compact .chain-band-item { scroll-snap-align: start; }
+.chain-band.is-compact .chain-band-item.is-cand { scroll-snap-align: end; }
+
+.chain-band-tile.is-mini .chain-band-tile-face { padding: 6px 9px 7px; gap: 2px; }
+.chain-band-tile.is-mini .chain-band-tile-top { min-height: 16px; font-size: 11px; line-height: 16px; gap: 6px; }
+.chain-band-mini-num { font-size: 12px; font-weight: 700; }
+.chain-band-tile.is-mini .chain-band-time { font-size: 11px; }
+.chain-band-tile.is-mini .chain-band-tag { padding: 0 5px; font-size: 10px; line-height: 14px; }
+.chain-band-tile.is-mini .chain-band-tile-by { gap: 6px; font-size: 12px; line-height: 16px; }
+.chain-band-tile.is-mini .chain-band-av { width: 14px; height: 14px; border-radius: 4px; font-size: 9px; }
+.chain-band-tile.is-mini .chain-band-tile-hash { align-self: flex-start; font-size: 11px; line-height: 15px; padding: 0 5px; }
+.chain-band-tile.is-mini.is-newest { box-shadow: 0 8px 18px -10px var(--blk-glow); }
+/* small blocks: the glow marks the followed newest block; only a held block gets the frame */
+.chain-band-tile.is-mini.is-current, .chain-band-tile.is-mini:hover { outline: none; }
+/* inside the face, so the 3D edges cannot cut the frame of a held small block */
+.chain-band-tile.is-mini.is-selected { outline: none; box-shadow: inset 0 0 0 2px var(--blk-selected); }
+.chain-band-tile.is-mini.is-broken.is-selected { box-shadow: inset 0 0 0 2px var(--blk-selected), inset 0 0 0 4px var(--red); }
+/* a block built on a broken one keeps its dashed amber edge in every state */
+.chain-band-tile.is-mini.is-dependent, .chain-band-tile.is-mini.is-dependent:hover { outline: 1px dashed var(--chain-band-amber-line); outline-offset: -1px; }
+.chain-band.is-compact .chain-band-order { --chain-band-order-size: 18px; font-size: 10px; }
+
+.chain-band-cand.is-mini { padding: 6px 9px 7px; justify-content: space-between; }
+.chain-band-cand.is-mini .chain-band-tile-top { min-height: 16px; font-size: 11px; line-height: 16px; gap: 6px; }
+.chain-band-cand.is-mini .chain-band-mini-num { color: var(--text-3); }
+.chain-band-cand.is-mini .chain-band-tag { padding: 0 5px; font-size: 10px; line-height: 14px; }
+.chain-band-cand.is-mini .chain-band-tile-by { font-size: 11px; line-height: 15px; }
+.chain-band-cand.is-mini .chain-band-time { margin-left: 0; font-size: 11px; line-height: 15px; }
+
+/* the checks sit under the compact tiles on one line */
+.chain-band.is-compact .chain-band-strip { margin-top: var(--s-2); }
+.chain-band.is-compact .chain-band-chk { height: 22px; padding: 0 6px; gap: 4px; border-radius: 11px; font-size: 11px; }
+.chain-band.is-compact .chain-band-chk > * { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.chain-band.is-compact .chain-band-chk-dt { display: none; }
+.chain-band.is-compact .chain-band-chk-link { min-height: 22px; }
 
 /* each check sits under its block */
 .chain-band-strip .chain-band-chk { flex: none; width: var(--chain-band-tile-w); }

@@ -75,6 +75,14 @@ export async function verifyMinerName(browser, baseURL, output) {
     // Start demo mines #1 only; each Mining click sends one more block.
     await page.getByRole('button', { name: 'Start demo', exact: true }).click();
     await status.filter({ hasText: 'Block #1 is on the leaderboard' }).waitFor({ timeout: 30000 });
+    // The first block puts the name on an empty board at rank 1: a record to celebrate.
+    const celebration = page.locator('.record-celebration');
+    await celebration.filter({ hasText: 'Rank #1 of all time!' }).waitFor();
+    assert.match(await celebration.innerText(), new RegExp(NAME));
+    await page.getByTestId('leaderboard-ticker').locator('.leaderboard-ticker-row.is-own').first().waitFor();
+    await page.screenshot({ path: join(output, 'record-celebration.png') });
+    await celebration.getByRole('button', { name: 'Close' }).click();
+    await celebration.waitFor({ state: 'detached' });
     await workbench(page).mine(2).click();
     await status.filter({ hasText: 'Block #2 is on the leaderboard' }).waitFor({ timeout: 30000 });
     await workbench(page).mine(3).click();
@@ -102,5 +110,5 @@ export async function verifyMinerName(browser, baseURL, output) {
   } finally {
     await page.close();
   }
-  return ['Miner name: "Enter your name" invites until a name is chosen, then "Your name"; every mined block is signed, sent and listed; the board verifies it in the browser'];
+  return ['Miner name: "Enter your name" invites until a name is chosen, then "Your name"; every mined block is signed, sent and listed; the first one is celebrated as rank #1; the board verifies it in the browser'];
 }

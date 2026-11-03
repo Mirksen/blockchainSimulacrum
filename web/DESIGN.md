@@ -140,7 +140,21 @@ decision, 2026-10-27):
   most blocks, latest find. It pauses on hover and focus, is static under
   `prefers-reduced-motion`, invites to the first block while the board is
   empty and disappears quietly when the leaderboard server is unavailable.
-  Clicking it opens the Leaderboard tab.
+  Clicking it opens the Leaderboard tab. The visitor's own row shows their
+  name in the accent with a quiet "you". Below 1024 px it stays at the top
+  while the page scrolls ("Screen sizes").
+- **Record celebration** (Mirko, 2026-11-03): when a block of this browser
+  is accepted and the all-time board afterwards shows a record for the
+  visitor's name, a card drops in at the top with a confetti burst and a
+  short fanfare (with Sound on): "You are on the leaderboard!" (first time
+  on the board), "New rank: #N" (a better rank), "Rank #1 of all time!" or
+  "New best: N zeros" (more leading zeros at the same rank). It names the
+  rank or zeros in a gold badge and the visitor's name, offers
+  "Leaderboard" (the visitor's profile) and ×, closes after 6 s, on Escape
+  or with ×, holds while pointer or focus rest on it and never blocks the
+  page. The ticker's own refreshes and other miners' blocks celebrate
+  nothing. Under `prefers-reduced-motion` the card fades in without
+  confetti.
 - **Missions and the learning path are one track** (Mirko). The three guided
   experiments become missions; the learning path dialog goes away. A
   mission names the view it needs, switches to that tab and marks the
@@ -344,8 +358,9 @@ it; type size never changes with the viewport.
 | ≥ 2200 wide | Content capped at ~2160 px and centered; the background continues. |
 | < 830 tall (e.g. 1366 × 657) | The page scrolls vertically; cards keep their density instead of squeezing. |
 | 1024–1279 wide | Collapsed Missions entry unless explicitly opened; tiles keep their width; the row scrolls sideways. Below 1200 the Block card stays left and Next block, Mempool and Wallets stack on the right; the page scrolls. |
-| 768–1023 wide | Mission rail becomes a bar on top; the chain becomes a vertical timeline (newest on top, candidate first); then Next block, Mempool, Block and Wallets, one under the other. |
-| < 768 wide | Phone: compact top bar, mission bar, vertical timeline, health line, key-figure line, then Next block, Mempool, Block, Wallets. The race sits directly under the chain. |
+| 768–1023 wide | Mission rail becomes a bar on top; the chain becomes the **compact band**: one sideways-swiping row of small purple blocks (number, time, miner, short hash; no tooltip), the candidate at its end, the "Chain valid" pill and short key figures above it. A tap holds a block like a click on a full tile. Then Next block, Mempool, Block and Wallets, one under the other. |
+| < 768 wide | Phone: compact top bar, mission bar, compact band, then Next block, Mempool, Block, Wallets. The race sits directly under the chain. |
+| < 1024 wide, scrolled | **The leaderboard ticker and the compact band stay at the top** (Mirko, 2026-11-03), the band right under the ticker, together at most 140 px; top bar and mission bar scroll away and the cards scroll beneath. They take their own room in the layout and never cover content at rest. Open checks add one line of pills under the small blocks. |
 
 No size scrolls sideways.
 
