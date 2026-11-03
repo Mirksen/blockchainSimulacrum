@@ -54,6 +54,7 @@
 .top-bar-item svg { color: var(--text-2); }
 .top-bar-item-state { margin-left: auto; color: var(--text-3); font-size: 12px; }
 .top-bar-menu-coin { margin: 0; padding: var(--s-2) 10px; border-top: 1px solid var(--line-2); font-size: 12px; color: var(--text-3); }
+.top-bar-menu-saved { margin: 0; padding: 0 10px var(--s-2); font-size: 12px; color: var(--text-3); }
 
 /* the existing usage-sharing control, restyled inside the menu */
 .top-bar-usage .analytics-control { margin: 0; padding: 0; border: 0; background: transparent; color: var(--text); }

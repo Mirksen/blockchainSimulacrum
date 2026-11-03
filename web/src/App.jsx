@@ -98,8 +98,9 @@ function App() {
   const [progress, setProgress] = useState(() => missions.load(browserStorage()));
   const [chainExperiment, setChainExperiment] = useState(() => missions.activeMission(progress)?.id === 'follow-stronger-chain' ? 'fork' : 'repair');
   const compact = useSyncExternalStore(subscribePhone, isPhone, () => false);
-  const lastAdjustedBlock = useRef(0);
-  const sim = useBlockchain(INITIAL_CONFIG);
+  const sim = useBlockchain(INITIAL_CONFIG, { storage: browserStorage() });
+  // A restored chain already had its adjustments; the next one is due at the next tenth block.
+  const lastAdjustedBlock = useRef(sim.restored ? sim.blocks.length - 1 : 0);
   const [boardKey, setBoardKey] = useState(0);
   const [boardRows, setBoardRows] = useState(null);
   const onBlockAccepted = useCallback(() => setBoardKey(key => key + 1), []);
@@ -360,7 +361,7 @@ function App() {
       onClickCapture={prepareSound} onKeyDownCapture={prepareSound}>
       <a className="skip-link" href="#workbench">Skip to workbench</a>
       <TopBar view={view} onNavigate={navigate} coinName={coinName} theme={theme} onTheme={changeTheme}
-        muted={muted} onMuted={changeMuted} onReset={reset} onOpenSettings={() => setShowSettings(true)} compact={compact} />
+        muted={muted} onMuted={changeMuted} onReset={reset} onOpenSettings={() => setShowSettings(true)} compact={compact} saveState={sim.saveState} />
       <LeaderboardTicker onOpenPool={() => navigate('pool')} onBoard={setBoardRows} refreshKey={boardKey} />
       <div className="wb-shell">
         <div className="wb-rail">

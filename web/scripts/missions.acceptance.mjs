@@ -63,13 +63,19 @@ export async function verifyMissions(page, output) {
   await openTab(page, 'Chain lab');
   await openTab(page, 'Hash lab');
   assert.equal(await comparison.count(), 0, 'Reset clears the App recap as well as the mounted lab');
-  // Progress lives in this browser: a reload keeps it, the simulator starts fresh.
+  // Progress and the chain live in this browser: a reload keeps both; Reset starts the chain over.
+  const wb = workbench(page);
+  await openTab(page, 'Workbench');
+  const tilesBefore = await wb.tiles().count();
   await page.reload();
   await done(2).waitFor();
   await openTab(page, 'Workbench');
+  await wb.tile(tilesBefore - 1).waitFor();
+  assert.equal(await wb.tiles().count(), tilesBefore, 'A reload restores the saved chain');
+  assert.equal(await page.getByRole('button', { name: 'Start demo', exact: true }).count(), 0, 'A restored demo needs no new start');
+  await menu(page, 'Reset');
 
   // Mission 3 needs funded wallets: set up the demo, then Show me marks New transaction.
-  const wb = workbench(page);
   // Start demo mines #1; one Mining click confirms the transfers that fund the wallets.
   await page.getByRole('button', { name: 'Start demo', exact: true }).click();
   await wb.mine(2).click({ timeout: 30000 });
@@ -95,7 +101,7 @@ export async function verifyMissions(page, output) {
   await page.setViewportSize({ width: 1440, height: 1000 });
   return ['Missions: Show me switches tabs and marks the step; lab lessons complete missions 1 and 2',
     'Work comparison: actual one/two-zero counts survive target and mission changes, fit both themes/four widths, and Reset clears the recap',
-    'Missions: progress survives a reload; sending a coin completes mission 3 and coaches the next step'];
+    'Missions: progress and the chain survive a reload, Reset starts over; sending a coin completes mission 3 and coaches the next step'];
 }
 
 // A real App and hook, with persisted snapshots from before a page reload.
@@ -166,14 +172,17 @@ export async function verifyMissionReload(browser, baseURL, output) {
         if (width < 1024) await page.getByRole('button', { name: 'Close missions', exact: true }).click();
         assert.deepEqual(await readProgress(), advanced, 'Reopening preserves this run’s active progress');
         await page.screenshot({ path: join(output, `mission-reload-${id}-${width}.png`), fullPage: true });
+        const tilesBefore = await wb.tiles().count();
         await page.reload();
-        await page.getByRole('button', { name: 'Start demo', exact: true }).waitFor();
+        // The chain is restored, but evidence for the active mission must come from this visit.
+        await wb.tile(tilesBefore - 1).waitFor();
+        assert.equal(await page.getByRole('button', { name: 'Start demo', exact: true }).count(), 0, 'The saved chain is restored');
         assert.deepEqual(await readProgress(), { version: 1, completed, step: 0, data: {} }, 'A second reload clears newly discarded prerequisites too');
       } finally { await context.close(); }
     }
   }
   assert.deepEqual(errors, []);
-  return ['Mission reload: race, forge and halving restart against the fresh simulator at desktop/phone widths; rewards and visibility survive, new evidence advances, hide/show preserves in-page steps'];
+  return ['Mission reload: race, forge and halving restart their steps at desktop/phone widths while the saved chain is restored; rewards and visibility survive, new evidence advances, hide/show preserves in-page steps'];
 }
 
 // The forge mission on real ledger rules: an overclaim is a dead end that only Undo leaves and
