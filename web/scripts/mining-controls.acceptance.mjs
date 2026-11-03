@@ -143,7 +143,7 @@ export async function verifyMiningControlsAndSound(browser, baseURL, output) {
     assert.ok(enabled.starts > audible.starts, 'Re-enabling during a search sounds its result');
     const transact = page.getByRole('button', { name: 'Auto-transact', exact: true });
     assert.equal(await transact.getAttribute('aria-pressed'), 'false');
-    assert.match(await transact.getAttribute('title'), /empty mempool/);
+    assert.match(await transact.getAttribute('data-hint'), /empty mempool/);
     await transact.click();
     // Auto-transact on stays tinted; only Auto-mine takes the Mining fill.
     assert.equal(await transact.getAttribute('aria-pressed'), 'true');
