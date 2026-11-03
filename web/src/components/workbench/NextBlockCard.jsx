@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { CoachMark } from './CoachMark';
 import { CreateNameForm } from './CreateNameForm';
+import { RepeatToggle } from './RepeatToggle';
 import { usePeakHold } from '../../hooks/usePeakHold';
 import { MIN_DIFFICULTY, MAX_DIFFICULTY } from '../../lib/difficulty';
 import { bitsOfZeros } from '../../../../shared/bitcoin-block.mjs';
@@ -50,9 +51,6 @@ const PauseIcon = () => (
 );
 const PlayIcon = () => (
   <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M5 3l8 5-8 5z" fill="currentColor" /></svg>
-);
-const RepeatIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 6V5a2 2 0 0 1 2-2h8m-2-2 2 2-2 2M13 10v1a2 2 0 0 1-2 2H3m2 2-2-2 2-2" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
 );
 const UndoIcon = () => (
   <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6h6a3.5 3.5 0 0 1 0 7H6M4 6l3-3M4 6l3 3" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>
@@ -125,11 +123,8 @@ export function NextBlockCard({
     : <span className="card-kit-aside">{index > 0 ? `builds on #${index - 1}` : ''}</span>;
 
   const repeatToggle = (
-    <button type="button" className="next-block-repeat" aria-label="Auto-mine" aria-pressed={autoMine}
-      title={autoMine ? 'On: each found block starts the next one. Turn off to stop after the current block.' : 'Keep mining block after block once Mining starts. Use Auto-transact to fill sample transfers.'}
-      disabled={isRepair} onClick={() => onAutoMine?.(!autoMine)}>
-      <RepeatIcon /><span>Auto-mine</span>
-    </button>
+    <RepeatToggle name="Auto-mine" pressed={autoMine} onToggle={onAutoMine} disabled={isRepair}
+      title={autoMine ? 'Auto-mine on: each found block starts the next one. Turn off to stop after the current block.' : 'Auto-mine: keep mining block after block once Mining starts. Use Auto-transact to fill sample transfers.'} />
   );
   const stepper = (
     <CoachMark target="workbench.difficulty" coach={coach} className="next-block-coach-inline">

@@ -84,6 +84,18 @@ describe('MempoolCard', () => {
     expect(screen.queryByRole('form')).toBeNull();
   });
 
+  it('joins the Auto-transact toggle to the right of New transaction, as Auto-mine beside Mining', () => {
+    const onAutoTransact = vi.fn();
+    render(<MempoolCard transactions={[]} nextIndex={5} participants={participants} onAutoTransact={onAutoTransact} />);
+    const group = screen.getByRole('group', { name: 'Transaction controls' });
+    const buttons = within(group).getAllByRole('button');
+    expect(buttons.map(button => button.getAttribute('aria-label') ?? button.textContent)).toEqual(['New transaction', 'Auto-transact']);
+    expect(buttons[1].textContent).toBe('Auto');
+    expect(buttons[1].classList.contains('repeat-toggle')).toBe(true);
+    fireEvent.click(buttons[1]);
+    expect(onAutoTransact).toHaveBeenCalledWith(true);
+  });
+
   it('marks New transaction as the coach target', () => {
     render(<MempoolCard transactions={transactions} nextIndex={5} participants={participants}
       coach={{ target: 'workbench.new-transaction', label: 'Step 1 · new transaction' }} />);

@@ -1,0 +1,11 @@
+/* Repeat toggle — the joining card gives it height, border and outer corners */
+.repeat-toggle {
+  display: inline-flex; align-items: center; justify-content: center; gap: 5px; flex: none;
+  padding: 0 9px; margin: 0; border: 0; border-radius: 0; background: transparent; color: var(--text-2);
+  box-shadow: inset 3px 0 4px -2px var(--shadow); font: 600 12px/1 var(--ui); cursor: pointer; white-space: nowrap;
+}
+.repeat-toggle:hover:not(:disabled) { background: var(--panel-2); color: var(--text); }
+.repeat-toggle[aria-pressed="true"] { background: var(--blue-bg); color: var(--blue); }
+.repeat-toggle[aria-pressed="true"]:hover:not(:disabled) { background: color-mix(in srgb, var(--blue) 20%, transparent); color: var(--blue); }
+.repeat-toggle:focus-visible { outline: 2px solid var(--focus); outline-offset: -3px; position: relative; z-index: 1; }
+.repeat-toggle:disabled { opacity: .55; cursor: not-allowed; }
