@@ -48,6 +48,25 @@ describe('navigation', () => {
   });
 });
 
+describe('saved chain note', () => {
+  it.each([
+    ['saved', 'Chain saved in this browser · Reset starts over'],
+    ['too-large', 'Chain too long to save in this browser'],
+    ['unavailable', 'This browser does not keep the chain']
+  ])('names the save state %s under the coin', (saveState, text) => {
+    renderBar({ saveState });
+    expect(screen.queryByText(text)).toBeNull();
+    fireEvent.click(more());
+    const note = within(screen.getByRole('group', { name: 'More' })).getByText(text);
+    expect(note.className).toBe('top-bar-menu-saved');
+  });
+  it('says nothing without a save state', () => {
+    renderBar();
+    fireEvent.click(more());
+    expect(document.querySelector('.top-bar-menu-saved')).toBeNull();
+  });
+});
+
 describe('overflow menu', () => {
   it('opens with focus on the first item, closes on Escape and returns focus to More', () => {
     renderBar();

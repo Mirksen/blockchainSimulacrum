@@ -3,6 +3,7 @@ import { createBlockchain, DEFAULT_FEE, DEFAULT_FEE_RATE, FEE_RATES } from '../l
 import { runSearch } from '../lib/powSearch';
 import { MIN_DIFFICULTY, MAX_DIFFICULTY } from '../lib/difficulty';
 import { telemetry, failureCode } from '../lib/telemetry';
+import { loadChain, saveChain } from '../lib/chainStore';
 
 function snapshot(chain) {
     return {
@@ -45,11 +46,17 @@ function createRun(chain, miners, backed, tracked) {
 }
 
 
-export function useBlockchain(config = {}) {
+// `storage` (optional, e.g. localStorage) keeps the chain across reloads (lib/chainStore.js):
+// the hook starts from a saved chain when there is a usable one and saves after every change.
+export function useBlockchain(config = {}, { storage = null } = {}) {
     // The controller belongs to this hook instance. Only event handlers mutate it;
     // rendering reads a fresh snapshot published after each model change.
-    const [controller] = useState(() => ({ chain: createBlockchain(config), config, run: null, setup: null, backed: null, signer: null }));
+    const [controller] = useState(() => {
+        const saved = storage ? loadChain(storage) : null;
+        return { chain: saved ?? createBlockchain(config), restored: Boolean(saved), config, run: null, setup: null, backed: null, signer: null };
+    });
     const [view, setView] = useState(() => snapshot(controller.chain));
+    const [saveState, setSaveState] = useState(storage ? 'saved' : 'unavailable');
     const [isMining, setIsMining] = useState(false);
     const [isSettingUp, setIsSettingUp] = useState(false);
     const [miningProgress, setMiningProgress] = useState(null);
@@ -59,7 +66,10 @@ export function useBlockchain(config = {}) {
     const [selectedBlock, setSelectedBlock] = useState(null);
     const [backedMiner, setBackedMiner] = useState(null);
     const [lastDifficultyChange, setLastDifficultyChange] = useState(null);
-    const publish = useCallback(() => setView(snapshot(controller.chain)), [controller]);
+    const publish = useCallback(() => {
+        setView(snapshot(controller.chain));
+        if (storage) setSaveState(saveChain(storage, controller.chain));
+    }, [controller, storage]);
 
     useEffect(() => () => {
         cancelRun(controller.run, 'unmount');
@@ -375,6 +385,7 @@ export function useBlockchain(config = {}) {
         void telemetry.track('chain_reset', { previous_block_count });
         const { miningDifficulty, halvingEvent } = controller.chain;
         controller.chain = createBlockchain({ ...controller.config, miningDifficulty, halvingEvent });
+        controller.restored = false;
         setSelectedBlock(null);
         setHashAttempts([]);
         setMiningProgress(null);
@@ -431,7 +442,7 @@ export function useBlockchain(config = {}) {
         void telemetry.track('settings_changed', { setting: 'hashpower', value: n });
     }, [controller, publish]);
     const getActiveMiners = useCallback(() => controller.chain.getActiveMiners(), [controller]);
-    return { ...view, isMining, isSettingUp, miningProgress, minerProgress, raceWinner, hashAttempts, selectedBlock,
+    return { ...view, restored: controller.restored, saveState, isMining, isSettingUp, miningProgress, minerProgress, raceWinner, hashAttempts, selectedBlock,
         backedMiner, lastDifficultyChange,
         setSelectedBlock, createTransaction, previewTransaction, mineBlock, mineEmptyBlock: mineBlock, setupInitialDistribution,
         generateRandomTransactions, setDifficulty, setHalvingInterval, tamperBlock, undoTamper, remineBlock,

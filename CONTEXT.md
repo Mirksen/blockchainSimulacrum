@@ -79,6 +79,13 @@ Terms used in code, tests and docs of proofofwork.fyi. Decisions that shape them
   participant keeps its keys and its **color key** (fixed at creation). A reset restores the defaults.
 - **Backing** — the learner's pick of a miner before a race; the result reports `backedWon`.
 
+- **Saved chain** — `web/src/lib/chainStore.js`: what the simulator keeps in `localStorage`
+  (`proofofwork-chain`) to survive a reload: the blocks as stored (header fields and raw transaction
+  bytes, edits included), the mempool, the participants with their recovery phrases, the open edits
+  and the chain settings. Everything derived (UTXO set, statuses, balances) is recomputed on load. A
+  save from another genesis, an unknown version, broken data or an unedited chain that no longer
+  validates is dropped and the simulator starts fresh. Saved after every change; Reset replaces it.
+
 ## Search
 
 - **Nonce search** — `web/src/lib/powSearch.js`. One module for the miner race, the hash lab, the

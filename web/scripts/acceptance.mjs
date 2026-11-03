@@ -289,6 +289,18 @@ try {
  await wb.mine(4).waitFor({timeout:30000});
  assert.equal(await page.getByText('Synthetic acceptance transfer').count(), 0, 'The mined transfer left the mempool');
  results.push('Transfer enters the mempool and confirms in a valid block');
+ // The chain lives in this browser: a reload continues with the same blocks, hashes and balances.
+ const savedHashes = await page.evaluate(() => JSON.parse(localStorage.getItem('proofofwork-chain')).blocks.map(block => block.hash));
+ const balancesBefore = await page.getByRole('list',{name:'Wallets'}).innerText();
+ await page.reload();
+ await wb.mine(4).waitFor();
+ assert.equal(await wb.tiles().count(), savedHashes.length + 1, 'Genesis and every saved block are back');
+ assert.equal(await page.getByRole('list',{name:'Wallets'}).innerText(), balancesBefore, 'Balances survive a reload');
+ assert.equal(await page.getByRole('button',{name:'Start demo',exact:true}).count(), 0);
+ await page.getByRole('button',{name:/^(More|Menu)$/}).click();
+ await page.locator('.top-bar-menu').getByText('Chain saved in this browser · Reset starts over').waitFor();
+ await page.keyboard.press('Escape');
+ results.push('A reload restores the saved chain, its balances and the next block; the menu says the chain is saved');
  await referenceViews('workbench');
 
  await page.getByRole('button',{name:/^Open Bob, balance 0\.7/}).click();

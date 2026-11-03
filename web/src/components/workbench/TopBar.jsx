@@ -3,7 +3,8 @@ import { AnalyticsControl } from '../AnalyticsControl';
 import './TopBar.css';
 
 // Top bar of the rebuilt shell (web/DESIGN.md, "Information architecture"):
-// brand, the four views and the overflow menu (its last line names the virtual coin).
+// brand, the four views and the overflow menu (its last lines name the virtual coin and
+// whether this browser keeps the chain: `saveState` from useBlockchain).
 // The chain status lives once, on the chain itself.
 // Presentational: the parent owns the view (and the URL hash), theme, sound and
 // settings. Navigation links carry their hash for "open in new tab"; a plain
@@ -23,6 +24,11 @@ function Logo() {
   );
 }
 
+const SAVE_NOTES = {
+  saved: 'Chain saved in this browser · Reset starts over',
+  'too-large': 'Chain too long to save in this browser',
+  unavailable: 'This browser does not keep the chain'
+};
 const Icon = {
   more: <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><circle cx="3.5" cy="8" r="1.4" fill="currentColor" /><circle cx="8" cy="8" r="1.4" fill="currentColor" /><circle cx="12.5" cy="8" r="1.4" fill="currentColor" /></svg>,
   menu: <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 4h11M2.5 8h11M2.5 12h11" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg>,
@@ -55,7 +61,7 @@ function NavLinks({ view, onSelect, className }) {
 }
 
 export function TopBar({
-  view = 'workbench', onNavigate, coinName = 'powfyicoin',
+  view = 'workbench', onNavigate, coinName = 'powfyicoin', saveState = null,
   theme = 'dark', onTheme, muted = false, onMuted, onReset, onOpenSettings, compact = false,
 }) {
   const [open, setOpen] = useState(false);
@@ -147,6 +153,7 @@ export function TopBar({
               <AnalyticsControl />
             </div>
             <p className="top-bar-menu-coin">{coinLabel}</p>
+            {SAVE_NOTES[saveState] && <p className="top-bar-menu-saved">{SAVE_NOTES[saveState]}</p>}
           </div>
         )}
       </div>

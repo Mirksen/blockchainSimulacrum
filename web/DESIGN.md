@@ -156,7 +156,7 @@ decision, 2026-10-27):
   9. Follow the stronger chain (Chain lab)
   Missions unlock in order; free play never needs a mission. Progress stays
   in the browser. Reloading retains completed missions and rewards; the active
-  mission restarts at its first step because simulator and lab state start fresh.
+  mission restarts at its first step because lab state starts fresh and mission evidence must come from this visit; the simulator chain itself is restored.
   Opening or hiding missions within the page retains the active step. Lab missions
   use the labs' own temporary state and never change the simulator chain.
 - **Experiment settings** (coin name, difficulty, halving interval, target
@@ -164,6 +164,10 @@ decision, 2026-10-27):
   also stays in the Next block card.
 - **Usage sharing** (analytics opt-in) moves into the overflow menu and keeps
   its consent text.
+- **Saved chain:** the simulator chain is kept in this browser and restored on
+  reload. The overflow menu says so in a quiet line under the coin, "Chain saved
+  in this browser · Reset starts over" (or that it is too long to save, or that
+  this browser keeps nothing). No banner, no dialog; Reset replaces the save.
 - **Wallet details** (recovery phrase, transactions) open from a wallet row;
   **block and transaction details** open from the Block card.
 - **Fresh start:** before the demo is set up, the chain band shows only
