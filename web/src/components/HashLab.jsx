@@ -168,8 +168,11 @@ export function HashLab({ onClose, lesson, onLessonEvent, coach = null, workComp
         <p className="hash-lab-help">Each extra zero makes a match about 16 times less likely per attempt. The target is part of the header, so each target tests different hashes and a stricter one can occasionally get lucky.</p></div>
       <CoachMark target="hash-lab.search" coach={coach}>
         <div className="hash-lab-search-actions">
-          {searching ? <button className="btn btn-negative" {...hint('lab.hash.stop')} onClick={() => { activeSearch.current?.abort(); dispatch({ type: 'stopping' }); }}>Stop search</button>
-            : <span className="hint-wrap" {...hint('lab.hash.find', lesson === 'work')}><button className="btn btn-emphasized" disabled={!!error} onClick={search}>Find a nonce</button></span>}
+          {/* One wrapper in both states, so the button stays the same node and keeps its focus. */}
+          <span className="hint-wrap" {...(searching ? hint('lab.hash.stop') : hint('lab.hash.find', lesson === 'work'))}>
+            {searching ? <button className="btn btn-negative" onClick={() => { activeSearch.current?.abort(); dispatch({ type: 'stopping' }); }}>Stop search</button>
+              : <button className="btn btn-emphasized" disabled={!!error} onClick={search}>Find a nonce</button>}
+          </span>
           <button className="btn btn-transparent" {...hint('lab.hash.reset')} onClick={reset}>Reset lab</button>
         </div>
       </CoachMark>

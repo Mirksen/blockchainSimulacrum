@@ -127,8 +127,11 @@ export function ChainLab({ onClose, embedded = false, onLessonEvent, coach = nul
               {index > 0 && <li className={check.ancestorsValid ? 'chain-lab-positive' : 'chain-lab-negative'} {...term('lab.chain.check-ancestors', check.ancestorsValid)}>{check.ancestorsValid ? 'Earlier blocks valid' : 'Earlier block invalid'}</li>}
             </ul>
             <CoachMark target={index === firstBroken ? 'chain-lab.remine' : undefined} coach={index === firstBroken ? coach : null}>
-              {searching === index ? <button className="btn btn-negative" {...hint('lab.chain.stop')} onClick={() => active.current?.abort()}>Stop search</button>
-                : <span className="hint-wrap" {...hint('lab.chain.remine', block.number)}><button className="btn btn-emphasized" disabled={!!check.error || searching !== null} onClick={() => mine(index)}>Re-mine Block {block.number}</button></span>}
+              {/* One wrapper in both states, so the button stays the same node and keeps its focus. */}
+              <span className="hint-wrap" {...(searching === index ? hint('lab.chain.stop') : hint('lab.chain.remine', block.number))}>
+                {searching === index ? <button className="btn btn-negative" onClick={() => active.current?.abort()}>Stop search</button>
+                  : <button className="btn btn-emphasized" disabled={!!check.error || searching !== null} onClick={() => mine(index)}>Re-mine Block {block.number}</button>}
+              </span>
             </CoachMark>
             <details className="chain-lab-input"><summary {...hint('lab.chain.inspect', block.number)}>Inspect Block {block.number} input</summary>
               <p>Double SHA-256 hashes these 80 header bytes. The block’s data stands in for its transactions: the merkle root is its double SHA-256.</p>
