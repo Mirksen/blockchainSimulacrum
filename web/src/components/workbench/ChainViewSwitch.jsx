@@ -1,6 +1,7 @@
 // Below 1024 px the chain shows either as the compact band's sideways row or as the
 // vertical list (web/DESIGN.md, "Screen sizes"). One small button switches between them;
 // the browser remembers the choice for the next visit (lib/chainView.js).
+import { hint } from '../../lib/hints';
 
 function ListIcon() {
   return (
@@ -25,7 +26,7 @@ export function ChainViewSwitch({ view = 'row', onChange }) {
   const list = view === 'list';
   return (
     <button type="button" className="chain-view-switch" aria-label={list ? 'Show the blocks as a row' : 'Show the blocks as a list'}
-      onClick={() => onChange?.(list ? 'row' : 'list')}>
+      {...hint('chain.view', list)} onClick={() => onChange?.(list ? 'row' : 'list')}>
       {list ? <RowIcon /> : <ListIcon />}
       <span>{list ? 'Row' : 'List'}</span>
     </button>

@@ -368,7 +368,7 @@ button.chain-band-health-sum:focus-visible { outline: 2px solid var(--focus); ou
 }
 
 /* ---------- compact band below 1024 px (web/DESIGN.md, "Screen sizes") ----------
-   Small tiles that stay at the top of the page while the cards scroll beneath: number,
+   Small tiles in one row that swipes sideways and scrolls away with the page: number,
    miner and short hash; no tooltip, so the scroller needs no room above or below. */
 .chain-band.is-compact {
   --chain-band-page-x: var(--s-4);
@@ -379,7 +379,6 @@ button.chain-band-health-sum:focus-visible { outline: 2px solid var(--focus); ou
   --chain-band-below: 2px;
   --block-depth: 5px;
   background: var(--bg);
-  box-shadow: 0 10px 18px -16px var(--shadow);
 }
 .chain-band.is-compact .chain-band-inner { padding: 6px var(--chain-band-page-x) 8px; }
 .chain-band.is-compact .chain-band-header { height: 24px; gap: var(--s-2); }
@@ -391,12 +390,17 @@ button.chain-band-health-sum:focus-visible { outline: 2px solid var(--focus); ou
 .chain-band.is-compact .chain-band-health-line { min-width: auto; flex: 0 1 auto; }
 .chain-band.is-compact .chain-band-health-sum { height: 22px; padding: 0 var(--s-2); }
 .chain-band.is-compact .chain-band-stats, .chain-band.is-compact .chain-band-health-text { gap: 6px; font-size: 11px; }
-/* one line, so ticker and band stay within 140 px; on a phone the meter gives way to the figures */
+/* one line; on a phone the meter gives way to the figures */
 @container chain-band (max-width: 479.98px) {
   .chain-band.is-compact .kf-meter { display: none; }
 }
 .chain-band.is-compact .chain-band-ltip { display: none; }
-.chain-band.is-compact .chain-band-scroll { scroll-snap-type: x proximity; scroll-padding-inline: var(--chain-band-page-x); }
+/* The row itself takes the touch: Safari only swipes a scroller that receives pointer events,
+   and the compact band has no tooltips to reach through to. */
+.chain-band.is-compact .chain-band-scroll {
+  pointer-events: auto; touch-action: pan-x pan-y;
+  scroll-snap-type: x proximity; scroll-padding-inline: var(--chain-band-page-x);
+}
 .chain-band.is-compact .chain-band-item { scroll-snap-align: start; }
 .chain-band.is-compact .chain-band-item.is-cand { scroll-snap-align: end; }
 

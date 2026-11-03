@@ -3,6 +3,7 @@ import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { HintLayer } from '../components/HintLayer';
 import { HINTS, hint, term } from '../lib/hints';
+import { setHelpMode } from '../lib/hints/helpMode';
 
 beforeEach(() => vi.useFakeTimers());
 afterEach(() => { vi.useRealTimers(); cleanup(); });
@@ -85,5 +86,56 @@ describe('hints catalog', () => {
       expect(entry.text, key).toBeTruthy();
       expect(entry.text.length, key).toBeLessThanOrEqual(320);
     }
+  });
+});
+
+describe('HintLayer on touch screens', () => {
+  afterEach(() => { act(() => setHelpMode(false)); delete document.elementsFromPoint; });
+  const tap = node => { fireEvent.pointerDown(node, { pointerType: 'touch' }); fireEvent.click(node); };
+
+  it('a tap on a term opens its bubble and a second tap closes it', () => {
+    render(<Page />);
+    const nonce = document.querySelector('[data-hint-term]');
+    tap(nonce);
+    expect(screen.getByRole('tooltip').textContent).toMatch(/nonce/i);
+    tap(nonce);
+    expect(screen.queryByRole('tooltip')).toBeNull();
+  });
+
+  it('a tap on a term inside a control stays a plain click', () => {
+    const onClick = vi.fn();
+    render(<><HintLayer /><button type="button" onClick={onClick}><span {...term('block.nonce')}>Nonce</span></button></>);
+    tap(screen.getByText('Nonce'));
+    expect(onClick).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('tooltip')).toBeNull();
+  });
+
+  it('explain mode shows the hint under the finger instead of acting, until Done', () => {
+    const onClick = vi.fn();
+    render(<><HintLayer /><button type="button" onClick={onClick} {...hint('next.back', 'Hal', false)}>Back Hal</button></>);
+    act(() => setHelpMode(true));
+    const layer = document.querySelector('.hint-help-catch');
+    document.elementsFromPoint = () => [layer, backHal(), document.body];
+    tap(layer);
+    expect(onClick).not.toHaveBeenCalled();
+    expect(screen.getByRole('tooltip').textContent).toContain('nothing is at stake');
+    tap(layer);
+    expect(screen.queryByRole('tooltip')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+    expect(document.querySelector('.hint-help-catch')).toBeNull();
+    fireEvent.click(backHal());
+    expect(onClick).toHaveBeenCalledTimes(1);
+  });
+
+  it('a tap on the explain toggle in explain mode ends it, and so does Escape', () => {
+    render(<><HintLayer /><button type="button" data-hint-help-toggle="" {...hint('menu.explain', true)}>Explain</button></>);
+    act(() => setHelpMode(true));
+    const layer = document.querySelector('.hint-help-catch');
+    document.elementsFromPoint = () => [layer, screen.getByRole('button', { name: 'Explain' })];
+    tap(layer);
+    expect(document.querySelector('.hint-help-catch')).toBeNull();
+    act(() => setHelpMode(true));
+    fireEvent.keyDown(document.body, { key: 'Escape' });
+    expect(document.querySelector('.hint-help-catch')).toBeNull();
   });
 });

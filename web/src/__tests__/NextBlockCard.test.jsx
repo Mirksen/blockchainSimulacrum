@@ -185,6 +185,18 @@ describe('NextBlockCard', () => {
     } finally { cleanup(); vi.useRealTimers(); }
   });
 
+  it('mining in slow motion: the header says so and offers Normal speed', () => {
+    const onSlowMotion = vi.fn();
+    const { rerender } = render(<NextBlockCard {...base} mode="mining" race={race} slowMotion onSlowMotion={onSlowMotion} />);
+    expect(card().textContent).toContain('Slow motion · 4 tries/s');
+    expect(card().textContent).not.toContain('Mining block #5…');
+    fireEvent.click(screen.getByRole('button', { name: 'Normal speed' }));
+    expect(onSlowMotion).toHaveBeenCalledWith(false);
+    rerender(<NextBlockCard {...base} mode="mining" race={race} onSlowMotion={onSlowMotion} />);
+    expect(card().textContent).toContain('Mining block #5…');
+    expect(screen.queryByRole('button', { name: 'Normal speed' })).toBeNull();
+  });
+
   it('mining: Play becomes Pause, the live race shows checked hashes and time', () => {
     const onPause = vi.fn();
     render(<NextBlockCard {...base} mode="mining" race={race} backedMiner="Minas" onPause={onPause} />);

@@ -77,8 +77,13 @@ for fun: nothing is at stake", not "Back this miner".
   `term()` adds a quiet dotted underline, so a learner sees what explains
   itself. An unknown key throws.
 - One bubble (`HintLayer`, mounted once in `App.jsx`) shows them, in the top
-  layer above dialogs. A touch tap never opens it; Escape, a click and
-  scrolling close it.
+  layer above dialogs. Escape, a click and scrolling close it.
+- Touch screens have no hover (Mirko, 2026-11-03), so a tap on a control
+  stays a plain click. A tap on a term that is not itself a control opens its
+  bubble. For everything else the top bar shows a "?" (explain mode) where the
+  primary pointer cannot hover: while it is on, a clear layer catches every
+  tap and explains what lies under the finger, and a banner at the bottom
+  ends it with Done. Nothing acts until then.
 - A control that can be disabled carries its hint on a `.hint-wrap` span.
 - Native `title` stays only where it reveals raw data (a full txid) and
   inside the chain tiles and links, which have their own tooltip; elsewhere
@@ -283,13 +288,13 @@ decision, 2026-10-27):
     ("Difficulty rose from 5 to 6 after #20. Blocks #11–#20 took 6.1 s on average,
     faster than 7 s …"). It stays for that block and the two after it or until "Got
     it"; a difficulty the learner set by hand gets no note. Below 1024 px the notes
-    sit under the sticky compact band and scroll with the page, so the band keeps
-    its height.
+    sit under the compact band and scroll with the page.
   - **Kept in view:** from 1024 px on, once the chain scrolls out of view, a slim
     bar at the top of the main column repeats the key figures ("Chain #25" and the
     line); it slides in and out, and appears without motion under reduced motion.
-    Below 1024 px the compact band with its short key figures stays at the top
-    itself, so there is no second bar. The compact tiles keep the pace bar and the
+    Below 1024 px only the leaderboard ticker stays at the top (Mirko, 2026-11-03):
+    the compact band and its short key figures scroll away with the page and no
+    key-figure bar follows. The compact tiles keep the pace bar and the
     dashed divider; their marks and the candidate's forecast stay on wide screens.
   - **Hover explains:** every figure and mark carries its hint (`chain.block-time`,
     `chain.check`, `chain.reward`, `chain.change`) with the rule and the forecast
@@ -347,7 +352,12 @@ decision, 2026-10-27):
   that meet the target green and the first character that does not red, zero count; newest first;
   the honest note that the list shows the newest of each update), **Freeze** to read them and
   **Slow motion** (one attempt every quarter second for the whole race, drawn by weight, each
-  explained step by step); the **best hash** of the round (the smallest); a **histogram** of the
+  explained step by step, with what a block takes at that pace). Slow motion is one look at one
+  race (Mirko, 2026-11-03): it ends when the block is found or the race is paused, when the drawer
+  closes or shows another miner, and when the learner leaves the workbench, so Auto-mine's next
+  block runs at full speed. While it is on, the Next block header says "Slow motion · 4 tries/s"
+  with "Normal speed" instead of "Mining block #N…", and the candidate tile says "slow motion";
+  the **best hash** of the round (the smallest); a **histogram** of the
   round's attempts by leading zeros against what chance predicts (each zero 16 times rarer);
   **luck** (blocks won against the summed share, only after five races this session); and
   **what it hashes**: the header fields with the nonce ticking. Above 50 % a hint says the miner
@@ -433,7 +443,7 @@ it; type size never changes with the viewport.
 | 1024–1279 wide | Collapsed Missions entry unless explicitly opened; tiles keep their width; the row scrolls sideways. Below 1200 the Block card stays left and Next block, Mempool and Wallets stack on the right; the page scrolls. |
 | 768–1023 wide | Mission rail becomes a bar on top; the chain becomes the **compact band**: one sideways-swiping row of small purple blocks (number, time, miner, short hash; no tooltip), the candidate at its end, the "Chain valid" pill and short key figures above it. A tap holds a block like a click on a full tile. A small switch at the end of the header ("List", only its icon on phones) shows the chain instead as the **vertical list** (Mirko, 2026-11-03): newest on top, the candidate first, a tap opens the full hash with Copy and "Open in Chain lab"; "Row" switches back, and the browser remembers the choice. Then Next block, Mempool, Block and Wallets, one under the other. |
 | < 768 wide | Phone: compact top bar, mission bar, compact band, then Next block, Mempool, Block, Wallets. The race sits directly under the chain. |
-| < 1024 wide, scrolled | **The leaderboard ticker and the compact band stay at the top** (Mirko, 2026-11-03), the band right under the ticker, together at most 140 px; top bar and mission bar scroll away and the cards scroll beneath. They take their own room in the layout and never cover content at rest. Open checks add one line of pills under the small blocks. The vertical list is too long to stay: switched to it, only the ticker stays and the list scrolls with the page. |
+| < 1024 wide, scrolled | **Only the leaderboard ticker stays at the top** (Mirko, 2026-11-03, revised the same evening): top bar, mission bar, the compact band and the cards scroll away beneath it. The compact band's row swipes sideways on touch screens; the vertical list scrolls with the page the same way. Open checks add one line of pills under the small blocks. |
 
 No size scrolls sideways.
 

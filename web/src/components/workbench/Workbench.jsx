@@ -22,8 +22,8 @@ import './Workbench.css';
 // card grid; App frames it with the mission rail. It turns the simulation snapshot
 // into the view models of the presentational components; App owns state and effects.
 
-// Below 1024 px the chain band turns compact and stays at the top while the cards scroll,
-// or, switched to the list, the chain stands as a vertical list in the page.
+// Below 1024 px the chain band turns compact, or, switched to the list, the chain
+// stands as a vertical list; either scrolls with the page under the ticker.
 const NARROW = '(max-width: 1023.98px)';
 const subscribeNarrow = notify => {
   const query = globalThis.matchMedia?.(NARROW);
@@ -39,10 +39,10 @@ export function Workbench({
   sim, coinName, targetSeconds, autoMine, onAutoMine, repeating = false, autoTransact, onAutoTransact, selectedIndex, held = false, onSelect, healthOpen, onToggleHealth,
   lastRound, remining, coach, identity, boardRows,
   onStartDemo, onMine, onPause, onRemine, onTamper, onUndo, onDifficulty, onBack,
-  onCreateTransaction, onCreateWallet, onCreateMiner, onRenameMiner, onShare, onOpenMiner, onOpenWallet, onOpenDetails, onOpenTransaction, onOpenBlockTx, onOpenChainLab, error
+  onCreateTransaction, onCreateWallet, onCreateMiner, onRenameMiner, onShare, onOpenMiner, onSlowMotion, onOpenWallet, onOpenDetails, onOpenTransaction, onOpenBlockTx, onOpenChainLab, error
 }) {
   const { blocks, blockStatus, participants, memPool, balances, tamperedEdits, describeTx, previewTransaction, blockTemplate, difficulty, blockReward, halvingInterval,
-    isMining, isSettingUp, minerProgress, miningProgress, raceWinner, backedMiner } = sim;
+    isMining, isSettingUp, minerProgress, miningProgress, raceWinner, backedMiner, slowMotion = false } = sim;
   const busy = isMining || isSettingUp;
   const compact = useSyncExternalStore(subscribeNarrow, isNarrow, () => false);
   const [chainView, setChainView] = useState(readChainView);
@@ -73,7 +73,7 @@ export function Workbench({
   const candidate = {
     index: nextIndex, txCount: memPool.length,
     state: busy && remining === null ? 'mining' : repair ? 'paused' : fresh ? 'fresh' : 'idle',
-    elapsedMs: miningProgress?.elapsedMs, attempts: miningProgress?.iterations
+    elapsedMs: miningProgress?.elapsedMs, attempts: miningProgress?.iterations, slow: busy && slowMotion
   };
   const miners = participants.filter(p => p.isMiner && p.minerEnabled)
     .map(p => ({ name: p.name, hashpower: p.hashpower, hashrate: rateOf(minerProgress[p.name]), color: colorOf(p.colorKey) ?? undefined }));
@@ -160,7 +160,7 @@ export function Workbench({
           onStartDemo={onStartDemo} onMine={onMine} onPause={onPause} onRemine={onRemine}
           repair={repair ? { ...repair, onUndo } : null} miners={miners} race={race} lastRound={lastRound}
           backedMiner={backedMiner} onBack={onBack} coach={workbenchCoach}
-          onCreateMiner={onCreateMiner} onRenameMiner={onRenameMiner} onShare={onShare} onOpenMiner={onOpenMiner} perMiner={minerProgress} minersFull={participants.filter(p => p.isMiner).length >= MAX_MINERS}
+          onCreateMiner={onCreateMiner} onRenameMiner={onRenameMiner} onShare={onShare} onOpenMiner={onOpenMiner} perMiner={minerProgress} slowMotion={busy && slowMotion} onSlowMotion={onSlowMotion} minersFull={participants.filter(p => p.isMiner).length >= MAX_MINERS}
           signature={<MinerName identity={identity} rows={boardRows} locked={busy} />} />
       </div>
       <div className="wb-wallets">

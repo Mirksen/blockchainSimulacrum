@@ -25,7 +25,7 @@
 .wb-rail { min-width: 0; min-height: 0; border-right: 1px solid var(--line); background: var(--bg-2); }
 .wb-main { position: relative; min-width: 0; min-height: 0; display: flex; flex-direction: column; container: main / inline-size; }
 .wb-band { flex: none; }
-/* Below 1024 px the rule-change notes sit under the sticky compact band, in the page flow. */
+/* Below 1024 px the rule-change notes sit under the compact band. */
 .wb-notes { flex: none; padding: 0 var(--page-x); }
 .wb-mbar { display: none; }
 
@@ -92,17 +92,12 @@
 @media (min-width: 1024px) and (max-width: 1279.98px) {
   .app-shell:not(.is-rail-expanded) { --rail-cur: var(--rail-w-collapsed); }
 }
-/* < 1024: mission bar on top, then the compact chain band, which stays under the
-   leaderboard ticker while the stacked cards scroll beneath both (web/DESIGN.md, "Screen sizes"). */
+/* < 1024: mission bar on top, then the compact chain band and the stacked cards; only the
+   leaderboard ticker stays at the top while the page scrolls (web/DESIGN.md, "Screen sizes"). */
 @media (max-width: 1023.98px) {
-  .app-shell { --sticky-ticker-h: 0px; }
-  .app-shell:has(> .leaderboard-ticker) { --sticky-ticker-h: 28px; }
   .wb-shell { grid-template-columns: minmax(0, 1fr); }
   .wb-rail { display: none; }
   .wb-mbar { display: block; border-bottom: 1px solid var(--line); }
-  .wb-band { position: sticky; top: var(--sticky-ticker-h); z-index: 20; }
-  /* switched to the list, the chain is long: it scrolls with the page under the ticker */
-  .wb-band.is-list { position: static; }
   .wb-grid { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; }
   .wb-next, .wb-mempool, .wb-selected, .wb-wallets, .wb-activity { grid-column: 1; grid-row: auto; }
   .wb-next { order: 1; }

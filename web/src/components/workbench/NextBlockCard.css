@@ -47,6 +47,8 @@
 
 .coach-mark.is-active.next-block-coach-inline { display: inline-flex; }
 
+.next-block-slow { display: inline-flex; align-items: center; gap: var(--s-2); }
+
 /* ---------- body: last round, live race, repair path ---------- */
 .next-block-body { margin-top: 14px; padding-top: var(--s-3); border-top: 1px solid var(--line); min-height: 0; }
 .next-block-summary { font-size: 12px; line-height: 16px; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

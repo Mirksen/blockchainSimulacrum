@@ -66,7 +66,7 @@ export function useBlockchain(config = {}, { storage = null } = {}) {
     const [selectedBlock, setSelectedBlock] = useState(null);
     const [backedMiner, setBackedMiner] = useState(null);
     const [lastDifficultyChange, setLastDifficultyChange] = useState(null);
-    // Slow motion: the race tries one nonce every SLOW_MS, until it is switched off again.
+    // Slow motion: the race tries one nonce every SLOW_MS until it is switched off or the race ends.
     const [slowMotion, setSlowMotionState] = useState(false);
     // This session's luck per miner (by public key): blocks won and the sum of its shares
     // at the end of each race, the blocks it should have won on average.
@@ -215,6 +215,12 @@ export function useBlockchain(config = {}, { storage = null } = {}) {
             void telemetry.reportError(error, 'mining', true);
             return { success: false, error: error.message, code: 'unexpected' };
         } finally {
+            // Slow motion is one look at one race: it ends with that race, found, paused or
+            // stale, so Auto-mine's next block and every later race run at full speed again.
+            if (controller.slow) {
+                controller.slow = false;
+                setSlowMotionState(false);
+            }
             if (controller.run === run) {
                 controller.run = null;
                 setIsMining(false);

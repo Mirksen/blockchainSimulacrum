@@ -15,6 +15,9 @@ export const WORKBENCH_HINTS = {
   'nav.hash-lab': { title: 'Hash lab', text: 'The hash function on its own. Type any text and see its fingerprint change completely, then search for a number (nonce) that makes the fingerprint start with zeros.' },
   'nav.chain-lab': { title: 'Chain lab', text: 'Three toy blocks you edit by hand. Change old data, watch the links break and repair them by re-mining. Also: competing branches and payment proofs.' },
   'nav.pool': { title: 'Leaderboard', text: 'A shared scoreboard for everyone on this site. Blocks you mine under your name are sent there; the hash with the most leading zeros ranks highest.' },
+  'menu.explain': on => ({ title: 'Explain mode', text: on
+    ? 'Explain mode is on: tap any button, number or word to see what it means. Tap here or Done to use the simulator again.'
+    : 'For touch screens. Turn it on, then tap any button, number or word to see what it means. Nothing you tap acts until you tap Done.' }),
   'menu.more': { title: 'More', text: 'Reset the simulation, open the settings, switch the sound and the light or dark theme.' },
   'menu.reset': { title: 'Reset', text: 'Start over: a new chain with only the genesis block and an empty mempool; added wallets and miners go. Difficulty, coin name, halving interval and block time stay as set; a workbench mission in progress starts its steps again.' },
   'menu.settings': { title: 'Settings', text: 'Coin name, mining difficulty, halving interval and target block time.' },
@@ -33,6 +36,9 @@ export const WORKBENCH_HINTS = {
   'chain.health': (valid, open) => (valid
     ? { title: 'Chain valid', text: `Every block’s hash starts with enough zeros and every block stores the correct hash of the one before. ${open ? 'Click to hide the checks.' : 'Click to see the checks per block.'}` }
     : { title: 'Chain invalid', text: `At least one block fails a check, usually because its data was changed after mining. ${open ? 'Click to hide the checks.' : 'Click to see which block fails and why.'}` }),
+  'chain.view': list => (list
+    ? { title: 'Row', text: 'Show the blocks again as one row that swipes sideways.' }
+    : { title: 'List', text: 'Show the blocks as a list, newest on top. Tap a block for its full hash, Copy and “Open in Chain lab”.' }),
   // The key figures carry their rule and its forecast (web/DESIGN.md, "Key figures").
   'chain.block-time': pace => ({ title: 'Block time', text: pace
     ? `The average the next difficulty check measures: ${pace.blocks ? `the last ${pace.blocks} blocks took ${pace.seconds} each` : 'no block timed since the last check'}, against the ${pace.target} target. `
@@ -103,6 +109,7 @@ export const WORKBENCH_HINTS = {
     ? { title: 'Create miner', text: 'At most 4 miners race in this simulation.' }
     : { title: 'Create miner', text: 'Add another simulated miner to the race, up to 4. It joins with the next block, with an equal share of the hashpower and with no coins.' }),
   'next.hashpower': { title: 'Hashpower', text: 'This miner’s share of all hashpower: how many hashes it tries compared with the others, and so its chance to find the next block. The other miners give way in proportion. Works during a race too. In the real world that is the share of all mining hardware.' },
+  'next.normal-speed': { title: 'Normal speed', text: 'End slow motion: the race runs at full speed again. Slow motion also ends when you close the miner details or the block is found.' },
   'next.all-streams': on => (on
     ? { title: 'Hide streams', text: 'Fold the miners’ attempt lists away again.' }
     : { title: 'All streams', text: 'Every miner’s newest guesses side by side. More hashpower makes a list run faster.' }),
