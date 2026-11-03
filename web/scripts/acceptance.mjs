@@ -683,6 +683,11 @@ try {
  await mobileChecks.waitFor({state:'detached'});
  assert.equal(await mobile.locator('.top-bar-chain').count(), 0);
  results.push('Phone: the compact band shows the same "Chain valid" pill and it toggles the checks');
+ // A few more blocks, so the small blocks clearly overflow the phone width.
+ for (const next of [2, 3, 4]) {
+  await workbench(mobile).mine(next).click();
+  await workbench(mobile).mine(next + 1).waitFor({timeout:60000});
+ }
  // The compact row swipes sideways: it takes pointer events itself (Safari scrolls only such a row).
  const row = await mobile.evaluate(() => {
   const scroll = document.querySelector('.chain-band.is-compact .chain-band-scroll');
@@ -692,7 +697,7 @@ try {
  });
  assert.equal(row.pointerEvents, 'auto', JSON.stringify(row));
  assert.equal(row.overflowX, 'auto', JSON.stringify(row));
- assert.ok(row.scrollWidth > row.clientWidth, `the small blocks overflow the phone width: ${JSON.stringify(row)}`);
+ assert.ok(row.scrollWidth - row.clientWidth > 100, `the small blocks overflow the phone width: ${JSON.stringify(row)}`);
  const phoneRowBox = await mobile.locator('.chain-band.is-compact .chain-band-scroll').boundingBox();
  await mobile.mouse.move(phoneRowBox.x + phoneRowBox.width / 2, phoneRowBox.y + phoneRowBox.height / 2);
  await mobile.mouse.wheel(-400, 0);
