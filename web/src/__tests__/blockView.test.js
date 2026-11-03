@@ -143,10 +143,13 @@ describe('healthSummary', () => {
 describe('formatAge', () => {
   const NOW = T0 + 1000000;
   it.each([
-    [0, 'just now'], [4, 'just now'], [5, '5 s ago'], [59, '59 s ago'], [60, '1 min ago'], [3599, '59 min ago'],
-    [3600, '1 h ago'], [86399, '23 h ago'], [86400, '1 day ago'], [172800, '2 days ago']
+    [0, 'just now'], [4, 'just now'], [5, 'just now'], [59, 'just now'], [60, '1 min ago'], [119, '1 min ago'],
+    [120, '2 min ago'], [3599, '59 min ago'], [3600, '1 h ago'], [86399, '23 h ago'], [86400, '1 day ago'], [172800, '2 days ago']
   ])('words an age of %i s as "%s"', (age, text) => {
     expect(formatAge(NOW - age, NOW)).toBe(text);
+  });
+  it('never shows seconds: everything under a minute is just now', () => {
+    for (let age = 0; age < 60; age++) expect(formatAge(NOW - age, NOW)).toBe('just now');
   });
   it('treats a time in the future as just now and has no age without a time', () => {
     expect(formatAge(NOW + 30, NOW)).toBe('just now');
@@ -156,7 +159,8 @@ describe('formatAge', () => {
   });
   it('reads the clock when no time is given', () => {
     // The fake clock stands at T0.
-    expect(formatAge(T0 - 12)).toBe('12 s ago');
+    expect(formatAge(T0 - 12)).toBe('just now');
+    expect(formatAge(T0 - 125)).toBe('2 min ago');
   });
 });
 

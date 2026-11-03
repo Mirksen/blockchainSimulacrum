@@ -112,10 +112,37 @@ describe('simulation lifecycle', () => {
     let outcome;
     await act(async () => { const pending = result.current.setupInitialDistribution(); await vi.runAllTimersAsync(); outcome = await pending; });
     expect(outcome.success).toBe(true);
+    // The demo mines block #1 only; its distribution waits in the mempool.
+    expect(result.current.blocks).toHaveLength(2);
+    expect(result.current.balances.find(p => p.name === 'Wallet Two').balance).toBe(0);
+    expect(result.current.memPool.map(tx => result.current.describeTx(tx)))
+      .toEqual([expect.objectContaining({ from: 'Miner One', to: 'Wallet Two', amount: 0.6, memo: 'Demo distribution' })]);
+    await mine(result);
     expect(result.current.balances.find(p => p.name === 'Wallet Two').balance).toBe(0.6);
     expect(result.current.chainValid).toBe(true);
     act(() => result.current.resetBlockchain());
     expect(result.current.balances.every(p => p.balance === 0)).toBe(true);
+  });
+  it('the demo leaves exactly block #1 mined and returns its winner and block', async () => {
+    const { result } = renderHook(() => useBlockchain({ ...config, participants: ['Miner One', 'Wallet Two', 'Wallet Three'] }));
+    let outcome;
+    await act(async () => { const pending = result.current.setupInitialDistribution(); await vi.runAllTimersAsync(); outcome = await pending; });
+    expect(outcome).toMatchObject({ success: true, winner: 'Miner One', winners: ['Miner One'] });
+    expect(outcome.block).toBe(result.current.blocks[1]);
+    expect(result.current.blocks).toHaveLength(2);
+    expect(result.current.isSettingUp).toBe(false);
+    const waiting = result.current.memPool.map(tx => result.current.describeTx(tx));
+    expect(waiting).toHaveLength(2);
+    expect(waiting.map(tx => [tx.from, tx.to, tx.memo])).toEqual([
+      ['Miner One', 'Wallet Two', 'Demo distribution'], ['Miner One', 'Wallet Three', 'Demo distribution']
+    ]);
+    // One more block mines exactly #2 and carries the distribution.
+    const pendingIds = result.current.memPool.map(tx => tx.createHash());
+    const second = await mine(result);
+    expect(result.current.blocks).toHaveLength(3);
+    expect(second.block).toBe(result.current.blocks[2]);
+    expect(second.block.transactions.slice(1).map(tx => tx.createHash())).toEqual(pendingIds);
+    expect(result.current.memPool).toHaveLength(0);
   });
 });
 
@@ -142,7 +169,8 @@ describe('operation telemetry boundaries', () => {
     await act(async()=>{const pending=result.current.setupInitialDistribution();await vi.runAllTimersAsync();await pending;});
     rerender();
     expect(events('demo_started')).toHaveLength(1);expect(events('demo_completed')).toHaveLength(1);
-    expect(events('mining_started')).toHaveLength(2);expect(events('mining_completed')).toHaveLength(2);
+    expect(events('demo_completed')[0][1]).toEqual({difficulty:1,block_count:1});
+    expect(events('mining_started')).toHaveLength(1);expect(events('mining_completed')).toHaveLength(1);
     expect(events('transaction_created')).toHaveLength(1);
   });
   it('a reset between a mined demo block and its continuation cannot report demo completion', async () => {
