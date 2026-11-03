@@ -16,8 +16,16 @@ function fixture(extra = {}) {
 }
 afterEach(() => { vi.useRealTimers(); });
 describe('explicit PostHog event transport', () => {
-    it('makes no request before consent, including errors and repeated starts', async () => {
-        const { client, request } = fixture();
+    it('shares by default on a first visit with one app-open event (opt-out, Mirko 2026-11-03)', async () => {
+        const { client, request, payloads } = fixture();
+        expect(client.getSnapshot()).toMatchObject({ enabled: true, decided: false });
+        client.start(); client.start();
+        expect(request).toHaveBeenCalledTimes(1);
+        expect(payloads()[0].event).toBe('app_opened');
+    });
+    it('makes no request after a saved opt-out, including errors and repeated starts', async () => {
+        const { client, request } = fixture({ storage: { getItem: () => 'false', setItem() {} } });
+        expect(client.getSnapshot()).toMatchObject({ enabled: false, decided: true });
         client.start(); client.start();
         await client.track('mining_started', { difficulty: 2 });
         await client.reportError(new Error('synthetic private marker'), 'window');
@@ -81,11 +89,13 @@ describe('explicit PostHog event transport', () => {
         expect(client.getSnapshot()).toMatchObject({enabled:false,privacyBlocked:true});
         expect(request).not.toHaveBeenCalled();
     });
-    it('keeps storage failures local and still permits a memory-only choice', async () => {
+    it('keeps storage failures local and still permits a memory-only opt-out', async () => {
         const storage={getItem(){throw new Error('blocked');},setItem(){throw new Error('blocked');}};
-        const {client, request}=fixture({storage});client.start();expect(request).not.toHaveBeenCalled();
-        client.setEnabled(true);await client.track('chain_reset',{previous_block_count:2});
-        expect(request).toHaveBeenCalledTimes(2);
+        const {client, request}=fixture({storage});client.start();expect(request).toHaveBeenCalledTimes(1);
+        client.setEnabled(false);
+        expect(client.getSnapshot()).toMatchObject({enabled:false,decided:true});
+        await client.track('chain_reset',{previous_block_count:2});
+        expect(request).toHaveBeenCalledTimes(1);
     });
     it('does not queue offline events or retry failed requests', async () => {
         let online=false;

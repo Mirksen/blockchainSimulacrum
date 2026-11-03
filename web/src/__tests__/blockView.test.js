@@ -176,6 +176,9 @@ describe('candidate copy', () => {
     expect(candidateCopy({ index: 5, txCount: 2, state: 'idle' })).toMatchObject({ tag: 'next', what: '2 tx waiting', down: 'Mine it below' });
     expect(candidateCopy({ index: 5, txCount: 2, state: 'mining', elapsedMs: 3400, attempts: 1480 })).toMatchObject({ tag: 'mining', time: '3.4 s', tries: '1,480' });
     expect(candidateCopy({ index: 5, txCount: 2, state: 'paused' }).tag).toBe('paused');
+    // A fresh chain's #1 carries only the reward; the copy names the visible button.
+    expect(candidateCopy({ index: 1, txCount: 0, state: 'fresh' })).toMatchObject({ tag: 'next', what: 'reward only', down: 'Start demo below' });
+    expect(candidateCopy({ index: 1, txCount: 0, state: 'fresh' }).label).not.toMatch(/set up/);
     expect(pendingLink(5, 'mining').title).toBe('Being mined');
   });
 });

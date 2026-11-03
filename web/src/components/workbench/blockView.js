@@ -255,8 +255,9 @@ export function candidateCopy(candidate) {
       return { tag: 'paused', time: 'not mined', what: `${tx} waiting`, down: 'Repair below',
         label: `Candidate block ${index}, paused while the chain is invalid, ${txCount} transactions waiting` };
     case 'fresh':
-      return { tag: 'next', time: 'not mined', what: 'demo not set up', down: 'Start the demo below',
-        label: `Candidate block ${index}, not mined yet, the demo is not set up` };
+      // Block #1 of a fresh chain holds only its reward; Start demo mines it.
+      return { tag: 'next', time: 'not mined', what: 'reward only', down: 'Start demo below',
+        label: `Candidate block ${index}, not mined yet, it holds only the mining reward` };
     default:
       return { tag: 'next', time: 'not mined', what: `${tx} waiting`, down: 'Mine it below',
         label: `Candidate block ${index}, not mined yet, ${txCount} transactions waiting` };

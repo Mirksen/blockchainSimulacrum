@@ -100,6 +100,23 @@ try {
  await page.goto(baseURL);
  const wb = workbench(page);
 
+ // Usage sharing is on by default (opt-out, Mirko 2026-11-03): a first visit sends
+ // app_opened and shows the notice; Opt out stops sharing and the notice stays away.
+ const usageNotice = page.getByRole('region',{name:'This site counts usage'});
+ if (process.env.EXPECT_POSTHOG === '1') {
+  await usageNotice.waitFor();
+  for (let i=0; i<50 && !telemetryRequests.some(event=>event.event==='app_opened'); i++) await page.waitForTimeout(100);
+  assert.equal(telemetryRequests.filter(event=>event.event==='app_opened').length,1,'A first visit shares by default');
+  assert.equal(await usageNotice.getByRole('link',{name:'Privacy policy'}).getAttribute('href'),'/privacy.html');
+  await page.screenshot({path:join(output,'view-usage-notice-1440.png')});
+  await usageNotice.getByRole('button',{name:'Opt out',exact:true}).click();
+  await usageNotice.waitFor({state:'detached'});
+  telemetryRequests.length = 0;
+  results.push('First visit: usage sharing is on with a notice; Opt out stops it and the notice stays away');
+ } else {
+  assert.equal(await usageNotice.count(), 0, 'No notice without a token: nothing is shared');
+ }
+
  // First visit: the rail is collapsed and one card invites to the missions; dismissing it is remembered.
  const intro = page.getByRole('region',{name:'Curious? Try a mission.'});
  await intro.waitFor();
@@ -555,7 +572,7 @@ try {
  await page.getByRole('button',{name:'Start demo',exact:true}).waitFor();
  results.push('Settings change the difficulty; Auto-mine on is filled like Mining; auto-mine continues a run started with Play and stops; a created miner gets a lane, a wallet and its share; reset clears the result');
 
- assert.equal(telemetryRequests.length,0,'No telemetry before consent, including all prior mining operations');
+ assert.equal(telemetryRequests.length,0,'No telemetry after the opt-out, including all prior mining operations');
  const sharing = () => page.getByLabel('Share usage and technical errors');
  const openSharing = async () => {
   if (!await page.locator('.top-bar-menu').isVisible()) await page.getByRole('button',{name:'More',exact:true}).click();
@@ -617,7 +634,7 @@ try {
   await menu(page, 'Settings');
   await settings.getByLabel('Coin name',{exact:true}).fill('powfyicoin');
   await settings.getByRole('button',{name:'Done'}).click();
-  results.push('Mock PostHog: explicit consent, one event per operation, mining summaries, sanitized errors and opt-out');
+  results.push('Mock PostHog: opt back in, one event per operation, mining summaries, sanitized errors and opt-out');
  } else {
   await page.keyboard.press('Escape');
   results.push('No-config build keeps usage sharing disabled and simulation usable');

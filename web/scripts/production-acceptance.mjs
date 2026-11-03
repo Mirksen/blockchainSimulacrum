@@ -107,6 +107,9 @@ async function main() {
     });
     const responseFor = event => page.waitForResponse(response => response.url() === INGEST_URL &&
       response.request().method() === 'POST' && response.request().postDataJSON()?.event === event, { timeout: 15000 });
+    // Sharing is on by default; the probe starts as a visitor who opted out so that
+    // only the synthetic consent window below reaches PostHog.
+    await page.addInitScript(() => { try { localStorage.setItem('pow.analytics.enabled', 'false'); } catch { /* Guarded below. */ } });
     const navigation = await page.goto(BASE_URL);
     record.tls = await navigation.securityDetails();
     await menu(page, 'Settings');
