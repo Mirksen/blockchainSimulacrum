@@ -1,5 +1,7 @@
 import { useMemo, useState, useSyncExternalStore } from 'react';
 import { ChainBand } from './ChainBand';
+import { ChainTimeline } from './ChainTimeline';
+import { ChainViewSwitch } from './ChainViewSwitch';
 import { SelectedBlockCard } from './SelectedBlockCard';
 import { NextBlockCard } from './NextBlockCard';
 import { MinerName } from './MinerName';
@@ -9,6 +11,7 @@ import { ActivityCard } from './ActivityCard';
 import { BlockTransactions } from './BlockTransactions';
 import { buildBlockViews } from './blockView';
 import { MAX_MINERS } from '../../lib/blockchain';
+import { readChainView, storeChainView } from '../../lib/chainView';
 import { chainEventsOf, keyFiguresOf, rateOf, repairOf } from './workbenchModel';
 import { ChainEventNotes, KeyFigureBar } from './KeyFigures';
 import { eventNote } from './keyFigureText';
@@ -19,7 +22,8 @@ import './Workbench.css';
 // card grid; App frames it with the mission rail. It turns the simulation snapshot
 // into the view models of the presentational components; App owns state and effects.
 
-// Below 1024 px the chain band turns compact and stays at the top while the cards scroll.
+// Below 1024 px the chain band turns compact and stays at the top while the cards scroll,
+// or, switched to the list, the chain stands as a vertical list in the page.
 const NARROW = '(max-width: 1023.98px)';
 const subscribeNarrow = notify => {
   const query = globalThis.matchMedia?.(NARROW);
@@ -41,6 +45,9 @@ export function Workbench({
     isMining, isSettingUp, minerProgress, miningProgress, raceWinner, backedMiner } = sim;
   const busy = isMining || isSettingUp;
   const compact = useSyncExternalStore(subscribeNarrow, isNarrow, () => false);
+  const [chainView, setChainView] = useState(readChainView);
+  const showList = compact && chainView === 'list';
+  const switchView = view => { setChainView(view); storeChainView(view); };
   const height = blocks.length - 1;
   const fresh = height === 0 && memPool.length === 0 && !busy;
   const views = useMemo(() => buildBlockViews({ blocks, blockStatus, participants, tamperedEdits }),
@@ -125,10 +132,17 @@ export function Workbench({
     <>
     {error && <div role="alert" className="wb-error">{error}</div>}
     <KeyFigureBar keyFigures={keyFigures} height={height} />
-    <div className="wb-band">
-      <ChainBand views={fresh ? views.slice(0, 1) : views} candidate={candidate} selectedIndex={selected} pinned={pinned} onSelect={onSelect}
-        keyFigures={keyFigures} events={fresh ? {} : events} notes={notes} onDismissNote={dismissNote} healthOpen={healthOpen} onToggleHealth={onToggleHealth}
-        coach={workbenchCoach} repairOrder={repairOrder} compact={compact} />
+    <div className={`wb-band${showList ? ' is-list' : ''}`}>
+      {showList ? (
+        <ChainTimeline views={fresh ? views.slice(0, 1) : views} candidate={candidate} selectedIndex={selected} pinned={pinned} onSelect={onSelect}
+          onOpenChainLab={onOpenChainLab} keyFigures={keyFigures} healthOpen={healthOpen} onToggleHealth={onToggleHealth}
+          coach={workbenchCoach} repairOrder={repairOrder} viewSwitch={<ChainViewSwitch view="list" onChange={switchView} />} />
+      ) : (
+        <ChainBand views={fresh ? views.slice(0, 1) : views} candidate={candidate} selectedIndex={selected} pinned={pinned} onSelect={onSelect}
+          keyFigures={keyFigures} events={fresh ? {} : events} notes={notes} onDismissNote={dismissNote} healthOpen={healthOpen} onToggleHealth={onToggleHealth}
+          coach={workbenchCoach} repairOrder={repairOrder} compact={compact}
+          viewSwitch={compact ? <ChainViewSwitch view="row" onChange={switchView} /> : null} />
+      )}
     </div>
     {compact && notes.length > 0 && <div className="wb-notes"><ChainEventNotes notes={notes} onDismiss={dismissNote} /></div>}
     <div className="wb-grid">

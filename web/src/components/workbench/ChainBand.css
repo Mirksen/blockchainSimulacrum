@@ -461,3 +461,19 @@ button.chain-band-health-sum:focus-visible { outline: 2px solid var(--focus); ou
 .chain-band-pace i { position: absolute; left: 0; top: 0; bottom: 0; background: color-mix(in srgb, var(--blk-text) 62%, transparent); }
 .chain-band-pace.is-out i { background: var(--amber); }
 .chain-band-pace::after { content: ""; position: absolute; left: 50%; top: -2px; width: 1px; height: 5px; background: var(--blk-text); opacity: .7; }
+
+/* Row/list switch below 1024 px (ChainViewSwitch): a quiet button at the end of the header. */
+.chain-view-switch {
+  flex: none; display: inline-flex; align-items: center; gap: 4px; height: 22px; padding: 0 var(--s-2); margin: 0 0 0 auto;
+  border: 1px solid var(--line); border-radius: 11px; background: var(--panel-2); color: var(--text-2);
+  font: 500 11px/1 var(--ui); cursor: pointer; white-space: nowrap;
+}
+.chain-view-switch:hover { border-color: var(--line-3); background: var(--panel-3); color: var(--text); }
+.chain-view-switch:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+/* after the key figures, which give way first */
+.chain-band.is-compact .chain-band-stats + .chain-view-switch { margin-left: 0; }
+/* on a phone the key figures need the room: the switch keeps its icon and its label for screen readers */
+@container chain-band (max-width: 479.98px) {
+  .chain-band.is-compact .chain-view-switch { width: 30px; padding: 0; justify-content: center; }
+  .chain-band.is-compact .chain-view-switch span { display: none; }
+}

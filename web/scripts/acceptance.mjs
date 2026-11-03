@@ -704,6 +704,19 @@ try {
  await mobile.evaluate(() => scrollTo(0, 0));
  await settle(mobile);
  results.push(`Phone: ticker and compact chain stay on top while the page scrolls (${scrolled.bandBottom} px), a tap selects a block`);
+ // One button switches the row to the vertical list, which opens a block's full hash and stays after a reload.
+ await mobile.getByRole('button',{name:'Show the blocks as a list'}).click();
+ const listRow = mobile.locator('section.chain-timeline').getByRole('button',{name:/^Block 1(,|$)/});
+ await listRow.click();
+ assert.equal(await listRow.getAttribute('aria-expanded'), 'true');
+ await mobile.getByRole('button',{name:'Copy full hash of block 1'}).waitFor();
+ await mobile.getByRole('button',{name:'Open in Chain lab'}).waitFor();
+ await listRow.click();
+ await mobile.reload();
+ await mobile.locator('.wb-band.is-list section.chain-timeline').waitFor({timeout:30000});
+ await mobile.getByRole('button',{name:'Show the blocks as a row'}).click();
+ await mobile.locator('.wb-band section.chain-band.is-compact').waitFor();
+ results.push('Phone: a switch shows the blocks as a list with full hash and Chain lab, and the browser remembers it');
  await mobile.screenshot({path:join(output,'mobile.png')});
  await mobile.screenshot({path:join(output,'mobile-full.png'),fullPage:true});
  const mobileLayout = await mobile.evaluate(()=>({width:innerWidth,scroll:document.documentElement.scrollWidth,height:document.documentElement.scrollHeight}));

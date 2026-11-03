@@ -437,7 +437,8 @@ const END_SLACK = 48;
 
 export function ChainBand({
   views = [], candidate = { index: 1, txCount: 0, state: 'idle' }, selectedIndex = null, pinned = true, onSelect,
-  keyFigures, events = {}, notes = [], onDismissNote, healthOpen = false, onToggleHealth, coach = null, repairOrder = [], compact = false
+  keyFigures, events = {}, notes = [], onDismissNote, healthOpen = false, onToggleHealth, coach = null, repairOrder = [], compact = false,
+  viewSwitch = null
 }) {
   const stripId = useId();
   const scrollRef = useRef(null);
@@ -510,6 +511,7 @@ export function ChainBand({
           <h2 {...term('chain.title')}>Chain</h2>
           <HealthLine summary={summary} healthOpen={healthOpen} onToggleHealth={onToggleHealth} stripId={stripId} compact={compact} />
           {!(compact && healthOpen) && <KeyFigures keyFigures={keyFigures} className="chain-band-stats" short={compact} />}
+          {viewSwitch}
         </div>
         {/* The compact band stays at the top; its notes go under it, in the page (Workbench). */}
         {!compact && <ChainEventNotes notes={notes} onDismiss={onDismissNote} />}
