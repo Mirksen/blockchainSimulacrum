@@ -127,13 +127,112 @@ try {
  assert.match(page.url(), /#\/pool$/);
  await openTab(page, 'Workbench');
  await page.getByRole('button',{name:'Start demo',exact:true}).waitFor();
- results.push('Fresh start shows Genesis, the candidate and Start demo; the leaderboard ticker opens the leaderboard');
+ assert.deepEqual(await page.locator('.next-block-lane[data-miner]').evaluateAll(lanes => lanes.map(lane => lane.dataset.miner)), ['Hal','Dorian','Laszlo'], 'Default miners');
+ assert.deepEqual(await page.getByRole('list',{name:'Wallets'}).locator('.wallets-card-nm').allInnerTexts(), ['Hal','Dorian','Laszlo','Alice','Bob','Chris'], 'Miners first, then the default wallets');
+ results.push('Fresh start shows Genesis, the candidate and Start demo with miners Hal, Dorian and Laszlo; the leaderboard ticker opens the leaderboard');
 
  await page.getByRole('button',{name:'Start demo',exact:true}).click();
  await wb.mine(3).waitFor({timeout:30000});
  assert.equal(await wb.tiles().count(), 3);
  assert.equal(await wb.chainPill().innerText(),'Chain valid');
  results.push('Demo distribution mines two valid blocks');
+
+ // The top bar carries no chain status and no coin pill; the coin label lives in the menu at every width.
+ for (const width of WIDTHS) {
+  await page.setViewportSize({width,height:900});
+  await settle(page);
+  assert.equal(await page.locator('.top-bar-chain').count(), 0, `No chain pill in the top bar at ${width}`);
+  assert.equal(await page.locator('.top-bar-coin').count(), 0, `No coin pill in the top bar at ${width}`);
+  assert.equal(await page.locator('.top-bar').getByText(/Chain (in)?valid/).count(), 0, `The top bar names no chain status at ${width}`);
+  const toggle = page.getByRole('button',{name:/^(More|Menu)$/});
+  await toggle.click();
+  const coin = page.locator('.top-bar-menu-coin');
+  await coin.waitFor();
+  assert.equal(await coin.innerText(), 'powfyicoin · virtual', `The menu names the virtual coin at ${width}`);
+  await page.keyboard.press('Escape');
+  await coin.waitFor({state:'detached'});
+ }
+ await page.setViewportSize({width:1440,height:1000});
+ await settle(page);
+ results.push('The top bar drops the chain and coin pills; the menu names the virtual coin at five widths');
+
+ // The chain band: one sideways row, numbers above the tiles, ages on them, no paging or hint text.
+ const band = page.locator('section.chain-band');
+ assert.equal(await wb.chainScroll().count(), 1);
+ assert.equal(await band.getByRole('button',{name:/earlier|newer|Show checks|Hide checks/i}).count(), 0, 'No paging or checks buttons');
+ assert.equal(await band.locator('.chain-band-earlier, .chain-band-newer, .chain-band-hint, .chain-band-health-toggle').count(), 0);
+ assert.doesNotMatch(await band.innerText(), /click a block to hold it|grows to the right/);
+ for (const index of [0, 1, 2]) {
+  const item = band.locator(`.chain-band-item[data-index="${index}"]`);
+  const num = item.locator('.chain-band-num');
+  assert.equal(await num.innerText(), `#${index}`);
+  const [numBox, tileBox] = [await num.boundingBox(), await item.locator('.chain-band-tile').boundingBox()];
+  assert.ok(numBox.y + numBox.height <= tileBox.y + 1, `#${index} sits above its tile: ${JSON.stringify({numBox,tileBox})}`);
+  assert.match(await item.locator('.chain-band-age').innerText(), /^(just now|\d+ (s|min|h) ago|\d+ days? ago)$/, `Age on tile #${index}`);
+ }
+ assert.match(await band.locator('.chain-band-item[data-index="0"] .chain-band-age').innerText(), / ago$/, 'Genesis was mined before this visit');
+ // The pill is the only chain status; a click opens the check line and the checks per block.
+ const pill = wb.chainPill();
+ const checks = band.getByRole('list',{name:'Checks per block'});
+ assert.equal(await pill.count(), 1);
+ assert.equal(await pill.getAttribute('aria-expanded'), 'false');
+ assert.equal(await checks.count(), 0);
+ assert.equal(await band.locator('.chain-band-health-text').count(), 0, 'The check line stays closed until asked for');
+ await pill.click();
+ assert.equal(await pill.getAttribute('aria-expanded'), 'true');
+ await checks.waitFor();
+ assert.equal(await pill.getAttribute('aria-controls'), await checks.getAttribute('id'));
+ assert.match(await band.locator('.chain-band-health-text').innerText(), /2 of 2 .*2 of 2 links intact/s);
+ assert.ok(await checks.getByRole('listitem').count() >= 3, 'One check per block and the candidate');
+ await pill.click();
+ assert.equal(await pill.getAttribute('aria-expanded'), 'false');
+ await checks.waitFor({state:'detached'});
+ results.push('Chain band: one scrolling row, block numbers above tiles, ages on tiles; the "Chain valid" pill toggles the checks');
+
+ // The block card names no miner in its head; the Next block card shows no link, bits or odds.
+ assert.equal(await page.locator('section.selected-block .card-kit-aside').count(), 0, 'A valid block has no aside');
+ assert.doesNotMatch(await page.locator('section.selected-block .card-kit-head').innerText(), /mined by/);
+ assert.equal(await page.getByRole('button',{name:'Show newest',exact:true}).count(), 0);
+ const nextText = await page.locator('section.next-block').innerText();
+ for (const gone of [/builds on #/, /bits 0x/, /Odds per block/]) assert.doesNotMatch(nextText, gone);
+ results.push('Block card without "mined by" or "Show newest"; Next block without "builds on", bits and odds');
+
+ // Between races a click on a miner renames it everywhere and sets its hashpower as a share.
+ const winner = await band.locator('.chain-band-item[data-index="1"] .chain-band-who').innerText();
+ assert.ok(['Hal','Dorian','Laszlo'].includes(winner), winner);
+ const RENAMED = 'Testminer7';
+ await wb.minerButton(winner).click();
+ assert.equal(await wb.minerButton(winner).getAttribute('aria-expanded'), 'true');
+ let editor = wb.minerEditor(winner);
+ await editor.getByRole('textbox',{name:'Name'}).fill(RENAMED);
+ await editor.getByRole('textbox',{name:'Name'}).press('Enter');
+ await editor.waitFor({state:'detached'});
+ await page.locator(`.next-block-lane[data-miner="${RENAMED}"]`).waitFor();
+ assert.equal(await page.locator(`.next-block-lane[data-miner="${winner}"]`).count(), 0, 'The lane follows the new name');
+ const walletList = page.getByRole('list',{name:'Wallets'});
+ await walletList.getByRole('button',{name:new RegExp(`^Open ${RENAMED}, balance`)}).waitFor();
+ assert.equal(await walletList.getByRole('button',{name:new RegExp(`^Open ${winner}, balance`)}).count(), 0, 'The wallet follows the new name');
+ assert.equal(await band.locator('.chain-band-item[data-index="1"] .chain-band-who').innerText(), RENAMED, 'The chain tile follows the new name');
+ assert.equal(await band.locator('.chain-band-who').filter({hasText:new RegExp(`^${winner}$`)}).count(), 0, 'No tile keeps the old name');
+ await wb.minerButton(RENAMED).click();
+ editor = wb.minerEditor(RENAMED);
+ const power = editor.locator('input[type="range"]');
+ const share = editor.locator('output.next-block-editor-share');
+ assert.deepEqual([await power.getAttribute('min'), await power.getAttribute('max'), await power.inputValue()], ['1','10','5']);
+ assert.equal(await share.innerText(), '33 %', 'Three equal miners share one third each');
+ await power.focus();
+ await page.keyboard.press('End');
+ await share.filter({hasText:/^50 %$/}).waitFor();
+ assert.equal(await power.inputValue(), '10');
+ assert.equal(await power.getAttribute('aria-valuetext'), '50 % chance to find the next block');
+ await page.keyboard.press('Home');
+ await share.filter({hasText:/^9 %$/}).waitFor();
+ for (let i = 0; i < 4; i++) await page.keyboard.press('ArrowRight');
+ await share.filter({hasText:/^33 %$/}).waitFor();
+ assert.equal(await power.inputValue(), '5');
+ await editor.getByRole('button',{name:'Done',exact:true}).click();
+ await editor.waitFor({state:'detached'});
+ results.push('A click on a miner opens its editor: a rename reaches the lane, the wallets and the chain tiles; the hashpower slider shows the share');
 
  await page.getByRole('button',{name:'New transaction',exact:true}).click();
  const form = page.getByRole('form',{name:'New transaction'});
@@ -249,10 +348,14 @@ try {
  await wb.tile(2).click();
  assert.equal(await wb.shown().innerText(),'Block #4','A second click follows the newest again');
  assert.equal(await wb.tile(4).getAttribute('aria-pressed'),'false');
+ // Holding and letting go happen on the tile itself; the card offers no "Show newest".
  await wb.tile(1).click();
  assert.equal(await wb.shown().innerText(),'Block #1');
- await page.getByRole('button',{name:'Show newest',exact:true}).click();
- assert.equal(await wb.shown().innerText(),'Block #4');
+ assert.equal(await wb.tile(1).getAttribute('aria-pressed'),'true');
+ assert.equal(await page.getByRole('button',{name:'Show newest',exact:true}).count(), 0, 'A held block offers no "Show newest"');
+ await wb.tile(1).click();
+ assert.equal(await wb.shown().innerText(),'Block #4','Clicking the held tile again follows the newest');
+ assert.equal(await wb.tile(1).getAttribute('aria-pressed'),'false');
  // Tampering shows the block without holding it: a valid chain follows the newest block again.
  await page.getByRole('button',{name:'Tamper with this block',exact:true}).click();
  const newestEditor = page.getByRole('form',{name:'Change a transaction amount in block 4'});
@@ -270,6 +373,64 @@ try {
  await wb.tile(5).waitFor({timeout:30000});
  assert.equal(await wb.shown().innerText(),'Block #5','After a repair the card follows the newest block');
  results.push('The block card follows the newest block, holds a clicked block and opens its transactions in place');
+
+ // The touchpad scrolls the chain sideways: a horizontal wheel moves the row, no paging buttons.
+ await page.setViewportSize({width:1100,height:900});
+ await settle(page);
+ await page.evaluate(() => scrollTo(0,0));
+ const scroller = wb.chainScroll();
+ const scrollState = () => scroller.evaluate(el => ({left:el.scrollLeft, max:el.scrollWidth - el.clientWidth}));
+ // Smooth scrolling animates; read the position once it has come to rest.
+ const resting = async () => {
+  let last = null, still = 0;
+  for (let i = 0; i < 60 && still < 3; i++) {
+   const now = await scrollState();
+   still = last && now.left === last.left ? still + 1 : 0;
+   last = now;
+   await page.waitForTimeout(100);
+  }
+  assert.equal(still, 3, `The chain row comes to rest: ${JSON.stringify(last)}`);
+  return last;
+ };
+ const start = await resting();
+ assert.ok(start.max > 100, `Six blocks overflow the band at 1100 px: ${JSON.stringify(start)}`);
+ assert.equal(await page.locator('section.chain-band').getByRole('button',{name:/earlier|newer/i}).count(), 0, 'No paging buttons');
+ const scrollBox = await scroller.boundingBox();
+ const rowBox = await scroller.locator('.chain-band-row').first().boundingBox();
+ await page.mouse.move(scrollBox.x + scrollBox.width / 2, rowBox.y + rowBox.height / 2);
+ // Scroll toward the far side first, then back: either way the row must move by the wheel's deltaX.
+ const [first, second] = start.left > start.max / 2 ? [-400, 400] : [400, -400];
+ await page.mouse.wheel(first, 0);
+ const middle = await resting();
+ assert.ok((middle.left - start.left) * Math.sign(first) > 50, `A wheel deltaX of ${first} moves the row: ${start.left} -> ${middle.left}`);
+ await page.mouse.wheel(second, 0);
+ const end = await resting();
+ assert.ok((end.left - middle.left) * Math.sign(second) > 50, `A wheel deltaX of ${second} moves the row: ${middle.left} -> ${end.left}`);
+ await page.mouse.move(0, 0);
+ results.push(`A horizontal wheel scrolls the chain row (scrollLeft ${start.left} -> ${middle.left} -> ${end.left}); no paging buttons`);
+
+ // The scroller reaches below the band for the hash tooltip; clicks there reach the cards.
+ await page.setViewportSize({width:1440,height:1000});
+ await settle(page);
+ await page.evaluate(() => scrollTo(0,0));
+ const below = await page.evaluate(() => {
+  const band = document.querySelector('section.chain-band').getBoundingClientRect();
+  const room = document.querySelector('.chain-band-scroll').getBoundingClientRect();
+  const buttons = [...document.querySelectorAll('.wb-shell button')].filter(button => {
+   const box = button.getBoundingClientRect();
+   return !button.closest('section.chain-band') && box.width > 0 && box.height > 0 && box.top >= band.bottom && box.top + box.height / 2 < room.bottom;
+  });
+  return {bandBottom:band.bottom, roomBottom:room.bottom, buttons:buttons.map(button => {
+   const box = button.getBoundingClientRect();
+   const hit = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+   return {name:button.getAttribute('aria-label') || button.textContent.trim(), hit:Boolean(hit) && (hit === button || button.contains(hit))};
+  })};
+ });
+ assert.ok(below.roomBottom > below.bandBottom, `The tooltip room reaches below the band: ${JSON.stringify(below)}`);
+ assert.ok(below.buttons.length > 0, `Card buttons sit just below the band: ${JSON.stringify(below)}`);
+ for (const button of below.buttons) assert.ok(button.hit, `The element under "${button.name}" is that button: ${JSON.stringify(below)}`);
+ await page.getByRole('button',{name:'Tamper with this block',exact:true}).click({trial:true});
+ results.push(`Clicks below the chain band reach the cards: ${below.buttons.length} buttons in the tooltip room are hit directly`);
 
  await fitsWidths('Workbench with history');
  await menu(page, 'Reset');
@@ -317,15 +478,19 @@ try {
  await page.getByRole('button',{name:'Auto-mine',exact:true}).click();
  await page.locator('.next-block .btn-primary').filter({hasText:'Mining'}).waitFor({timeout:30000});
  await page.getByRole('button',{name:'Create miner',exact:true}).click();
- await page.getByLabel('New miner name',{exact:true}).fill('Hal');
+ await page.getByLabel('New miner name',{exact:true}).fill('Newminer4');
  await page.getByRole('form',{name:'Create miner'}).getByRole('button',{name:'Create',exact:true}).click();
- await page.locator('.next-block-lane[data-miner="Hal"]').waitFor();
- await page.getByRole('button',{name:/^Open Hal, balance 0\.00000000/}).waitFor();
- assert.match(await page.locator('.next-block-foot').innerText(), /Hal 33\.3 %/);
+ await page.locator('.next-block-lane[data-miner="Newminer4"]').waitFor();
+ await page.getByRole('button',{name:/^Open Newminer4, balance 0\.00000000/}).waitFor();
+ assert.equal(await page.locator('.next-block-lane[data-miner]').count(), 4);
+ await wb.minerButton('Newminer4').click();
+ assert.equal(await wb.minerEditor('Newminer4').locator('output.next-block-editor-share').innerText(), '25 %', 'Four equal miners: one quarter each');
+ await wb.minerEditor('Newminer4').getByRole('button',{name:'Done',exact:true}).click();
+ await wb.minerEditor('Newminer4').waitFor({state:'detached'});
  await menu(page, 'Reset');
- assert.equal(await page.locator('.next-block-lane[data-miner="Hal"]').count(), 0, 'Reset removes a created miner');
+ assert.equal(await page.locator('.next-block-lane[data-miner="Newminer4"]').count(), 0, 'Reset removes a created miner');
  await page.getByRole('button',{name:'Start demo',exact:true}).waitFor();
- results.push('Settings change the difficulty; auto-mine continues a run started with Play and stops; a created miner gets a lane, a wallet and its odds; reset clears the result');
+ results.push('Settings change the difficulty; auto-mine continues a run started with Play and stops; a created miner gets a lane, a wallet and its share; reset clears the result');
 
  assert.equal(telemetryRequests.length,0,'No telemetry before consent, including all prior mining operations');
  const sharing = () => page.getByLabel('Share usage and technical errors');
@@ -418,6 +583,19 @@ try {
  await mobile.goto(baseURL);
  await mobile.getByRole('button',{name:'Start demo',exact:true}).click();
  await workbench(mobile).mine(3).waitFor({timeout:30000});
+ // On phones the vertical timeline carries the same pill; it opens the checks there.
+ const mobilePill = workbench(mobile).chainPill();
+ assert.equal(await mobilePill.count(), 1);
+ assert.equal(await mobilePill.innerText(), 'Chain valid');
+ assert.equal(await mobilePill.evaluate(el => Boolean(el.closest('section.chain-timeline'))), true, 'The phone pill sits on the timeline');
+ const mobileChecks = mobile.locator('section.chain-timeline').getByRole('list',{name:'Checks per block'});
+ await mobilePill.click();
+ assert.equal(await mobilePill.getAttribute('aria-expanded'), 'true');
+ await mobileChecks.waitFor();
+ await mobilePill.click();
+ await mobileChecks.waitFor({state:'detached'});
+ assert.equal(await mobile.locator('.top-bar-chain').count(), 0);
+ results.push('Phone: the timeline shows the same "Chain valid" pill and it toggles the checks');
  await mobile.screenshot({path:join(output,'mobile.png')});
  await mobile.screenshot({path:join(output,'mobile-full.png'),fullPage:true});
  const mobileLayout = await mobile.evaluate(()=>({width:innerWidth,scroll:document.documentElement.scrollWidth,height:document.documentElement.scrollHeight}));

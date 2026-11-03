@@ -11,6 +11,7 @@ import { BlockTransactions } from './BlockTransactions';
 import { buildBlockViews } from './blockView';
 import { MAX_MINERS } from '../../lib/blockchain';
 import { keyFiguresOf, rateOf, repairOf } from './workbenchModel';
+import { colorOf } from './minerColors';
 import './Workbench.css';
 
 // The workbench view (web/DESIGN.md, "Information architecture"): chain band and
@@ -22,10 +23,10 @@ const satoshis = coins => Math.round(coins * 1e8);
 const signerOf = coinbase => (coinbase.outputs.some(output => output.kind === 'commitment') ? coinbase.memo : null);
 
 export function Workbench({
-  sim, coinName, targetSeconds, autoMine, onAutoMine, repeating = false, autoTransact, onAutoTransact, selectedIndex, held = false, onSelect, onFollowNewest, healthOpen, onToggleHealth,
+  sim, coinName, targetSeconds, autoMine, onAutoMine, repeating = false, autoTransact, onAutoTransact, selectedIndex, held = false, onSelect, healthOpen, onToggleHealth,
   lastRound, remining, coach, identity, boardRows,
   onStartDemo, onMine, onPause, onRemine, onTamper, onUndo, onDifficulty, onBack,
-  onCreateTransaction, onCreateWallet, onCreateMiner, onOpenWallet, onOpenDetails, onOpenTransaction, onOpenBlockTx, onOpenChainLab, error
+  onCreateTransaction, onCreateWallet, onCreateMiner, onRenameMiner, onHashpower, onOpenWallet, onOpenDetails, onOpenTransaction, onOpenBlockTx, onOpenChainLab, error
 }) {
   const { blocks, blockStatus, participants, memPool, balances, tamperedEdits, describeTx, previewTransaction, difficulty, blockReward, halvingInterval,
     isMining, isSettingUp, minerProgress, miningProgress, raceWinner, backedMiner } = sim;
@@ -44,7 +45,8 @@ export function Workbench({
     state: busy && remining === null ? 'mining' : repair ? 'paused' : fresh ? 'fresh' : 'idle',
     elapsedMs: miningProgress?.elapsedMs, attempts: miningProgress?.iterations
   };
-  const miners = participants.filter(p => p.isMiner && p.minerEnabled).map(p => ({ name: p.name, hashpower: p.hashpower, hashrate: rateOf(minerProgress[p.name]) }));
+  const miners = participants.filter(p => p.isMiner && p.minerEnabled)
+    .map(p => ({ name: p.name, hashpower: p.hashpower, hashrate: rateOf(minerProgress[p.name]), color: colorOf(p.colorKey) ?? undefined }));
   const race = busy ? {
     perMiner: minerProgress, attempts: miningProgress?.iterations ?? 0, elapsedMs: miningProgress?.elapsedMs ?? 0,
     targetSeconds, winner: raceWinner
@@ -56,7 +58,7 @@ export function Workbench({
   const selectedView = views[selected];
   const selectedBlock = block ? {
     index: selected, hash: block.hash, previousHash: block.previousHash, txRoot: block.txRoot, anchor: selectedView?.anchor ?? null, nonce: block.nonce, difficulty: block.difficulty,
-    isNewest: selected === height && selected > 0, miner: selectedView?.isGenesis ? null : selectedView?.minerName,
+    isNewest: selected === height && selected > 0, miner: selectedView?.isGenesis ? null : selectedView?.minerName, minerKey: selectedView?.minerKey,
     seconds: selectedView?.seconds, tries: lastRound?.index === selected ? lastRound.attempts : undefined,
     reward: describeTx(block.transactions[0]).amount, signedBy: signerOf(describeTx(block.transactions[0])),
     transactions: block.transactions.map(tx => {
@@ -69,7 +71,7 @@ export function Workbench({
   // Miners first, then the other wallets in their creation order.
   const wallets = [...balances].sort((a, b) => Number(b.isMiner) - Number(a.isMiner)).map(wallet => {
     const participant = participants.find(p => p.publicKey === wallet.publicKey);
-    return { name: wallet.name, balance: wallet.balance, isMiner: wallet.isMiner, blocksWon: participant?.blocksWon ?? 0,
+    return { name: wallet.name, balance: wallet.balance, isMiner: wallet.isMiner, blocksWon: participant?.blocksWon ?? 0, colorKey: participant?.colorKey,
       hashrate: wallet.isMiner ? rateOf(minerProgress[wallet.name]) : undefined };
   });
   const pending = memPool.map(tx => {
@@ -107,7 +109,7 @@ export function Workbench({
       <div className="wb-selected">
         <SelectedBlockCard block={selectedBlock} status={blockStatus[selected]} prevHash={blocks[selected - 1]?.hash ?? null}
           edit={edits.length ? edits : null} onOpenDetails={onOpenDetails} onOpenChainLab={onOpenChainLab}
-          pinned={pinned} onFollowNewest={onFollowNewest} onTamper={onTamper} onUndo={onUndo} coach={workbenchCoach}>
+          onTamper={onTamper} onUndo={onUndo} coach={workbenchCoach}>
           <BlockTransactions key={`transactions-${selected}`} transactions={selectedTransactions} editedTx={edits.map(edit => edit.txIndex)}
             onOpenDetails={tx => onOpenBlockTx?.(tx, selected)} />
         </SelectedBlockCard>
@@ -118,7 +120,7 @@ export function Workbench({
           onStartDemo={onStartDemo} onMine={onMine} onPause={onPause} onRemine={onRemine}
           repair={repair ? { ...repair, onUndo } : null} miners={miners} race={race} lastRound={lastRound}
           backedMiner={backedMiner} onBack={onBack} coach={workbenchCoach}
-          onCreateMiner={onCreateMiner} minersFull={participants.filter(p => p.isMiner).length >= MAX_MINERS}
+          onCreateMiner={onCreateMiner} onRenameMiner={onRenameMiner} onHashpower={onHashpower} minersFull={participants.filter(p => p.isMiner).length >= MAX_MINERS}
           signature={<MinerName identity={identity} rows={boardRows} locked={busy} />} />
       </div>
       <div className="wb-wallets">

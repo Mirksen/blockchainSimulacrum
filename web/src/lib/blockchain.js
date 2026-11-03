@@ -23,6 +23,8 @@ const ec = new EC('secp256k1');
 export class Participant {
   constructor(name, isMiner = false, seedPhrase) {
     this.name = name;
+    // The color stays with the participant through a rename (web/src/components/workbench/minerColors.js).
+    this.colorKey = String(name).toLowerCase();
     const wallet = deriveWallet(seedPhrase);
     try {
       this.keyPair = ec.keyFromPrivate(wallet.privateKey);
@@ -175,16 +177,36 @@ export class Blockchain {
     if (this.participants.filter(p => p.isMiner).length >= MAX_MINERS) {
       return { success: false, error: `At most ${MAX_MINERS} miners race in this simulation.` };
     }
-    return this.addNamed(name, true);
+    const result = this.addNamed(name, true);
+    // Three default miners leave room for one more: it gets the spare miner color.
+    if (result.success) result.participant.colorKey = 'spare';
+    return result;
   }
 
   addNamed(name, isMiner) {
-    const noun = isMiner ? 'miner' : 'wallet';
+    const checked = this.checkName(name, isMiner ? 'miner' : 'wallet');
+    if (!checked.success) return checked;
+    const participant = this.addParticipant(checked.name, isMiner);
+    return { success: true, error: null, participant };
+  }
+
+  // The shared name rule: 2–16 letters or digits, unique regardless of letter case.
+  checkName(name, noun, except = null) {
     const trimmed = typeof name === 'string' ? name.trim() : '';
     if (!WALLET_NAME.test(trimmed)) return { success: false, error: `Use 2–16 letters or digits for the ${noun} name.` };
-    const taken = this.participants.some(p => p.name.toLowerCase() === trimmed.toLowerCase());
+    const taken = this.participants.some(p => p !== except && p.name.toLowerCase() === trimmed.toLowerCase());
     if (taken) return { success: false, error: `A wallet named ${trimmed} already exists.` };
-    const participant = this.addParticipant(trimmed, isMiner);
+    return { success: true, error: null, name: trimmed };
+  }
+
+  // A new display name for a participant. Blocks and transactions store scripts, not
+  // names, so every view shows the new name; the participant keeps its keys and color.
+  renameParticipant(name, next) {
+    const participant = this.getParticipantByName(name);
+    if (!participant) return { success: false, error: `${name} does not exist.` };
+    const checked = this.checkName(next, participant.isMiner ? 'miner' : 'wallet', participant);
+    if (!checked.success) return checked;
+    participant.name = checked.name;
     return { success: true, error: null, participant };
   }
 
@@ -567,8 +589,8 @@ export function createBlockchain(config = {}) {
     miningDifficulty = 1,
     blockReward = 3.125,
     halvingEvent = 210000,
-    participants = ['Alice', 'Bob', 'Chris', 'Lars', 'Minas'],
-    miners = ['Minas', 'Lars']
+    participants = ['Alice', 'Bob', 'Chris', 'Hal', 'Dorian', 'Laszlo'],
+    miners = ['Hal', 'Dorian', 'Laszlo']
   } = config;
 
   const blockchain = new Blockchain(name, miningDifficulty, blockReward, halvingEvent);

@@ -51,17 +51,24 @@ export async function verifyMinerName(browser, baseURL, output) {
   await page.route('https://eu.i.posthog.com/**', route => route.abort('blockedbyclient'));
   try {
     await page.goto(baseURL);
-    const input = page.getByLabel('Your miner name');
+    const input = page.locator('#miner-name-input');
+    const label = page.locator('label.miner-name-label');
     const status = page.locator('#miner-name-status');
     await input.waitFor();
     const generated = await input.inputValue();
     assert.ok(isGeneratedName(generated), generated);
+    assert.equal(await page.getByLabel('Enter your name', { exact: true }).inputValue(), generated, 'The strip invites a name while the generated one is shown');
     await status.filter({ hasText: 'Every block you mine lands on the leaderboard under this name.' }).waitFor();
     assert.equal(await page.locator('.miner-name.is-generated').count(), 1, 'The field glows until the name is chosen');
     await page.getByTestId('leaderboard-ticker').filter({ hasText: 'No blocks yet.' }).waitFor();
     await page.screenshot({ path: join(output, 'miner-name-generated.png') });
     await input.fill(NAME);
     await status.filter({ hasText: 'Every block you mine now carries this name' }).waitFor();
+    assert.equal(await label.innerText(), 'Enter your name', 'The invitation holds while the field is being edited');
+    await input.blur();
+    await page.locator('.miner-name.is-chosen').waitFor();
+    assert.equal(await label.innerText(), 'Your name', 'A chosen name steps back to "Your name"');
+    assert.equal(await page.getByLabel('Your name', { exact: true }).inputValue(), NAME);
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
     await page.screenshot({ path: join(output, 'miner-name-signed.png') });
 
@@ -82,6 +89,7 @@ export async function verifyMinerName(browser, baseURL, output) {
 
     await page.reload();
     assert.equal(await input.inputValue(), NAME, 'The name survives a reload');
+    assert.equal(await label.innerText(), 'Your name', 'A chosen name stays chosen after a reload');
     await openTab(page, 'Leaderboard');
     const board = page.locator('section.pool-panel');
     await board.getByRole('button', { name: `Verify the proof of ${NAME}` }).first().click();
@@ -91,5 +99,5 @@ export async function verifyMinerName(browser, baseURL, output) {
   } finally {
     await page.close();
   }
-  return ['Miner name: visible on the workbench; every mined block is signed, sent and listed; the board verifies it in the browser'];
+  return ['Miner name: "Enter your name" invites until a name is chosen, then "Your name"; every mined block is signed, sent and listed; the board verifies it in the browser'];
 }

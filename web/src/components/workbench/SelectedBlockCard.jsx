@@ -3,12 +3,12 @@ import { CoachMark } from './CoachMark';
 import { formatInterval, issueText } from './blockView';
 import './cardKit.css';
 import './SelectedBlockCard.css';
+import { colorOf } from './minerColors';
 
 // Block card (web/DESIGN.md, "Card grid"): the newest block, or the block held by a click
 // on the chain. Presentational: the parent passes the block as a view model with names
 // already resolved, its check from `inspectBlocks()` and the stored hash of its
 // predecessor. Its transactions come in as children.
-// pinned: a click holds this block; onFollowNewest lets go of it
 //
 // block:  { index, hash, previousHash, nonce, difficulty, isNewest?, miner?,
 //           seconds?, tries?, reward?, txRoot?, transactions: [{ from, to, amount, reference?, spentIn? }] }
@@ -25,8 +25,6 @@ const STATUS = {
   'transaction-invalid': { cls: 'is-err', text: 'Transaction invalid' },
   'built-on-broken': { cls: 'is-warn', text: 'Built on a broken block' }
 };
-
-const KNOWN_COLORS = ['lars', 'minas', 'alice', 'bob', 'chris'];
 
 function formatAmount(value) {
   if (typeof value !== 'number' || !Number.isFinite(value)) return String(value ?? '');
@@ -82,9 +80,9 @@ function CopyButton({ value, label }) {
   );
 }
 
-function Avatar({ name }) {
-  const key = String(name).toLowerCase();
-  const style = KNOWN_COLORS.includes(key) ? { '--av-color': `var(--${key})` } : undefined;
+function Avatar({ name, colorKey }) {
+  const color = colorOf(colorKey ?? name);
+  const style = color ? { '--av-color': color } : undefined;
   return <span className={`card-kit-av is-xs${style ? '' : ' is-plain'}`} style={style} aria-hidden="true">{String(name).charAt(0).toUpperCase()}</span>;
 }
 
@@ -161,7 +159,7 @@ function TamperEditor({ block, onSubmit, onCancel }) {
   );
 }
 
-export function SelectedBlockCard({ block, status, prevHash, edit, onOpenDetails, onOpenChainLab, onTamper, onUndo, coach = null, pinned = false, onFollowNewest, children = null }) {
+export function SelectedBlockCard({ block, status, prevHash, edit, onOpenDetails, onOpenChainLab, onTamper, onUndo, coach = null, children = null }) {
   // The editor belongs to one block; selecting another block closes it.
   const [editorFor, setEditorFor] = useState(null);
 
@@ -190,7 +188,8 @@ export function SelectedBlockCard({ block, status, prevHash, edit, onOpenDetails
   const editorOpen = editorFor === block.index;
 
   const aside = {
-    valid: isGenesis ? 'first block · no miner' : `${block.isNewest ? 'newest · ' : ''}mined by ${minerName ?? 'unknown'}`,
+    // An intact block needs no aside: the Miner row names who mined it.
+    valid: null,
     'hash-mismatch': `${edits.length ? 'edited after mining' : 'content changed'}${minerName ? ` · mined by ${minerName}` : ''}`,
     'link-broken': `stores an old hash of #${block.index - 1}`,
     'built-on-broken': 'its own link is intact',
@@ -253,7 +252,7 @@ export function SelectedBlockCard({ block, status, prevHash, edit, onOpenDetails
   const minerRow = (
     <div className="card-kit-kv"><dt>Miner</dt><dd>
       {minerName ? (
-        <><Avatar name={minerName} /><span>{minerName}</span>{minerFacts.length > 0 && <span className="card-kit-t3">· {minerFacts.join(' · ')}</span>}</>
+        <><Avatar name={minerName} colorKey={block.minerKey} /><span>{minerName}</span>{minerFacts.length > 0 && <span className="card-kit-t3">· {minerFacts.join(' · ')}</span>}</>
       ) : <span className="card-kit-t3">{isGenesis ? 'none · Genesis was mined once before launch' : 'unknown'}</span>}
     </dd></div>
   );
@@ -280,8 +279,7 @@ export function SelectedBlockCard({ block, status, prevHash, edit, onOpenDetails
       <div className="card-kit-head">
         <h2 className="card-kit-title">Block #{block.index}</h2>
         <span className={`card-kit-pill ${pill.cls}`}>{kind === 'valid' ? <CheckIcon /> : <i aria-hidden="true" />}{pill.text}</span>
-        <span className="card-kit-aside">{aside}</span>
-        {pinned && !block.isNewest && <button type="button" className="selected-block-follow" onClick={onFollowNewest}>Show newest</button>}
+        {aside && <span className="card-kit-aside">{aside}</span>}
       </div>
       <dl className="card-kit-kv-list selected-block-rows">
         {hashRow}

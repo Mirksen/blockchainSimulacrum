@@ -21,7 +21,7 @@ import { MIN_DIFFICULTY, MAX_DIFFICULTY } from './lib/difficulty';
 
 const INITIAL_CONFIG = {
   name: 'powfyicoin', miningDifficulty: 4, blockReward: 3.125, halvingEvent: 4,
-  participants: ['Alice', 'Bob', 'Chris', 'Lars', 'Minas'], miners: ['Minas', 'Lars']
+  participants: ['Alice', 'Bob', 'Chris', 'Hal', 'Dorian', 'Laszlo'], miners: ['Hal', 'Dorian', 'Laszlo']
 };
 const VIEWS = { '': 'workbench', 'hash-lab': 'hash-lab', 'chain-lab': 'chain-lab', pool: 'pool' };
 const RAIL_KEY = 'proofofwork-rail-collapsed';
@@ -97,7 +97,7 @@ function App() {
   const { blocks, participants, balances, memPool, chainValid, isMining, isSettingUp, difficulty, halvingInterval,
     minerProgress, miningProgress, createTransaction, mineBlock, setupInitialDistribution, generateRandomTransactions,
     setDifficulty, setHalvingInterval, tamperBlock, undoTamper, remineBlock, resetBlockchain, cancelMining,
-    createWallet, createMiner, backMiner, toggleMiner, setMinerHashpower, describeTx, setSigner } = sim;
+    createWallet, createMiner, renameMiner, backMiner, toggleMiner, setMinerHashpower, describeTx, setSigner } = sim;
   const busy = isMining || isSettingUp;
   const coach = railCollapsed ? null : coachOf(progress);
   const activeMission = missions.activeMission(progress);
@@ -308,6 +308,16 @@ function App() {
     backMiner(name);
     if (name) report({ type: 'miner_backed', name });
   };
+  // A rename is for this session only; the last round follows the miner to its new name.
+  const onRenameMiner = (name, next) => {
+    const result = renameMiner(name, next);
+    const renamed = result.participant?.name;
+    if (result.success && renamed !== name) {
+      setLastRound(round => round && { ...round, winner: round.winner === name ? renamed : round.winner,
+        perMiner: Object.fromEntries(Object.entries(round.perMiner ?? {}).map(([key, value]) => [key === name ? renamed : key, value])) });
+    }
+    return result;
+  };
   const onDifficulty = value => {
     setDifficulty(value, { source: 'manual' });
     report({ type: 'difficulty_changed', direction: value > difficulty ? 'up' : 'down', manual: true });
@@ -324,7 +334,7 @@ function App() {
     <div className={`app-shell${view === 'workbench' ? ' is-workbench' : ''}${railCollapsed ? ' is-rail-collapsed' : ' is-rail-expanded'}`}
       onClickCapture={prepareSound} onKeyDownCapture={prepareSound}>
       <a className="skip-link" href="#workbench">Skip to workbench</a>
-      <TopBar view={view} onNavigate={navigate} coinName={coinName} chainValid={chainValid} theme={theme} onTheme={changeTheme}
+      <TopBar view={view} onNavigate={navigate} coinName={coinName} theme={theme} onTheme={changeTheme}
         muted={muted} onMuted={changeMuted} onReset={reset} onOpenSettings={() => setShowSettings(true)} compact={compact} />
       <LeaderboardTicker onOpenPool={() => navigate('pool')} onBoard={setBoardRows} refreshKey={boardKey} />
       <div className="wb-shell">
@@ -337,11 +347,12 @@ function App() {
           {showIntro && <MissionIntro onStart={startMissions} onDismiss={dismissIntro} />}
           {view === 'workbench' && <Workbench sim={sim} coinName={coinName} targetSeconds={targetBlockTime}
             autoMine={autoMining} onAutoMine={changeAutoMine} repeating={repeating} autoTransact={autoTransact} onAutoTransact={setAutoTransact}
-            selectedIndex={shownIndex} held={shownIndex !== null && shownIndex === selectedIndex} onSelect={toggleSelected} onFollowNewest={followNewest} healthOpen={healthOpen} onToggleHealth={() => setHealthOpen(open => !open)}
+            selectedIndex={shownIndex} held={shownIndex !== null && shownIndex === selectedIndex} onSelect={toggleSelected} healthOpen={healthOpen} onToggleHealth={() => setHealthOpen(open => !open)}
             lastRound={lastRound} remining={remining} coach={coach}
             identity={identity} boardRows={boardRows}
             onStartDemo={startDemo} onMine={startMining} onPause={pause} onRemine={handleRemine} onTamper={onTamper} onUndo={onUndo}
             onDifficulty={onDifficulty} onBack={onBack} onCreateTransaction={onCreateTransaction} onCreateWallet={createWallet} onCreateMiner={createMiner}
+            onRenameMiner={onRenameMiner} onHashpower={setMinerHashpower}
             onOpenWallet={setWalletDetails} onOpenDetails={setDetails} onOpenTransaction={setPendingTx} onOpenBlockTx={(transaction, blockIndex) => setBlockTx({ transaction, blockIndex })} onOpenChainLab={() => navigate('chain-lab')} error={error} />}
           {view === 'hash-lab' && <div className="wb-view">
             <HashLab key={hashLesson ?? 'free'} lesson={hashLesson} onLessonEvent={hashLesson ? report : undefined}

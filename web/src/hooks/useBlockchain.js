@@ -334,6 +334,25 @@ export function useBlockchain(config = {}) {
         if (result.success) publish();
         return result;
     }, [controller, publish]);
+    // A display name for this session only: the chain stores scripts, so every view follows.
+    // Name-keyed state (backing, last race) moves to the new name; never during a race.
+    const renameMiner = useCallback((name, next) => {
+        if (controller.run || controller.setup) return { success: false, error: 'Wait until the current block is found.' };
+        const result = controller.chain.renameParticipant(name, next);
+        if (!result.success) return result;
+        const renamed = result.participant.name;
+        if (renamed === name) return result;
+        if (controller.backed === name) controller.backed = renamed;
+        setBackedMiner(current => (current === name ? renamed : current));
+        setRaceWinner(current => (current === name ? renamed : current));
+        setMinerProgress(current => {
+            if (!(name in current)) return current;
+            const { [name]: progress, ...rest } = current;
+            return { ...rest, [renamed]: progress };
+        });
+        publish();
+        return result;
+    }, [controller, publish]);
     // The backing that counts for a race is the one in place when it starts.
     const backMiner = useCallback(name => {
         if (name !== null && !controller.chain.getParticipantByName(name)?.isMiner) {
@@ -407,5 +426,5 @@ export function useBlockchain(config = {}) {
         backedMiner, lastDifficultyChange,
         setSelectedBlock, createTransaction, previewTransaction, mineBlock, mineEmptyBlock: mineBlock, setupInitialDistribution,
         generateRandomTransactions, setDifficulty, setHalvingInterval, tamperBlock, undoTamper, remineBlock,
-        resetBlockchain, cancelMining, toggleMiner, setMinerHashpower, getActiveMiners, createWallet, createMiner, backMiner, setSigner };
+        resetBlockchain, cancelMining, toggleMiner, setMinerHashpower, getActiveMiners, createWallet, createMiner, renameMiner, backMiner, setSigner };
 }
