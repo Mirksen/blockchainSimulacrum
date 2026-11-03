@@ -283,13 +283,13 @@ decision, 2026-10-27):
     ("Difficulty rose from 5 to 6 after #20. Blocks #11–#20 took 6.1 s on average,
     faster than 7 s …"). It stays for that block and the two after it or until "Got
     it"; a difficulty the learner set by hand gets no note. Below 1024 px the notes
-    sit under the sticky compact band and scroll with the page, so the band keeps
-    its height.
+    sit under the compact band and scroll with the page.
   - **Kept in view:** from 1024 px on, once the chain scrolls out of view, a slim
     bar at the top of the main column repeats the key figures ("Chain #25" and the
     line); it slides in and out, and appears without motion under reduced motion.
-    Below 1024 px the compact band with its short key figures stays at the top
-    itself, so there is no second bar. The compact tiles keep the pace bar and the
+    Below 1024 px only the leaderboard ticker stays at the top (Mirko, 2026-11-03):
+    the compact band and its short key figures scroll away with the page and no
+    key-figure bar follows. The compact tiles keep the pace bar and the
     dashed divider; their marks and the candidate's forecast stay on wide screens.
   - **Hover explains:** every figure and mark carries its hint (`chain.block-time`,
     `chain.check`, `chain.reward`, `chain.change`) with the rule and the forecast
@@ -433,7 +433,7 @@ it; type size never changes with the viewport.
 | 1024–1279 wide | Collapsed Missions entry unless explicitly opened; tiles keep their width; the row scrolls sideways. Below 1200 the Block card stays left and Next block, Mempool and Wallets stack on the right; the page scrolls. |
 | 768–1023 wide | Mission rail becomes a bar on top; the chain becomes the **compact band**: one sideways-swiping row of small purple blocks (number, time, miner, short hash; no tooltip), the candidate at its end, the "Chain valid" pill and short key figures above it. A tap holds a block like a click on a full tile. Then Next block, Mempool, Block and Wallets, one under the other. |
 | < 768 wide | Phone: compact top bar, mission bar, compact band, then Next block, Mempool, Block, Wallets. The race sits directly under the chain. |
-| < 1024 wide, scrolled | **The leaderboard ticker and the compact band stay at the top** (Mirko, 2026-11-03), the band right under the ticker, together at most 140 px; top bar and mission bar scroll away and the cards scroll beneath. They take their own room in the layout and never cover content at rest. Open checks add one line of pills under the small blocks. |
+| < 1024 wide, scrolled | **Only the leaderboard ticker stays at the top** (Mirko, 2026-11-03, revised the same evening): top bar, mission bar, the compact band and the cards scroll away beneath it. The compact band's row swipes sideways on touch screens. Open checks add one line of pills under the small blocks. |
 
 No size scrolls sideways.
 

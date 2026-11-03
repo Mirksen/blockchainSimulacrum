@@ -683,7 +683,23 @@ try {
  await mobileChecks.waitFor({state:'detached'});
  assert.equal(await mobile.locator('.top-bar-chain').count(), 0);
  results.push('Phone: the compact band shows the same "Chain valid" pill and it toggles the checks');
- // The ticker and the compact band stay at the top, one under the other, while the cards scroll.
+ // The compact row swipes sideways: it takes pointer events itself (Safari scrolls only such a row).
+ const row = await mobile.evaluate(() => {
+  const scroll = document.querySelector('.chain-band.is-compact .chain-band-scroll');
+  const style = getComputedStyle(scroll);
+  return { pointerEvents: style.pointerEvents, touchAction: style.touchAction, overflowX: style.overflowX,
+   scrollWidth: scroll.scrollWidth, clientWidth: scroll.clientWidth, left: Math.round(scroll.scrollLeft) };
+ });
+ assert.equal(row.pointerEvents, 'auto', JSON.stringify(row));
+ assert.equal(row.overflowX, 'auto', JSON.stringify(row));
+ assert.ok(row.scrollWidth > row.clientWidth, `the small blocks overflow the phone width: ${JSON.stringify(row)}`);
+ const phoneRowBox = await mobile.locator('.chain-band.is-compact .chain-band-scroll').boundingBox();
+ await mobile.mouse.move(phoneRowBox.x + phoneRowBox.width / 2, phoneRowBox.y + phoneRowBox.height / 2);
+ await mobile.mouse.wheel(-400, 0);
+ await settle(mobile);
+ const swiped = await mobile.evaluate(() => Math.round(document.querySelector('.chain-band.is-compact .chain-band-scroll').scrollLeft));
+ assert.ok(swiped < row.left, `the row scrolls back toward Genesis: ${row.left} -> ${swiped}`);
+ // Only the ticker stays at the top; the compact band scrolls away with the cards.
  const stuck = async () => mobile.evaluate(() => {
   const ticker = document.querySelector('.leaderboard-ticker').getBoundingClientRect();
   const band = document.querySelector('.wb-band').getBoundingClientRect();
@@ -694,8 +710,7 @@ try {
  const scrolled = await stuck();
  assert.ok(scrolled.scrollY > 300, JSON.stringify(scrolled));
  assert.equal(scrolled.ticker, 0, `ticker stays on top: ${JSON.stringify(scrolled)}`);
- assert.ok(Math.abs(scrolled.band - scrolled.tickerBottom) <= 1, `band sits under the ticker: ${JSON.stringify(scrolled)}`);
- assert.ok(scrolled.bandBottom - scrolled.ticker <= 140, `ticker and band take at most 140 px: ${JSON.stringify(scrolled)}`);
+ assert.ok(scrolled.bandBottom <= scrolled.tickerBottom, `the band scrolls away under the ticker: ${JSON.stringify(scrolled)}`);
  await mobile.screenshot({path:join(output,'mobile-scrolled.png')});
  // A tap on a small tile holds that block in the Block card below.
  await workbench(mobile).tile(1).click();
@@ -703,7 +718,7 @@ try {
  await workbench(mobile).tile(1).click();
  await mobile.evaluate(() => scrollTo(0, 0));
  await settle(mobile);
- results.push(`Phone: ticker and compact chain stay on top while the page scrolls (${scrolled.bandBottom} px), a tap selects a block`);
+ results.push(`Phone: the small blocks swipe sideways (${row.left} -> ${swiped} px), only the ticker stays on top while the page scrolls, a tap selects a block`);
  await mobile.screenshot({path:join(output,'mobile.png')});
  await mobile.screenshot({path:join(output,'mobile-full.png'),fullPage:true});
  const mobileLayout = await mobile.evaluate(()=>({width:innerWidth,scroll:document.documentElement.scrollWidth,height:document.documentElement.scrollHeight}));

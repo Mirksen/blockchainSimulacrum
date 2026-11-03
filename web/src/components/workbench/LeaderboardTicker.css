@@ -48,8 +48,8 @@
 }
 @media (max-width: 1023.98px) {
   .leaderboard-ticker { position: sticky; top: 0; z-index: 30; }
-  /* sticky band and ticker cover the top of the page: scrolled-to targets land below them */
-  html { scroll-padding-top: 140px; }
+  /* the sticky ticker covers the top of the page: scrolled-to targets land below it */
+  html { scroll-padding-top: 40px; }
 }
 
 @keyframes leaderboard-ticker-scroll {
