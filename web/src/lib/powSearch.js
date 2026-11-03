@@ -142,7 +142,8 @@ export async function search({ entrants, target, bits, limit = Infinity, signal,
   if (!['round-robin', 'weighted-random'].includes(scheduling)) throw new RangeError('Unknown search scheduling.');
   const random = scheduling === 'weighted-random' ? allocationRandom(seed) : null;
   // Slow motion draws by weight too, so a short look shows every entrant, not one long turn.
-  const slowRandom = allocationRandom(seed ^ 0x5f3759df);
+  // `>>> 0` keeps the derived seed unsigned for every 32-bit seed.
+  const slowRandom = allocationRandom((seed ^ 0x5f3759df) >>> 0);
   const weightOf = state => control?.weights?.[state.id] ?? state.weight;
   const states = entrants.map(({ id, weight = 1, header, prefix, suffix = '', startNonce = 0 }) => {
     const maxNonce = header === undefined ? Number.MAX_SAFE_INTEGER : MAX_NONCE;

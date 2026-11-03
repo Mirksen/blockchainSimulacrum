@@ -278,6 +278,14 @@ describe('live control and per-entrant detail', () => {
     expect(() => control.update({ weights: { a: 0 } })).toThrow(RangeError);
   });
 
+  it('accepts every unsigned 32-bit seed, also with the high bit set', async () => {
+    for (const seed of [0, 2 ** 31, 2 ** 32 - 1]) {
+      const result = await search({ entrants: [{ id: 'a', prefix: 'synthetic-a|' }, { id: 'b', prefix: 'synthetic-b|' }],
+        target: NEVER, limit: 50, yieldControl: noWait, scheduling: 'weighted-random', seed });
+      expect(result.status).toBe('exhausted');
+    }
+  });
+
   it('keeps the newest attempts, the smallest hash and the counts by leading zeros of each entrant', async () => {
     const result = await search({ entrants: [{ id: 'a', prefix: 'synthetic-a|' }, { id: 'b', weight: 2, prefix: 'synthetic-b|' }],
       target: NEVER, limit: 300, yieldControl: noWait, detail: true });
