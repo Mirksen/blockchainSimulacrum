@@ -54,6 +54,8 @@ describe('MinerDrawer', () => {
     const step = document.querySelector('.miner-slow').textContent;
     expect(step).toContain('Nonce 4,242 → header → SHA-256 twice → 00f0aa…');
     expect(step).toContain('2 of 3 zeros, too large. Next nonce.');
+    // 4,096 attempts at 4 per second.
+    expect(screen.getByText(/At 4 tries per second a block takes about 17\.1 min\. It speeds up again when you close this view or the block is found\./)).toBeTruthy();
   });
 
   it('points a majority miner to Competing branches', () => {

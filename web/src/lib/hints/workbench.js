@@ -103,6 +103,7 @@ export const WORKBENCH_HINTS = {
     ? { title: 'Create miner', text: 'At most 4 miners race in this simulation.' }
     : { title: 'Create miner', text: 'Add another simulated miner to the race, up to 4. It joins with the next block, with an equal share of the hashpower and with no coins.' }),
   'next.hashpower': { title: 'Hashpower', text: 'This miner’s share of all hashpower: how many hashes it tries compared with the others, and so its chance to find the next block. The other miners give way in proportion. Works during a race too. In the real world that is the share of all mining hardware.' },
+  'next.normal-speed': { title: 'Normal speed', text: 'End slow motion: the race runs at full speed again. Slow motion also ends when you close the miner details or the block is found.' },
   'next.all-streams': on => (on
     ? { title: 'Hide streams', text: 'Fold the miners’ attempt lists away again.' }
     : { title: 'All streams', text: 'Every miner’s newest guesses side by side. More hashpower makes a list run faster.' }),

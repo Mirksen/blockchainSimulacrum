@@ -521,10 +521,18 @@ try {
  await drawer.getByRole('heading',{name:'Live attempts',exact:true}).waitFor();
  await drawer.getByRole('table',{name:'Newest attempts of Hal'}).getByRole('row').nth(10).waitFor();
  await page.screenshot({path:join(output,'miner-drawer-running.png')});
+ // Slow motion shows on the card and the candidate tile, and ends with the drawer.
+ await drawer.getByRole('button',{name:'Slow motion',exact:true}).click();
+ const nextCard = page.locator('section.next-block');
+ await nextCard.getByText(/^Slow motion · 4 tries\/s$/).waitFor();
+ await nextCard.getByRole('button',{name:'Normal speed',exact:true}).waitFor();
+ await page.screenshot({path:join(output,'slow-motion-running.png')});
  await drawer.getByRole('button',{name:'Close miner details',exact:true}).click();
  await drawer.waitFor({state:'detached'});
+ await nextCard.getByText('Mining block #1…',{exact:true}).waitFor();
+ assert.equal(await nextCard.getByRole('button',{name:'Normal speed',exact:true}).count(), 0, 'Closing the drawer ends slow motion');
  await page.getByRole('button',{name:'Hide streams',exact:true}).click();
- results.push('During a race All streams shows every miner\'s attempts; a share change applies in the race; the drawer shows its live attempts');
+ results.push('During a race All streams shows every miner\'s attempts; a share change applies in the race; the drawer shows its live attempts; slow motion shows on the card and ends with the drawer');
  // Pause terminates the worker; nothing is committed after it.
  const atPause = await wb.tiles().count();
  await page.getByRole('button',{name:'Pause',exact:true}).press('Enter');
