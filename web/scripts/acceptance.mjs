@@ -689,6 +689,11 @@ try {
   await workbench(mobile).mine(next + 1).waitFor({timeout:60000});
  }
  // The compact row swipes sideways: it takes pointer events itself (Safari scrolls only such a row).
+ // A new block scrolls the row smoothly to its newest end; start from there.
+ await mobile.waitForFunction(() => {
+  const scroll = document.querySelector('.chain-band.is-compact .chain-band-scroll');
+  return scroll.scrollLeft + scroll.clientWidth >= scroll.scrollWidth - 1;
+ }, null, {timeout:10000});
  const row = await mobile.evaluate(() => {
   const scroll = document.querySelector('.chain-band.is-compact .chain-band-scroll');
   const style = getComputedStyle(scroll);
