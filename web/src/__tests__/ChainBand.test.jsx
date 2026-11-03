@@ -59,20 +59,40 @@ describe('ChainBand tiles and selection', () => {
     expect(tile(2).textContent).toContain('0002cc…02');
   });
 
-  it('shows how long ago each block was mined and keeps the ages current', () => {
+  it('shows how long ago each block was mined in its bottom line, in minutes at the finest', () => {
     vi.useFakeTimers();
     try {
-      // Blocks were mined at T0, T0 + 2 s, …, T0 + 8 s; one clock tick later it is T0 + 11 s.
+      // Blocks were mined at T0, T0 + 2 s, …, T0 + 8 s. The shared clock ticks every 5 s,
+      // so one tick after rendering at T0 + 10 s it is T0 + 15 s.
       vi.setSystemTime((T0 + 10) * 1000);
       const { container } = renderBand();
-      act(() => { vi.advanceTimersByTime(1000); });
+      act(() => { vi.advanceTimersByTime(5000); });
       const ages = () => [...container.querySelectorAll('.chain-band-tile-face .chain-band-age')].map(age => age.textContent);
-      expect(ages()).toEqual(['11 s ago', '9 s ago', '7 s ago', '5 s ago', 'just now']);
-      act(() => { vi.advanceTimersByTime(60000); });
+      expect(ages()).toEqual(['just now', 'just now', 'just now', 'just now', 'just now']);
+      // The age sits in the bottom line beside the hash, never in the top row.
+      expect(container.querySelectorAll('.chain-band-tile-foot .chain-band-age')).toHaveLength(5);
+      expect(container.querySelectorAll('.chain-band-tile-top .chain-band-age')).toHaveLength(0);
+      // T0 + 65 s: blocks #0 to #2 are a minute old, #3 (59 s) and #4 (57 s) are not.
+      act(() => { vi.advanceTimersByTime(50000); });
+      expect(ages()).toEqual(['1 min ago', '1 min ago', '1 min ago', 'just now', 'just now']);
+      // One second later #3 is 60 s old, but the clock does not tick before T0 + 70 s.
+      act(() => { vi.advanceTimersByTime(1000); });
+      expect(ages()).toEqual(['1 min ago', '1 min ago', '1 min ago', 'just now', 'just now']);
+      act(() => { vi.advanceTimersByTime(4000); });
       expect(ages()).toEqual(['1 min ago', '1 min ago', '1 min ago', '1 min ago', '1 min ago']);
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it('shows the age instead of "meets" on a valid tile, and the zeros on a hash mismatch', () => {
+    const { container } = renderBand({ views: makeViews(5, TAMPERED) });
+    container.querySelectorAll('.chain-band-tile-face').forEach(face => expect(face.textContent).not.toMatch(/meets/));
+    const foot = index => tile(index).querySelector('.chain-band-tile-foot');
+    expect(foot(1).querySelector('.chain-band-age')).toBeTruthy();
+    expect(foot(1).querySelector('.chain-band-meets')).toBeNull();
+    expect(foot(2).querySelector('.chain-band-age')).toBeNull();
+    expect(foot(2).querySelector('.chain-band-meets.is-bad').textContent).toBe('0/2 zeros');
   });
 
   it('has no hint text in the header', () => {

@@ -189,3 +189,12 @@
 .next-block-editor-power input[type="range"] { flex: 1 1 auto; min-width: 80px; accent-color: var(--miner-color, var(--blue)); }
 .next-block-editor-share { min-width: 42px; text-align: right; font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; }
 .next-block-editor-error { flex-basis: 100%; margin: 0; }
+
+/* Auto-mine on lights up like Mining beside it (Mirko, 2026-11-03): the same fill and text,
+   only the inner shadow on its left edge still marks where the two buttons meet. */
+.next-block-action .repeat-toggle[aria-pressed="true"] {
+  background: var(--blue); color: var(--on-accent);
+  box-shadow: inset 3px 0 4px -2px color-mix(in srgb, var(--shadow) 70%, var(--blue)), inset 0 1px 0 color-mix(in srgb, var(--on-accent) 18%, transparent);
+}
+.next-block-action .repeat-toggle[aria-pressed="true"]:hover:not(:disabled) { background: var(--blue-2); color: var(--on-accent); }
+.next-block-action:has(.repeat-toggle[aria-pressed="true"]) { box-shadow: var(--glow-action); }

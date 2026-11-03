@@ -29,12 +29,12 @@ export function formatSeconds(seconds) {
 }
 
 // "7 s": a header's time has whole seconds, so an interval between blocks has too.
-// How long ago a block was mined, from its header time: "just now", "12 s ago", "3 min ago".
+// How long ago a block was mined, from its header time, in whole minutes at the finest:
+// "just now", "1 min ago", "2 h ago". No seconds, so nothing ticks while you watch.
 export function formatAge(time, now = Math.floor(Date.now() / 1000)) {
   if (!Number.isFinite(time) || !Number.isFinite(now)) return null;
   const seconds = Math.max(0, now - time);
-  if (seconds < 5) return 'just now';
-  if (seconds < 60) return `${seconds} s ago`;
+  if (seconds < 60) return 'just now';
   if (seconds < 3600) return `${Math.floor(seconds / 60)} min ago`;
   if (seconds < 86400) return `${Math.floor(seconds / 3600)} h ago`;
   const days = Math.floor(seconds / 86400);

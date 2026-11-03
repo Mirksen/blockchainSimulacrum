@@ -70,7 +70,9 @@ export async function verifyMissions(page, output) {
 
   // Mission 3 needs funded wallets: set up the demo, then Show me marks New transaction.
   const wb = workbench(page);
+  // Start demo mines #1; one Mining click confirms the transfers that fund the wallets.
   await page.getByRole('button', { name: 'Start demo', exact: true }).click();
+  await wb.mine(2).click({ timeout: 30000 });
   await wb.mine(3).waitFor({ timeout: 30000 });
   await showMe().click();
   await page.waitForURL(/#\/$/);
@@ -139,6 +141,7 @@ export async function verifyMissionReload(browser, baseURL, output) {
         assert.ok(rewards.includes(`${completed.length} of ${MISSIONS.length} done`));
         await tasks.getByRole('button', { name: 'Show me' }).click();
         await page.getByRole('button', { name: 'Start demo', exact: true }).click();
+        await wb.mine(2).click({ timeout: 30000 });
         await wb.mine(3).waitFor({ timeout: 30000 });
         if (id === 'win-mining-race') {
           await page.getByRole('button', { name: /^Back / }).first().click();
@@ -202,6 +205,7 @@ export async function verifyForgeMission(browser, baseURL, output) {
       await editor.getByRole('button', { name: 'Change amount' }).click();
     };
     await page.getByRole('button', { name: 'Start demo', exact: true }).click();
+    await wb.mine(2).click();
     await wb.mine(3).waitFor();
     await wb.mine(3).click();
     await wb.mine(4).waitFor();

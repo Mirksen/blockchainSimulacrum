@@ -72,7 +72,10 @@ export async function verifyMinerName(browser, baseURL, output) {
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
     await page.screenshot({ path: join(output, 'miner-name-signed.png') });
 
+    // Start demo mines #1 only; each Mining click sends one more block.
     await page.getByRole('button', { name: 'Start demo', exact: true }).click();
+    await status.filter({ hasText: 'Block #1 is on the leaderboard' }).waitFor({ timeout: 30000 });
+    await workbench(page).mine(2).click();
     await status.filter({ hasText: 'Block #2 is on the leaderboard' }).waitFor({ timeout: 30000 });
     await workbench(page).mine(3).click();
     await status.filter({ hasText: 'Block #3 is on the leaderboard' }).waitFor({ timeout: 30000 });

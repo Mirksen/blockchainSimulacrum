@@ -51,9 +51,11 @@ describe('signing blocks with the visitor\'s name', () => {
     expect(verifyRow({ name: NAME, round: ROUND, bestHash: block.hash, ...proofOfBlock(block) })).toMatchObject({ signed: true, matches: true });
   });
 
-  it('counts both blocks of the demo', async () => {
+  it('counts the demo block, then the block that mines its transfers', async () => {
     const { hook, signer } = signed();
     await run(() => hook.result.current.setupInitialDistribution());
+    expect(signer.submit.mock.calls.map(call => call[2])).toEqual([1]);
+    await run(() => hook.result.current.mineBlock());
     expect(signer.submit.mock.calls.map(call => call[2])).toEqual([1, 2]);
     expect(hook.result.current.chainValid).toBe(true);
   });

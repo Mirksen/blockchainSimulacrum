@@ -268,13 +268,11 @@ export function useBlockchain(config = {}) {
             const balance = chain.calculateBalance(chain.getParticipantByName(first.winner).publicKey);
             const amount = Math.min(0.6, Math.floor((balance / Math.max(1, others.length) - 0.00000001) * 1e8) / 1e8);
             if (amount <= 0) return finish({ success: false, error: 'Reward is too small to distribute. Reset the demo.', code: 'reward_too_small' });
+            // One click mines one block: the transfers wait in the mempool for the next one.
             for (const recipient of others) chain.createTransaction(first.winner, recipient.name, amount, DEFAULT_FEE, 'Demo distribution');
             if (others.length) void telemetry.track('transaction_created', { source: 'demo', count: others.length, pending_count: chain.memPool.length });
             publish();
-            const second = await doMining(false, setup);
-            if (!second.success || setup.aborted) return finish(second);
-            winners.push(second.winner);
-            return finish({ success: true });
+            return finish({ ...first, success: true });
         } catch (error) {
             void telemetry.reportError(error, 'demo', true);
             return finish({ success: false, error: error.message, code: 'unexpected' });
