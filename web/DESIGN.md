@@ -333,21 +333,37 @@ decision, 2026-10-27):
   "Mining" between races, "Re-mine block #K" during a repair. Nothing else: not "Start demo",
   not during a race or a repeating run, not while typing, with Cmd/Ctrl/Alt, on key repeat or
   under an open dialog.
-- **Miner editor** (Mirko, 2026-11-03): between races a click on a miner's name opens a small
-  editor under its lane: a name for this session only (blocks and transactions store scripts, so
-  every view shows it; the color stays; a reset restores the defaults) and a hashpower slider
-  (1–10) labelled with the miner's share of all hashpower in percent, its chance to find the next
-  block. There is no standing odds line.
+- **Miner details** (Mirko, 2026-11-03, replaces the miner editor): a click on a miner's name
+  opens a **popover** under its lane, between races and during one: its **share** of the racing
+  miners' hashpower as a slider from 5 to 90 %, which is its chance to find the next block; the
+  others give way in their previous proportion. A change applies at once, also in a running race
+  from the miner's next turn, so its stream visibly speeds up or slows down. The popover shows the
+  attempts per second, what a block takes alone at that rate and its five newest attempts; between
+  races it also holds the name for this session (blocks and transactions store scripts, so every
+  view shows it; the color stays; a reset restores the defaults). "All details →" opens the
+  **miner drawer** at the right edge, beside the workbench (not modal; on wide screens the
+  workbench makes room): the share slider with the share bar of all miners, attempts per second,
+  chance, time alone and attempts this round; the **live attempts** (nonce, hash with the zeros
+  that meet the target green and the first character that does not red, zero count; newest first;
+  the honest note that the list shows the newest of each update), **Freeze** to read them and
+  **Slow motion** (one attempt every quarter second for the whole race, drawn by weight, each
+  explained step by step); the **best hash** of the round (the smallest); a **histogram** of the
+  round's attempts by leading zeros against what chance predicts (each zero 16 times rarer);
+  **luck** (blocks won against the summed share, only after five races this session); and
+  **what it hashes**: the header fields with the nonce ticking. Above 50 % a hint says the miner
+  could rewrite the chain and opens Competing branches in the Chain lab. During a race **All
+  streams** under the lanes shows every miner's attempts side by side, each with its slider. The
+  wallet details show the share and link to the drawer instead of a second slider.
 - **Create miner** (Mirko, 2026-11-02): a quiet "Create miner" link at the right under the lanes
   opens a name form under the lanes, like "Create wallet". The new miner is also a wallet, shares
-  the wallets' name rules, starts at 0 and races from the next block at hashpower 5 of 10; it
+  the wallets' name rules, starts at 0 and races from the next block with an equal share of the hashpower; it
   shows a lane and a wallet row at once. It is offered between races only, never during a live
   race or a repair. At most four miners race; from three on the lanes get slimmer so Mempool and
   Wallets keep their lists at the reference size.
 - **Wallets:** a narrow column with name and balance, sized for the five sample
   wallets plus one the learner creates; more wallets scroll inside the card and
   "Create wallet" stays in its header. Role, blocks won and hash rate appear
-  where the card is wider; blocks won and hashpower are in the wallet details.
+  where the card is wider; blocks won and the share of a miner are in the wallet details.
 - **Mempool:** pending transactions with their coins, change, fee, size and fee rate, one line
   each where the card is narrow, in the order the next block's miner takes them, and the coinbase
   line "added when #N is mined" with reward plus the fees of what fits. Under the header a quiet
@@ -462,7 +478,8 @@ and validity states are semantic tokens.
 | Card | Panel surface, 1 px line, no shadow; header with title, status pill and at most one action |
 | Next block card | Miner name, primary action, Auto-mine, difficulty stepper, race lanes; live race state; repair state |
 | Repeat toggle | "Auto" with the repeat icon, joined right of its action; pressed takes the look of that action (filled beside Mining, tinted beside New transaction); the card gives height, border and outer corners |
-| Race lane | Miner, nonce, current hash with checked leading characters, progress, Back action, result |
+| Race lane | Miner (opens its popover), nonce, current hash with checked leading characters, progress, Back action, result |
+| Miner popover / drawer | Share slider, attempts per second, newest attempts; the drawer adds Freeze, Slow motion, best hash, zero histogram, luck and the header with its ticking nonce |
 | Coach ring | Ring plus small label on the element a mission step needs |
 | Key-value rows | Label, mono value, quiet explanation |
 | Wallet row | Avatar, name, role, hash rate for miners, balance in mono |

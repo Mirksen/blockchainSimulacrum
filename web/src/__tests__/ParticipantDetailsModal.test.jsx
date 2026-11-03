@@ -41,3 +41,13 @@ it('shows a fixed failure message if phrase and public key do not match', () => 
   fireEvent.click(screen.getByRole('button', { name: 'Verify recovery' }));
   expect(screen.getByRole('status').textContent).toBe('Recovery could not be verified.');
 });
+
+it('shows a miner\'s share and opens its miner details instead of a second hashpower slider', () => {
+  const participant = Participant.fromSeedPhrase('Fixture Miner', PHRASE, true);
+  const onOpenMiner = vi.fn();
+  render(<ParticipantDetailsModal participant={participant} blocks={[]} onClose={() => {}} share={42} onOpenMiner={onOpenMiner} />);
+  expect(screen.queryByRole('slider')).toBeNull();
+  expect(screen.getByText('42 %')).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Miner details' }));
+  expect(onOpenMiner).toHaveBeenCalledWith('Fixture Miner');
+});

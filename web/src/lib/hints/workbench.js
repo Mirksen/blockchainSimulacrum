@@ -93,7 +93,7 @@ export const WORKBENCH_HINTS = {
     ? { title: 'Auto-mine is on', text: 'After each found block the next race starts by itself. Click to stop after the current block.' }
     : { title: 'Auto-mine', text: 'Keep mining block after block once you press Mining, instead of stopping after one. Pairs well with Auto on the Mempool for a running economy.' }),
   'next.your-name': locked => ({ title: 'Your name', text: `Your miner name on the shared leaderboard. It is written into every block you mine here, and each block is sent to the leaderboard under it. 3–20 letters, digits or hyphens.${locked ? ' Locked while a block is being mined.' : ''}` }),
-  'next.miner': name => ({ title: name, text: `Click to rename ${name} or change its hashpower: its share of all mining power, which is its chance to win the next block.` }),
+  'next.miner': name => ({ title: name, text: `Click for ${name}’s share of the hashpower, which is its chance to win the next block, and its newest guesses. Between races you can also rename it.` }),
   'next.progress': { title: 'Leading zeros', text: 'How many of the required leading zeros this miner’s best hash reached. Full means it found a valid block.' },
   'next.live-progress': { title: 'Live search', text: 'The hash this miner is trying right now; zeros that already fit are highlighted. The bar holds the best number of leading zeros for a second, then settles.' },
   'next.back': (name, backed) => (backed
@@ -101,8 +101,11 @@ export const WORKBENCH_HINTS = {
     : { title: `Back ${name}`, text: `Bet on ${name} to win the next race, just for fun: nothing is at stake. More hashpower means better odds, never a sure win.` }),
   'next.create-miner': full => (full
     ? { title: 'Create miner', text: 'At most 4 miners race in this simulation.' }
-    : { title: 'Create miner', text: 'Add another simulated miner to the race, up to 4. It joins with the next block, at medium hashpower and with no coins.' }),
-  'next.hashpower': { title: 'Hashpower', text: 'How many hashes this miner tries per turn compared with the others. The percentage is its chance to find the next block. In the real world that is the share of all mining hardware.' },
+    : { title: 'Create miner', text: 'Add another simulated miner to the race, up to 4. It joins with the next block, with an equal share of the hashpower and with no coins.' }),
+  'next.hashpower': { title: 'Hashpower', text: 'This miner’s share of all hashpower: how many hashes it tries compared with the others, and so its chance to find the next block. The other miners give way in proportion. Works during a race too. In the real world that is the share of all mining hardware.' },
+  'next.all-streams': on => (on
+    ? { title: 'Hide streams', text: 'Fold the miners’ attempt lists away again.' }
+    : { title: 'All streams', text: 'Every miner’s newest guesses side by side. More hashpower makes a list run faster.' }),
   'next.remine': (index, target) => ({ title: `Re-mine block #${index}`, text: `Search a new nonce so the edited block’s hash starts with ${target} again. That gives it a new hash, so the block after it must be re-mined too. This is why rewriting history costs so much work. Shortcut: M.` }),
   'next.undo-edit': { title: 'Undo edit', text: 'Put the original payment back. A broken signature or rule cannot be repaired by re-mining, only by undoing the change.' },
   'next.repair-order': { title: 'Re-mine order', text: 'The blocks that need a new nonce, in order. Each re-mine changes a hash that the next block stores, so the repair walks forward one block at a time.' },

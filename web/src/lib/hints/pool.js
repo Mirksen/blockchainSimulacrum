@@ -89,7 +89,7 @@ export const POOL_HINTS = {
   'details.miner-enabled': enabled => (enabled
     ? { title: 'Miner enabled', text: 'This miner takes part in the race for the next block. Click to switch it off; it keeps its coins. Locked while a block is being mined.' }
     : { title: 'Miner disabled', text: 'This miner sits out the race for the next block. Click to let it mine again. Locked while a block is being mined.' }),
-  'details.hashpower': { title: 'Hashpower', text: 'How many hashes this miner tries per turn compared with the others, from 1 to 10. More hashpower means better odds to find the next block, never a sure win. Locked while a block is being mined.' },
+  'details.hashpower': { title: 'Hashpower', text: 'This miner’s share of the racing miners’ hashpower: its chance to find the next block. Change it, also during a race, in the miner details.' },
   'details.coins': { title: 'Coins (unspent outputs)', text: 'A wallet stores no balance. It owns separate coins: outputs of earlier transactions that nobody has spent yet (UTXOs). Each is named by the transaction that created it and its position, txid:number.' },
   'details.address': { title: 'Address', text: 'Where others send coins to this wallet: a hash of its public key in Bitcoin’s Base58 format. It is safe to share; nobody can spend with it.' },
   'details.public-key': { title: 'Demo public key', text: 'Made from the wallet’s private key. With it anyone can check the wallet’s signatures, but nobody can make one. A demo key: created in this simulation, never for real money.' },

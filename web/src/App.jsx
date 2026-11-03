@@ -19,6 +19,8 @@ import { PoolPanel } from './components/PoolPanel';
 import { minerProfileHash, POOL_HASH } from './lib/poolApi';
 import { BlockDetailsModal } from './components/BlockDetailsModal';
 import { ParticipantDetailsModal } from './components/ParticipantDetailsModal';
+import { MinerDrawer } from './components/workbench/MinerDetails';
+import { colorOf } from './components/workbench/minerColors';
 import { TransactionDetailsModal } from './components/TransactionDetailsModal';
 import { HintLayer } from './components/HintLayer';
 import './index.css';
@@ -97,6 +99,8 @@ function App() {
   const [pendingTx, setPendingTx] = useState(null);
   const [blockTx, setBlockTx] = useState(null);
   const [walletDetails, setWalletDetails] = useState(null);
+  // The miner whose drawer is open beside the workbench (web/DESIGN.md, "Miner details").
+  const [minerDetails, setMinerDetails] = useState(null);
   const [workComparison, setWorkComparison] = useState(null);
   // The rail starts collapsed (free play); a first-visit card invites to the missions once.
   const [railCollapsed, setRailCollapsed] = useState(() => readFlag(RAIL_KEY, true));
@@ -133,7 +137,7 @@ function App() {
   const { blocks, participants, balances, memPool, chainValid, isMining, isSettingUp, difficulty, halvingInterval,
     minerProgress, miningProgress, createTransaction, mineBlock, setupInitialDistribution, generateRandomTransactions,
     setDifficulty, setHalvingInterval, tamperBlock, undoTamper, remineBlock, resetBlockchain, cancelMining,
-    createWallet, createMiner, renameMiner, backMiner, toggleMiner, setMinerHashpower, describeTx, setSigner } = sim;
+    createWallet, createMiner, renameMiner, backMiner, toggleMiner, setMinerShare, setSlowMotion, slowMotion, minerLuck, raceWinner, describeTx, setSigner } = sim;
   const busy = isMining || isSettingUp;
   const coach = railCollapsed ? null : coachOf(progress);
   const activeMission = missions.activeMission(progress);
@@ -360,6 +364,7 @@ function App() {
     const result = renameMiner(name, next);
     const renamed = result.participant?.name;
     if (result.success && renamed !== name) {
+      setMinerDetails(current => (current === name ? renamed : current));
       setLastRound(round => round && { ...round, winner: round.winner === name ? renamed : round.winner,
         perMiner: Object.fromEntries(Object.entries(round.perMiner ?? {}).map(([key, value]) => [key === name ? renamed : key, value])) });
     }
@@ -382,12 +387,17 @@ function App() {
   // A repair shows its block only while the chain is invalid; a click on a tile outranks it.
   const shownIndex = !chainValid && repairIndex !== null ? repairIndex : selectedIndex;
   const wallet = walletDetails && participants.find(p => p.name === walletDetails);
+  const racingMiners = participants.filter(p => p.isMiner && p.minerEnabled)
+    .map(p => ({ name: p.name, hashpower: p.hashpower, colorKey: p.colorKey, color: colorOf(p.colorKey) ?? undefined }));
+  const shareOfMiner = miner => Math.round(miner.hashpower / racingMiners.reduce((sum, m) => sum + m.hashpower, 0) * 100);
+  const found = minerDetails && participants.find(p => p.name === minerDetails && p.isMiner);
+  const drawerMiner = found ? { ...found, color: colorOf(found.colorKey) ?? undefined } : null;
   // A collapsed rail means free play: the labs open without the mission lesson.
   const hashLesson = !railCollapsed && activeMission ? HASH_LESSONS[activeMission.id] : undefined;
   const chainLesson = !railCollapsed && ['change-the-past', 'follow-stronger-chain'].includes(activeMission?.id);
 
   return (
-    <div className={`app-shell${view === 'workbench' ? ' is-workbench' : ''}${railCollapsed ? ' is-rail-collapsed' : ' is-rail-expanded'}`}
+    <div className={`app-shell${view === 'workbench' ? ' is-workbench' : ''}${view === 'workbench' && drawerMiner ? ' has-miner-drawer' : ''}${railCollapsed ? ' is-rail-collapsed' : ' is-rail-expanded'}`}
       onClickCapture={prepareSound} onKeyDownCapture={prepareSound}>
       <a className="skip-link" href="#workbench">Skip to workbench</a>
       <HintLayer />
@@ -409,7 +419,7 @@ function App() {
             identity={identity} boardRows={boardRows}
             onStartDemo={startDemo} onMine={startMining} onPause={pause} onRemine={handleRemine} onTamper={onTamper} onUndo={onUndo}
             onDifficulty={onDifficulty} onBack={onBack} onCreateTransaction={onCreateTransaction} onCreateWallet={createWallet} onCreateMiner={createMiner}
-            onRenameMiner={onRenameMiner} onHashpower={setMinerHashpower}
+            onRenameMiner={onRenameMiner} onShare={setMinerShare} onOpenMiner={setMinerDetails}
             onOpenWallet={setWalletDetails} onOpenDetails={setDetails} onOpenTransaction={setPendingTx} onOpenBlockTx={(transaction, blockIndex) => setBlockTx({ transaction, blockIndex })} onOpenChainLab={() => navigate('chain-lab')} error={error} />}
           {view === 'hash-lab' && <div className="wb-view">
             <HashLab key={hashLesson ?? 'free'} lesson={hashLesson} onLessonEvent={hashLesson ? report : undefined}
@@ -441,7 +451,13 @@ function App() {
         onClose={() => setBlockTx(null)} coinName={coinName} />}
       {wallet && <ParticipantDetailsModal participant={wallet}
         balance={balances.find(b => b.name === wallet.name)} blocks={blocks} describeTx={describeTx} onClose={() => setWalletDetails(null)}
-        toggleMiner={toggleMiner} setMinerHashpower={setMinerHashpower} isMining={busy} coinName={coinName} />}
+        toggleMiner={toggleMiner} isMining={busy} coinName={coinName}
+        share={wallet.isMiner && wallet.minerEnabled ? shareOfMiner(wallet) : null}
+        onOpenMiner={name => { setWalletDetails(null); setMinerDetails(name); }} />}
+      {view === 'workbench' && drawerMiner && <MinerDrawer key={drawerMiner.publicKey} miner={drawerMiner} miners={racingMiners}
+        progress={minerProgress[drawerMiner.name]} difficulty={difficulty} isMining={busy} winner={raceWinner} luck={minerLuck}
+        slowMotion={slowMotion} onSlowMotion={setSlowMotion} onShare={setMinerShare} onClose={() => setMinerDetails(null)}
+        onOpenForkLab={() => { setMinerDetails(null); setChainExperiment('fork'); navigate('chain-lab'); }} />}
     </div>
   );
 }

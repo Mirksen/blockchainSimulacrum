@@ -107,6 +107,35 @@ describe('simulation lifecycle', () => {
     expect(result.current.difficulty).toBe(1);
     expect(result.current.halvingInterval).toBe(2);
   });
+  it('changes a miner\'s share during a race: the running search takes it from its next turn', async () => {
+    forceHash('f'.repeat(64));
+    const { result } = renderHook(() => useBlockchain({ ...config, participants: ['Miner One', 'Miner Two', 'Wallet Two'], miners: ['Miner One', 'Miner Two'] }));
+    let pending;
+    act(() => { pending = result.current.mineBlock(); });
+    act(() => { result.current.setMinerShare('Miner One', 80); result.current.setSlowMotion(false); });
+    await act(async () => { for (let i = 0; i < 30; i++) await vi.advanceTimersToNextTimerAsync(); });
+    const one = result.current.minerProgress['Miner One'];
+    const two = result.current.minerProgress['Miner Two'];
+    expect(one.iterations / (one.iterations + two.iterations)).toBeGreaterThan(0.75);
+    expect(one.iterations / (one.iterations + two.iterations)).toBeLessThan(0.85);
+    expect(one.stream.at(-1)).toMatchObject({ nonce: one.nonce, hash: 'f'.repeat(64), zeros: 0 });
+    expect(one.zeroCounts[0]).toBe(one.iterations);
+    expect(one.header).toMatch(/^[0-9a-f]{152}$/);
+    expect(result.current.participants.filter(p => p.isMiner).map(p => p.hashpower)).toEqual([80, 20]);
+    act(() => result.current.cancelMining());
+    await act(async () => { await vi.runAllTimersAsync(); await pending; });
+  });
+  it('counts each miner\'s blocks against its share over the races of this session', async () => {
+    const { result } = renderHook(() => useBlockchain({ ...config, participants: ['Miner One', 'Miner Two', 'Wallet Two'], miners: ['Miner One', 'Miner Two'] }));
+    act(() => { result.current.setMinerShare('Miner Two', 25); });
+    const { winner } = await mine(result);
+    const keyOf = name => result.current.participants.find(p => p.name === name).publicKey;
+    expect(result.current.minerLuck.races).toBe(1);
+    expect(result.current.minerLuck.perMiner[keyOf('Miner One')]).toEqual({ won: winner === 'Miner One' ? 1 : 0, expected: 0.75 });
+    expect(result.current.minerLuck.perMiner[keyOf('Miner Two')]).toEqual({ won: winner === 'Miner Two' ? 1 : 0, expected: 0.25 });
+    act(() => result.current.resetBlockchain());
+    expect(result.current.minerLuck).toEqual({ races: 0, perMiner: {} });
+  });
   it('demo setup distributes only the funds earned and resets cleanly', async () => {
     const { result } = renderHook(() => useBlockchain(config));
     let outcome;

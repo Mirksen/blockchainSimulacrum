@@ -246,23 +246,22 @@ try {
  assert.equal(await band.locator('.chain-band-who').filter({hasText:new RegExp(`^${winner}$`)}).count(), 0, 'No tile keeps the old name');
  await wb.minerButton(RENAMED).click();
  editor = wb.minerEditor(RENAMED);
- const power = editor.locator('input[type="range"]');
- const share = editor.locator('output.next-block-editor-share');
- assert.deepEqual([await power.getAttribute('min'), await power.getAttribute('max'), await power.inputValue()], ['1','10','5']);
+ const power = editor.getByRole('slider',{name:`${RENAMED}'s share of the hashpower`});
+ const share = editor.locator('output.miner-share-value');
+ assert.deepEqual([await power.getAttribute('min'), await power.getAttribute('max'), await power.inputValue()], ['5','90','33']);
  assert.equal(await share.innerText(), '33 %', 'Three equal miners share one third each');
  await power.focus();
  await page.keyboard.press('End');
- await share.filter({hasText:/^50 %$/}).waitFor();
- assert.equal(await power.inputValue(), '10');
- assert.equal(await power.getAttribute('aria-valuetext'), '50 % chance to find the next block');
+ await share.filter({hasText:/^90 %$/}).waitFor();
+ assert.equal(await power.getAttribute('aria-valuetext'), '90 %, 90 % chance to find the next block');
+ assert.match(await editor.innerText(), /Takes from the others in proportion: \w+ 5 % · \w+ 5 %/);
  await page.keyboard.press('Home');
- await share.filter({hasText:/^9 %$/}).waitFor();
- for (let i = 0; i < 4; i++) await page.keyboard.press('ArrowRight');
+ await share.filter({hasText:/^5 %$/}).waitFor();
+ for (let i = 0; i < 28; i++) await page.keyboard.press('ArrowRight');
  await share.filter({hasText:/^33 %$/}).waitFor();
- assert.equal(await power.inputValue(), '5');
  await editor.getByRole('button',{name:'Done',exact:true}).click();
  await editor.waitFor({state:'detached'});
- results.push('A click on a miner opens its editor: a rename reaches the lane, the wallets and the chain tiles; the hashpower slider shows the share');
+ results.push('A click on a miner opens its popover: a rename reaches the lane, the wallets and the chain tiles; the share slider gives way in proportion');
 
  await page.getByRole('button',{name:'New transaction',exact:true}).click();
  const form = page.getByRole('form',{name:'New transaction'});
@@ -507,6 +506,25 @@ try {
  assert.ok(await page.getByRole('button',{name:'Pause',exact:true}).evaluate(el => el === document.activeElement), 'Play keeps keyboard focus as Pause');
  await fitsWidths('Running race');
  await page.screenshot({path:join(output,'difficulty-10-running.png')});
+ // During a race: every miner's stream, a share change from the next turn, the drawer beside the race.
+ await page.getByRole('button',{name:'All streams',exact:true}).click();
+ const wall = page.getByLabel('Attempts of every miner',{exact:true});
+ await wall.getByRole('table',{name:'Newest attempts of Hal'}).getByRole('row').nth(5).waitFor();
+ await wb.liveMinerButton('Hal').click();
+ const halPopover = wb.minerEditor('Hal');
+ assert.equal(await halPopover.getByRole('textbox',{name:'Name'}).count(), 0, 'No rename during a race');
+ await halPopover.getByRole('slider').focus();
+ await page.keyboard.press('End');
+ await halPopover.locator('output.miner-share-value').filter({hasText:/^90 %$/}).waitFor();
+ await halPopover.getByRole('button',{name:'All details →',exact:true}).click();
+ const drawer = wb.minerDrawer('Hal');
+ await drawer.getByRole('heading',{name:'Live attempts',exact:true}).waitFor();
+ await drawer.getByRole('table',{name:'Newest attempts of Hal'}).getByRole('row').nth(10).waitFor();
+ await page.screenshot({path:join(output,'miner-drawer-running.png')});
+ await drawer.getByRole('button',{name:'Close miner details',exact:true}).click();
+ await drawer.waitFor({state:'detached'});
+ await page.getByRole('button',{name:'Hide streams',exact:true}).click();
+ results.push('During a race All streams shows every miner\'s attempts; a share change applies in the race; the drawer shows its live attempts');
  // Pause terminates the worker; nothing is committed after it.
  const atPause = await wb.tiles().count();
  await page.getByRole('button',{name:'Pause',exact:true}).press('Enter');
@@ -547,7 +565,7 @@ try {
  await page.getByRole('button',{name:/^Open Newminer4, balance 0\.00000000/}).waitFor();
  assert.equal(await page.locator('.next-block-lane[data-miner]').count(), 4);
  await wb.minerButton('Newminer4').click();
- assert.equal(await wb.minerEditor('Newminer4').locator('output.next-block-editor-share').innerText(), '25 %', 'Four equal miners: one quarter each');
+ assert.equal(await wb.minerEditor('Newminer4').locator('output.miner-share-value').innerText(), '25 %', 'A new miner joins with an equal share');
  await wb.minerEditor('Newminer4').getByRole('button',{name:'Done',exact:true}).click();
  await wb.minerEditor('Newminer4').waitFor({state:'detached'});
  await menu(page, 'Reset');

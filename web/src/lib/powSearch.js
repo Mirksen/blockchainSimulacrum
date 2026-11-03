@@ -9,7 +9,38 @@ import { MAX_NONCE } from './blockHeader.js';
 // state once (the midstate) and each attempt only hashes the short tail.
 
 const RECENT_LIMIT = 20;
+// With `detail`, each entrant keeps its newest STREAM_LIMIT attempts and counts its attempts
+// by leading zeros, the last bucket holding COUNT_ZEROS or more.
+export const STREAM_LIMIT = 32;
+export const COUNT_ZEROS = 8;
+// Slow motion: one attempt every SLOW_MS milliseconds, entrants drawn by weight.
+export const SLOW_MS = 250;
 const nextTick = () => new Promise(resolve => setTimeout(resolve, 0));
+const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+const checkWeight = weight => {
+  if (!Number.isSafeInteger(weight) || weight < 1) throw new RangeError('Weight must be a positive whole number.');
+  return weight;
+};
+
+// Live settings of a running search: `weights` (id -> nonces per turn) override the entrants'
+// weights from the next turn on, `slow` switches slow motion. A worker search receives every
+// update as a message, an inline search reads the fields directly.
+export function createSearchControl({ weights = {}, slow = false } = {}) {
+  const listeners = new Set();
+  const control = {
+    weights: {}, slow: Boolean(slow),
+    update(change = {}) {
+      for (const [id, weight] of Object.entries(change.weights ?? {})) control.weights[id] = checkWeight(weight);
+      if (change.slow !== undefined) control.slow = Boolean(change.slow);
+      for (const listener of listeners) listener(control);
+    },
+    subscribe(listener) { listeners.add(listener); return () => listeners.delete(listener); }
+  };
+  for (const [id, weight] of Object.entries(weights)) control.weights[id] = checkWeight(weight);
+  return control;
+}
+const controlData = control => ({ weights: { ...control.weights }, slow: control.slow });
 
 // Returns nonce => hex digest, equal to SHA256(prefix + nonce + suffix).
 export function createHasher(prefix, suffix = '') {
@@ -72,9 +103,21 @@ const leadingZeros = hash => {
   return count;
 };
 
+// The entrant's newest attempts, oldest first.
+function streamOf(state) {
+  const size = Math.min(state.attempts, STREAM_LIMIT);
+  const stream = [];
+  for (let i = size; i > 0; i--) {
+    const at = (state.ringAt - i + STREAM_LIMIT) % STREAM_LIMIT;
+    stream.push({ nonce: state.ringNonce[at], hash: state.ringHash[at], zeros: state.ringZeros[at] });
+  }
+  return stream;
+}
+
 function snapshot(states, includePeaks = false) {
   return Object.fromEntries(states.map(state => [state.id,
-    { nonce: state.lastNonce, hash: state.hash, attempts: state.attempts, zeros: leadingZeros(state.hash), ...(includePeaks ? { peakZeros: state.peakZeros } : {}) }]));
+    { nonce: state.lastNonce, hash: state.hash, attempts: state.attempts, zeros: leadingZeros(state.hash), ...(includePeaks ? { peakZeros: state.peakZeros } : {}),
+      ...(state.counts ? { stream: streamOf(state), best: state.best, zeroCounts: [...state.counts] } : {}) }]));
 }
 
 // The existing simulator keeps its consecutive round-robin schedule. The fork lab
@@ -93,23 +136,29 @@ function allocationRandom(seed) {
 }
 
 export async function search({ entrants, target, bits, limit = Infinity, signal, onProgress = () => {},
-  batch = 100, yieldControl = nextTick, scheduling = 'round-robin', seed = 0 }) {
+  batch = 100, yieldControl = nextTick, scheduling = 'round-robin', seed = 0, control = null, detail = false, slowMs = SLOW_MS }) {
   if (!Array.isArray(entrants) || !entrants.length) throw new RangeError('A search needs at least one entrant.');
   const matches = matcher(target, bits);
   if (!['round-robin', 'weighted-random'].includes(scheduling)) throw new RangeError('Unknown search scheduling.');
   const random = scheduling === 'weighted-random' ? allocationRandom(seed) : null;
+  // Slow motion draws by weight too, so a short look shows every entrant, not one long turn.
+  // `>>> 0` keeps the derived seed unsigned for every 32-bit seed.
+  const slowRandom = allocationRandom((seed ^ 0x5f3759df) >>> 0);
+  const weightOf = state => control?.weights?.[state.id] ?? state.weight;
   const states = entrants.map(({ id, weight = 1, header, prefix, suffix = '', startNonce = 0 }) => {
     const maxNonce = header === undefined ? Number.MAX_SAFE_INTEGER : MAX_NONCE;
-    if (!Number.isSafeInteger(weight) || weight < 1) throw new RangeError('Weight must be a positive whole number.');
+    checkWeight(weight);
     if (!Number.isSafeInteger(startNonce) || startNonce < 0 || startNonce > maxNonce) throw new RangeError('Start nonce is out of range.');
     return { id, weight, hasher: header === undefined ? createHasher(String(prefix), String(suffix)) : createHeaderHasher(header),
-      maxNonce, nonce: startNonce, lastNonce: null, hash: '', attempts: 0, peakZeros: 0, done: false };
+      maxNonce, nonce: startNonce, lastNonce: null, hash: '', attempts: 0, peakZeros: 0, done: false,
+      ...(detail ? { counts: new Array(COUNT_ZEROS + 1).fill(0), best: null, ringAt: 0,
+        ringNonce: new Array(STREAM_LIMIT), ringHash: new Array(STREAM_LIMIT), ringZeros: new Uint8Array(STREAM_LIMIT) } : {}) };
   });
   let attempts = 0;
   let recent = [];
   let active = states.length;
   let cursor = 0;
-  let remaining = states[0].weight;
+  let remaining = weightOf(states[0]);
   const finish = (status, winner = null) => ({ status, winner: winner?.id ?? null,
     nonce: winner ? winner.lastNonce : null, hash: winner ? winner.hash : null, attempts, entrants: snapshot(states) });
 
@@ -118,25 +167,36 @@ export async function search({ entrants, target, bits, limit = Infinity, signal,
     if (signal?.aborted) return finish('stopped');
     if (attempts >= limit) return finish('exhausted');
     let state;
-    if (random) {
+    const slow = Boolean(control?.slow);
+    if (random || slow) {
       const eligible = states.filter(entrant => !entrant.done);
-      let draw = random() * eligible.reduce((sum, entrant) => sum + entrant.weight, 0);
+      let draw = (slow ? slowRandom : random)() * eligible.reduce((sum, entrant) => sum + weightOf(entrant), 0);
       state = eligible.at(-1);
       for (const entrant of eligible) {
-        draw -= entrant.weight;
+        draw -= weightOf(entrant);
         if (draw < 0) { state = entrant; break; }
       }
     } else {
-      while (states[cursor].done || remaining === 0) {
+      while (states[cursor].done || remaining <= 0) {
         cursor = (cursor + 1) % states.length;
-        remaining = states[cursor].weight;
+        remaining = weightOf(states[cursor]);
       }
       state = states[cursor];
       remaining--;
     }
     const nonce = state.nonce;
     state.hash = state.hasher(nonce);
-    state.peakZeros = Math.max(state.peakZeros, leadingZeros(state.hash));
+    const zeros = leadingZeros(state.hash);
+    state.peakZeros = Math.max(state.peakZeros, zeros);
+    if (state.counts) {
+      state.counts[Math.min(zeros, COUNT_ZEROS)]++;
+      // The smallest hash, the one that would rank on the leaderboard.
+      if (!state.best || state.hash < state.best.hash) state.best = { nonce, hash: state.hash, zeros };
+      state.ringNonce[state.ringAt] = nonce;
+      state.ringHash[state.ringAt] = state.hash;
+      state.ringZeros[state.ringAt] = zeros;
+      state.ringAt = (state.ringAt + 1) % STREAM_LIMIT;
+    }
     state.lastNonce = nonce;
     state.attempts++;
     attempts++;
@@ -144,7 +204,14 @@ export async function search({ entrants, target, bits, limit = Infinity, signal,
     if (recent.length > RECENT_LIMIT) recent.shift();
     if (matches(state.hash)) return finish('found', state);
     if (nonce === state.maxNonce) { state.done = true; active--; } else state.nonce = nonce + 1;
-    if (attempts % batch === 0) {
+    if (slow) {
+      // Every attempt is shown; a delivered event clears the peaks like a batch does.
+      if (onProgress({ attempts, entrants: snapshot(states, true), recent }) !== false) {
+        for (const entrant of states) entrant.peakZeros = 0;
+      }
+      recent = [];
+      await sleep(slowMs);
+    } else if (attempts % batch === 0) {
       // A throttled adapter returns false so a rare peak survives until the
       // next delivered progress event rather than vanishing between frames.
       if (onProgress({ attempts, entrants: snapshot(states, true), recent }) !== false) {
@@ -164,10 +231,13 @@ function searchInWorker({ signal, onProgress = () => {}, ...options }) {
     const worker = new Worker(new URL('./powSearch.worker.js', import.meta.url), { type: 'module' });
     let settled = false;
     let latest = { attempts: 0, entrants: {} };
+    const control = options.control;
+    const unsubscribe = control?.subscribe(current => worker.postMessage({ type: 'control', control: controlData(current) }));
     const settle = (callback, value) => {
       if (settled) return;
       settled = true;
       signal?.removeEventListener('abort', stop);
+      unsubscribe?.();
       worker.terminate();
       callback(value);
     };
@@ -185,8 +255,9 @@ function searchInWorker({ signal, onProgress = () => {}, ...options }) {
     worker.onerror = event => { event.preventDefault?.(); settle(reject, new Error(event.message || 'Search worker failed.')); };
     if (signal?.aborted) return stop();
     signal?.addEventListener('abort', stop, { once: true });
-    const { entrants, target, bits, limit, batch, scheduling, seed } = options;
-    worker.postMessage({ entrants, target, bits, limit, batch, ...(scheduling === undefined ? {} : { scheduling, seed }) });
+    const { entrants, target, bits, limit, batch, scheduling, seed, detail } = options;
+    worker.postMessage({ entrants, target, bits, limit, batch, ...(scheduling === undefined ? {} : { scheduling, seed }),
+      ...(detail ? { detail } : {}), ...(control ? { control: controlData(control) } : {}) });
   });
 }
 

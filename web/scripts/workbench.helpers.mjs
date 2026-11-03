@@ -19,9 +19,12 @@ export function workbench(page) {
     chainPill: () => page.locator('button.chain-band-health-sum:visible'),
     // The sideways-scrolling row of the chain band.
     chainScroll: () => page.locator('.chain-band-scroll'),
-    // Between races a miner's name opens its editor.
-    minerButton: name => page.getByRole('button', { name: `${name}: rename or change hashpower`, exact: true }),
-    minerEditor: name => page.getByRole('group', { name: `Edit miner ${name}`, exact: true })
+    // Between races a miner's name opens its popover with share, attempts and name; during a race
+    // the same popover without the name.
+    minerButton: name => page.getByRole('button', { name: `${name}: hashpower, attempts and name`, exact: true }),
+    liveMinerButton: name => page.getByRole('button', { name: `${name}: hashpower and attempts`, exact: true }),
+    minerEditor: name => page.getByRole('group', { name: `Miner ${name}`, exact: true }),
+    minerDrawer: name => page.getByRole('complementary', { name, exact: true })
   };
 }
 
