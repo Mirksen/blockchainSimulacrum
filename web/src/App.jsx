@@ -149,14 +149,19 @@ function App() {
   // Keep it visible for this visit until dismissed, opened or navigated away from.
   useEffect(() => { if (showIntro) writeFlag(INTRO_KEY, true); }, [showIntro]);
   useEffect(() => {
-    const onHash = () => { setView(viewFromHash()); setProfile(profileFromHash()); };
+    const onHash = () => {
+      const next = viewFromHash();
+      if (next !== 'workbench') setSlowMotion?.(false);
+      setView(next);
+      setProfile(profileFromHash());
+    };
     globalThis.addEventListener('hashchange', onHash);
     globalThis.addEventListener('popstate', onHash);
     return () => {
       globalThis.removeEventListener('hashchange', onHash);
       globalThis.removeEventListener('popstate', onHash);
     };
-  }, []);
+  }, [setSlowMotion]);
   useEffect(() => { missions.save(browserStorage(), progress); }, [progress]);
   useEffect(() => {
     if (!winner) return;
@@ -168,11 +173,13 @@ function App() {
   const navigate = useCallback(next => {
     writeFlag(INTRO_KEY, true);
     setIntroSeen(true);
+    // Slow motion belongs to the miner drawer, which only the workbench shows.
+    if (next !== 'workbench') setSlowMotion?.(false);
     const hash = next === 'workbench' ? '#/' : `#/${next}`;
     if (globalThis.location.hash !== hash) globalThis.history.pushState(null, '', hash);
     setView(next);
     setProfile(null);
-  }, []);
+  }, [setSlowMotion]);
   const openProfile = useCallback(name => {
     const hash = minerProfileHash(name);
     if (globalThis.location.hash !== hash) globalThis.history.pushState(null, '', hash);
@@ -387,6 +394,11 @@ function App() {
   // A repair shows its block only while the chain is invalid; a click on a tile outranks it.
   const shownIndex = !chainValid && repairIndex !== null ? repairIndex : selectedIndex;
   const wallet = walletDetails && participants.find(p => p.name === walletDetails);
+  // Slow motion is a look at one miner: closing the drawer or opening another miner ends it.
+  const openMiner = name => {
+    if (name !== minerDetails) setSlowMotion?.(false);
+    setMinerDetails(name);
+  };
   const racingMiners = participants.filter(p => p.isMiner && p.minerEnabled)
     .map(p => ({ name: p.name, hashpower: p.hashpower, colorKey: p.colorKey, color: colorOf(p.colorKey) ?? undefined }));
   const shareOfMiner = miner => Math.round(miner.hashpower / racingMiners.reduce((sum, m) => sum + m.hashpower, 0) * 100);
@@ -419,7 +431,7 @@ function App() {
             identity={identity} boardRows={boardRows}
             onStartDemo={startDemo} onMine={startMining} onPause={pause} onRemine={handleRemine} onTamper={onTamper} onUndo={onUndo}
             onDifficulty={onDifficulty} onBack={onBack} onCreateTransaction={onCreateTransaction} onCreateWallet={createWallet} onCreateMiner={createMiner}
-            onRenameMiner={onRenameMiner} onShare={setMinerShare} onOpenMiner={setMinerDetails}
+            onRenameMiner={onRenameMiner} onShare={setMinerShare} onOpenMiner={openMiner} onSlowMotion={setSlowMotion}
             onOpenWallet={setWalletDetails} onOpenDetails={setDetails} onOpenTransaction={setPendingTx} onOpenBlockTx={(transaction, blockIndex) => setBlockTx({ transaction, blockIndex })} onOpenChainLab={() => navigate('chain-lab')} error={error} />}
           {view === 'hash-lab' && <div className="wb-view">
             <HashLab key={hashLesson ?? 'free'} lesson={hashLesson} onLessonEvent={hashLesson ? report : undefined}
@@ -453,11 +465,11 @@ function App() {
         balance={balances.find(b => b.name === wallet.name)} blocks={blocks} describeTx={describeTx} onClose={() => setWalletDetails(null)}
         toggleMiner={toggleMiner} isMining={busy} coinName={coinName}
         share={wallet.isMiner && wallet.minerEnabled ? shareOfMiner(wallet) : null}
-        onOpenMiner={name => { setWalletDetails(null); setMinerDetails(name); }} />}
+        onOpenMiner={name => { setWalletDetails(null); openMiner(name); }} />}
       {view === 'workbench' && drawerMiner && <MinerDrawer key={drawerMiner.publicKey} miner={drawerMiner} miners={racingMiners}
         progress={minerProgress[drawerMiner.name]} difficulty={difficulty} isMining={busy} winner={raceWinner} luck={minerLuck}
-        slowMotion={slowMotion} onSlowMotion={setSlowMotion} onShare={setMinerShare} onClose={() => setMinerDetails(null)}
-        onOpenForkLab={() => { setMinerDetails(null); setChainExperiment('fork'); navigate('chain-lab'); }} />}
+        slowMotion={slowMotion} onSlowMotion={setSlowMotion} onShare={setMinerShare} onClose={() => openMiner(null)}
+        onOpenForkLab={() => { openMiner(null); setChainExperiment('fork'); navigate('chain-lab'); }} />}
     </div>
   );
 }

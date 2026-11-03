@@ -111,7 +111,7 @@ Terms used in code, tests and docs of proofofwork.fyi. Decisions that shape them
 - **Search control** — `createSearchControl()`: live settings of a running search, `weights` by
   entrant id (from the next turn on) and `slow` (**slow motion**: one attempt every `SLOW_MS`,
   entrants drawn by weight, every attempt reported). A worker search receives each update as a
-  message.
+  message. The simulator ends slow motion with the race it was switched on for.
 - **Search detail** — with `detail`, each entrant's snapshot also carries its **stream** (the newest
   `STREAM_LIMIT` attempts), its **best** attempt (the smallest hash) and `zeroCounts` (attempts by
   leading zeros, the last bucket holding `COUNT_ZEROS` or more). The miner race uses it.

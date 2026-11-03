@@ -9,6 +9,7 @@ import './NextBlockCard.css';
 import { issueText } from './blockView';
 import { colorOf } from './minerColors';
 import { MinerPopover, StreamWall } from './MinerDetails';
+import { SLOW_MS } from '../../lib/powSearch';
 import { hint, term } from '../../lib/hints';
 
 // Next block card (web/DESIGN.md, "Card grid" and "Interaction patterns").
@@ -131,7 +132,8 @@ function zeroStatus(zeros, difficulty, isWinner) {
 export function NextBlockCard({
   mode = 'idle', index, txCount = 0, reward, difficulty = 2, onDifficulty, autoMine = false, onAutoMine, repeating = false,
   onStartDemo, onMine, onPause, onRemine, repair = null, miners = [], race = null, lastRound = null,
-  backedMiner = null, onBack, coach = null, signature = null, onCreateMiner, minersFull = false, onRenameMiner, onShare, onOpenMiner, perMiner = {}
+  backedMiner = null, onBack, coach = null, signature = null, onCreateMiner, minersFull = false, onRenameMiner, onShare, onOpenMiner, perMiner = {},
+  slowMotion = false, onSlowMotion
 }) {
   const isMining = mode === 'mining';
   const isRepair = mode === 'repair';
@@ -145,7 +147,12 @@ export function NextBlockCard({
   const meta = isFresh ? '· Genesis only'
     : `· ${txCount} tx${isMining ? '' : ' waiting'}${reward != null ? ` · reward ${formatAmount(reward)}` : ''}`;
   let headStatus = null;
-  if (isMining) headStatus = <span className="card-kit-pill is-live"><i aria-hidden="true" />Mining block #{index}…</span>;
+  if (isMining) headStatus = slowMotion ? (
+    <span className="next-block-slow" role="status">
+      <span className="card-kit-pill is-pending"><i aria-hidden="true" />Slow motion · {Math.round(1000 / SLOW_MS)} tries/s</span>
+      {onSlowMotion && <button type="button" className="card-kit-btn is-sm" {...hint('next.normal-speed')} onClick={() => onSlowMotion(false)}>Normal speed</button>}
+    </span>
+  ) : <span className="card-kit-pill is-live"><i aria-hidden="true" />Mining block #{index}…</span>;
   if (isPaused) headStatus = <span className="card-kit-pill is-none"><PauseIcon />Paused</span>;
   const headAside = isRepair
     ? <span className="next-block-paused" role="status"><PauseIcon />Paused while the chain is invalid</span>

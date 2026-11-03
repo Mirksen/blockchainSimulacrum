@@ -347,7 +347,12 @@ decision, 2026-10-27):
   that meet the target green and the first character that does not red, zero count; newest first;
   the honest note that the list shows the newest of each update), **Freeze** to read them and
   **Slow motion** (one attempt every quarter second for the whole race, drawn by weight, each
-  explained step by step); the **best hash** of the round (the smallest); a **histogram** of the
+  explained step by step, with what a block takes at that pace). Slow motion is one look at one
+  race (Mirko, 2026-11-03): it ends when the block is found or the race is paused, when the drawer
+  closes or shows another miner, and when the learner leaves the workbench, so Auto-mine's next
+  block runs at full speed. While it is on, the Next block header says "Slow motion · 4 tries/s"
+  with "Normal speed" instead of "Mining block #N…", and the candidate tile says "slow motion";
+  the **best hash** of the round (the smallest); a **histogram** of the
   round's attempts by leading zeros against what chance predicts (each zero 16 times rarer);
   **luck** (blocks won against the summed share, only after five races this session); and
   **what it hashes**: the header fields with the nonce ticking. Above 50 % a hint says the miner

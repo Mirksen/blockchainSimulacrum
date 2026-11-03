@@ -125,6 +125,21 @@ describe('simulation lifecycle', () => {
     act(() => result.current.cancelMining());
     await act(async () => { await vi.runAllTimersAsync(); await pending; });
   });
+  it('ends slow motion with the race it was switched on for: found or paused', async () => {
+    const { result } = renderHook(() => useBlockchain(config));
+    act(() => result.current.setSlowMotion(true));
+    expect(result.current.slowMotion).toBe(true);
+    await mine(result);
+    expect(result.current.slowMotion).toBe(false);
+    forceHash('f'.repeat(64));
+    let pending;
+    act(() => { pending = result.current.mineBlock(); result.current.setSlowMotion(true); });
+    await act(async () => { await vi.advanceTimersToNextTimerAsync(); });
+    expect(result.current.slowMotion).toBe(true);
+    act(() => result.current.cancelMining());
+    await act(async () => { await vi.runAllTimersAsync(); await pending; });
+    expect(result.current.slowMotion).toBe(false);
+  });
   it('counts each miner\'s blocks against its share over the races of this session', async () => {
     const { result } = renderHook(() => useBlockchain({ ...config, participants: ['Miner One', 'Miner Two', 'Wallet Two'], miners: ['Miner One', 'Miner Two'] }));
     act(() => { result.current.setMinerShare('Miner Two', 25); });

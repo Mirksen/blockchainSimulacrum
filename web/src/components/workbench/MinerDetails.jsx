@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { headerFields, le } from '../../../../shared/bitcoin-block.mjs';
 import { MAX_SHARE, MIN_SHARE } from '../../lib/blockchain';
-import { COUNT_ZEROS } from '../../lib/powSearch';
+import { COUNT_ZEROS, SLOW_MS } from '../../lib/powSearch';
 import { hint } from '../../lib/hints';
 import { duration, expectedAttempts, minerColor, rateOf, shareOf } from './minerDetailsModel';
 import './cardKit.css';
@@ -212,12 +212,13 @@ export function MinerDrawer({ miner, miners, progress, difficulty, isMining, win
             <span className="miner-tools">
               <button type="button" className="card-kit-btn is-sm" aria-pressed={Boolean(frozen)} onClick={() => setFrozen(f => (f ? null : stream))}>{frozen ? 'Resume' : 'Freeze'}</button>
               <button type="button" className="card-kit-btn is-sm" aria-pressed={slowMotion} onClick={() => onSlowMotion?.(!slowMotion)}
-                title="One attempt every quarter second, for the whole race">Slow motion</button>
+                title="One attempt every quarter second for the whole race, until this view closes or the block is found">Slow motion</button>
             </span>
           </div>
           <p className="miner-note">A block needs a hash that starts with <b className="miner-hash-hit">{'0'.repeat(difficulty)}</b>. Green: zeros that meet the target; red: the first character that does not.</p>
           <AttemptStream miner={miner} stream={frozen ?? stream} difficulty={difficulty} rows={20} winnerNonce={winnerNonce} />
-          <p className="miner-note">{slowMotion ? 'Slow motion: every attempt, one at a time.'
+          <p className="miner-note">{slowMotion
+            ? `Slow motion: every attempt, one at a time. At ${Math.round(1000 / SLOW_MS)} tries per second a block takes about ${duration(attempts / (1000 / SLOW_MS))}. It speeds up again when you close this view or the block is found.`
             : rate ? `About ${count(rate)} attempts per second; the list shows the newest ${stream.length} of each update.` : 'The newest attempts appear here while it mines.'}</p>
           {slowMotion && isMining && <SlowStep attempt={stream.at(-1)} difficulty={difficulty} />}
         </section>
