@@ -13,7 +13,7 @@ npm --prefix web ci
 npm --prefix web run dev
 ```
 
-Choose **Start demo** to mine the initial coins and distribute them. Create a transfer in **New Transaction**, then choose **Mine Next Block**. **Auto-mine** repeats the experiment; **Stop mining** cancels the active attempt. **Reset** creates fresh wallets and a new genesis block while retaining experiment settings.
+Choose **Start demo** to mine the initial coins and distribute them. Create a transfer in **New Transaction**, then choose **Mine Next Block**. Block space is limited like Bitcoin's, scaled down: a block holds at most 1,600 bytes, about five transfers besides its header and coinbase. Each transfer pays a fee rate you choose (1, 5 or 20 satoshis per byte); miners take the highest fee per byte first, a transfer only after the pending one it spends from, and the rest waits for a later block. The Mempool card shows the next block's room and why each waiting transfer waits. **Auto-mine** repeats the experiment; **Stop mining** cancels the active attempt. **Reset** creates fresh wallets and a new genesis block while retaining experiment settings.
 
 Open **Experiment settings** to change difficulty, the coin's display name, target block time or the halving interval. Changes affect future blocks. Difficulty adapts every ten mined blocks. You choose difficulty in leading hexadecimal zeros, so each additional zero makes a successful hash about sixteen times less likely; every block stores it as Bitcoin's compact `bits`.
 

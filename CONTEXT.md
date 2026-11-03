@@ -32,6 +32,20 @@ Terms used in code, tests and docs of proofofwork.fyi. Decisions that shape them
 - **Change** — the output that returns what a payment did not use to the sender.
 - **Fee** — what a transaction's inputs leave over after its outputs; never stored, collected by the
   miner in the coinbase.
+- **Fee rate** — a fee per byte of the transaction, in satoshis per byte (sat/B). A sender picks
+  1, 5 or 20 sat/B (`FEE_RATES`); `chain.planAtRate` prices the transfer from its estimated size
+  (the longest signature, so the real rate is never lower).
+- **Block space** — the room in a block: at most `MAX_BLOCK_BYTES` (1,600), of which
+  `BLOCK_RESERVED_BYTES` (300) stay free for the header, the transaction count and the coinbase;
+  payments share the rest (`BLOCK_SPACE`, 1,300 bytes, about five transfers). Scaled down from
+  Bitcoin's so a few transfers already compete.
+- **Block template** — `chain.blockTemplate()`: the pending transactions the next block takes, as a
+  miner chooses them, like Bitcoin Core: a transaction only together with the pending ones it spends
+  from (its **package**), the package with the highest fee per byte first, only while it fits. A
+  child with a high fee so pulls its cheap parent along (**child pays for parent**). Every other
+  entry **waits** with a reason: `full`, `parent` (its parent has no room) or `invalid` (an edit of
+  history orphaned it). `prepareCandidate` builds the block from it, so the coinbase claims only the
+  fees of the included transactions.
 - **Coinbase** — transaction 0 of a block. It spends nothing and may claim at most the block's
   **subsidy** plus its fees. The genesis coinbase cannot be spent.
 - **Memo** — a reference, stored as an OP_RETURN output of 0 value.

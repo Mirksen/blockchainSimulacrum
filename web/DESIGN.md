@@ -269,8 +269,15 @@ decision, 2026-10-27):
   wallets plus one the learner creates; more wallets scroll inside the card and
   "Create wallet" stays in its header. Role, blocks won and hash rate appear
   where the card is wider; blocks won and hashpower are in the wallet details.
-- **Mempool:** pending transactions with their coins, change and fee, one line
-  each where the card is narrow, and the coinbase line "added when #N is mined" with reward plus fees. A row opens its
+- **Mempool:** pending transactions with their coins, change, fee, size and fee rate, one line
+  each where the card is narrow, in the order the next block's miner takes them, and the coinbase
+  line "added when #N is mined" with reward plus the fees of what fits. Under the header a quiet
+  **block space** line shows the next block's room for payments as a meter ("Block space #7 ·
+  1,262 B of 1,300 B · 3 wait"); the header says "5 of 8 fit into #7" instead of "goes into #7"
+  when not all fit. A transfer without room steps back (secondary text) and names why with an amber
+  dot: "waits · block full" or "waits for its parent"; one orphaned by an edit says so in red. While
+  mining, only the rows that fit read "being mined into #N". The form offers a **Fee rate** (1 sat/B
+  low, 5 normal as default, 20 high) and its preview names the size and rate. A row opens its
   transaction details; **"New transaction" sits in the card header** as a tinted button
   with the same glow as Mine block, with the Auto-transact Repeat toggle joined to its right.
 - **Activity** (only on tall screens): recent confirmed transactions and
