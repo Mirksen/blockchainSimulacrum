@@ -28,6 +28,9 @@
   border: 1px solid var(--line); background: transparent; color: var(--text-2); cursor: pointer;
 }
 .top-bar-more:hover, .top-bar-more[aria-expanded="true"] { background: var(--panel-2); color: var(--text); }
+/* Explain mode exists for screens without hover (web/DESIGN.md, "Hints"). */
+.top-bar-explain[aria-pressed="true"] { background: var(--panel-2); color: var(--text); border-color: var(--focus); }
+@media (hover: hover) and (pointer: fine) { .top-bar-explain:not([aria-pressed="true"]) { display: none; } }
 
 .top-bar a:focus-visible, .top-bar button:focus-visible, .top-bar summary:focus-visible, .top-bar input:focus-visible {
   outline: 2px solid var(--focus); outline-offset: 2px;

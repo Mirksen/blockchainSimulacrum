@@ -1,11 +1,18 @@
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
+import { setHelpMode, useHelpMode } from '../lib/hints/helpMode';
 import './HintLayer.css';
 
 // One explaining bubble for the whole app (web/DESIGN.md, "Hints"). Any element with a
 // `data-hint` (and optionally `data-hint-title`) gets it on mouse hover and on keyboard
 // focus; the texts live in src/lib/hints/ and reach the elements through `hint(key)`.
-// Touch taps never open it, so a tap stays a plain click. Escape, a click, scrolling and
-// resizing close it. While it shows, the element is described by it for screen readers.
+// Touch has no hover, so there a tap on a control stays a plain click. Instead:
+// - a tap on a term (`term()`, dotted underline) that is not itself a control opens its
+//   bubble, and a second tap closes it;
+// - in explain mode (the "?" in the top bar, lib/hints/helpMode.js) a transparent layer
+//   catches every tap and shows the hint of whatever lies under the finger, so nothing
+//   acts until the learner taps Done.
+// Escape, a click, scrolling and resizing close the bubble. While it shows, the element is
+// described by it for screen readers.
 //
 // The bubble sits in the top layer (popover="manual") where the browser supports it, so it
 // also shows above open modal dialogs.
@@ -17,6 +24,18 @@ const GAP = 10;
 const EDGE = 8;
 
 const targetOf = node => (node instanceof Element ? node.closest('[data-hint]') : null);
+// A tap on these acts, so a term inside one does not open on touch.
+const ACTIVE = 'a[href], button, input, select, textarea, summary, label, [role="button"], [role="link"], [tabindex]:not([tabindex="-1"])';
+function tappableTerm(node) {
+  const term = node instanceof Element ? node.closest('[data-hint-term]') : null;
+  return term && !node.closest(ACTIVE) ? term : null;
+}
+// The element under a tap in explain mode, below the catching layer and the banner.
+function hintUnder(x, y) {
+  const stack = typeof document.elementsFromPoint === 'function' ? document.elementsFromPoint(x, y) : [];
+  const node = stack.find(element => !element.closest('[data-hint-help-ui]'));
+  return node ? targetOf(node) : null;
+}
 const supportsPopover = () => typeof HTMLElement !== 'undefined' && typeof HTMLElement.prototype.showPopover === 'function';
 function focusVisible(node) {
   try { return node.matches(':focus-visible'); } catch { return true; }
@@ -35,7 +54,8 @@ export function HintLayer() {
   const id = `hint-${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`;
   const [shown, setShown] = useState(null);
   const bubbleRef = useRef(null);
-  const state = useRef({ target: null, timer: null, warmUntil: 0, suppressed: null });
+  const state = useRef({ target: null, timer: null, warmUntil: 0, suppressed: null, downShown: null, touchTerm: null });
+  const explaining = useHelpMode();
 
   const hide = useCallback(() => {
     const s = state.current;
@@ -92,15 +112,28 @@ export function HintLayer() {
     const onPointerDown = event => {
       const target = targetOf(event.target);
       if (target) s.suppressed = target;
+      // What showed before this tap, so a second tap on the same thing closes it.
+      s.downShown = s.target;
+      s.touchTerm = event.pointerType === 'touch' ? tappableTerm(event.target) : null;
       if (s.target || s.timer) hide();
     };
-    const onKeyDown = event => { if (event.key === 'Escape' && (s.target || s.timer)) hide(); };
+    const onClick = event => {
+      const term = s.touchTerm;
+      s.touchTerm = null;
+      if (term && term.contains(event.target) && term !== s.downShown) show(term);
+    };
+    const onKeyDown = event => {
+      if (event.key !== 'Escape') return;
+      if (s.target || s.timer) hide();
+      else setHelpMode(false);
+    };
     const onMove = () => { if (s.target || s.timer) hide(); };
     document.addEventListener('pointerover', onPointerOver);
     document.addEventListener('pointerout', onPointerOut);
     document.addEventListener('focusin', onFocusIn);
     document.addEventListener('focusout', onFocusOut);
     document.addEventListener('pointerdown', onPointerDown, true);
+    document.addEventListener('click', onClick);
     document.addEventListener('keydown', onKeyDown, true);
     window.addEventListener('scroll', onMove, true);
     window.addEventListener('resize', onMove);
@@ -111,6 +144,7 @@ export function HintLayer() {
       document.removeEventListener('focusin', onFocusIn);
       document.removeEventListener('focusout', onFocusOut);
       document.removeEventListener('pointerdown', onPointerDown, true);
+      document.removeEventListener('click', onClick);
       document.removeEventListener('keydown', onKeyDown, true);
       window.removeEventListener('scroll', onMove, true);
       window.removeEventListener('resize', onMove);
@@ -146,12 +180,31 @@ export function HintLayer() {
     bubble.dataset.side = below ? 'below' : 'above';
   }, [shown]);
 
-  if (!shown) return null;
+  // Every way out of explain mode starts with a tap (which closes the bubble) or Escape.
+  const onExplainTap = event => {
+    const target = hintUnder(event.clientX, event.clientY);
+    if (target?.hasAttribute('data-hint-help-toggle')) setHelpMode(false);
+    else if (target && target !== state.current.downShown) show(target);
+  };
+
   return (
-    <div ref={bubbleRef} id={id} className="hint-layer" role="tooltip" popover={supportsPopover() ? 'manual' : undefined}>
-      {shown.title && <b className="hint-layer-title">{shown.title}</b>}
-      <span className="hint-layer-text">{shown.text}</span>
-    </div>
+    <>
+      {explaining && (
+        <>
+          <div className="hint-help-catch" data-hint-help-ui="" aria-hidden="true" onClick={onExplainTap} />
+          <div className="hint-help-banner" data-hint-help-ui="" role="status">
+            <span><b>Explain mode.</b> Tap anything to see what it means.</span>
+            <button type="button" className="btn btn-emphasized" onClick={() => setHelpMode(false)}>Done</button>
+          </div>
+        </>
+      )}
+      {shown && (
+        <div ref={bubbleRef} id={id} className="hint-layer" role="tooltip" popover={supportsPopover() ? 'manual' : undefined}>
+          {shown.title && <b className="hint-layer-title">{shown.title}</b>}
+          <span className="hint-layer-text">{shown.text}</span>
+        </div>
+      )}
+    </>
   );
 }
 

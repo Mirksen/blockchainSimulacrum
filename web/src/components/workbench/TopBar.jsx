@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { AnalyticsControl } from '../AnalyticsControl';
 import { hint } from '../../lib/hints';
+import { setHelpMode, useHelpMode } from '../../lib/hints/helpMode';
 import './TopBar.css';
 
 // Top bar of the rebuilt shell (web/DESIGN.md, "Information architecture"):
@@ -31,6 +32,7 @@ const SAVE_NOTES = {
   unavailable: 'This browser does not keep the chain'
 };
 const Icon = {
+  explain: <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.3" stroke="currentColor" strokeWidth="1.4" fill="none" /><path d="M6.2 6.3a1.9 1.9 0 1 1 2.6 1.8c-.5.2-.8.6-.8 1.1v.4" stroke="currentColor" strokeWidth="1.4" fill="none" strokeLinecap="round" /><circle cx="8" cy="11.4" r=".9" fill="currentColor" /></svg>,
   more: <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><circle cx="3.5" cy="8" r="1.4" fill="currentColor" /><circle cx="8" cy="8" r="1.4" fill="currentColor" /><circle cx="12.5" cy="8" r="1.4" fill="currentColor" /></svg>,
   menu: <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 4h11M2.5 8h11M2.5 12h11" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg>,
   reset: <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8a5 5 0 1 0 1.5-3.6M3 2.5v2.5h2.5" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" /></svg>,
@@ -66,6 +68,7 @@ export function TopBar({
   theme = 'dark', onTheme, muted = false, onMuted, onReset, onOpenSettings, compact = false,
 }) {
   const [open, setOpen] = useState(false);
+  const explaining = useHelpMode();
   const rootRef = useRef(null);
   const buttonRef = useRef(null);
   const menuRef = useRef(null);
@@ -121,6 +124,12 @@ export function TopBar({
         </nav>
       )}
       <div className="top-bar-end" ref={rootRef} onKeyDown={onKeyDown} onBlur={onBlur}>
+        {/* Shown on touch screens only (TopBar.css): there a hint cannot open on hover. */}
+        <button type="button" className="top-bar-more top-bar-explain" data-hint-help-toggle=""
+          aria-label="Explain mode" aria-pressed={explaining} {...hint('menu.explain', explaining)}
+          onClick={() => setHelpMode(!explaining)}>
+          {Icon.explain}
+        </button>
         <button ref={buttonRef} type="button" className="top-bar-more"
           aria-label={compact ? 'Menu' : 'More'} {...hint('menu.more')}
           aria-expanded={open} aria-controls={open ? menuId : undefined}

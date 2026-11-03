@@ -77,8 +77,13 @@ for fun: nothing is at stake", not "Back this miner".
   `term()` adds a quiet dotted underline, so a learner sees what explains
   itself. An unknown key throws.
 - One bubble (`HintLayer`, mounted once in `App.jsx`) shows them, in the top
-  layer above dialogs. A touch tap never opens it; Escape, a click and
-  scrolling close it.
+  layer above dialogs. Escape, a click and scrolling close it.
+- Touch screens have no hover (Mirko, 2026-11-03), so a tap on a control
+  stays a plain click. A tap on a term that is not itself a control opens its
+  bubble. For everything else the top bar shows a "?" (explain mode) where the
+  primary pointer cannot hover: while it is on, a clear layer catches every
+  tap and explains what lies under the finger, and a banner at the bottom
+  ends it with Done. Nothing acts until then.
 - A control that can be disabled carries its hint on a `.hint-wrap` span.
 - Native `title` stays only where it reveals raw data (a full txid) and
   inside the chain tiles and links, which have their own tooltip; elsewhere
