@@ -157,9 +157,13 @@ decision, 2026-10-27):
   run continue. Pause stops the current search and the run, including between rounds,
   and keeps the setting for the next Play. Auto-transact separately
   fills the empty mempool with sample transactions between rounds.
-  Its label stays “Auto-mine”; a filled blue pressed state and an inset seam
-  distinguish it from the adjacent “Mining”/Pause primary, including between blocks.
-- **Auto-transact** starts off. Its Repeat toggle sits in the Mempool header and
+  **Repeat toggle form** (Mirko, 2026-11-03, workshop round 1, variant 1): a slim add-on
+  joined to the right of its action, an icon and the visible label "Auto" (the accessible
+  name stays "Auto-mine" or "Auto-transact"). On is tinted (blue tint, blue text), never
+  filled, so the action beside it stays the one filled or tinted invitation; an inset seam
+  separates the two.
+- **Auto-transact** starts off. Its Repeat toggle is joined to the right of "New
+  transaction" in the Mempool header, in the same form as Auto-mine beside Mining, and
   explains its behavior on hover. It fills only an empty mempool with eight sample
   transfers, waits while a candidate is being mined, and keeps existing transfers
   when switched off.
@@ -233,7 +237,7 @@ decision, 2026-10-27):
 - **Mempool:** pending transactions with their coins, change and fee, one line
   each where the card is narrow, and the coinbase line "added when #N is mined" with reward plus fees. A row opens its
   transaction details; **"New transaction" sits in the card header** as a tinted button
-  with the same glow as Mine block.
+  with the same glow as Mine block, with the Auto-transact Repeat toggle joined to its right.
 - **Activity** (only on tall screens): recent confirmed transactions and
   block times.
 
@@ -335,6 +339,7 @@ and validity states are semantic tokens.
 | Chain health | One line, collapsible strip of per-block checks on the tile column grid |
 | Card | Panel surface, 1 px line, no shadow; header with title, status pill and at most one action |
 | Next block card | Miner name, primary action, Auto-mine, difficulty stepper, race lanes; live race state; repair state |
+| Repeat toggle | "Auto" with the repeat icon, joined right of its action; pressed is tinted, never filled; the card gives height, border and outer corners |
 | Race lane | Miner, nonce, current hash with checked leading characters, progress, Back action, result |
 | Coach ring | Ring plus small label on the element a mission step needs |
 | Key-value rows | Label, mono value, quiet explanation |

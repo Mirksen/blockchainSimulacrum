@@ -137,7 +137,7 @@ describe('NextBlockCard', () => {
     render(<NextBlockCard {...base} mode={mode} autoMine repeating={repeating} onPause={onPause} onAutoMine={onAutoMine} />);
     const repeat = screen.getByRole('button', { name: 'Auto-mine' });
     expect(repeat.getAttribute('aria-pressed')).toBe('true');
-    expect(repeat.textContent).toBe('Auto-mine');
+    expect(repeat.textContent).toBe('Auto');
     expect(screen.queryByRole('button', { name: 'Mining' })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Pause' }));
     expect(onPause).toHaveBeenCalledTimes(1);
