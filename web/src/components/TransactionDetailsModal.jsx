@@ -1,4 +1,5 @@
 import { Modal } from './Modal';
+import { hint, term } from '../lib/hints';
 
 const CloseIcon = () => (
     <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M3.5 3.5l7 7M10.5 3.5l-7 7" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg>
@@ -32,7 +33,7 @@ function OutputRow({ output }) {
     return (
         <li className="details-modal-coin is-flow">
             <div className="details-modal-flow-main">
-                <span className="details-modal-pill">{OUTPUT_KINDS[output.kind]}</span>
+                <span className="details-modal-pill" {...term('details.output-kind', output.kind)}>{OUTPUT_KINDS[output.kind]}</span>
                 <b>{output.kind === 'memo' || output.kind === 'commitment' ? '' : (output.owner ?? 'Unknown')}</b>
                 <span className="details-modal-row-amount">{coins(output.value)}</span>
             </div>
@@ -41,10 +42,10 @@ function OutputRow({ output }) {
     );
 }
 
-function ScriptRow({ label, asm }) {
+function ScriptRow({ label, kind, asm }) {
     return (
         <div className="details-modal-script">
-            <div className="details-modal-label">{label}</div>
+            <div className="details-modal-label" {...term('details.script', kind)}>{label}</div>
             <div className="details-modal-hash is-small"><code>{asm || '(empty)'}</code></div>
         </div>
     );
@@ -65,7 +66,7 @@ export function TransactionDetailsModal({ transaction, blockIndex, onClose, coin
             <div className="details-modal transaction-details-modal" onClick={e => e.stopPropagation()}>
                 <div className="details-modal-head">
                     <h2 className="details-modal-title">{coinbase ? 'Mining reward' : 'Transaction details'}</h2>
-                    <button type="button" className="details-modal-close" aria-label="Close details" onClick={onClose}>
+                    <button type="button" className="details-modal-close" aria-label="Close details" {...hint('details.close')} onClick={onClose}>
                         <CloseIcon />
                     </button>
                 </div>
@@ -78,68 +79,68 @@ export function TransactionDetailsModal({ transaction, blockIndex, onClose, coin
 
                     <div className="details-modal-flow">
                         <div className="details-modal-flow-side">
-                            <div className="details-modal-label">Inputs ({coinbase ? 0 : inputs.length})</div>
+                            <div className="details-modal-label" {...term('details.inputs')}>Inputs ({coinbase ? 0 : inputs.length})</div>
                             {coinbase
                                 ? <div className="details-modal-empty is-small">Coinbase: new coins, no input spent</div>
                                 : <ul className="details-modal-coins" aria-label="Inputs">{inputs.map((input, index) => <InputRow key={index} input={input} />)}</ul>}
                         </div>
                         <div className="details-modal-flow-side">
-                            <div className="details-modal-label">Outputs ({outputs.length})</div>
+                            <div className="details-modal-label" {...term('details.outputs')}>Outputs ({outputs.length})</div>
                             <ul className="details-modal-coins" aria-label="Outputs">{outputs.map(output => <OutputRow key={output.index} output={output} />)}</ul>
                         </div>
                     </div>
 
                     {!coinbase && fee !== null && (
                         <div className="details-modal-fee" role="group" aria-label="Fee">
-                            <span>Fee = inputs − outputs</span>
+                            <span {...term('details.fee')}>Fee = inputs − outputs</span>
                             <span className="details-modal-row-amount">{coins(inputTotal)} − {coins(outputTotal)} = {coins(fee)}</span>
                         </div>
                     )}
 
                     <div className="details-modal-section">
-                        <div className="details-modal-label">Transaction ID (TXID)</div>
+                        <div className="details-modal-label" {...term('details.txid')}>Transaction ID (TXID)</div>
                         <div className="details-modal-hash">{transaction.txid}</div>
                         <p className="details-modal-note">Double SHA-256 of the raw bytes below, displayed byte-reversed.</p>
                     </div>
 
                     <div className="details-modal-section">
-                        <div className="details-modal-label">Signature</div>
+                        <div className="details-modal-label" {...term('details.signature')}>Signature</div>
                         <div className={`details-modal-sig ${signature.tone}`}>{signature.text}</div>
                     </div>
 
                     <details className="details-modal-more">
-                        <summary>Scripts</summary>
-                        {coinbase && <ScriptRow label="Coinbase scriptSig" asm={transaction.coinbaseScriptAsm} />}
+                        <summary {...hint('details.scripts')}>Scripts</summary>
+                        {coinbase && <ScriptRow label="Coinbase scriptSig" kind="coinbase" asm={transaction.coinbaseScriptAsm} />}
                         {inputs.map((input, index) => (
                             <div key={index}>
-                                <ScriptRow label={`Input ${index} scriptSig`} asm={input.scriptAsm} />
-                                {input.lockAsm && <ScriptRow label={`Input ${index} locked by`} asm={input.lockAsm} />}
+                                <ScriptRow label={`Input ${index} scriptSig`} kind="sig" asm={input.scriptAsm} />
+                                {input.lockAsm && <ScriptRow label={`Input ${index} locked by`} kind="lock" asm={input.lockAsm} />}
                             </div>
                         ))}
-                        {outputs.map(output => <ScriptRow key={output.index} label={`Output ${output.index} scriptPubKey`} asm={output.scriptAsm} />)}
+                        {outputs.map(output => <ScriptRow key={output.index} label={`Output ${output.index} scriptPubKey`} kind="pubkey" asm={output.scriptAsm} />)}
                     </details>
 
                     <details className="details-modal-more">
-                        <summary>Raw bytes ({transaction.size} bytes)</summary>
+                        <summary {...hint('details.raw')}>Raw bytes ({transaction.size} bytes)</summary>
                         <div className="details-modal-hash is-small"><code>{transaction.hex}</code></div>
                     </details>
 
                     <div className="details-modal-stats">
                         <div className="details-modal-stat">
                             <div className="details-modal-stat-value">{blockIndex === null || blockIndex === undefined ? 'Mempool' : `#${blockIndex}`}</div>
-                            <div className="details-modal-stat-label">Block</div>
+                            <div className="details-modal-stat-label" {...term('details.tx-block')}>Block</div>
                         </div>
                         <div className="details-modal-stat">
                             <div className="details-modal-stat-value">{transaction.size}</div>
-                            <div className="details-modal-stat-label">Bytes</div>
+                            <div className="details-modal-stat-label" {...term('details.size')}>Bytes</div>
                         </div>
                         <div className="details-modal-stat">
                             <div className="details-modal-stat-value">{coinbase || fee === null ? 'N/A' : coins(fee)}</div>
-                            <div className="details-modal-stat-label">Fee</div>
+                            <div className="details-modal-stat-label" {...term('details.fee')}>Fee</div>
                         </div>
                         <div className="details-modal-stat">
                             <div className={`details-modal-stat-value is-ui ${signature.tone}`}>{signature.short}</div>
-                            <div className="details-modal-stat-label">Signature</div>
+                            <div className="details-modal-stat-label" {...term('details.signature')}>Signature</div>
                         </div>
                     </div>
 

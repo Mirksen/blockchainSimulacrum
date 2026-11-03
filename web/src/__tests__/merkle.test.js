@@ -9,6 +9,7 @@ import { Block, candidateHash, createBlockchain, transactionRoot } from '../lib/
 import { createCoinbase } from '../lib/tx/transaction';
 import { bitsOfZeros, headerHex, merkleRoot, meetsTarget as meetsBits } from '../../../shared/bitcoin-block.mjs';
 import { sha256d } from '../lib/blockHeader';
+import { HINTS } from '../lib/hints';
 
 // Independent reference: node:crypto, not the code under test.
 const sha256 = bytes => createHash('sha256').update(bytes).digest();
@@ -165,6 +166,7 @@ describe('block details transaction root row', () => {
     const first = renderDetails(chain);
     const dialog = within(screen.getByRole('dialog', { name: 'Block details' }));
     expect(dialog.getAllByText(/^Merkle root/).length).toBeGreaterThan(0);
+    expect(dialog.getByText('Merkle root', { selector: '.details-modal-label' }).getAttribute('data-hint')).toBe(HINTS['details.merkle-root'].text);
     expect(dialog.getAllByText(stored).length).toBeGreaterThan(0);
     expect(dialog.queryByText(/Changed after mining/)).toBeNull();
     first.unmount();

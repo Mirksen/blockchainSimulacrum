@@ -67,8 +67,10 @@
 .kf-bar-figs { margin-left: auto; }
 .kf-bar-figs.is-short { display: none; }
 @container main (max-width: 899.98px) {
-  .kf-bar { height: auto; min-height: 34px; padding-top: 6px; padding-bottom: 6px; }
-  .kf-bar-title { display: none; }
   .kf-bar-figs { display: none; }
-  .kf-bar-figs.is-short { display: flex; flex-wrap: wrap; row-gap: 2px; margin-left: 0; }
+  .kf-bar-figs.is-short { display: flex; }
+}
+/* Below 1024 px the compact band with its key figures stays at the top itself. */
+@media (max-width: 1023.98px) {
+  .kf-sentinel, .kf-bar-anchor { display: none; }
 }

@@ -83,6 +83,11 @@ describe('MerkleProof', () => {
     expect(screen.getByLabelText('Payment text of transaction 5').value).toBe(sampleBlock(16).texts[5]);
     expect(verdict().textContent).toMatch(/^Payment proven/);
   });
+  it('explains a sibling hash and its side in a hint bubble', () => {
+    render(<MerkleProof />);
+    expect(screen.getByLabelText(/^Sibling at level 1 /).getAttribute('data-hint'))
+      .toContain('It sits on the right, so it goes after the current hash');
+  });
 });
 
 describe('Chain lab experiment switch', () => {

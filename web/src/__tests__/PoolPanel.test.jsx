@@ -8,6 +8,7 @@ import { bitsOfZeros, displayHash, le, meetsTarget } from '../../../shared/bitco
 import { hashAtNonce, sha256d } from '../lib/blockHeader';
 import { formatDifficulty, GENESIS, hashDifficulty, leadingZeros, poolCandidate, proofPrefix, signatureOf } from '../lib/poolProof';
 import { runSearch } from '../lib/powSearch';
+import { HINTS } from '../lib/hints';
 
 vi.mock('../lib/poolApi', async importOriginal => ({ ...(await importOriginal()),
   getChallenge: vi.fn(), submitProof: vi.fn(), getLeaderboard: vi.fn(), getMiner: vi.fn() }));
@@ -430,6 +431,13 @@ describe('PoolPanel', () => {
   it('shows the name the app holds', () => {
     render(<Panel initial="stored-miner" onClose={() => {}} />);
     expect(screen.getByLabelText('Name on the leaderboard').value).toBe('stored-miner');
+  });
+
+  it('explains Join and the round through hints', () => {
+    render(<Panel onClose={() => {}} />);
+    expect(screen.getByRole('button', { name: 'Join' }).getAttribute('data-hint')).toBe(HINTS['pool.join'].text);
+    expect(screen.getByText('Round').getAttribute('data-hint')).toBe(HINTS['pool.round'].text);
+    expect(screen.getByText('Round').hasAttribute('data-hint-term')).toBe(true);
   });
 
   it.each(['close', 'unmount'])('stops mining on %s', async action => {

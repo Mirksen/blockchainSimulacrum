@@ -19,18 +19,6 @@ export function forecastOf(figures) {
   return check.next > difficulty ? 'up' : check.next < difficulty ? 'down' : 'stays';
 }
 
-export function paceTitle(figures) {
-  const { pace, targetSeconds } = figures;
-  return `After every ${CHECK_EVERY}th block the difficulty is checked against the pace of the last ${CHECK_EVERY}: `
-    + `faster than ${whole(pace.low)} on average adds a leading zero, slower than ${whole(pace.high)} removes one `
-    + `(70 % and 150 % of the ${whole(targetSeconds)} target).`;
-}
-
-export function rewardTitle(figures) {
-  const { halving, halvingInterval, reward } = figures;
-  return `The block reward halves every ${halvingInterval} blocks. #${halving.at} pays ${formatReward(halving.reward)} instead of ${formatReward(reward)}.`;
-}
-
 /** The note for a chain event, or null when the event needs none (a learner's own setting). */
 export function eventNote(event, { halvingInterval, targetSeconds, coinName = 'powfyicoin' }) {
   if (event.kind === 'halving') {

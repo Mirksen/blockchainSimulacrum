@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { formatSeconds } from './blockView';
 import { CHECK_EVERY } from '../../lib/difficulty';
-import { forecastOf, formatReward, paceTitle, rewardTitle, whole } from './keyFigureText';
+import { forecastOf, formatReward, whole } from './keyFigureText';
+import { term } from '../../lib/hints';
 import './KeyFigures.css';
 
 // Key figures (web/DESIGN.md, "Key figures"): the rules the chain follows, with what
@@ -56,10 +57,17 @@ function rewardText(figures, short) {
 
 export function KeyFigures({ keyFigures, className = '', short = false, label = 'Key figures' }) {
   if (!keyFigures?.pace) return null;
+  const { pace, targetSeconds, check, halving, halvingInterval, difficulty } = keyFigures;
+  const forecast = forecastOf(keyFigures);
+  const paceHint = { blocks: pace.blocks, seconds: formatSeconds(pace.seconds), target: whole(targetSeconds), low: whole(pace.low), high: whole(pace.high) };
+  const checkHint = { low: whole(pace.low), high: whole(pace.high), forecast: pace.seconds === null
+    ? `The next check is after #${check.at}.`
+    : `At ${formatSeconds(pace.seconds)} per block the check after #${check.at} ${forecast === 'stays' ? `keeps difficulty ${difficulty}` : `${forecast === 'up' ? 'raises' : 'lowers'} it to ${check.next}`}.` };
+  const rewardHint = { every: halvingInterval, at: halving.at, reward: formatReward(halving.reward) };
   const parts = [
-    <span key="pace" className="kf-pace" title={paceTitle(keyFigures)}><PaceMeter figures={keyFigures} />{paceText(keyFigures, short)}</span>,
-    <span key="check" title={paceTitle(keyFigures)}>{checkText(keyFigures, short)}</span>,
-    <span key="reward" title={rewardTitle(keyFigures)}>{rewardText(keyFigures, short)}</span>
+    <span key="pace" className="kf-pace" {...term('chain.block-time', paceHint)}><PaceMeter figures={keyFigures} />{paceText(keyFigures, short)}</span>,
+    <span key="check" {...term('chain.check', checkHint)}>{checkText(keyFigures, short)}</span>,
+    <span key="reward" {...term('chain.reward', rewardHint)}>{rewardText(keyFigures, short)}</span>
   ];
   return (
     <span className={`kf ${className}`.trim()} aria-label={label}>
