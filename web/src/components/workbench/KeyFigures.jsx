@@ -51,7 +51,7 @@ function checkText(figures, short) {
 function rewardText(figures, short) {
   const { reward, halving } = figures;
   const when = halving.in === 1 ? 'next block' : short ? `in ${halving.in}` : `in ${halving.in} blocks`;
-  if (short) return <>reward <b>{formatReward(reward)}</b> · ½ {when}</>;
+  if (short) return <>½ {when}</>;
   return <>reward <b>{formatReward(reward)}</b> → {formatReward(halving.reward)} {when}</>;
 }
 

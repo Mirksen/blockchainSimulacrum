@@ -155,6 +155,8 @@ describe('ChainBand tiles and selection', () => {
   it('leaves the notes to the page in the compact band, which stays at the top', () => {
     const { container } = renderBand({ compact: true, notes: [{ key: 'halving-4', kind: 'halving', icon: '½', title: 'The reward halved with #4.', text: '' }] });
     expect(container.querySelector('.kf-note')).toBeNull();
+    // The short key figures fit one line: pace, forecast and the halving countdown.
+    expect(screen.getByLabelText('Key figures').textContent.replace(/\s+/g, ' ')).toBe('3.9 s / 10 s·diff 2 → 3 at #10·½ in 4');
   });
 
   it('marks the candidate while mining and while paused', () => {
