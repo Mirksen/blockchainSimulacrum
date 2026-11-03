@@ -106,7 +106,8 @@
   color: inherit; font: inherit; text-align: left; cursor: pointer;
 }
 .chain-band-tile-face:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
-.chain-band-tile-top { display: flex; align-items: baseline; gap: var(--s-2); min-width: 0; font-size: 12px; line-height: 20px; white-space: nowrap; }
+/* Keeps its height when empty (block #1 has no mining time), so every tile lines up. */
+.chain-band-tile-top { display: flex; align-items: baseline; gap: var(--s-2); min-width: 0; min-height: 20px; font-size: 12px; line-height: 20px; white-space: nowrap; }
 .chain-band-num {
   position: absolute; left: 0; top: calc(var(--chain-band-above) * -1); line-height: 18px;
   font-size: 14px; font-weight: 600; color: var(--text-2); white-space: nowrap; pointer-events: none;
