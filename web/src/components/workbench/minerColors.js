@@ -1,6 +1,6 @@
-// The color of a wallet or miner: fixed when it is created (its first name, lowercased),
-// so a rename keeps it. Only the default participants have a color token.
-export const COLOR_KEYS = Object.freeze(['hal', 'dorian', 'laszlo', 'alice', 'bob', 'chris']);
+// The color of a wallet or miner: fixed when it is created (its first name, lowercased, or
+// 'spare' for a miner the learner creates), so a rename keeps it. Created wallets have none.
+export const COLOR_KEYS = Object.freeze(['hal', 'dorian', 'laszlo', 'spare', 'alice', 'bob', 'chris']);
 
 export function colorKeyOf(key) {
   const lower = String(key ?? '').toLowerCase();

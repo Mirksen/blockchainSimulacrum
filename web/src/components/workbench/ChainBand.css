@@ -143,6 +143,7 @@
 .chain-band-av.is-hal { background: var(--hal); }
 .chain-band-av.is-dorian { background: var(--dorian); }
 .chain-band-av.is-laszlo { background: var(--laszlo); }
+.chain-band-av.is-spare { background: var(--spare); }
 .chain-band-av.is-alice { background: var(--alice); }
 .chain-band-av.is-bob { background: var(--bob); }
 .chain-band-av.is-chris { background: var(--chris); }

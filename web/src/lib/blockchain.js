@@ -177,7 +177,10 @@ export class Blockchain {
     if (this.participants.filter(p => p.isMiner).length >= MAX_MINERS) {
       return { success: false, error: `At most ${MAX_MINERS} miners race in this simulation.` };
     }
-    return this.addNamed(name, true);
+    const result = this.addNamed(name, true);
+    // Three default miners leave room for one more: it gets the spare miner color.
+    if (result.success) result.participant.colorKey = 'spare';
+    return result;
   }
 
   addNamed(name, isMiner) {

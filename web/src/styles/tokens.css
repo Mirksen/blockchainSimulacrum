@@ -53,6 +53,7 @@
   --hal: #f5a524;
   --dorian: #a78bfa;
   --laszlo: #f472b6;
+  --spare: #2dd4bf;
   --alice: #93c5fd;
   --bob: #86efac;
   --chris: #7dd3fc;
@@ -164,6 +165,7 @@ html[data-theme="light"] {
   --hal: #b45309;
   --dorian: #7c3aed;
   --laszlo: #be185d;
+  --spare: #0f766e;
   --alice: #1f62d1;
   --bob: #15803d;
   --chris: #0e7490;

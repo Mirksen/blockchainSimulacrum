@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { COLOR_KEYS, colorKeyOf, colorOf } from '../components/workbench/minerColors';
 
 describe('minerColors', () => {
-  it('knows the default miners and wallets', () => {
-    expect(COLOR_KEYS).toEqual(['hal', 'dorian', 'laszlo', 'alice', 'bob', 'chris']);
+  it('knows the default miners and wallets and the spare miner color', () => {
+    expect(COLOR_KEYS).toEqual(['hal', 'dorian', 'laszlo', 'spare', 'alice', 'bob', 'chris']);
   });
 
   it('maps a known key regardless of letter case to its color token', () => {

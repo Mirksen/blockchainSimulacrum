@@ -329,7 +329,7 @@ and validity states are semantic tokens.
 | Text | `--text`, `--text-2`, `--text-3`, `--on-accent` | `#e7edf8`, `#a3b2cf`, `#6c7d9e` |
 | Action | `--blue`, `--blue-bg`, `--blue-line`, `--glow-action`, `--focus` | `#4d8dff`; one shared glow for Mine block and New transaction |
 | Status | `--green`, `--amber`, `--red` with `-bg` tints | always paired with text |
-| Miners and wallets | `--hal` (amber), `--dorian` (violet), `--laszlo` (pink), `--alice`, `--bob`, `--chris` | fixed per participant at creation, kept through a rename |
+| Miners and wallets | `--hal` (amber), `--dorian` (violet), `--laszlo` (pink), `--spare` (teal, a created miner), `--alice`, `--bob`, `--chris` | fixed per participant at creation, kept through a rename |
 | Coach | `--coach`, `--coach-ring`, `--coach-glow` | light blue |
 | Block tiles | `--blk-0` … `--blk-4`, `--blk-top`, `--blk-side`, `--blk-hash-bg` | blue-violet gradients, only on tiles |
 | Candidate | `--pend-*` | dashed, muted |

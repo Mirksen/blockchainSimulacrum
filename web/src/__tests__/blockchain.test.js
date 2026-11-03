@@ -54,6 +54,13 @@ describe('default participants', () => {
     expect(chain.participants.map(p => p.colorKey)).toEqual(['alice', 'bob', 'chris', 'hal', 'dorian', 'laszlo']);
   });
 });
+describe('created participants', () => {
+  it('gives a created miner the spare color and a created wallet none', () => {
+    const chain = createBlockchain();
+    expect(chain.addMiner('Quill').participant.colorKey).toBe('spare');
+    expect(chain.addWallet('Rowan').participant.colorKey).toBe('rowan');
+  });
+});
 describe('renameParticipant', () => {
   const twoMiners = () => createBlockchain({ participants: ['Quill', 'Rowan', 'Wallet3'], miners: ['Quill', 'Rowan'], miningDifficulty: 1 });
   it('renames a miner and keeps its keys, scripts, color and the blocks it mined', () => {
