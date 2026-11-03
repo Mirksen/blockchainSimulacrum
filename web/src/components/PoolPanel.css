@@ -58,7 +58,7 @@
 .pool-panel-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .pool-panel-board + .pool-panel-board { margin-top: 20px; }
 .pool-panel-genesis { margin: 12px 0 0; }
-.pool-panel-stats a { color: var(--pool-action); }
+.pool-panel-stats a, .pool-panel-cell-name a { color: var(--pool-action); }
 .pool-panel-cell-name { overflow-wrap: break-word; }
 .pool-panel code { font: 13px/1.5 var(--mono); }
 .pool-panel :focus-visible { outline: 2px solid var(--pool-action); outline-offset: 3px; }

@@ -126,6 +126,14 @@ decision, 2026-10-27):
   the last 144 (about a day); the tab lists "Last 144 blocks" and "All time",
   ranked by the smallest hash, then a continuous search for one more zero.
   Every row has Verify.
+- **Miner profile** (2026-11-03): a name on the board opens that miner's
+  profile inside the Leaderboard tab at `#/pool/<name>`, a shareable link
+  ("Copy link"); browser back and a "Leaderboard" link return to the lists.
+  It shows both ranks, rounds, blocks sent, the whole best hash with its
+  leading zeros, and one row per round (Bitcoin block linked to
+  mempool.space, zeros, difficulty, blocks, time) with Verify. A name without
+  blocks says "No blocks for this name yet."; the visitor's own name gets a
+  quiet "you". The search below keeps running while a profile is open.
 - **Leaderboard ticker** (Mirko): a slim band directly under the top bar
   runs the all-time leaderboard of all visitors from right to left (rank,
   name, zeros, difficulty, best hash), then the special finds: best today,

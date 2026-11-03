@@ -15,6 +15,8 @@ export const MIN_SHARE_ZEROS = 1;
 export const MAX_SHARE_ZEROS = 8;
 export const MAX_BODY_BYTES = 2048;
 export const LEADERBOARD_SIZE = 20;
+// The most rounds a miner profile lists.
+export const MINER_ROUNDS = 200;
 // Keeps the database well inside its filesystem, whatever a script sends (ADR 0003).
 export const MAX_BLOCKS = 20_000;
 export const RATE_LIMITS = Object.freeze({ challenge: 30, share: 120 });
@@ -251,7 +253,7 @@ export function createApp({
   // among equal zeros, the higher difficulty. Fixed-length lowercase hex sorts by value.
   // Only blocks for the current genesis count; ?2 restricts to rounds from that Bitcoin
   // height on (the window), NULL means all rounds.
-  const selectBest = db.prepare(`
+  const RANKED = `
     WITH scoped AS (
       SELECT * FROM blocks
       WHERE genesis_hash = ?1 AND (?2 IS NULL OR round_height >= ?2)
@@ -261,11 +263,28 @@ export function createApp({
       SELECT *, ROW_NUMBER() OVER (PARTITION BY name ORDER BY hash ASC, created_at ASC) AS rn,
              SUM(proofs) OVER (PARTITION BY name) AS total
       FROM scoped
-    )
+    )`;
+  const selectBest = db.prepare(`${RANKED}
     SELECT name, round_height, round_hash, header, coinbase, branch, hash, zeros, total, created_at
     FROM ranked WHERE rn = 1
     ORDER BY hash ASC, created_at ASC
     LIMIT ${LEADERBOARD_SIZE}
+  `);
+  // A name's place in that same ordering, without the limit; no row when the name has no
+  // block in the scope.
+  const selectRank = db.prepare(`${RANKED},
+    placed AS (
+      SELECT name, ROW_NUMBER() OVER (ORDER BY hash ASC, created_at ASC) AS place FROM ranked WHERE rn = 1
+    )
+    SELECT place FROM placed WHERE name = ?3
+  `);
+  // Every round of one name, newest Bitcoin block first. Names match exactly, as the
+  // leaderboard groups them.
+  const selectMinerBlocks = db.prepare(`
+    SELECT round_height, round_hash, header, coinbase, branch, hash, zeros, proofs, created_at
+    FROM blocks WHERE genesis_hash = ? AND name = ?
+    ORDER BY round_height DESC, round_hash ASC
+    LIMIT ${MINER_ROUNDS}
   `);
   const leaderboardRows = (fromHeight) => selectBest.all(genesisHash, fromHeight).map((row) => ({
     name: row.name,
@@ -354,6 +373,33 @@ export function createApp({
     });
   }
 
+  // One name's rounds with its ranks. A hidden name answers exactly like an unknown one.
+  function handleMiner(url, res) {
+    const name = url.searchParams.get('name');
+    if (typeof name !== 'string' || !NAME_RE.test(name)) throw new HttpError(400, 'invalid name');
+    if (hiddenNames.isHidden(name)) throw new HttpError(404, 'unknown name');
+    const rows = selectMinerBlocks.all(genesisHash, name);
+    if (rows.length === 0) throw new HttpError(404, 'unknown name');
+    const from = tip.round() ? tip.windowStart() : null;
+    const rankIn = (fromHeight) => selectRank.get(genesisHash, fromHeight, name)?.place ?? null;
+    send(res, 200, {
+      name,
+      rank: { window: from === null ? null : rankIn(from), allTime: rankIn(null) },
+      blocks: rows.map((row) => ({
+        round: { height: row.round_height, hash: row.round_hash },
+        header: row.header,
+        coinbase: row.coinbase,
+        branch: JSON.parse(row.branch),
+        bestHash: row.hash,
+        bestZeros: row.zeros,
+        difficulty: hashDifficulty(row.hash),
+        proofs: row.proofs,
+        foundAt: row.created_at,
+        inWindow: from !== null && row.round_height >= from,
+      })),
+    });
+  }
+
   async function serveStatic(url, req, res) {
     let decoded;
     try {
@@ -420,6 +466,10 @@ export function createApp({
       if (pathname === '/api/leaderboard') {
         if (req.method !== 'GET') throw new HttpError(405, 'method not allowed');
         return handleLeaderboard(res);
+      }
+      if (pathname === '/api/miner') {
+        if (req.method !== 'GET') throw new HttpError(405, 'method not allowed');
+        return handleMiner(url, res);
       }
       throw new HttpError(404, 'not found');
     }
