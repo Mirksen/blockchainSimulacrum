@@ -691,7 +691,35 @@ try {
  await mobileChecks.waitFor({state:'detached'});
  assert.equal(await mobile.locator('.top-bar-chain').count(), 0);
  results.push('Phone: the compact band shows the same "Chain valid" pill and it toggles the checks');
- // The ticker and the compact band stay at the top, one under the other, while the cards scroll.
+ // A few more blocks, so the small blocks clearly overflow the phone width.
+ for (const next of [2, 3, 4]) {
+  await workbench(mobile).mine(next).click();
+  await workbench(mobile).mine(next + 1).waitFor({timeout:60000});
+ }
+ // The compact row swipes sideways: it takes pointer events itself (Safari scrolls only such a row).
+ // A new block scrolls the row smoothly to its newest end; start from there.
+ await mobile.waitForFunction(() => {
+  const scroll = document.querySelector('.chain-band.is-compact .chain-band-scroll');
+  return scroll.scrollLeft + scroll.clientWidth >= scroll.scrollWidth - 1;
+ }, null, {timeout:10000});
+ const row = await mobile.evaluate(() => {
+  const scroll = document.querySelector('.chain-band.is-compact .chain-band-scroll');
+  const style = getComputedStyle(scroll);
+  return { pointerEvents: style.pointerEvents, touchAction: style.touchAction, overflowX: style.overflowX,
+   scrollWidth: scroll.scrollWidth, clientWidth: scroll.clientWidth, left: Math.round(scroll.scrollLeft) };
+ });
+ assert.equal(row.pointerEvents, 'auto', JSON.stringify(row));
+ assert.equal(row.overflowX, 'auto', JSON.stringify(row));
+ assert.ok(row.scrollWidth - row.clientWidth > 100, `the small blocks overflow the phone width: ${JSON.stringify(row)}`);
+ const phoneRowBox = await mobile.locator('.chain-band.is-compact .chain-band-scroll').boundingBox();
+ await mobile.mouse.move(phoneRowBox.x + phoneRowBox.width / 2, phoneRowBox.y + phoneRowBox.height / 2);
+ await mobile.mouse.wheel(-400, 0);
+ // The browser scrolls after the wheel event; wait for the row to move rather than reading at once.
+ const rowLeft = () => mobile.evaluate(() => Math.round(document.querySelector('.chain-band.is-compact .chain-band-scroll').scrollLeft));
+ await mobile.waitForFunction(left => document.querySelector('.chain-band.is-compact .chain-band-scroll').scrollLeft < left - 50, row.left, {timeout:10000})
+  .catch(async () => assert.fail(`the row scrolls back toward Genesis: ${row.left} -> ${await rowLeft()}`));
+ const swiped = await rowLeft();
+ // Only the ticker stays at the top; the compact band scrolls away with the cards.
  const stuck = async () => mobile.evaluate(() => {
   const ticker = document.querySelector('.leaderboard-ticker').getBoundingClientRect();
   const band = document.querySelector('.wb-band').getBoundingClientRect();
@@ -702,8 +730,7 @@ try {
  const scrolled = await stuck();
  assert.ok(scrolled.scrollY > 300, JSON.stringify(scrolled));
  assert.equal(scrolled.ticker, 0, `ticker stays on top: ${JSON.stringify(scrolled)}`);
- assert.ok(Math.abs(scrolled.band - scrolled.tickerBottom) <= 1, `band sits under the ticker: ${JSON.stringify(scrolled)}`);
- assert.ok(scrolled.bandBottom - scrolled.ticker <= 140, `ticker and band take at most 140 px: ${JSON.stringify(scrolled)}`);
+ assert.ok(scrolled.bandBottom <= scrolled.tickerBottom, `the band scrolls away under the ticker: ${JSON.stringify(scrolled)}`);
  await mobile.screenshot({path:join(output,'mobile-scrolled.png')});
  // A tap on a small tile holds that block in the Block card below.
  await workbench(mobile).tile(1).click();
@@ -711,7 +738,7 @@ try {
  await workbench(mobile).tile(1).click();
  await mobile.evaluate(() => scrollTo(0, 0));
  await settle(mobile);
- results.push(`Phone: ticker and compact chain stay on top while the page scrolls (${scrolled.bandBottom} px), a tap selects a block`);
+ results.push(`Phone: the small blocks swipe sideways (${row.left} -> ${swiped} px), only the ticker stays on top while the page scrolls, a tap selects a block`);
  await mobile.screenshot({path:join(output,'mobile.png')});
  await mobile.screenshot({path:join(output,'mobile-full.png'),fullPage:true});
  const mobileLayout = await mobile.evaluate(()=>({width:innerWidth,scroll:document.documentElement.scrollWidth,height:document.documentElement.scrollHeight}));
