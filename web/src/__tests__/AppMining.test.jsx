@@ -32,7 +32,7 @@ vi.mock('../lib/powSearch', async importOriginal => {
     options.signal.addEventListener('abort', () => resolve({ status: 'stopped', attempts: 0, entrants: {} }), { once: true });
   })) };
 });
-vi.mock('../lib/sound', () => ({ unlockMiningAudio: vi.fn(async () => true), playMiningSuccessSound: vi.fn() }));
+vi.mock('../lib/sound', () => ({ unlockMiningAudio: vi.fn(async () => true), playMiningSuccessSound: vi.fn(), playRecordSound: vi.fn() }));
 vi.mock('../components/workbench/LeaderboardTicker', () => ({ LeaderboardTicker: () => null }));
 
 beforeEach(() => {

@@ -1,0 +1,77 @@
+/* Record celebration (web/DESIGN.md, "Record celebration"): a card that drops in at the
+   top centre with a confetti burst; it never blocks the page behind it. */
+.record-celebration {
+  position: fixed; z-index: 70; left: 0; right: 0; top: 76px;
+  display: flex; justify-content: center; padding: 0 var(--s-4); pointer-events: none;
+  font: 13px/18px var(--ui); color: var(--text);
+}
+.record-celebration *, .record-celebration *::before, .record-celebration *::after { box-sizing: border-box; }
+.record-celebration-card {
+  position: relative; pointer-events: auto; width: min(420px, 100%);
+  display: grid; grid-template-columns: auto minmax(0, 1fr); gap: var(--s-2) var(--s-3); align-items: center;
+  padding: var(--s-3) var(--s-3) var(--s-3) var(--s-4); border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--amber) 55%, var(--line-3));
+  background:
+    radial-gradient(260px 120px at 0% 0%, color-mix(in srgb, var(--amber) 22%, transparent), transparent 70%),
+    var(--overlay);
+  box-shadow: 0 22px 48px -14px var(--shadow), 0 0 0 4px color-mix(in srgb, var(--amber) 14%, transparent);
+}
+.record-celebration-badge {
+  grid-row: 1 / 3; width: 52px; height: 52px; border-radius: 50%; display: grid; place-items: center;
+  background: radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--amber) 65%, var(--on-accent)), var(--amber) 60%, color-mix(in srgb, var(--amber) 75%, var(--shadow)));
+  color: var(--on-light); box-shadow: 0 0 0 3px color-mix(in srgb, var(--amber) 30%, transparent), 0 8px 20px -6px var(--amber);
+}
+.record-celebration-badge b { font-size: 20px; font-weight: 800; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.record-celebration-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.record-celebration-title { font-size: 16px; line-height: 22px; font-weight: 700; color: var(--text); }
+.record-celebration-text { color: var(--text-2); }
+.record-celebration-name { font-size: 12px; color: var(--amber); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.record-celebration-actions { grid-column: 2; display: flex; align-items: center; gap: var(--s-2); }
+.record-celebration-open {
+  height: 30px; padding: 0 var(--s-3); border-radius: var(--r-sm); border: 0; cursor: pointer;
+  background: var(--amber); color: var(--on-light); font: 600 13px/1 var(--ui);
+}
+.record-celebration-open:hover { filter: brightness(1.08); }
+.record-celebration-close {
+  margin-left: auto; width: 30px; height: 30px; display: grid; place-items: center; border-radius: var(--r-sm);
+  border: 1px solid var(--line-3); background: transparent; color: var(--text-2); cursor: pointer;
+}
+.record-celebration-close:hover { color: var(--text); background: var(--panel-2); }
+.record-celebration button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+/* confetti: pieces fly out of the badge, then fall and fade */
+.record-celebration-burst { position: absolute; left: 42px; top: 38px; width: 0; height: 0; pointer-events: none; }
+.record-celebration-burst i {
+  position: absolute; left: -4px; top: -6px; width: 8px; height: 12px; border-radius: 2px; background: var(--color); opacity: 0;
+}
+.record-celebration-burst i.is-round { width: 8px; height: 8px; border-radius: 50%; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .record-celebration-card { animation: record-celebration-in 520ms cubic-bezier(.2, 1.4, .4, 1) both; }
+  .record-celebration-badge { animation: record-celebration-pop 700ms cubic-bezier(.2, 1.6, .4, 1) 120ms both; }
+  .record-celebration-burst i { animation: record-celebration-confetti 1500ms cubic-bezier(.15, .7, .3, 1) var(--delay) both; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .record-celebration-card { animation: record-celebration-fade 200ms ease-out both; }
+  .record-celebration-burst { display: none; }
+}
+@keyframes record-celebration-in {
+  from { opacity: 0; transform: translateY(-18px) scale(.92); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes record-celebration-pop {
+  0% { transform: scale(.3) rotate(-20deg); }
+  70% { transform: scale(1.12) rotate(4deg); }
+  100% { transform: none; }
+}
+@keyframes record-celebration-confetti {
+  0% { opacity: 1; transform: translate(0, 0) rotate(0); }
+  55% { opacity: 1; transform: translate(var(--x), var(--y)) rotate(calc(var(--spin) * .6)); }
+  100% { opacity: 0; transform: translate(calc(var(--x) * 1.15), calc(var(--y) + var(--fall))) rotate(var(--spin)); }
+}
+@keyframes record-celebration-fade { from { opacity: 0; } to { opacity: 1; } }
+
+/* below 1024 px the ticker and the compact chain band stay on top: the card drops in under them */
+@media (max-width: 1023.98px) {
+  .record-celebration { top: 132px; }
+}
