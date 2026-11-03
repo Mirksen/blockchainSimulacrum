@@ -1,0 +1,11 @@
+/* Confirmation before lowering the difficulty: the Settings dialog surface, product tokens only. */
+.lower-difficulty-text { display: flex; flex-direction: column; gap: var(--s-2); }
+.lower-difficulty-text p { margin: 0; font-size: 13px; line-height: 19px; color: var(--text-2); }
+.lower-difficulty-text p + p { font-size: 12px; line-height: 17px; color: var(--text-3); }
+.lower-difficulty-foot { gap: var(--s-2); flex-wrap: wrap; }
+.lower-difficulty-confirm {
+  height: 30px; padding: 0 var(--s-3); border-radius: var(--r-sm);
+  border: 1px solid color-mix(in srgb, var(--red) 45%, transparent); background: var(--red-bg);
+  color: var(--red); font: 600 13px var(--ui); cursor: pointer;
+}
+.lower-difficulty-confirm:hover { border-color: var(--red); }

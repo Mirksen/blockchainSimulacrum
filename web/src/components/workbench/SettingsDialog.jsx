@@ -75,7 +75,7 @@ function Dialog({ onClose, coinName, onCoinName, difficulty, onDifficulty, halvi
         </div>
 
         {busy && <p className="settings-dialog-busy" id={busyId} role="status">Mining is running. Difficulty, halving interval and target block time unlock when it stops.</p>}
-        <p className="settings-dialog-help" id={helpId}>Each extra leading zero takes about 16× more attempts on average. High settings may take longer than you can wait. Pause stops mining; lower the difficulty to try again. Difficulty adapts every 10 mined blocks. Halving reduces the reward for future blocks; it does not rewrite earlier rewards.</p>
+        <p className="settings-dialog-help" id={helpId}>Each extra leading zero takes about 16× more attempts on average. High settings may take longer than you can wait; Pause stops mining. Lowering the difficulty by hand starts a new chain, so a longer chain always took more work. Difficulty adapts every 10 mined blocks. Halving reduces the reward for future blocks; it does not rewrite earlier rewards.</p>
 
         <div className="settings-dialog-foot">
           <button type="button" className="settings-dialog-done" onClick={() => onClose?.()}>Done</button>

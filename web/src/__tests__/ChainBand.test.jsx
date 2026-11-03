@@ -334,3 +334,31 @@ describe('ChainBand selection', () => {
     expect(tile().querySelector('button').getAttribute('aria-pressed')).toBe('true');
   });
 });
+
+describe('ChainBand compact (below 1024 px)', () => {
+  it('draws small tiles with number, miner and short hash, without tooltips, and a tap selects the block', () => {
+    const { container, onSelect } = renderBand({ compact: true });
+    const tiles = [...container.querySelectorAll('.chain-band-tile.is-mini')];
+    expect(tiles.map(element => element.querySelector('.chain-band-mini-num').textContent)).toEqual(['#0', '#1', '#2', '#3', '#4']);
+    expect(tiles[0].querySelector('.chain-band-who').textContent).toBe('Genesis');
+    expect(tiles[4].querySelector('.chain-band-who').textContent).toBe('Lars');
+    expect(tiles[4].querySelector('.chain-band-tile-hash').textContent).toBe('0004cc…04');
+    expect(container.querySelector('.chain-band-tile > .chain-band-num')).toBeNull();
+    expect(container.querySelector('.chain-band-tip')).toBeNull();
+    fireEvent.click(tile(2));
+    expect(onSelect).toHaveBeenCalledWith(2);
+    expect(container.querySelector('.chain-band-cand.is-mini').getAttribute('aria-label')).toBe('Candidate block 5, not mined yet, 2 transactions waiting');
+    // The pill carries the visible title; the heading stays for screen readers.
+    expect(screen.getByRole('heading', { name: 'Chain' })).toBeTruthy();
+  });
+
+  it('marks a broken block on its tile and keeps the checks on one line under the tiles', () => {
+    const { container } = renderBand({ compact: true, views: makeViews(5, TAMPERED), healthOpen: true });
+    const broken = container.querySelector('.chain-band-tile.is-mini.is-broken');
+    expect(broken.querySelector('.chain-band-tag.is-bad').textContent).toBe('Hash mismatch');
+    const checks = screen.getByRole('list', { name: 'Checks per block' });
+    expect(checks.querySelectorAll('.chain-band-chk.is-two')).toHaveLength(0);
+    // Open checks replace the key figures in the compact header.
+    expect(container.querySelector('.chain-band-stats')).toBeNull();
+  });
+});

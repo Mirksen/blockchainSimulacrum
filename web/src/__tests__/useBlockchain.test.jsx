@@ -123,6 +123,19 @@ describe('simulation lifecycle', () => {
     act(() => result.current.resetBlockchain());
     expect(result.current.balances.every(p => p.balance === 0)).toBe(true);
   });
+  it('a reset can start the new chain at another difficulty and ignores invalid ones', async () => {
+    const { result } = renderHook(() => useBlockchain({ ...config, miningDifficulty: 3 }));
+    await act(async () => { const pending = result.current.setupInitialDistribution(); await vi.runAllTimersAsync(); await pending; });
+    expect(result.current.blocks).toHaveLength(2);
+    act(() => result.current.resetBlockchain({ miningDifficulty: 1 }));
+    expect(result.current.blocks).toHaveLength(1);
+    expect(result.current.difficulty).toBe(1);
+    expect(telemetry.track).toHaveBeenCalledWith('difficulty_changed', { previous: 3, value: 1 });
+    telemetry.track.mockClear();
+    for (const invalid of [0, 11, 1.5, '2']) act(() => result.current.resetBlockchain({ miningDifficulty: invalid }));
+    expect(result.current.difficulty).toBe(1);
+    expect(telemetry.track).not.toHaveBeenCalledWith('difficulty_changed', expect.anything());
+  });
   it('the demo leaves exactly block #1 mined and returns its winner and block', async () => {
     const { result } = renderHook(() => useBlockchain({ ...config, participants: ['Miner One', 'Wallet Two', 'Wallet Three'] }));
     let outcome;

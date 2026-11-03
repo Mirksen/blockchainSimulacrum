@@ -8,8 +8,9 @@ import './LeaderboardTicker.css';
 // (web/DESIGN.md, "Existing features in the workbench"). It pauses on hover and
 // focus and is static under prefers-reduced-motion. An empty board still shows, as an
 // invitation, so the leaderboard can be found before its first block; only an unavailable
-// server hides the band. The only component of the shell that fetches: on mount, every
-// `refreshMs` and when `refreshKey` changes (a block was accepted); `onBoard` hands the rows up.
+// server hides the band. The visitor's own row (`ownName`) is marked "you". The only
+// component of the shell that fetches: on mount, every `refreshMs` and when `refreshKey`
+// changes (a block was accepted); `onBoard` hands the rows up.
 export const TICKER_REFRESH_MS = 60_000;
 const REDUCED_MOTION = '(prefers-reduced-motion: reduce)';
 
@@ -35,13 +36,14 @@ function ShortHash({ hash }) {
   );
 }
 
-function Rows({ rows, finds, hidden }) {
+function Rows({ rows, finds, hidden, ownName }) {
   return (
     <span className="leaderboard-ticker-list" aria-hidden={hidden || undefined}>
       {rows.map((row, index) => (
-        <span className="leaderboard-ticker-row" key={`${row.name}-${index}`}>
+        <span className={`leaderboard-ticker-row${row.name === ownName ? ' is-own' : ''}`} key={`${row.name}-${index}`}>
           <span className="leaderboard-ticker-rank">#{Number.isSafeInteger(row.rank) ? row.rank : index + 1}</span>
           <span className="leaderboard-ticker-name">{row.name}</span>
+          {row.name === ownName && <span className="leaderboard-ticker-you">you</span>}
           <span className="leaderboard-ticker-points">{row.bestZeros} zeros · {formatDifficulty(row.difficulty)}</span>
           <ShortHash hash={row.bestHash} />
         </span>
@@ -57,7 +59,7 @@ function Rows({ rows, finds, hidden }) {
   );
 }
 
-export function LeaderboardTicker({ onOpenPool, onBoard, refreshKey = 0, refreshMs = TICKER_REFRESH_MS }) {
+export function LeaderboardTicker({ onOpenPool, onBoard, refreshKey = 0, refreshMs = TICKER_REFRESH_MS, ownName = null }) {
   const [rows, setRows] = useState(null);
   const [finds, setFinds] = useState([]);
   const [paused, setPaused] = useState(false);
@@ -101,8 +103,8 @@ export function LeaderboardTicker({ onOpenPool, onBoard, refreshKey = 0, refresh
         <span className="leaderboard-ticker-viewport">
           {leader
             ? <span className="leaderboard-ticker-track" style={{ '--leaderboard-ticker-duration': duration }}>
-              <Rows rows={rows} finds={finds} />
-              {!reduced && <Rows rows={rows} finds={finds} hidden />}
+              <Rows rows={rows} finds={finds} ownName={ownName} />
+              {!reduced && <Rows rows={rows} finds={finds} ownName={ownName} hidden />}
             </span>
             : <span className="leaderboard-ticker-empty">No blocks yet. Mine the first one.</span>}
         </span>

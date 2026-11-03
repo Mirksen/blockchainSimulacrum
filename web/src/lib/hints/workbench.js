@@ -16,7 +16,7 @@ export const WORKBENCH_HINTS = {
   'nav.chain-lab': { title: 'Chain lab', text: 'Three toy blocks you edit by hand. Change old data, watch the links break and repair them by re-mining. Also: competing branches and payment proofs.' },
   'nav.pool': { title: 'Leaderboard', text: 'A shared scoreboard for everyone on this site. Blocks you mine under your name are sent there; the hash with the most leading zeros ranks highest.' },
   'menu.more': { title: 'More', text: 'Reset the simulation, open the settings, switch the sound and the light or dark theme.' },
-  'menu.reset': { title: 'Reset', text: 'Start over: a new chain with only the genesis block, empty wallets and an empty mempool. Difficulty and halving stay as set; a workbench mission in progress starts its steps again.' },
+  'menu.reset': { title: 'Reset', text: 'Start over: a new chain with only the genesis block and an empty mempool; added wallets and miners go. Difficulty, coin name, halving interval and block time stay as set; a workbench mission in progress starts its steps again.' },
   'menu.settings': { title: 'Settings', text: 'Coin name, mining difficulty, halving interval and target block time.' },
   'menu.sound': muted => ({ title: 'Sound', text: muted ? 'Sound is off. Turn it on to hear a short chime whenever a block is found.' : 'Plays a short chime whenever a block is found. Click to mute it.' }),
   'menu.theme': next => ({ title: next === 'light' ? 'Light theme' : 'Dark theme', text: `Switch to ${next === 'light' ? 'light' : 'dark'} colors. Nothing else changes.` }),
@@ -74,7 +74,9 @@ export const WORKBENCH_HINTS = {
   'next.title': { title: 'Next block', text: 'The block being built right now from the waiting payments. It joins the chain as soon as one miner finds a hash with enough leading zeros.' },
   'next.difficulty': lock => ({ title: 'Difficulty', text: `How many zeros the block hash must start with. Each extra zero makes mining about 16 times slower.${lock === 'mining' ? ' Locked while a block is being mined.' : lock === 'repair' ? ' Locked until the chain is repaired.' : ''}` }),
   'next.mine-locked': { title: 'Repair first', text: 'New blocks wait while the chain is invalid: a block on a broken chain would be worthless. Re-mine or undo below first.' },
-  'next.lower': { title: 'Lower difficulty', text: 'One zero fewer: blocks are found about 16 times faster.' },
+  'next.lower': startsNewChain => ({ title: 'Lower difficulty', text: startsNewChain
+    ? 'One zero fewer starts a new chain (you are asked first). Otherwise easy blocks could make a chain longer without more work, and in Bitcoin the chain with the most work counts.'
+    : 'One zero fewer: blocks are found about 16 times faster.' }),
   'next.raise': { title: 'Raise difficulty', text: 'One zero more: blocks take about 16 times longer. High settings can take longer than you want to wait; Pause stops the search.' },
   'next.start-demo': { title: 'Start demo', text: 'Mines the first block and shares its reward with the other wallets, so everyone has coins to send. A good first click.' },
   'next.mine': { title: 'Mining', text: 'Start the race: every miner tries nonce after nonce until one finds a hash with enough leading zeros. The winner adds the block and earns the reward. Shortcut: M.' },
@@ -129,7 +131,7 @@ export const WORKBENCH_HINTS = {
 
   // ---------- settings ----------
   'settings.coin': { title: 'Coin name', text: 'Just a label for the virtual coin. It changes nothing in the rules.' },
-  'settings.difficulty': { title: 'Mining difficulty', text: 'How many zeros a block hash must start with. Each step makes mining about 16 times slower on average.' },
+  'settings.difficulty': { title: 'Mining difficulty', text: 'How many zeros a block hash must start with. Each step makes mining about 16 times slower on average. Raising keeps the chain; lowering by hand starts a new one.' },
   'settings.halving': { title: 'Halving interval', text: 'After this many blocks the block reward is cut in half. Bitcoin halves every 210,000 blocks.' },
   'settings.block-time': { title: 'Target block time', text: 'How long a block should take on average. Every 10 blocks the difficulty adjusts toward it. Bitcoin aims at 10 minutes.' }
 };

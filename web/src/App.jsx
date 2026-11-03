@@ -1,12 +1,15 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { useBlockchain } from './hooks/useBlockchain';
 import { useMinerIdentity } from './hooks/useMinerIdentity';
-import { playMiningSuccessSound, unlockMiningAudio } from './lib/sound';
+import { playMiningSuccessSound, playRecordSound, unlockMiningAudio } from './lib/sound';
+import { ownRow, recordOf } from './lib/records';
 import { telemetry } from './lib/telemetry';
 import * as missions from './lib/missions';
 import { TopBar } from './components/workbench/TopBar';
 import { LeaderboardTicker } from './components/workbench/LeaderboardTicker';
+import { RecordCelebration } from './components/workbench/RecordCelebration';
 import { SettingsDialog } from './components/workbench/SettingsDialog';
+import { LowerDifficultyDialog } from './components/workbench/LowerDifficultyDialog';
 import { Workbench } from './components/workbench/Workbench';
 import { MissionRail } from './components/workbench/MissionRail';
 import { MissionIntro } from './components/workbench/MissionIntro';
@@ -81,6 +84,8 @@ function App() {
   const [coinName, setCoinName] = useState('powfyicoin');
   const [targetBlockTime, setTargetBlockTime] = useState(10);
   const [showSettings, setShowSettings] = useState(false);
+  // A manual lowering waits here until the learner confirms the new chain.
+  const [lowerTo, setLowerTo] = useState(null);
   const [error, setError] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(null);
   // The block a repair is about: shown while the chain is invalid, never held.
@@ -104,8 +109,27 @@ function App() {
   const lastAdjustedBlock = useRef(sim.restored ? sim.blocks.length - 1 : 0);
   const [boardKey, setBoardKey] = useState(0);
   const [boardRows, setBoardRows] = useState(null);
-  const onBlockAccepted = useCallback(() => setBoardKey(key => key + 1), []);
+  const [record, setRecord] = useState(null);
+  // A record is what the board gained between the rows before and after an accepted block of
+  // this browser; the ticker's own refreshes and other miners' blocks celebrate nothing.
+  const awaitingBoard = useRef(false);
+  const lastRows = useRef(null);
+  const signingName = useRef(null);
+  const onBlockAccepted = useCallback(() => { awaitingBoard.current = true; setBoardKey(key => key + 1); }, []);
+  const onBoard = useCallback(rows => {
+    if (rows && awaitingBoard.current && lastRows.current) {
+      awaitingBoard.current = false;
+      const found = recordOf(ownRow(lastRows.current, signingName.current), ownRow(rows, signingName.current));
+      if (found) {
+        setRecord({ ...found, name: signingName.current, id: Date.now() });
+        playRecordSound(soundEnabled.current);
+      }
+    }
+    if (rows) lastRows.current = rows;
+    setBoardRows(rows);
+  }, []);
   const identity = useMinerIdentity({ onAccepted: onBlockAccepted });
+  useEffect(() => { signingName.current = identity.signingName; }, [identity.signingName]);
   const { blocks, participants, balances, memPool, chainValid, isMining, isSettingUp, difficulty, halvingInterval,
     minerProgress, miningProgress, createTransaction, mineBlock, setupInitialDistribution, generateRandomTransactions,
     setDifficulty, setHalvingInterval, tamperBlock, undoTamper, remineBlock, resetBlockchain, cancelMining,
@@ -266,11 +290,11 @@ function App() {
     setSelectedIndex(null);
   };
 
-  const reset = () => {
+  const reset = ({ difficulty: startAt } = {}) => {
     setAutoTransact(false);
     changeAutoMine(false);
     setRunning(false);
-    resetBlockchain();
+    resetBlockchain({ miningDifficulty: startAt });
     lastAdjustedBlock.current = 0;
     setWinner(null);
     setError('');
@@ -345,9 +369,18 @@ function App() {
     }
     return result;
   };
+  // Raising keeps the chain. Lowering a chain with mined blocks starts a new chain after
+  // a confirmation, so its length keeps meaning work (ADR 0004); the automatic
+  // adjustment calls setDifficulty directly and may lower without one.
   const onDifficulty = value => {
+    if (value < difficulty && blocks.length > 1) { setLowerTo(value); return; }
     setDifficulty(value, { source: 'manual' });
     report({ type: 'difficulty_changed', direction: value > difficulty ? 'up' : 'down', manual: true });
+  };
+  const confirmLower = () => {
+    const value = lowerTo;
+    setLowerTo(null);
+    reset({ difficulty: value });
   };
 
   // A repair shows its block only while the chain is invalid; a click on a tile outranks it.
@@ -364,7 +397,7 @@ function App() {
       <HintLayer />
       <TopBar view={view} onNavigate={navigate} coinName={coinName} theme={theme} onTheme={changeTheme}
         muted={muted} onMuted={changeMuted} onReset={reset} onOpenSettings={() => setShowSettings(true)} compact={compact} saveState={sim.saveState} />
-      <LeaderboardTicker onOpenPool={() => navigate('pool')} onBoard={setBoardRows} refreshKey={boardKey} />
+      <LeaderboardTicker onOpenPool={() => navigate('pool')} onBoard={onBoard} refreshKey={boardKey} ownName={identity.signingName} />
       <div className="wb-shell">
         <div className="wb-rail">
           <MissionRail progress={progress} collapsed={railCollapsed} onToggle={toggleRail} onShowMe={showMe} highlight={showIntro} />
@@ -397,9 +430,13 @@ function App() {
         </main>
       </div>
       {winner && <div className="wb-announce" role="status">{winner} mined a block</div>}
+      <RecordCelebration key={record?.id} record={record} name={record?.name} onClose={() => setRecord(null)}
+        onOpenLeaderboard={() => openProfile(record.name)} />
       <SettingsDialog open={showSettings} onClose={() => setShowSettings(false)} coinName={coinName} onCoinName={setCoinName}
         difficulty={difficulty} onDifficulty={onDifficulty} halvingInterval={halvingInterval} onHalvingInterval={setHalvingInterval}
         targetBlockTime={targetBlockTime} onTargetBlockTime={changeTarget} busy={busy} />
+      {lowerTo !== null && <LowerDifficultyDialog from={difficulty} to={lowerTo} blockCount={blocks.length - 1}
+        onConfirm={confirmLower} onCancel={() => setLowerTo(null)} />}
       {details !== null && blocks[details] && <BlockDetailsModal block={blocks[details]} blockIndex={details} blocks={blocks}
         onClose={() => setDetails(null)} participants={participants} describeTx={describeTx} coinName={coinName} />}
       {pendingTx && memPool.includes(pendingTx) && <TransactionDetailsModal transaction={describeTx(pendingTx)} blockIndex={null}

@@ -77,6 +77,17 @@ describe('LeaderboardTicker', () => {
     expect(onOpenPool).toHaveBeenCalledTimes(1);
   });
 
+  it('marks the visitor\'s own row with "you"', async () => {
+    vi.mocked(getLeaderboard).mockResolvedValue(board(ROWS));
+    render(<LeaderboardTicker onOpenPool={() => {}} ownName="test-miner-b" />);
+    await flush();
+    const list = ticker().querySelector('.leaderboard-ticker-list:not([aria-hidden])');
+    const own = list.querySelectorAll('.leaderboard-ticker-row.is-own');
+    expect(own).toHaveLength(1);
+    expect(own[0].querySelector('.leaderboard-ticker-name').textContent).toBe('test-miner-b');
+    expect(own[0].querySelector('.leaderboard-ticker-you').textContent).toBe('you');
+  });
+
   it('derives the special finds from what the board says', () => {
     const rows = [{ name: 'deep', bestZeros: 7, proofs: 2, foundAt: 10 }, { name: 'busy', bestZeros: 3, proofs: 900, foundAt: 20 },
       { name: 'new', bestZeros: 2, proofs: 1, foundAt: 30 }];

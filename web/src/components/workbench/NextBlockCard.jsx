@@ -156,7 +156,7 @@ export function NextBlockCard({
         <span {...term('next.difficulty', isMining ? 'mining' : isRepair ? 'repair' : null)}>Difficulty</span>
         <span className="next-block-stepper-box">
           <button type="button" aria-label="Lower difficulty" disabled={settingsLocked || difficulty <= MIN_DIFFICULTY}
-            {...hint('next.lower')} onClick={() => onDifficulty?.(difficulty - 1)}><MinusIcon /></button>
+            {...hint('next.lower', !isFresh)} onClick={() => onDifficulty?.(difficulty - 1)}><MinusIcon /></button>
           <output aria-label="Difficulty">{difficulty}</output>
           <button type="button" aria-label="Raise difficulty" disabled={settingsLocked || difficulty >= MAX_DIFFICULTY}
             {...hint('next.raise')} onClick={() => onDifficulty?.(difficulty + 1)}><PlusIcon /></button>
