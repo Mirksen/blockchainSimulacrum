@@ -33,10 +33,18 @@ export const WORKBENCH_HINTS = {
   'chain.health': (valid, open) => (valid
     ? { title: 'Chain valid', text: `Every block’s hash starts with enough zeros and every block stores the correct hash of the one before. ${open ? 'Click to hide the checks.' : 'Click to see the checks per block.'}` }
     : { title: 'Chain invalid', text: `At least one block fails a check, usually because its data was changed after mining. ${open ? 'Click to hide the checks.' : 'Click to see which block fails and why.'}` }),
-  'chain.block-time': { title: 'Block time', text: 'How long blocks take to be found: the recent average against the target. Every 10 blocks the difficulty adjusts so the average moves toward the target, as in Bitcoin (every 2,016 blocks, aiming at 10 minutes).' },
+  // The key figures carry their rule and its forecast (web/DESIGN.md, "Key figures").
+  'chain.block-time': pace => ({ title: 'Block time', text: pace
+    ? `The average the next difficulty check measures: ${pace.blocks ? `the last ${pace.blocks} blocks took ${pace.seconds} each` : 'no block timed since the last check'}, against the ${pace.target} target. `
+      + `The marker shows where it sits; the shaded band (${pace.low}–${pace.high}) keeps the difficulty as it is. Bitcoin aims at 10 minutes.`
+    : 'How long blocks take to be found: the recent average against the target. Every 10 blocks the difficulty adjusts so the average moves toward the target, as in Bitcoin (every 2,016 blocks, aiming at 10 minutes).' }),
   'chain.difficulty': { title: 'Difficulty', text: 'How many zeros a block hash must start with. Each extra zero makes a valid hash about 16 times rarer, so finding one takes about 16 times longer.' },
-  'chain.reward': { title: 'Block reward', text: 'New coins the winner of the next block creates for itself, on top of the fees of the payments it includes. This is how new coins come into existence.' },
+  'chain.check': check => ({ title: 'Difficulty check', text: `After every 10th block the last ten are averaged: faster than ${check.low} adds a leading zero (about 16 times the work), `
+    + `slower than ${check.high} removes one, in between the difficulty stays. ${check.forecast} Bitcoin checks every 2,016 blocks.` }),
+  'chain.reward': halving => ({ title: 'Block reward', text: 'New coins the winner of the next block creates for itself, on top of the fees of the payments it includes. This is how new coins come into existence.'
+    + (halving ? ` It halves every ${halving.every} blocks: #${halving.at} pays ${halving.reward}, like Bitcoin’s halving every 210,000 blocks.` : '') }),
   'chain.halving': { title: 'Next halving', text: 'From this block on, the block reward is cut in half. Halvings make the coin supply grow ever slower, like Bitcoin’s every 210,000 blocks (about four years).' },
+  'chain.change': mark => ({ title: { halving: 'Halving', check: 'Difficulty check' }[mark.kind] ?? 'Difficulty change', text: mark.title }),
   'chain.candidate': { title: 'Next block', text: 'The block being built now. It does not belong to the chain until a miner finds a valid hash for it. Its controls are in the Next block card below.' },
 
   // ---------- block card ----------

@@ -24,7 +24,7 @@ import { colorOf } from './components/workbench/minerColors';
 import { TransactionDetailsModal } from './components/TransactionDetailsModal';
 import { HintLayer } from './components/HintLayer';
 import './index.css';
-import { MIN_DIFFICULTY, MAX_DIFFICULTY } from './lib/difficulty';
+import { adjustedDifficulty, averagePace, checkWindowStart, isCheckHeight } from './lib/difficulty';
 import { DEFAULT_FEE_RATE } from './lib/blockchain';
 
 const INITIAL_CONFIG = {
@@ -216,15 +216,11 @@ function App() {
   const adjustDifficulty = useCallback(() => {
     const chainBlocks = sim.blockchain.blockArray;
     const height = chainBlocks.length - 1;
-    if (height < 10 || height % 10 !== 0 || lastAdjustedBlock.current === height) return;
+    if (!isCheckHeight(height) || lastAdjustedBlock.current === height) return;
     lastAdjustedBlock.current = height;
     const current = sim.blockchain.miningDifficulty;
-    // Measured from block #1 at the earliest: the genesis time is a fixed launch moment.
-    const from = Math.max(1, height - 10);
-    const seconds = (chainBlocks[height].time - chainBlocks[from].time) / (height - from);
-    let next = current;
-    if (seconds < targetBlockTime * 0.7 && current < MAX_DIFFICULTY) next = current + 1;
-    else if (seconds > targetBlockTime * 1.5 && current > MIN_DIFFICULTY) next = current - 1;
+    const seconds = averagePace(chainBlocks, checkWindowStart(height), height);
+    const next = adjustedDifficulty(current, seconds, targetBlockTime);
     if (next === current) return;
     setDifficulty(next, { source: 'auto' });
     report({ type: 'difficulty_changed', direction: next > current ? 'up' : 'down' });
