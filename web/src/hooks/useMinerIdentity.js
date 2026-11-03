@@ -36,6 +36,13 @@ export function useMinerIdentity({ onAccepted } = {}) {
   const [sent, setSent] = useState({ name: null, entry: null });
   const offer = useRef(null);
   const attempt = useRef({ at: -Infinity, controller: null });
+  // An answer that arrives after unmount changes nothing: the request is aborted and late
+  // results are dropped, so no state is set on a component (or test page) that is gone.
+  const alive = useRef(true);
+  useEffect(() => {
+    alive.current = true;
+    return () => { alive.current = false; attempt.current.controller?.abort(); };
+  }, []);
   const valid = isValidPoolName(name);
   const pool = !valid ? 'idle' : answered.name === name ? answered.pool : 'connecting';
   const entry = sent.name === name ? sent.entry : null;
@@ -46,11 +53,11 @@ export function useMinerIdentity({ onAccepted } = {}) {
     attempt.current = { at: Date.now(), controller };
     try {
       const answer = await getChallenge(minerName, { signal: controller.signal });
-      if (controller.signal.aborted) return;
+      if (controller.signal.aborted || !alive.current) return;
       offer.current = { answer, at: Date.now() };
       setAnswered({ name: minerName, pool: 'ready' });
     } catch (error) {
-      if (error?.name === 'AbortError' || controller.signal.aborted) return;
+      if (error?.name === 'AbortError' || controller.signal.aborted || !alive.current) return;
       offer.current = null;
       const refused = error?.code === 'name-unavailable';
       // Digits read as letters can turn a generated name into a blocked word. The server
@@ -86,7 +93,7 @@ export function useMinerIdentity({ onAccepted } = {}) {
     },
     async submit(block, signature, height) {
       const shown = { height, zeros: leadingZeros(block.hash) };
-      const show = state => setSent({ name: signature.name, entry: { ...shown, ...state } });
+      const show = state => { if (alive.current) setSent({ name: signature.name, entry: { ...shown, ...state } }); };
       show({ state: 'sending' });
       try {
         await submitProof(signature, proofOfBlock(block));
@@ -96,7 +103,7 @@ export function useMinerIdentity({ onAccepted } = {}) {
         return;
       }
       show({ state: 'accepted' });
-      onAccepted?.();
+      if (alive.current) onAccepted?.();
     },
   }), [ask, name, onAccepted, valid]);
 
