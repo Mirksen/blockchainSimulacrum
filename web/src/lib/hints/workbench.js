@@ -36,6 +36,9 @@ export const WORKBENCH_HINTS = {
   'chain.health': (valid, open) => (valid
     ? { title: 'Chain valid', text: `Every block’s hash starts with enough zeros and every block stores the correct hash of the one before. ${open ? 'Click to hide the checks.' : 'Click to see the checks per block.'}` }
     : { title: 'Chain invalid', text: `At least one block fails a check, usually because its data was changed after mining. ${open ? 'Click to hide the checks.' : 'Click to see which block fails and why.'}` }),
+  'chain.view': list => (list
+    ? { title: 'Row', text: 'Show the blocks again as one row that swipes sideways.' }
+    : { title: 'List', text: 'Show the blocks as a list, newest on top. Tap a block for its full hash, Copy and “Open in Chain lab”.' }),
   // The key figures carry their rule and its forecast (web/DESIGN.md, "Key figures").
   'chain.block-time': pace => ({ title: 'Block time', text: pace
     ? `The average the next difficulty check measures: ${pace.blocks ? `the last ${pace.blocks} blocks took ${pace.seconds} each` : 'no block timed since the last check'}, against the ${pace.target} target. `
