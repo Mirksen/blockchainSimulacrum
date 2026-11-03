@@ -78,8 +78,8 @@ use the monospace font.
   block card; missions live in the rail and point at the part of the
   workbench they need.
 - Hash lab and Chain lab stay separate tools.
-- Chain lab offers **Repair a chain** and **Competing branches** within the same
-  view. The fork experiment has Competition and Rewrite history scenarios, a
+- Chain lab offers three experiments within the same view: **Repair a chain**,
+  **Competing branches** and **Prove a payment**. The fork experiment has Competition and Rewrite history scenarios, a
   nominal hash-power split, two labelled histories and a visible selected branch.
   Keep Run/Stop and one-block stepping above the growing history. Runs stop after
   twelve new blocks. Shared ancestry is shown once; each branch states its valid
@@ -91,6 +91,15 @@ use the monospace font.
   forged signature, real ledger or measured attack probability. Mission completion
   leaves the observed outcome visible. Closing guidance cancels pending lesson work
   and hides coaching; completed mission rewards remain.
+- **Prove a payment** shows a Merkle proof. The learner chooses a block of 4, 16,
+  256 or 4,096 toy payments ("12 hashes instead of 4,096 transactions") and one
+  transaction; only the 4- and 16-transaction blocks list every transaction. The
+  path runs level by level from the txid to the computed root, each sibling with
+  its side, then compares it with the header's full 64-character Merkle root and
+  says "Payment proven" or "Payment not proven". An edited payment text or sibling
+  hash turns only the first diverging level red, with its level named in text. The
+  verdict is live, so the experiment adds no filled action; "Reset example" restores
+  the 16-transaction example.
 
 ### Existing features in the workbench
 

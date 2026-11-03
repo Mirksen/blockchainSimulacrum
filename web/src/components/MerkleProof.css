@@ -1,0 +1,61 @@
+.merkle-proof { min-width: 0; color: var(--text); font-size: 13px; line-height: 1.5; }
+.merkle-proof *, .merkle-proof *::before, .merkle-proof *::after { box-sizing: border-box; }
+.merkle-proof-header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--s-3); }
+.merkle-proof .merkle-proof-header h2 { margin: 0; font-size: 20px; line-height: 1.3; }
+.merkle-proof h3 { margin: 0 0 var(--s-2); font-size: 14px; }
+.merkle-proof .btn { white-space: normal; }
+
+.merkle-proof-controls { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--s-6); align-items: center; margin: var(--s-6) 0 var(--s-4); }
+.merkle-proof-sizes { display: flex; flex-wrap: wrap; gap: var(--s-3) var(--s-5); min-width: 0; margin: 0; padding: var(--s-3); border: 1px solid var(--line-3); border-radius: var(--r-md); }
+.merkle-proof-sizes legend { padding: 0 var(--s-1); font-weight: 600; }
+.merkle-proof .merkle-proof-sizes label { display: inline-flex; align-items: center; gap: 6px; margin: 0; font-weight: 400; cursor: pointer; font-variant-numeric: tabular-nums; }
+.merkle-proof .merkle-proof-sizes input[type="radio"] { width: 16px; height: 16px; margin: 0; padding: 0; accent-color: var(--blue); }
+.merkle-proof-saving { display: flex; flex-direction: column; gap: var(--s-1); margin: 0; font-variant-numeric: tabular-nums; }
+.merkle-proof-saving strong { font-size: 16px; }
+.merkle-proof-saving span { color: var(--text-2); font-size: 12px; }
+
+.merkle-proof-list ol { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr)); gap: 6px; margin: 0 0 var(--s-4); padding: 0; list-style: none; }
+.merkle-proof-tx { display: flex; gap: var(--s-2); width: 100%; padding: 6px var(--s-2); font: inherit; font-size: 12px; text-align: left; color: var(--text-2); background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-sm); cursor: pointer; }
+.merkle-proof-tx:hover { border-color: var(--line-3); color: var(--text); }
+.merkle-proof-tx[aria-pressed="true"] { color: var(--text); border-color: var(--blue-line); background: var(--blue-bg); }
+.merkle-proof-tx-number { flex-shrink: 0; font-family: var(--mono); font-variant-numeric: tabular-nums; color: var(--text-3); }
+.merkle-proof-tx[aria-pressed="true"] .merkle-proof-tx-number { color: var(--blue); }
+
+.merkle-proof-pick { margin-bottom: var(--s-4); }
+.merkle-proof .merkle-proof-pick input { max-width: 200px; font-variant-numeric: tabular-nums; }
+
+.merkle-proof-header-card { margin: 0 0 var(--s-4); padding: var(--s-3); border: 1px solid var(--line); border-radius: var(--r-md); background: var(--panel-2); }
+.merkle-proof-header-card details { margin-top: var(--s-2); font-size: 12px; }
+.merkle-proof summary { cursor: pointer; }
+.merkle-proof-kv { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: var(--s-1) var(--s-3); margin: 0; }
+.merkle-proof-kv dt { color: var(--text-2); font-size: 12px; }
+.merkle-proof-kv dd { margin: 0; min-width: 0; }
+.merkle-proof .merkle-proof-kv code, .merkle-proof .merkle-proof-hash { display: block; font: 12px/1.6 var(--mono); overflow-wrap: anywhere; white-space: normal; }
+
+.merkle-proof-payment { margin-bottom: var(--s-4); }
+
+.merkle-proof .merkle-proof-path-title { margin-top: var(--s-4); }
+.merkle-proof-path { display: flex; flex-direction: column; gap: var(--s-2); margin: 0 0 var(--s-4); padding: 0; list-style: none; }
+.merkle-proof-level { min-width: 0; padding: var(--s-2) var(--s-3); border: 1px solid var(--line); border-radius: var(--r-sm); }
+.merkle-proof-level.is-failed { border-color: var(--red); background: var(--red-bg); }
+.merkle-proof-level-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--s-1) var(--s-2); }
+.merkle-proof-formula { margin: 2px 0; color: var(--text-3); font: 11px/1.5 var(--mono); }
+.merkle-proof-sibling { margin-top: var(--s-2); padding-top: var(--s-2); border-top: 1px dashed var(--line); }
+.merkle-proof .merkle-proof-sibling label { margin: 0 0 var(--s-1); font-size: 12px; font-weight: 600; }
+.merkle-proof .merkle-proof-hash-input { font: 12px/1.5 var(--mono); }
+
+.merkle-proof-compare { margin-bottom: var(--s-3); }
+.merkle-proof-verdict { margin: 0 0 var(--s-2); padding: var(--s-2) var(--s-3); border-radius: var(--r-sm); }
+.merkle-proof-verdict.merkle-proof-positive { background: var(--green-bg); }
+.merkle-proof-verdict.merkle-proof-negative { background: var(--red-bg); }
+.merkle-proof-positive { color: var(--green); }
+.merkle-proof-negative { color: var(--red); }
+.merkle-proof-error { margin: var(--s-1) 0 0; color: var(--red); font-size: 12px; }
+.merkle-proof-hint, .merkle-proof-note { color: var(--text-2); font-size: 12px; }
+.merkle-proof-note { margin: var(--s-3) 0 0; }
+.merkle-proof :focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
+
+@media (max-width: 700px) {
+  .merkle-proof-controls { grid-template-columns: minmax(0, 1fr); gap: var(--s-3); }
+  .merkle-proof-kv { grid-template-columns: minmax(0, 1fr); }
+}
