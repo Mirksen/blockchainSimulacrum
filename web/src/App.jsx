@@ -18,6 +18,7 @@ import { ParticipantDetailsModal } from './components/ParticipantDetailsModal';
 import { TransactionDetailsModal } from './components/TransactionDetailsModal';
 import './index.css';
 import { MIN_DIFFICULTY, MAX_DIFFICULTY } from './lib/difficulty';
+import { DEFAULT_FEE_RATE } from './lib/blockchain';
 
 const INITIAL_CONFIG = {
   name: 'powfyicoin', miningDifficulty: 4, blockReward: 3.125, halvingEvent: 4,
@@ -288,8 +289,8 @@ function App() {
     setRailCollapsed(false);
   };
 
-  const onCreateTransaction = (from, to, amount, reference) => {
-    const result = createTransaction(from, to, Number(amount), undefined, reference);
+  const onCreateTransaction = (from, to, amount, reference, feeRate = DEFAULT_FEE_RATE) => {
+    const result = createTransaction(from, to, Number(amount), undefined, reference, { feeRate });
     if (result.success) report({ type: 'transaction_created' });
     return result;
   };

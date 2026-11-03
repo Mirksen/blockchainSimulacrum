@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { createBlockchain, DEFAULT_FEE } from '../lib/blockchain';
+import { createBlockchain, DEFAULT_FEE, DEFAULT_FEE_RATE, FEE_RATES } from '../lib/blockchain';
 import { runSearch } from '../lib/powSearch';
 import { MIN_DIFFICULTY, MAX_DIFFICULTY } from '../lib/difficulty';
 import { telemetry, failureCode } from '../lib/telemetry';
@@ -17,11 +17,15 @@ function snapshot(chain) {
         halvingInterval: chain.halvingEvent,
         blockStatus: chain.inspectBlocks(),
         tamperedEdits: chain.getTamperedEdits(),
-        describeTx: chain.describer()
+        describeTx: chain.describer(),
+        blockTemplate: chain.blockTemplate()
     };
 }
 // One Auto-transact refill: enough to fill a block, few enough to read.
 const SAMPLE_TRANSFERS = 8;
+const SAMPLE_RATES = [1, 2, 5, 10, 20];
+// Satoshis a sample sender keeps for the fee: 20 sat/B on a transfer of up to 1,000 bytes.
+const SAMPLE_FEE_ROOM = 20_000;
 const aborted = () => ({ success: false, aborted: true });
 function miningMetrics(run) {
     return { difficulty: run.difficulty, elapsed_ms: Math.max(0, Date.now() - run.startedAt), attempt_count: run.attempts,
@@ -73,13 +77,16 @@ export function useBlockchain(config = {}) {
         setIsSettingUp(false);
     }, [controller]);
 
-    const createTransaction = useCallback((sender, recipient, amount, fee = DEFAULT_FEE, reference) => {
+    // A transfer with an absolute fee in coins, or with `{ feeRate }` in satoshis per byte.
+    const createTransaction = useCallback((sender, recipient, amount, fee = DEFAULT_FEE, reference, { feeRate } = {}) => {
         if (controller.run || controller.setup) {
             void telemetry.track('transaction_rejected', { source: 'manual', reason: 'busy' });
             return { success: false, error: 'Wait for mining to finish or stop it first.' };
         }
         try {
-            const tx = controller.chain.createTransaction(sender, recipient, Number(amount), Number(fee), reference);
+            const tx = feeRate === undefined
+                ? controller.chain.createTransaction(sender, recipient, Number(amount), Number(fee), reference)
+                : controller.chain.createTransactionAtRate(sender, recipient, Number(amount), Number(feeRate), reference);
             publish();
             void telemetry.track('transaction_created', { source: 'manual', count: 1, pending_count: controller.chain.memPool.length });
             return { success: true, tx };
@@ -90,8 +97,9 @@ export function useBlockchain(config = {}) {
         }
     }, [controller, publish]);
 
-    // The coins, change and fee a transfer would use, for the form before it is created.
-    const previewTransaction = useCallback((sender, amount) => controller.chain.previewTransaction(sender, Number(amount)), [controller]);
+    // The coins, change, size and fee a transfer at `feeRate` would use, for the form before it is created.
+    const previewTransaction = useCallback((sender, amount, feeRate = DEFAULT_FEE_RATE, reference = '') =>
+        controller.chain.planAtRate(sender, Number(amount), Number(feeRate), reference), [controller]);
 
     // One miner race. `prepare(round)` returns the candidates (one per miner) of a
     // round; a further round starts only when every 32-bit nonce of the previous one
@@ -266,9 +274,10 @@ export function useBlockchain(config = {}) {
             const chain = controller.chain;
             const others = chain.participants.filter(p => p.name !== first.winner);
             const balance = chain.calculateBalance(chain.getParticipantByName(first.winner).publicKey);
-            const amount = Math.min(0.6, Math.floor((balance / Math.max(1, others.length) - 0.00000001) * 1e8) / 1e8);
+            // Each transfer keeps room for its fee at the lowest rate (a little over 250 bytes).
+            const amount = Math.min(0.6, Math.floor((balance / Math.max(1, others.length) - 0.000003) * 1e8) / 1e8);
             if (amount <= 0) return finish({ success: false, error: 'Reward is too small to distribute. Reset the demo.', code: 'reward_too_small' });
-            for (const recipient of others) chain.createTransaction(first.winner, recipient.name, amount, DEFAULT_FEE, 'Demo distribution');
+            for (const recipient of others) chain.createTransactionAtRate(first.winner, recipient.name, amount, FEE_RATES[0], 'Demo distribution');
             if (others.length) void telemetry.track('transaction_created', { source: 'demo', count: others.length, pending_count: chain.memPool.length });
             publish();
             const second = await doMining(false, setup);
@@ -386,7 +395,7 @@ export function useBlockchain(config = {}) {
             // Pick a sender who can actually fund a sample transfer. Choosing
             // only unfunded wallets must not strand an enabled empty refill.
             const funded = chain.participants.map(participant => ({ participant,
-                available: Math.round(chain.calculateBalance(participant.publicKey) * 1e8) - 1 }))
+                available: Math.round(chain.calculateBalance(participant.publicKey) * 1e8) - SAMPLE_FEE_ROOM }))
                 .filter(sender => sender.available >= 5_000_000);
             if (!funded.length) break;
             const { participant: sender, available } = funded[Math.floor(Math.random() * funded.length)];
@@ -395,7 +404,9 @@ export function useBlockchain(config = {}) {
             const recipient = recipients[Math.floor(Math.random() * recipients.length)];
             const maximum = Math.min(10_000_000, available);
             const amount = (5_000_000 + Math.floor(Math.random() * (maximum - 5_000_000 + 1))) / 1e8;
-            chain.createTransaction(sender.name, recipient.name, amount, DEFAULT_FEE, 'Demo transfer');
+            // Mixed fee rates, so a full block shows which transfers a miner takes first.
+            const feeRate = SAMPLE_RATES[Math.floor(Math.random() * SAMPLE_RATES.length)];
+            chain.createTransactionAtRate(sender.name, recipient.name, amount, feeRate, 'Demo transfer');
             count++;
         }
         publish();

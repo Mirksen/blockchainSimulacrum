@@ -18,7 +18,6 @@ import './Workbench.css';
 // card grid; App frames it with the mission rail. It turns the simulation snapshot
 // into the view models of the presentational components; App owns state and effects.
 
-const satoshis = coins => Math.round(coins * 1e8);
 // A signed coinbase names its miner in the memo and commits to it in a last output.
 const signerOf = coinbase => (coinbase.outputs.some(output => output.kind === 'commitment') ? coinbase.memo : null);
 
@@ -28,7 +27,7 @@ export function Workbench({
   onStartDemo, onMine, onPause, onRemine, onTamper, onUndo, onDifficulty, onBack,
   onCreateTransaction, onCreateWallet, onCreateMiner, onRenameMiner, onHashpower, onOpenWallet, onOpenDetails, onOpenTransaction, onOpenBlockTx, onOpenChainLab, error
 }) {
-  const { blocks, blockStatus, participants, memPool, balances, tamperedEdits, describeTx, previewTransaction, difficulty, blockReward, halvingInterval,
+  const { blocks, blockStatus, participants, memPool, balances, tamperedEdits, describeTx, previewTransaction, blockTemplate, difficulty, blockReward, halvingInterval,
     isMining, isSettingUp, minerProgress, miningProgress, raceWinner, backedMiner } = sim;
   const busy = isMining || isSettingUp;
   const height = blocks.length - 1;
@@ -74,12 +73,18 @@ export function Workbench({
     return { name: wallet.name, balance: wallet.balance, isMiner: wallet.isMiner, blocksWon: participant?.blocksWon ?? 0, colorKey: participant?.colorKey,
       hashrate: wallet.isMiner ? rateOf(minerProgress[wallet.name]) : undefined };
   });
-  const pending = memPool.map(tx => {
+  // The mempool as the next block's miner sees it: what fits first, in block order, then
+  // what waits, the highest fee rate first (blockTemplate in lib/blockchain.js).
+  const template = blockTemplate ?? { included: memPool.map((_, i) => i), waiting: [], reasons: {}, entries: [], bytes: 0, space: 0, fees: 0 };
+  const pending = [...template.included, ...template.waiting].map(index => {
+    const tx = memPool[index];
     const view = describeTx(tx);
+    const entry = template.entries[index];
     return { id: view.txid, tx, from: view.from, to: view.to, amount: view.amount, reference: view.memo, inputs: view.inputs.length,
-      change: view.change, fee: view.fee };
+      change: view.change, fee: view.fee, size: view.size, rate: entry?.rate ?? null, waits: template.reasons[index] ?? null };
   });
-  const pendingFees = pending.reduce((sum, tx) => sum + satoshis(tx.fee ?? 0), 0) / 1e8;
+  const space = { bytes: template.bytes, capacity: template.space, included: template.included.length, total: memPool.length };
+  const pendingFees = template.fees / 1e8;
   const confirmed = blocks.slice(1).reverse().flatMap((b, i) => {
     const index = height - i;
     return b.transactions.map(tx => {
@@ -127,7 +132,7 @@ export function Workbench({
         <WalletsCard wallets={wallets} coinName={coinName} onOpenWallet={onOpenWallet} onCreateWallet={onCreateWallet} />
       </div>
       <div className="wb-mempool">
-        <MempoolCard transactions={pending} nextIndex={nextIndex} mining={busy} participants={participants.map(p => p.name)}
+        <MempoolCard transactions={pending} space={space} nextIndex={nextIndex} mining={busy} participants={participants.map(p => p.name)}
           coinName={coinName} reward={blockReward + pendingFees} onCreateTransaction={onCreateTransaction}
           onPreviewTransaction={previewTransaction} onOpenTransaction={onOpenTransaction}
           autoTransact={autoTransact} onAutoTransact={onAutoTransact}

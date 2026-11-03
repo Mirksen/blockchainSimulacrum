@@ -120,6 +120,21 @@ const WALLET_NAME = /^[A-Za-z0-9]{2,16}$/;
 // Race lanes stay readable in the Next block card up to this many miners.
 export const MAX_MINERS = 4;
 export const DEFAULT_FEE = 0.00000001;
+// Block space, scaled down from Bitcoin's so that a few transfers already compete for it:
+// a block is at most MAX_BLOCK_BYTES, of which BLOCK_RESERVED_BYTES stay free for the
+// 80-byte header, the transaction count and the coinbase (Bitcoin Core reserves room the
+// same way). Payments share the rest.
+export const MAX_BLOCK_BYTES = 1600;
+export const BLOCK_RESERVED_BYTES = 300;
+export const BLOCK_SPACE = MAX_BLOCK_BYTES - BLOCK_RESERVED_BYTES;
+// Fee rates a sender can choose, in satoshis per byte.
+export const FEE_RATES = Object.freeze([1, 5, 20]);
+export const DEFAULT_FEE_RATE = 5;
+// Bytes of a legacy transaction with P2PKH inputs and outputs: version, counts and locktime,
+// each input with a signature of at most 72 bytes and a compressed key, each output. A memo
+// adds an OP_RETURN output. Used to price a transfer at a fee rate before it is signed.
+const estimateSize = ({ inputs, change, memoBytes }) => 10 + 148 * inputs + 34 * (change ? 2 : 1) +
+  (memoBytes ? 10 + (memoBytes > 75 ? 2 : 1) + memoBytes : 0);
 const satoshis = coins => Math.round(coins * 1e8);
 const walletScript = publicKey => p2pkhScript(hash160(publicKey));
 const sumValues = coins => coins.reduce((sum, coin) => sum + coin.value, 0);
@@ -305,6 +320,88 @@ export class Blockchain {
     return this.planSpend(sender, satoshis(amount), satoshis(transactionFee));
   }
 
+  // A transfer priced at `feeRate` satoshis per byte: the fee follows the size, the size
+  // follows the coins it needs, so the plan settles in a few rounds. `size` is the
+  // estimate the fee was priced on; a signature one byte shorter leaves the rate a little higher.
+  planAtRate(senderName, amount, feeRate = DEFAULT_FEE_RATE, reference = '') {
+    const sender = this.getParticipantByName(senderName);
+    if (!sender || !Number.isFinite(amount) || amount <= 0 || !Number.isFinite(feeRate) || feeRate < 0) return null;
+    const value = satoshis(amount);
+    const memoBytes = reference ? utf8Hex(reference).length / 2 : 0;
+    let inputs = 1;
+    let plan = null;
+    for (let round = 0; round < 8; round++) {
+      const withChange = estimateSize({ inputs, change: true, memoBytes });
+      plan = this.planSpend(sender, value, Math.ceil(feeRate * withChange));
+      if (!plan.funded) return { ...plan, feeRate };
+      if (plan.coins.length !== inputs) { inputs = plan.coins.length; continue; }
+      // Without change the transaction is smaller; the same coins pay that size's fee.
+      const size = plan.change > 0 ? withChange : estimateSize({ inputs, change: false, memoBytes });
+      return { ...plan, size, feeRate };
+    }
+    return { ...plan, feeRate };
+  }
+
+  createTransactionAtRate(senderName, recipientName, amount, feeRate = DEFAULT_FEE_RATE, reference) {
+    if (!Number.isFinite(feeRate) || feeRate < 0) throw new Error('Fee rate must be a non-negative number of satoshis per byte');
+    const plan = this.planAtRate(senderName, amount, feeRate, reference);
+    if (plan && !plan.funded) throw new Error(`Insufficient funds. Balance: ${plan.balance / 1e8}, Required: ${plan.required / 1e8}`);
+    // Without a plan (unknown sender or invalid amount) createTransaction names the problem.
+    return this.createTransaction(senderName, recipientName, amount, plan ? plan.fee / 1e8 : 0, reference);
+  }
+
+  // Which pending transactions the next block has room for, as a miner chooses them, like
+  // Bitcoin Core: a transaction goes in together with the pending ones it spends from (its
+  // package), and the package with the highest fee per byte that still fits into BLOCK_SPACE
+  // goes first. So a child with a high fee pulls its cheap parent along (child pays for
+  // parent). `included` holds mempool indices in block order, parents before children;
+  // `waiting` explains every other entry: `full` (no room left), `parent` (it spends a pending
+  // transaction that has no room) or `invalid` (an edit of history orphaned it). `rate` is a
+  // transaction's own fee per byte, in satoshis.
+  blockTemplate(space = BLOCK_SPACE) {
+    const ledger = this.ledger();
+    const position = new Map(this.memPool.map((tx, index) => [tx.createHash(), index]));
+    const entries = this.memPool.map((tx, index) => {
+      const { valid, fee } = ledger.memPool[index];
+      const parents = [...new Set(tx.inputs.map(input => position.get(input.txid)).filter(parent => parent !== undefined))];
+      return { index, size: tx.size, fee: valid ? fee : null, rate: valid ? fee / tx.size : null, valid, parents };
+    });
+    const included = [];
+    const taken = new Set();
+    let bytes = 0;
+    // The entry and every pending ancestor not yet in the block, in mempool order; the
+    // mempool only accepts a transaction after the ones it spends from, so parents come first.
+    const packageOf = entry => {
+      const members = new Set([entry.index]);
+      const visit = node => node.parents.forEach(parent => {
+        if (!taken.has(parent) && !members.has(parent)) { members.add(parent); visit(entries[parent]); }
+      });
+      visit(entry);
+      return [...members].sort((a, b) => a - b).map(index => entries[index]);
+    };
+    for (;;) {
+      let best = null;
+      for (const entry of entries) {
+        if (!entry.valid || taken.has(entry.index)) continue;
+        const members = packageOf(entry);
+        const size = members.reduce((sum, member) => sum + member.size, 0);
+        if (bytes + size > space) continue;
+        const rate = members.reduce((sum, member) => sum + member.fee, 0) / size;
+        if (!best || rate > best.rate) best = { members, size, rate };
+      }
+      if (!best) break;
+      best.members.forEach(member => { taken.add(member.index); included.push(member.index); });
+      bytes += best.size;
+    }
+    const waiting = entries.filter(entry => entry.valid && !taken.has(entry.index))
+      .sort((a, b) => b.rate - a.rate || a.index - b.index).map(entry => entry.index)
+      .concat(entries.filter(entry => !entry.valid).map(entry => entry.index));
+    const reasons = Object.fromEntries(waiting.map(index => [index, !entries[index].valid ? 'invalid'
+      : entries[index].parents.every(parent => taken.has(parent)) ? 'full' : 'parent']));
+    const fees = included.reduce((sum, index) => sum + entries[index].fee, 0);
+    return { included, waiting, reasons, entries, bytes, space, fees };
+  }
+
   // Mempool policy: the transaction must spend existing unspent coins with valid scripts and
   // create no value. A coin already spent by a pending transaction is a double spend.
   acceptToMempool(tx) {
@@ -358,10 +455,11 @@ export class Blockchain {
   prepareCandidate(miner, { time = this.nextBlockTime(), extraNonce = 0, signature = null } = {}) {
     const height = this.blockArray.length;
     const reward = height % this.halvingEvent === 0 ? this.blockReward / 2 : this.blockReward;
-    // An edit of history can orphan a pending transaction; it stays for an undo but stays out of the block.
-    const ledger = this.ledger();
-    const included = this.memPool.filter((_, i) => ledger.memPool[i].valid);
-    const fees = ledger.memPool.reduce((sum, entry) => sum + (entry.valid ? entry.fee : 0), 0);
+    // The block takes what fits, highest fee rate first (blockTemplate). An edit of history can
+    // orphan a pending transaction; it stays for an undo but stays out of the block.
+    const template = this.blockTemplate();
+    const included = template.included.map(index => this.memPool[index]);
+    const fees = template.fees;
     const subsidy = Math.floor(reward * 1e8);
     const difficulty = this.miningDifficulty;
     const bits = bitsOfZeros(difficulty);
