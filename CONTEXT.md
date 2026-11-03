@@ -107,6 +107,15 @@ Terms used in code, tests and docs of proofofwork.fyi. Decisions that shape them
   not measured hardware throughput. A rewrite changes a toy payment text record;
   it does not forge signatures or move coins. Runs are capped at twelve new blocks.
 
+- **Merkle proof** — what a light client (SPV) needs to know that one transaction is in a block
+  without the block's other transactions: the txid, and per tree level the sibling hash and the side
+  it sits on (`web/src/lib/merkleLab.js`, `proofFor(index)`). Hashing up the path must give the
+  header's merkle root (`verifyProof`); a block of n transactions needs ceil(log2 n) siblings. The
+  **Prove a payment** experiment in Chain lab uses toy payment texts as transactions (txid = double
+  SHA-256 of the text) under a fixed 80-byte header; with a reference to the block's own tree it
+  names the first level where an edited proof diverges. The pool's **merkle branch** is the same
+  proof for transaction 0.
+
 ## Pool and leaderboard
 
 - **Miner name** — the public name a visitor mines under. It is not an account; people using the same
@@ -121,6 +130,10 @@ Terms used in code, tests and docs of proofofwork.fyi. Decisions that shape them
   block's place in a chain, which lives in one browser.
 - **Best hash** — the smallest hash of a name; it decides the rank. The server keeps one block per
   name and round, plus how many were sent.
+- **Miner profile** — the public page of one miner name (`#/pool/<name>`, `GET /api/miner?name=`):
+  every round the name has a block in (newest Bitcoin block first, at most 200), with its ranks in
+  the last-144 window and all time, the places it would have on those boards. A hidden name answers
+  like an unknown one. Names match exactly, as the board groups them.
 
 ## Hosting
 

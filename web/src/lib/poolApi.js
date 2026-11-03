@@ -10,6 +10,9 @@ export const POOL_TIMEOUT_MS = 10_000;
 const NAME_PATTERN = /^[A-Za-z0-9-]{3,20}$/;
 export const isValidPoolName = name => typeof name === 'string' && NAME_PATTERN.test(name);
 export const NAME_HINT = 'Use 3–20 characters: letters, digits or hyphens.';
+// The page addresses of the board and of one miner's profile (App.jsx reads them back).
+export const POOL_HASH = '#/pool';
+export const minerProfileHash = name => `${POOL_HASH}/${encodeURIComponent(name)}`;
 
 const MESSAGES = {
   400: 'The leaderboard did not accept this request.',
@@ -25,6 +28,9 @@ function poolError(status, message, code) {
 }
 
 export const NAME_UNAVAILABLE_MESSAGE = 'This name is not available. Please choose another.';
+export const UNKNOWN_MINER_MESSAGE = 'No blocks for this name yet.';
+// What the leaderboard views say while the server cannot answer.
+export const POOL_UNAVAILABLE_MESSAGE = 'The leaderboard server is unavailable right now. The simulator keeps working.';
 
 const messageFor = status => MESSAGES[status] ||
   (status >= 500 ? 'The leaderboard server is unavailable right now.' : 'The leaderboard answered with an unexpected error.');
@@ -32,11 +38,15 @@ const messageFor = status => MESSAGES[status] ||
 // The server decides which names are available; a refused name gets its own code
 // so the panel can point at the name field instead of retrying.
 async function failureFor(response) {
-  if (response.status === 400) {
+  if (response.status === 400 || response.status === 404) {
     let body = null;
     try { body = await response.json(); } catch { /* No readable body: a plain error. */ }
-    if (body?.error === 'name unavailable') {
+    if (response.status === 400 && body?.error === 'name unavailable') {
       return poolError(response.status, NAME_UNAVAILABLE_MESSAGE, 'name-unavailable');
+    }
+    // A name without blocks, or one the operator hid: the server answers both alike.
+    if (response.status === 404 && body?.error === 'unknown name') {
+      return poolError(response.status, UNKNOWN_MINER_MESSAGE, 'unknown-name');
     }
   }
   return poolError(response.status, messageFor(response.status));
@@ -83,9 +93,11 @@ async function request(path, { method = 'GET', body, signal } = {}) {
 const invalidAnswer = () => poolError(0, 'The leaderboard server sent an unreadable answer.', 'invalid');
 const HASH = /^[0-9a-f]{64}$/;
 const isRound = round => Boolean(round) && Number.isSafeInteger(round.height) && round.height >= 0 && HASH.test(round.hash ?? '');
-const isRow = row => Boolean(row) && isValidPoolName(row.name) && isRound(row.round) && /^[0-9a-f]{160}$/.test(row.header ?? '') &&
+const isBlock = row => Boolean(row) && isRound(row.round) && /^[0-9a-f]{160}$/.test(row.header ?? '') &&
   /^[0-9a-f]+$/.test(row.coinbase ?? '') && Array.isArray(row.branch) && row.branch.every(node => HASH.test(node)) &&
   HASH.test(row.bestHash ?? '') && Number.isInteger(row.bestZeros) && Number.isFinite(row.difficulty) && Number.isInteger(row.proofs);
+const isRow = row => isBlock(row) && isValidPoolName(row.name);
+const isRank = rank => rank === null || (Number.isSafeInteger(rank) && rank >= 1);
 
 // The round to mine. The client rebuilds the prefix itself, so a server answering for
 // another chain or another name is refused instead of mined.
@@ -114,5 +126,20 @@ export async function getLeaderboard({ signal } = {}) {
   return {
     recent: board.recent ? { from: board.recent.from, to: board.recent.to, rows: board.recent.rows.filter(isRow) } : null,
     allTime: board.allTime.filter(isRow),
+  };
+}
+
+// { name, rank: { window, allTime }, blocks } of one miner name. An answer for another
+// name is refused; malformed blocks are dropped, and each kept block carries the name, so
+// it verifies like a leaderboard row. A name without blocks fails with code 'unknown-name'.
+export async function getMiner(name, { signal } = {}) {
+  const miner = await request(`/api/miner?name=${encodeURIComponent(name)}`, { signal });
+  if (!miner || miner.name !== name || !miner.rank || !isRank(miner.rank.window) || !isRank(miner.rank.allTime) ||
+    !Array.isArray(miner.blocks)) throw invalidAnswer();
+  return {
+    name,
+    rank: { window: miner.rank.window, allTime: miner.rank.allTime },
+    blocks: miner.blocks.filter(block => isBlock(block) && typeof block.inWindow === 'boolean' && Number.isFinite(block.foundAt))
+      .map(block => ({ ...block, name })),
   };
 }

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { getChallenge, getLeaderboard, isValidPoolName, POOL_TIMEOUT_MS, submitProof } from '../lib/poolApi';
+import { getChallenge, getLeaderboard, getMiner, isValidPoolName, POOL_TIMEOUT_MS, submitProof } from '../lib/poolApi';
 import { GENESIS, proofPrefix } from '../lib/poolProof';
 
 const BASE = 'https://api.proofofwork.fyi';
@@ -215,6 +215,45 @@ describe('pool API client', () => {
     const pending = getChallenge(NAME, { signal: controller.signal }).catch(caught => caught);
     controller.abort();
     expect((await pending).name).toBe('AbortError');
+  });
+
+  it('reads a miner profile with GET for the encoded name; each block carries the name', async () => {
+    const { name: _name, ...block } = row();
+    const blocks = [{ ...block, inWindow: true }, { ...block, round: { height: 899990, hash: 'a'.repeat(64) }, inWindow: false }];
+    fetchMock.mockResolvedValue(answer({ name: NAME, rank: { window: 3, allTime: null }, blocks }));
+    expect(await getMiner(NAME)).toEqual({ name: NAME, rank: { window: 3, allTime: null }, blocks: blocks.map(b => ({ ...b, name: NAME })) });
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe(`${BASE}/api/miner?name=test-miner`);
+    expect(init.method).toBe('GET');
+    expect(init.credentials).toBe('omit');
+  });
+
+  it('refuses a malformed profile and drops malformed blocks', async () => {
+    const { name: _name, ...block } = row();
+    const good = { ...block, inWindow: true };
+    const profile = (overrides = {}) => ({ name: NAME, rank: { window: 1, allTime: 1 }, blocks: [good], ...overrides });
+    for (const bad of [null, [good], profile({ name: 'other-miner' }), profile({ name: undefined }), profile({ rank: null }),
+      profile({ rank: { window: 0, allTime: 1 } }), profile({ rank: { window: 1, allTime: 1.5 } }), profile({ rank: { window: '1', allTime: 1 } }),
+      profile({ rank: { allTime: 1 } }), profile({ blocks: 'rows' }), profile({ blocks: undefined })]) {
+      fetchMock.mockResolvedValue(answer(bad));
+      await refusal(getMiner(NAME));
+    }
+    const badBlocks = [null, { ...good, inWindow: 'yes' }, { ...block }, { ...good, foundAt: 'now' }, { ...good, header: 'abc' },
+      { ...good, bestHash: 'abc' }, { ...good, round: null }, { ...good, proofs: 1.5 }];
+    fetchMock.mockResolvedValue(answer(profile({ blocks: [...badBlocks, good] })));
+    expect((await getMiner(NAME)).blocks).toEqual([{ ...good, name: NAME }]);
+  });
+
+  it('turns a 404 "unknown name" answer into an unknown-name error; other 404s stay generic', async () => {
+    fetchMock.mockResolvedValue(answer({ error: 'unknown name' }, 404));
+    const unknown = await getMiner(NAME).catch(caught => caught);
+    expect(unknown.status).toBe(404);
+    expect(unknown.code).toBe('unknown-name');
+    expect(unknown.message).toBe('No blocks for this name yet.');
+    fetchMock.mockResolvedValue(answer({ error: 'not found' }, 404));
+    const other = await getMiner(NAME).catch(caught => caught);
+    expect(other.status).toBe(404);
+    expect(other.code).toBeUndefined();
   });
 
   it('validates names like the server', () => {

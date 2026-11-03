@@ -13,6 +13,7 @@ import { MissionIntro } from './components/workbench/MissionIntro';
 import { HashLab } from './components/HashLab';
 import { ChainLab } from './components/ChainLab';
 import { PoolPanel } from './components/PoolPanel';
+import { minerProfileHash, POOL_HASH } from './lib/poolApi';
 import { BlockDetailsModal } from './components/BlockDetailsModal';
 import { ParticipantDetailsModal } from './components/ParticipantDetailsModal';
 import { TransactionDetailsModal } from './components/TransactionDetailsModal';
@@ -29,7 +30,14 @@ const RAIL_KEY = 'proofofwork-rail-collapsed';
 const INTRO_KEY = 'proofofwork-missions-intro-seen';
 const VIEW_LABELS = { workbench: 'Workbench', 'hash-lab': 'Hash lab', 'chain-lab': 'Chain lab', pool: 'Leaderboard' };
 
-const viewFromHash = () => VIEWS[(globalThis.location?.hash ?? '').replace(/^#\/?/, '')] ?? 'workbench';
+const pathOfHash = () => (globalThis.location?.hash ?? '').replace(/^#\/?/, '');
+// `#/pool/<name>` is the Leaderboard tab showing that miner's profile.
+function profileFromHash() {
+  const match = /^pool\/(.+)$/.exec(pathOfHash());
+  if (!match) return null;
+  try { return decodeURIComponent(match[1]); } catch { return match[1]; }
+}
+const viewFromHash = () => (profileFromHash() !== null ? 'pool' : VIEWS[pathOfHash()] ?? 'workbench');
 function readFlag(key, fallback = false) {
   try {
     const stored = globalThis.localStorage?.getItem(key);
@@ -62,6 +70,7 @@ function App() {
   const [muted, setMuted] = useState(false);
   const soundEnabled = useRef(true);
   const [view, setView] = useState(viewFromHash);
+  const [profile, setProfile] = useState(profileFromHash);
   const [winner, setWinner] = useState(null);
   const [autoMining, setAutoMining] = useState(false);
   // Play starts a run; Auto-mine only decides whether the run continues after a block.
@@ -110,9 +119,13 @@ function App() {
   // Keep it visible for this visit until dismissed, opened or navigated away from.
   useEffect(() => { if (showIntro) writeFlag(INTRO_KEY, true); }, [showIntro]);
   useEffect(() => {
-    const onHash = () => setView(viewFromHash());
+    const onHash = () => { setView(viewFromHash()); setProfile(profileFromHash()); };
     globalThis.addEventListener('hashchange', onHash);
-    return () => globalThis.removeEventListener('hashchange', onHash);
+    globalThis.addEventListener('popstate', onHash);
+    return () => {
+      globalThis.removeEventListener('hashchange', onHash);
+      globalThis.removeEventListener('popstate', onHash);
+    };
   }, []);
   useEffect(() => { missions.save(browserStorage(), progress); }, [progress]);
   useEffect(() => {
@@ -128,6 +141,17 @@ function App() {
     const hash = next === 'workbench' ? '#/' : `#/${next}`;
     if (globalThis.location.hash !== hash) globalThis.history.pushState(null, '', hash);
     setView(next);
+    setProfile(null);
+  }, []);
+  const openProfile = useCallback(name => {
+    const hash = minerProfileHash(name);
+    if (globalThis.location.hash !== hash) globalThis.history.pushState(null, '', hash);
+    setView('pool');
+    setProfile(name);
+  }, []);
+  const closeProfile = useCallback(() => {
+    if (globalThis.location.hash !== POOL_HASH) globalThis.history.pushState(null, '', POOL_HASH);
+    setProfile(null);
   }, []);
 
   const finishRound = useCallback(result => {
@@ -365,7 +389,8 @@ function App() {
               coach={chainLesson ? coach : null} onClose={() => navigate('workbench')} />
           </div>}
           {view === 'pool' && <div className="wb-view"><PoolPanel name={identity.name} onNameChange={identity.setName} refreshKey={boardKey}
-            onAccepted={onBlockAccepted} onClose={() => navigate('workbench')} /></div>}
+            onAccepted={onBlockAccepted} onClose={() => navigate('workbench')}
+            profile={profile} onOpenProfile={openProfile} onCloseProfile={closeProfile} /></div>}
         </main>
       </div>
       {winner && <div className="wb-announce" role="status">{winner} mined a block</div>}

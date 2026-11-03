@@ -3,14 +3,14 @@ import { useState } from 'react';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PoolPanel, ROUND_CHECK_MS } from '../components/PoolPanel';
-import { getChallenge, getLeaderboard, submitProof } from '../lib/poolApi';
+import { getChallenge, getLeaderboard, getMiner, submitProof } from '../lib/poolApi';
 import { bitsOfZeros, displayHash, le, meetsTarget } from '../../../shared/bitcoin-block.mjs';
 import { hashAtNonce, sha256d } from '../lib/blockHeader';
 import { formatDifficulty, GENESIS, hashDifficulty, leadingZeros, poolCandidate, proofPrefix, signatureOf } from '../lib/poolProof';
 import { runSearch } from '../lib/powSearch';
 
 vi.mock('../lib/poolApi', async importOriginal => ({ ...(await importOriginal()),
-  getChallenge: vi.fn(), submitProof: vi.fn(), getLeaderboard: vi.fn() }));
+  getChallenge: vi.fn(), submitProof: vi.fn(), getLeaderboard: vi.fn(), getMiner: vi.fn() }));
 // The real inline search by default; one test replaces it to drive the round check.
 vi.mock('../lib/powSearch', async importOriginal => {
   const actual = await importOriginal();
@@ -88,6 +88,7 @@ afterEach(() => {
   vi.mocked(getChallenge).mockReset();
   vi.mocked(submitProof).mockReset();
   vi.mocked(getLeaderboard).mockReset();
+  vi.mocked(getMiner).mockReset();
   vi.mocked(runSearch).mockReset();
 });
 
@@ -340,6 +341,42 @@ describe('PoolPanel', () => {
 
     fireEvent.click(within(allTime).getByRole('button', { name: 'Verify the proof of stolen-name' }));
     expect(within(within(allTime).getByRole('status')).getByText('Does not match the listed hash and name.')).toBeTruthy();
+  });
+
+  it('opens a miner profile from a name on the board; the profile replaces both lists', async () => {
+    const round = roundOf(900800);
+    const [proof] = proofsFrom(makeChallenge(round, 1, 'other-miner'), 1);
+    const other = rowOf('other-miner', round, proof, 2);
+    vi.mocked(getLeaderboard).mockResolvedValue({ recent: recentOf(round, [other]), allTime: [other] });
+    vi.mocked(getMiner).mockResolvedValue({ name: 'other-miner', rank: { window: 1, allTime: 1 },
+      blocks: [{ ...other, inWindow: true }] });
+    const onOpenProfile = vi.fn();
+    const onCloseProfile = vi.fn();
+    const { rerender } = render(<Panel onClose={() => {}} onOpenProfile={onOpenProfile} onCloseProfile={onCloseProfile} />);
+    const allTime = await findRegion('All time · top 20');
+    const link = within(allTime).getByRole('link', { name: 'other-miner' });
+    expect(link.getAttribute('href')).toBe('#/pool/other-miner');
+    fireEvent.click(link);
+    expect(onOpenProfile).toHaveBeenCalledWith('other-miner');
+
+    rerender(<Panel onClose={() => {}} profile="other-miner" onOpenProfile={onOpenProfile} onCloseProfile={onCloseProfile} />);
+    expect(await screen.findByRole('heading', { name: 'other-miner' })).toBeTruthy();
+    expect(getMiner).toHaveBeenCalledWith('other-miner', expect.anything());
+    expect(screen.queryByRole('region', { name: 'All time · top 20' })).toBeNull();
+    expect(screen.queryByRole('region', { name: recentTitle(round) })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Join' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('link', { name: 'Leaderboard' }));
+    expect(onCloseProfile).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps names as plain text without a profile handler', async () => {
+    const round = roundOf(900810);
+    const [proof] = proofsFrom(makeChallenge(round, 1, 'other-miner'), 1);
+    vi.mocked(getLeaderboard).mockResolvedValue({ recent: null, allTime: [rowOf('other-miner', round, proof)] });
+    render(<Panel onClose={() => {}} />);
+    const allTime = await findRegion('All time · top 20');
+    expect(within(allTime).getByText('other-miner')).toBeTruthy();
+    expect(within(allTime).queryByRole('link', { name: 'other-miner' })).toBeNull();
   });
 
   it('names the genesis and says when a bridge genesis ends', async () => {
