@@ -322,3 +322,49 @@ describe('mining controls and sound in App', () => {
     expect(checks()).toBeTruthy();
   });
 });
+
+describe('lowering the difficulty by hand (ADR 0004)', () => {
+  beforeEach(() => {
+    // jsdom has no native dialog methods; browser checks cover the real modal.
+    Object.defineProperty(HTMLDialogElement.prototype, 'showModal', { configurable: true, value() { this.open = true; } });
+    Object.defineProperty(HTMLDialogElement.prototype, 'close', { configurable: true, value() { this.open = false; } });
+  });
+  const shown = () => screen.getByLabelText('Difficulty', { selector: 'output' }).textContent;
+  const lower = () => fireEvent.click(screen.getByRole('button', { name: 'Lower difficulty' }));
+  const raise = () => fireEvent.click(screen.getByRole('button', { name: 'Raise difficulty' }));
+  const warning = () => screen.queryByRole('dialog', { name: 'Lowering the difficulty starts a new chain' });
+
+  it('lowers a genesis-only chain without asking', () => {
+    render(<App />);
+    raise();
+    expect(shown()).toBe('2');
+    lower();
+    expect(warning()).toBeNull();
+    expect(shown()).toBe('1');
+  });
+
+  it('raises a mined chain without asking, and lowers it only with a new chain after the warning', async () => {
+    render(<App />);
+    await completeDemo();
+    expect(tiles()).toHaveLength(2);
+    raise();
+    expect(warning()).toBeNull();
+    expect(shown()).toBe('2');
+
+    lower();
+    expect(warning()).not.toBeNull();
+    expect(within(warning()).getByText(/removes the 1 mined block,/)).toBeTruthy();
+    expect(document.activeElement).toBe(within(warning()).getByRole('button', { name: 'Keep chain' }));
+    fireEvent.click(within(warning()).getByRole('button', { name: 'Keep chain' }));
+    expect(warning()).toBeNull();
+    expect(shown()).toBe('2');
+    expect(tiles()).toHaveLength(2);
+
+    lower();
+    fireEvent.click(within(warning()).getByRole('button', { name: 'Start new chain at 1' }));
+    expect(warning()).toBeNull();
+    expect(shown()).toBe('1');
+    expect(tiles()).toHaveLength(1);
+    expect(screen.getByRole('button', { name: 'Start demo', exact: true })).toBeTruthy();
+  });
+});

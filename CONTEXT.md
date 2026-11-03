@@ -17,7 +17,10 @@ Terms used in code, tests and docs of proofofwork.fyi. Decisions that shape them
 - **Target** — the largest hash a block may have, stored in the header as compact **bits**. A
   learner chooses a number of leading hexadecimal zeros (`block.difficulty`, the unit of the UI);
   `bitsOfZeros` turns it into the easiest target that still demands those zeros, and
-  `meetsTarget` decides. Each extra zero makes a valid hash about 16 times rarer.
+  `meetsTarget` decides. Each extra zero makes a valid hash about 16 times rarer. Raising the
+  difficulty keeps the chain; lowering it by hand starts a new chain (a Reset at the new difficulty),
+  so a longer chain always took more work (ADR 0004). The automatic adjustment every 10 blocks may
+  lower it by one without a Reset.
 - **extraNonce** — a counter in the coinbase. When all 2^32 nonces of a candidate are tried, the
   next round mines with extraNonce + 1, which changes the coinbase, the merkle root and with them
   the header.

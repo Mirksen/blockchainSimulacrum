@@ -40,8 +40,10 @@ missing:
 Workbench difficulty is selectable from 1 to 10 leading hexadecimal zeros in
 both the card stepper and Settings. The upper settings are experiments, even
 when a block is impractical to find. Each extra zero means 16 times the expected
-attempts. Pause stops the active search without committing an unfinished block;
-the user can then lower the difficulty and start a new search.
+attempts. Pause stops the active search without committing an unfinished block.
+Raising the difficulty keeps the chain; lowering it by hand starts a new chain
+after a confirmation dialog, so a longer chain always took more work (ADR 0004).
+The automatic adjustment every 10 blocks may lower it without one.
 
 ## Language and tone
 
