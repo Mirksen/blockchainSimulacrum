@@ -61,6 +61,27 @@ show stays out.
 Titles carry no full stop. Numbers use tabular figures; hashes and amounts
 use the monospace font.
 
+### Hints
+
+Every control and every term a beginner may not know explains itself on
+mouse hover and keyboard focus (Mirko, 2026-11-03). The reader has never
+mined a block: a hint says what the thing is, what a click does and why it
+matters, in one to three plain sentences (at most 320 characters), and is
+as exact as the code. "Back Hal" says "Bet on Hal to win the next race, just
+for fun: nothing is at stake", not "Back this miner".
+
+- The texts live in `src/lib/hints/` (one catalog per area); components take
+  them with `hint(key)` for controls and `term(key)` for words and labels.
+  `term()` adds a quiet dotted underline, so a learner sees what explains
+  itself. An unknown key throws.
+- One bubble (`HintLayer`, mounted once in `App.jsx`) shows them, in the top
+  layer above dialogs. A touch tap never opens it; Escape, a click and
+  scrolling close it.
+- A control that can be disabled carries its hint on a `.hint-wrap` span.
+- Native `title` stays only where it reveals raw data (a full txid) and
+  inside the chain tiles and links, which have their own tooltip; elsewhere
+  it never explains.
+
 ## Information architecture
 
 - **Top bar:** brand, navigation **Workbench · Hash lab · Chain lab · Mining
@@ -396,6 +417,7 @@ and validity states are semantic tokens.
 | Wallet row | Avatar, name, role, hash rate for miners, balance in mono |
 | Mission rail | Open and collapsed forms, steps with done/current/locked |
 | Tooltip | Overlay surface, mono content, Copy |
+| Hint | Overlay surface, bold title, plain explaining text in the UI font, arrow to its element; one at a time (see "Hints") |
 
 Rules for every workbench component (`src/components/workbench/`):
 

@@ -8,6 +8,7 @@ import './cardKit.css';
 import './NextBlockCard.css';
 import { issueText } from './blockView';
 import { colorOf } from './minerColors';
+import { hint, term } from '../../lib/hints';
 
 // Next block card (web/DESIGN.md, "Card grid" and "Interaction patterns").
 // One filled primary per mode:
@@ -89,12 +90,12 @@ function Avatar({ miner }) {
   return <span className="card-kit-av" style={{ '--av-color': minerColor(miner) }} aria-hidden="true">{String(miner.name).charAt(0).toUpperCase()}</span>;
 }
 
-function Track({ zeros, difficulty, label }) {
+function Track({ zeros, difficulty, label, hintProps = null }) {
   const reached = Math.max(0, Math.min(zeros ?? 0, difficulty));
   const pct = difficulty > 0 ? (reached / difficulty) * 100 : 0;
   const ticks = Array.from({ length: Math.max(0, difficulty - 1) }, (_, i) => ((i + 1) / difficulty) * 100);
   return (
-    <div className="next-block-track" role="img" aria-label={label}>
+    <div className="next-block-track" role="img" aria-label={label} {...hintProps}>
       <span className="next-block-track-rail" />
       <span className="next-block-track-fill" style={{ width: `${pct}%` }} />
       {ticks.map(left => <span key={left} className="next-block-track-cp" style={{ left: `${left}%` }} />)}
@@ -147,20 +148,18 @@ export function NextBlockCard({
     : null;
 
   const repeatToggle = (
-    <RepeatToggle name="Auto-mine" pressed={autoMine} onToggle={onAutoMine} disabled={isRepair}
-      title={autoMine ? 'Auto-mine on: each found block starts the next one. Turn off to stop after the current block.' : 'Auto-mine: keep mining block after block once Mining starts. Use Auto-transact to fill sample transfers.'} />
+    <RepeatToggle name="Auto-mine" pressed={autoMine} onToggle={onAutoMine} disabled={isRepair} hint={hint('next.auto-mine', autoMine)} />
   );
   const stepper = (
     <CoachMark target="workbench.difficulty" coach={coach} className="next-block-coach-inline">
-      <span className={`next-block-stepper${settingsLocked ? ' is-locked' : ''}`}
-        title={isMining ? 'Locked while a block is being mined' : isRepair ? 'Repair the chain first' : undefined}>
-        Difficulty
+      <span className={`next-block-stepper${settingsLocked ? ' is-locked' : ''}`}>
+        <span {...term('next.difficulty', isMining ? 'mining' : isRepair ? 'repair' : null)}>Difficulty</span>
         <span className="next-block-stepper-box">
           <button type="button" aria-label="Lower difficulty" disabled={settingsLocked || difficulty <= MIN_DIFFICULTY}
-            onClick={() => onDifficulty?.(difficulty - 1)}><MinusIcon /></button>
+            {...hint('next.lower')} onClick={() => onDifficulty?.(difficulty - 1)}><MinusIcon /></button>
           <output aria-label="Difficulty">{difficulty}</output>
           <button type="button" aria-label="Raise difficulty" disabled={settingsLocked || difficulty >= MAX_DIFFICULTY}
-            onClick={() => onDifficulty?.(difficulty + 1)}><PlusIcon /></button>
+            {...hint('next.raise')} onClick={() => onDifficulty?.(difficulty + 1)}><PlusIcon /></button>
         </span>
       </span>
     </CoachMark>
@@ -176,7 +175,7 @@ export function NextBlockCard({
   const action = (
     <CoachMark target={running || isRepair || startsDemo ? undefined : "workbench.mine"} coach={running || isRepair || startsDemo ? null : coach} className="next-block-coach-inline">
       <button type="button" className={isRepair ? 'card-kit-btn is-lg' : 'btn-primary'}
-        disabled={isRepair} title={isRepair ? 'Repair the chain first' : undefined}
+        disabled={isRepair} {...hint(isRepair ? 'next.mine-locked' : running ? 'next.pause' : startsDemo ? 'next.start-demo' : 'next.mine')}
         aria-keyshortcuts={!running && !startsDemo && !isRepair ? 'M' : undefined}
         onClick={() => running ? onPause?.() : startsDemo ? onStartDemo?.() : onMine?.()}>
         {running ? <PauseIcon /> : <PlayIcon />}
@@ -189,7 +188,7 @@ export function NextBlockCard({
     <section className={`next-block is-${mode}`} aria-label={`Next block ${index}${isMining ? ', being mined' : isRepair ? ', paused while the chain is invalid' : ''}`}
       aria-busy={isMining ? 'true' : undefined}>
       <div className="next-block-head">
-        <h2 className="next-block-title">Next block #{index}</h2>
+        <h2 className="next-block-title" {...term('next.title')}>Next block #{index}</h2>
         <span className="next-block-meta">{meta}</span>
         {headStatus}
         {headAside}
@@ -239,7 +238,7 @@ function MinerEditor({ miner, total, onRename, onHashpower, onClose }) {
       </label>
       <label className="next-block-editor-field next-block-editor-power" htmlFor={`${id}-power`}>
         <span>Hashpower</span>
-        <input id={`${id}-power`} type="range" min="1" max="10" step="1" value={weightOf(miner) || 5}
+        <input id={`${id}-power`} type="range" min="1" max="10" step="1" value={weightOf(miner) || 5} {...hint('next.hashpower')}
           aria-valuetext={`${share} % chance to find the next block`}
           onChange={event => onHashpower?.(miner.name, Number(event.target.value))} />
         <output htmlFor={`${id}-power`} className="next-block-editor-share" aria-label={`Chance to find the next block: ${share} %`}>{share} %</output>
@@ -287,14 +286,14 @@ function LastRound({ miners, lastRound, race, difficulty, backedMiner, onBack, c
               <div className={`next-block-lane${isWinner ? ' is-winner' : ''}${backed ? ' is-backed' : ''}${open ? ' is-editing' : ''}`}
                 style={{ '--miner-color': minerColor(miner) }} data-miner={miner.name}>
                 {editable ? (
-                  <button type="button" className="next-block-who is-button" aria-expanded={open} title={`Rename ${miner.name} or change its hashpower`}
+                  <button type="button" className="next-block-who is-button" aria-expanded={open} {...hint('next.miner', miner.name)}
                     aria-label={`${miner.name}: rename or change hashpower`} onClick={() => setEditing(open ? null : index)}>{who}</button>
                 ) : <div className="next-block-who">{who}</div>}
-                <Track zeros={zeros} difficulty={d}
+                <Track zeros={zeros} difficulty={d} hintProps={hint('next.progress')}
                   label={result ? `${miner.name} reached ${zeros} of ${d} leading zeros` : `${miner.name} has not raced yet`} />
                 <div className="next-block-lane-end">
                   <button type="button" className={`card-kit-btn is-sm${backed ? ' is-pressed' : coached ? '' : ' is-ghost'}`}
-                    aria-pressed={backed ? 'true' : 'false'} onClick={() => onBack?.(backed ? null : miner.name)}>
+                    aria-pressed={backed ? 'true' : 'false'} {...hint('next.back', miner.name, backed)} onClick={() => onBack?.(backed ? null : miner.name)}>
                     {backed && <CheckIcon />}Back {miner.name}
                   </button>
                 </div>
@@ -314,9 +313,10 @@ function LastRound({ miners, lastRound, race, difficulty, backedMiner, onBack, c
       )}
       <div className="next-block-foot">
         {onCreateMiner && (
-          <button type="button" className="next-block-new" aria-expanded={creating && !minersFull} disabled={minersFull}
-            title={minersFull ? 'At most 4 miners race in this simulation.' : 'Add a miner to the race'}
-            onClick={() => setCreating(open => !open)}><PlusIcon />Create miner</button>
+          <span className="hint-wrap next-block-new-wrap" {...hint('next.create-miner', minersFull)}>
+            <button type="button" className="next-block-new" aria-expanded={creating && !minersFull} disabled={minersFull}
+              onClick={() => setCreating(open => !open)}><PlusIcon />Create miner</button>
+          </span>
         )}
       </div>
     </div>
@@ -332,7 +332,7 @@ function LiveMinerLane({ miner, p, difficulty, isWinner, backed }) {
       style={{ '--miner-color': minerColor(miner) }} data-miner={miner.name}>
       <div className="next-block-who"><Avatar miner={miner} /><span className="next-block-nm"><b>{miner.name}</b>
         <small>nonce {p ? count(p.nonce) : '–'}{backed && <> · <em className="is-backed">backed</em></>}</small></span></div>
-      <div className="next-block-live" title="Recent peak: holds the highest leading-zero count for one second, then settles to the highest newer result.">
+      <div className="next-block-live" {...hint('next.live-progress')}>
         <CheckedHash hash={p?.hash} difficulty={difficulty} />
         <Track zeros={peak} difficulty={difficulty} label={`${miner.name} recent peak ${peak} of ${difficulty} leading zeros`} />
       </div>
@@ -375,7 +375,7 @@ function RepairBody({ repair, difficulty, target, onRemine, coach }) {
     <div className="next-block-body" data-round="repair">
       <div className="next-block-repair-head"><span><b>Repair first</b> · {repair?.undoOnly ? 'undo the edit' : 're-mine in order'}</span>
         {order.length > 0 && (
-          <span className="next-block-order" aria-label={`Re-mine order, ${done} of ${order.length} done`}>
+          <span className="next-block-order" aria-label={`Re-mine order, ${done} of ${order.length} done`} {...hint('next.repair-order')}>
             {order.map((blockIndex, i) => (
               <span key={blockIndex} className="next-block-order-item">
                 {i > 0 && <span className="next-block-order-ar" aria-hidden="true">→</span>}
@@ -391,12 +391,12 @@ function RepairBody({ repair, difficulty, target, onRemine, coach }) {
       {repair?.undoOnly
         // A broken transaction rule survives every re-mine; only undoing the edit repairs it.
         ? <div className="next-block-repair-row">
-          <button type="button" className="btn-primary" onClick={() => repair.onUndo?.(next)}><UndoIcon />Undo edit in block #{next}</button>
+          <button type="button" className="btn-primary" {...hint('next.undo-edit')} onClick={() => repair.onUndo?.(next)}><UndoIcon />Undo edit in block #{next}</button>
           <small>{issueText(repair.reason ?? 'signature', repair.stuck ?? next)} Re-mining changes no transaction, so it cannot fix this.</small>
         </div>
         : <CoachMark target="workbench.remine" coach={coach} className="next-block-coach-block">
           <div className="next-block-repair-row">
-            <button type="button" className="btn-primary" aria-keyshortcuts="M" onClick={() => onRemine?.(next)}><BoltIcon />Re-mine block #{next}</button>
+            <button type="button" className="btn-primary" aria-keyshortcuts="M" {...hint('next.remine', next, target)} onClick={() => onRemine?.(next)}><BoltIcon />Re-mine block #{next}</button>
             <small>Finds a new nonce so #{next} starts with {target} again.{then}</small>
           </div>
         </CoachMark>}

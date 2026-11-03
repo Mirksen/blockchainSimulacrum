@@ -20,9 +20,15 @@
 @keyframes hint-layer-in { from { opacity: 0; } to { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .hint-layer { animation: none; } }
 
+/* A control that can be disabled carries its hint on this wrapper: a disabled button gets no
+   reliable hover. It lays out like the button inside it. */
+.hint-wrap { display: inline-flex; }
+.hint-wrap.is-fixed { flex: none; }
+
 /* A term that explains itself on hover (`term()` in src/lib/hints): a quiet dotted
    underline. Controls (`hint()`) keep their look. */
 [data-hint-term] {
   text-decoration-line: underline; text-decoration-style: dotted; text-decoration-thickness: 1px;
   text-decoration-color: var(--text-3); text-underline-offset: 3px; cursor: help;
+  justify-self: start;
 }

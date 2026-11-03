@@ -47,6 +47,8 @@ export const WORKBENCH_HINTS = {
   'block.previous': isGenesis => (isGenesis
     ? { title: 'Previous', text: 'The genesis block has no block before it. Here it stores the hash of a real Bitcoin block instead, which proves this chain was started after that block existed.' }
     : { title: 'Previous', text: 'The hash of the block before this one. Storing it chains the blocks together: change an earlier block and this link no longer fits.' }),
+  'block.link-intact': index => ({ title: 'Link intact', text: `This is exactly the hash of block #${index}, so the two blocks are correctly chained.` }),
+  'block.tx-count': { title: 'Committed', text: 'The Merkle root covers every transaction of this block. Change one and the root, and with it the block hash, changes.' },
   'block.nonce': { title: 'Nonce', text: '“Number used once”. Miners try nonce after nonce until the block’s hash starts with enough zeros. Finding it is the work in proof of work; checking it takes one hash.' },
   'block.miner': { title: 'Miner', text: 'Who found this block. The miner is paid through the block’s first transaction, the coinbase: the block reward plus all fees.' },
   'block.merkle-root': { title: 'Merkle root', text: 'One hash that sums up all payments in the block, built by hashing them in pairs (a Merkle tree). It is part of the header, so changing any payment changes the block’s hash.' },
@@ -63,11 +65,15 @@ export const WORKBENCH_HINTS = {
   'block.tx-row': coinbase => (coinbase
     ? { title: 'Coinbase', text: 'The first transaction of every block. It spends no earlier coins: it creates new ones, the block reward plus all fees, and pays them to the miner. Click for its inputs and outputs.' }
     : { title: 'Payment', text: 'Click to see which coins it spends, who receives what, the change back to the sender and the fee.' }),
+  'block.tx-in': { title: 'In (inputs)', text: 'The earlier coins this payment spends, each used up completely, with their owner and the block they came from.' },
+  'block.tx-out': { title: 'Out (outputs)', text: 'The new coins this payment creates: one for the recipient, usually one “change” back to the sender. Whatever inputs and outputs differ by is the fee for the miner.' },
+  'block.txid': { title: 'TXID', text: 'Transaction ID: the double SHA-256 hash of the transaction’s bytes. Later payments refer to a coin by this ID plus its output number.' },
   'block.tx-raw': { title: 'Scripts, signature and raw bytes', text: 'The technical view: the scripts that lock and unlock the coins, the digital signature that proves the owner agreed, and the transaction as raw bytes.' },
 
   // ---------- next block card ----------
   'next.title': { title: 'Next block', text: 'The block being built right now from the waiting payments. It joins the chain as soon as one miner finds a hash with enough leading zeros.' },
-  'next.difficulty': { title: 'Difficulty', text: 'How many zeros the block hash must start with. Each extra zero makes mining about 16 times slower. Locked while a block is being mined.' },
+  'next.difficulty': lock => ({ title: 'Difficulty', text: `How many zeros the block hash must start with. Each extra zero makes mining about 16 times slower.${lock === 'mining' ? ' Locked while a block is being mined.' : lock === 'repair' ? ' Locked until the chain is repaired.' : ''}` }),
+  'next.mine-locked': { title: 'Repair first', text: 'New blocks wait while the chain is invalid: a block on a broken chain would be worthless. Re-mine or undo below first.' },
   'next.lower': { title: 'Lower difficulty', text: 'One zero fewer: blocks are found about 16 times faster.' },
   'next.raise': { title: 'Raise difficulty', text: 'One zero more: blocks take about 16 times longer. High settings can take longer than you want to wait; Pause stops the search.' },
   'next.start-demo': { title: 'Start demo', text: 'Mines the first block and shares its reward with the other wallets, so everyone has coins to send. A good first click.' },
@@ -76,7 +82,7 @@ export const WORKBENCH_HINTS = {
   'next.auto-mine': on => (on
     ? { title: 'Auto-mine is on', text: 'After each found block the next race starts by itself. Click to stop after the current block.' }
     : { title: 'Auto-mine', text: 'Keep mining block after block once you press Mining, instead of stopping after one. Pairs well with Auto on the Mempool for a running economy.' }),
-  'next.your-name': { title: 'Your name', text: 'Your miner name on the shared leaderboard. It is written into every block you mine here, and each block is sent to the leaderboard under it. 3–20 letters, digits or hyphens.' },
+  'next.your-name': locked => ({ title: 'Your name', text: `Your miner name on the shared leaderboard. It is written into every block you mine here, and each block is sent to the leaderboard under it. 3–20 letters, digits or hyphens.${locked ? ' Locked while a block is being mined.' : ''}` }),
   'next.miner': name => ({ title: name, text: `Click to rename ${name} or change its hashpower: its share of all mining power, which is its chance to win the next block.` }),
   'next.progress': { title: 'Leading zeros', text: 'How many of the required leading zeros this miner’s best hash reached. Full means it found a valid block.' },
   'next.live-progress': { title: 'Live search', text: 'The hash this miner is trying right now; zeros that already fit are highlighted. The bar holds the best number of leading zeros for a second, then settles.' },
@@ -115,8 +121,7 @@ export const WORKBENCH_HINTS = {
   // ---------- wallets ----------
   'wallets.title': { title: 'Wallets', text: 'Everyone in the simulation. A wallet holds a private key that signs payments; its balance is the sum of the unspent coins it owns. Miners are wallets too.' },
   'wallets.create': { title: 'Create wallet', text: 'Add a new person with an empty wallet. Send it coins from another wallet.' },
-  'wallets.row': name => ({ title: name, text: `Open ${name}’s wallet: its balance, the coins it owns, its address and keys, and every payment it made or received.` }),
-  'wallets.hashrate': { title: 'H/s', text: 'Hashes per second: how many block hashes this miner tries each second right now.' },
+  'wallets.row': (name, isMiner) => ({ title: name, text: `Open ${name}’s wallet: its balance, the coins it owns, its address and keys, and every payment it made or received.${isMiner ? ' In the row: the blocks it has won and its H/s, the hashes it tries per second.' : ''}` }),
 
   // ---------- activity ----------
   'activity.title': { title: 'Activity', text: 'Payments that are confirmed: they are in a mined block. Newest first.' },

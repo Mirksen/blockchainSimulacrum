@@ -6,6 +6,7 @@ import {
 import {
   brokenBefore, candidateCopy, formatInterval, healthSummary, linkInto, ordinal, pendingLink, shortHash, stateOf, statusLabel
 } from './blockView';
+import { term } from '../../lib/hints';
 import './ChainTimeline.css';
 
 // Chain as a vertical timeline for screens below 1024 px (web/DESIGN.md,
@@ -142,7 +143,7 @@ export function ChainTimeline({
   return (
     <section className={`chain-timeline${invalid ? ' is-invalid' : ''}`} aria-label={`Chain, ${count} ${count === 1 ? 'block' : 'blocks'}, newest on top`}>
       <div className="chain-timeline-head">
-        <h2>Chain</h2>
+        <h2 {...term('chain.title')}>Chain</h2>
         <span className="chain-timeline-sub">{count} {count === 1 ? 'block' : 'blocks'} · newest on top</span>
         <span className="chain-timeline-aside">tap a block for its hash</span>
       </div>

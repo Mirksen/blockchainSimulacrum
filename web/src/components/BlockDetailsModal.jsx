@@ -5,6 +5,7 @@ import { HeaderBytes } from './HeaderBytes';
 import { transactionRoot } from '../lib/blockchain';
 import { headerHex } from '../../../shared/bitcoin-block.mjs';
 import { colorOf } from './workbench/minerColors';
+import { hint, term } from '../lib/hints';
 
 const CloseIcon = () => (
     <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M3.5 3.5l7 7M10.5 3.5l-7 7" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg>
@@ -60,7 +61,7 @@ export function BlockDetailsModal({
                             </span>
                         )}
                     </h2>
-                    <button type="button" className="details-modal-close" aria-label="Close details" onClick={onClose}>
+                    <button type="button" className="details-modal-close" aria-label="Close details" {...hint('details.close')} onClick={onClose}>
                         <CloseIcon />
                     </button>
                 </div>
@@ -68,14 +69,14 @@ export function BlockDetailsModal({
                 <div className="details-modal-body">
                     <div className="details-modal-status">
                         {isInvalid ? (
-                            <span className="details-modal-pill is-err"><i aria-hidden="true" />Invalid block</span>
+                            <span className="details-modal-pill is-err" {...term('details.validity', true)}><i aria-hidden="true" />Invalid block</span>
                         ) : (
-                            <span className="details-modal-pill is-ok"><i aria-hidden="true" />Valid block</span>
+                            <span className="details-modal-pill is-ok" {...term('details.validity', false)}><i aria-hidden="true" />Valid block</span>
                         )}
                     </div>
 
                     <div className="details-modal-section">
-                        <div className="details-modal-label">Block Hash</div>
+                        <div className="details-modal-label" {...term('details.block-hash')}>Block Hash</div>
                         <div className="details-modal-hash">
                             <span className="details-modal-zeros">
                                 {block.hash?.match(/^0*/)?.[0]}
@@ -87,14 +88,14 @@ export function BlockDetailsModal({
                     </div>
 
                     <div className="details-modal-section">
-                        <div className="details-modal-label">Previous Hash</div>
+                        <div className="details-modal-label" {...term('details.previous-hash', blockIndex === 0)}>Previous Hash</div>
                         <div className="details-modal-hash is-small">
                             {block.previousHash}
                         </div>
                     </div>
 
                     <div className="details-modal-section">
-                        <div className="details-modal-label">Merkle root</div>
+                        <div className="details-modal-label" {...term('details.merkle-root')}>Merkle root</div>
                         <div className="details-modal-hash is-small">
                             {block.txRoot}
                         </div>
@@ -113,34 +114,34 @@ export function BlockDetailsModal({
                     <div className="details-modal-stats">
                         <div className="details-modal-stat">
                             <div className="details-modal-stat-value">{block.nonce?.toLocaleString()}</div>
-                            <div className="details-modal-stat-label">Nonce</div>
+                            <div className="details-modal-stat-label" {...term('details.nonce')}>Nonce</div>
                         </div>
                         <div className="details-modal-stat">
                             <div className="details-modal-stat-value">{block.transactions?.length || 0}</div>
-                            <div className="details-modal-stat-label">Transactions</div>
+                            <div className="details-modal-stat-label" {...term('details.tx-count')}>Transactions</div>
                         </div>
                         <div className="details-modal-stat">
                             <div className="details-modal-stat-value">
                                 {views.reduce((sum, view) => sum + view.amount, 0).toFixed(2)}
                             </div>
-                            <div className="details-modal-stat-label">Volume</div>
+                            <div className="details-modal-stat-label" {...term('details.volume')}>Volume</div>
                         </div>
                         <div className="details-modal-stat">
                             <div className="details-modal-stat-value">
                                 {blockIndex === 0 ? '-' : new Date(block.time * 1000).toLocaleTimeString()}
                             </div>
-                            <div className="details-modal-stat-label">Mined at</div>
+                            <div className="details-modal-stat-label" {...term('details.mined-at')}>Mined at</div>
                         </div>
                     </div>
 
                     <div className="details-modal-section">
-                        <div className="details-modal-label">80-byte header</div>
+                        <div className="details-modal-label" {...term('details.header')}>80-byte header</div>
                         <HeaderBytes header={headerHex(block.header())} hash={block.hash} />
                     </div>
 
                     {isInvalid && (
                         <div className="details-modal-tamper">
-                            <div className="details-modal-tamper-title"><WarningIcon />Tamper analysis</div>
+                            <div className="details-modal-tamper-title" {...term('details.tamper')}><WarningIcon />Tamper analysis</div>
 
                             {block.hash !== block.createHash?.() && (
                                 <div className="details-modal-tamper-item">
@@ -170,7 +171,7 @@ export function BlockDetailsModal({
 
                     {block.transactions?.length > 0 && (
                         <div className="details-modal-section">
-                            <div className="details-modal-label">
+                            <div className="details-modal-label" {...term('details.transactions')}>
                                 Transactions ({block.transactions.length}) · select one for details
                             </div>
                             <div className="details-modal-list">
@@ -178,7 +179,7 @@ export function BlockDetailsModal({
                                     <div
                                         key={txIndex}
                                         className="details-modal-row"
-                                        onClick={() => handleTxClick(view)} role="button" tabIndex={0} aria-label={`Transfer to ${view.to}: ${view.amount}`} onKeyDown={event => { if (event.target === event.currentTarget && ['Enter', ' '].includes(event.key)) { event.preventDefault(); event.currentTarget.click(); } }}
+                                        onClick={() => handleTxClick(view)} role="button" tabIndex={0} aria-label={`Transfer to ${view.to}: ${view.amount}`} {...hint('details.tx-row', view.coinbase)} onKeyDown={event => { if (event.target === event.currentTarget && ['Enter', ' '].includes(event.key)) { event.preventDefault(); event.currentTarget.click(); } }}
                                     >
                                         <div className="details-modal-row-main">
                                             <div className="details-modal-row-title">

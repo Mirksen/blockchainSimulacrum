@@ -4,6 +4,7 @@ import {
   brokenBefore, candidateCopy, formatAge, formatInterval, formatSeconds, healthSummary, linkInto, ordinal, pendingLink,
   shortHash, stateOf, statusLabel, zerosOf
 } from './blockView';
+import { hint, term } from '../../lib/hints';
 import './ChainBand.css';
 
 // Chain band (web/DESIGN.md, "Chain band"): #0 … newest left to right, then the
@@ -102,11 +103,11 @@ export function KeyFigures({ keyFigures, className = '', short = false }) {
   const target = formatSeconds(targetSeconds)?.replace('.0 s', ' s');
   const parts = [];
   if (avg || target) {
-    parts.push(<span key="avg">{avg ? <>avg <b>{avg}</b></> : 'no blocks timed yet'}{target ? ` / target ${target}` : ''}</span>);
+    parts.push(<span key="avg" {...term('chain.block-time')}>{avg ? <>avg <b>{avg}</b></> : 'no blocks timed yet'}{target ? ` / target ${target}` : ''}</span>);
   }
-  if (difficulty !== undefined && difficulty !== null) parts.push(<span key="d">difficulty <b>{difficulty}</b></span>);
-  if (reward !== undefined && reward !== null) parts.push(<span key="r">reward <b>{reward}</b></span>);
-  if (nextHalving !== undefined && nextHalving !== null) parts.push(<span key="h">{short ? 'halving' : 'next halving'} <b>#{nextHalving}</b></span>);
+  if (difficulty !== undefined && difficulty !== null) parts.push(<span key="d" {...term('chain.difficulty')}>difficulty <b>{difficulty}</b></span>);
+  if (reward !== undefined && reward !== null) parts.push(<span key="r" {...term('chain.reward')}>reward <b>{reward}</b></span>);
+  if (nextHalving !== undefined && nextHalving !== null) parts.push(<span key="h" {...term('chain.halving')}>{short ? 'halving' : 'next halving'} <b>#{nextHalving}</b></span>);
   return (
     <span className={className} aria-label="Key figures">
       {parts.flatMap((part, i) => (i === 0 ? [part] : [<span key={`s${i}`} className="chain-band-sep" aria-hidden="true">·</span>, part]))}
@@ -245,7 +246,7 @@ function Candidate({ candidate }) {
   const copy = candidateCopy(candidate);
   const state = candidate.state ?? 'idle';
   return (
-    <div className={`chain-band-cand is-${state}`} role="group" aria-label={copy.label} aria-busy={state === 'mining' || undefined}>
+    <div className={`chain-band-cand is-${state}`} role="group" aria-label={copy.label} aria-busy={state === 'mining' || undefined} {...hint('chain.candidate')}>
       <span className="chain-band-num" aria-hidden="true">#{candidate.index}</span>
       <span className="chain-band-tile-top">
         <span className="chain-band-tag">{copy.tag}</span><span className="chain-band-time">{copy.time}</span>
@@ -331,8 +332,8 @@ function HealthLine({ summary, healthOpen, onToggleHealth, stripId, compact = fa
       <span role="status" className="chain-band-health-status">
         {onToggleHealth ? (
           <button type="button" className="chain-band-health-sum" aria-expanded={Boolean(healthOpen)} aria-controls={stripId}
-            title={healthOpen ? 'Hide the checks' : 'Show the checks behind this'} onClick={onToggleHealth}>{pill}</button>
-        ) : <span className="chain-band-health-sum">{pill}</span>}
+            {...hint('chain.health', valid, healthOpen)} onClick={onToggleHealth}>{pill}</button>
+        ) : <span className="chain-band-health-sum" {...hint('chain.health', valid, true)}>{pill}</span>}
       </span>
       {healthOpen && (
         <span className="chain-band-health-text">
@@ -437,7 +438,7 @@ export function ChainBand({
     <section className={`chain-band${invalid ? ' is-invalid' : ''}`} aria-label="Chain">
       <div className="chain-band-inner">
         <div className={`chain-band-header chain-band-health${healthOpen ? ' is-open' : ''}${invalid ? ' is-invalid' : ''}`}>
-          <h2>Chain</h2>
+          <h2 {...term('chain.title')}>Chain</h2>
           <HealthLine summary={summary} healthOpen={healthOpen} onToggleHealth={onToggleHealth} stripId={stripId} />
           <KeyFigures keyFigures={keyFigures} className="chain-band-stats" />
         </div>

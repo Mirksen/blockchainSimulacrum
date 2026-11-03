@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { BLOCK_WORK, ROUND_LIMIT, createForkExperiment, inspectFork, mineForkRound } from '../lib/forkLab';
 import { CoachMark } from './workbench/CoachMark';
+import { hint, term } from '../lib/hints';
 import './ForkExperiment.css';
 
 const nameOf = branch => branch === 'alternative' ? 'Alternative' : 'Original';
@@ -11,7 +12,7 @@ function BlockRecord({ block }) {
     <strong>Block {block.number}</strong>
     <p>{block.data}</p>
     <code className="fork-experiment-short-hash"><strong>{block.hash.slice(0, 1)}</strong>{block.hash.slice(1, 6)}…{block.hash.slice(-2)}</code>
-    <details><summary>Inspect block {block.number}</summary>
+    <details><summary {...hint('lab.fork.inspect', block.number)}>Inspect block {block.number}</summary>
       <dl><dt>Nonce</dt><dd>{block.nonce}</dd><dt>Stored hash</dt><dd><code>{block.hash}</code></dd>
         <dt>Previous hash</dt><dd><code>{block.previousHash}</code></dd></dl>
     </details>
@@ -117,18 +118,18 @@ export function ForkExperiment({ onLessonEvent, coach = null }) {
   return <section className="fork-experiment" aria-labelledby={`${id}-title`}>
     <header className="fork-experiment-header"><div>
       <h2 id={`${id}-title`}>Which history wins?</h2>
-    </div><span className="fork-experiment-rounds">{experiment.rounds} / {ROUND_LIMIT} new blocks</span></header>
+    </div><span className="fork-experiment-rounds" {...term('lab.fork.rounds')}>{experiment.rounds} / {ROUND_LIMIT} new blocks</span></header>
 
     <div className="fork-experiment-controls">
       <CoachMark target="chain-lab.fork-scenario" coach={coach}>
         <fieldset className="fork-experiment-scenarios"><legend>Scenario</legend>
-          <label><input type="radio" name={`${id}-scenario`} value="competition" checked={experiment.scenario === 'competition'} onChange={() => reset('competition')} />Competition</label>
-          <label><input type="radio" name={`${id}-scenario`} value="rewrite" checked={experiment.scenario === 'rewrite'} onChange={() => reset('rewrite')} />Rewrite history</label>
+          <label {...hint('lab.fork.competition')}><input type="radio" name={`${id}-scenario`} value="competition" checked={experiment.scenario === 'competition'} onChange={() => reset('competition')} />Competition</label>
+          <label {...hint('lab.fork.rewrite')}><input type="radio" name={`${id}-scenario`} value="rewrite" checked={experiment.scenario === 'rewrite'} onChange={() => reset('rewrite')} />Rewrite history</label>
         </fieldset>
       </CoachMark>
       <div className="fork-experiment-power">
-        <label htmlFor={`${id}-power`}>Alternative hash power</label>
-        <input id={`${id}-power`} type="range" min="0" max="100" step="1" value={power} onChange={event => changePower(Number(event.target.value))} aria-describedby={`${id}-power-help`} />
+        <label htmlFor={`${id}-power`} {...term('lab.fork.power')}>Alternative hash power</label>
+        <input id={`${id}-power`} type="range" min="0" max="100" step="1" value={power} onChange={event => changePower(Number(event.target.value))} aria-describedby={`${id}-power-help`} {...hint('lab.fork.power')} />
         <div className="fork-experiment-power-values"><span>Original {100 - power}%</span><span>Alternative {power}%</span></div>
         <p id={`${id}-power-help`}>Power changes the odds. Completed blocks stay.</p>
       </div>
@@ -139,22 +140,24 @@ export function ForkExperiment({ onLessonEvent, coach = null }) {
       : 'The original has three blocks. The alternative starts at the same root with one altered toy payment. It must catch up, then gain strictly more valid work.'}</p>
     <CoachMark target="chain-lab.fork-mine" coach={coach}>
       <div className="fork-experiment-actions">
-        <button className="btn btn-emphasized" disabled={!running && capped} onClick={running ? stop : () => mine(true)}>{running ? 'Stop experiment' : error ? 'Retry experiment' : 'Run experiment'}</button>
-        <button className="btn btn-default" disabled={running || capped} onClick={() => mine(false)}>Mine one block</button>
-        <button className="btn btn-transparent" onClick={() => reset()}>Reset fork experiment</button>
+        <span className="hint-wrap" {...hint('lab.fork.run', running ? 'stop' : capped ? 'done' : error ? 'retry' : 'run')}>
+          <button className="btn btn-emphasized" disabled={!running && capped} onClick={running ? stop : () => mine(true)}>{running ? 'Stop experiment' : error ? 'Retry experiment' : 'Run experiment'}</button></span>
+        <span className="hint-wrap" {...hint('lab.fork.mine-one', capped)}>
+          <button className="btn btn-default" disabled={running || capped} onClick={() => mine(false)}>Mine one block</button></span>
+        <button className="btn btn-transparent" {...hint('lab.fork.reset')} onClick={() => reset()}>Reset fork experiment</button>
       </div>
     </CoachMark>
     <p className={`fork-experiment-feedback${error ? ' is-error' : ''}`} role="status">{feedback}</p>
-    <p className="fork-experiment-attempts">{running ? 'Current or last search' : 'Last search'}: {attempts.toLocaleString()} observed {attempts === 1 ? 'attempt' : 'attempts'} · {experiment.reorganizations} selection {experiment.reorganizations === 1 ? 'switch' : 'switches'}</p>
+    <p className="fork-experiment-attempts" {...term('lab.fork.attempts')}>{running ? 'Current or last search' : 'Last search'}: {attempts.toLocaleString()} observed {attempts === 1 ? 'attempt' : 'attempts'} · {experiment.reorganizations} selection {experiment.reorganizations === 1 ? 'switch' : 'switches'}</p>
     <div className="fork-experiment-diagram" aria-label="Competing branch diagram">
-      <div className="fork-experiment-ancestor"><h3>{shared.length ? 'Shared ancestor' : 'Shared starting anchor'}</h3>
+      <div className="fork-experiment-ancestor"><h3 {...term('lab.fork.ancestor', shared.length > 0)}>{shared.length ? 'Shared ancestor' : 'Shared starting anchor'}</h3>
         {shared.length ? <ol className="fork-experiment-blocks">{shared.map(block => <BlockRecord key={block.hash} block={block} />)}</ol>
           : <p>Both histories begin at the same root hash.</p>}
       </div>
       <div className="fork-experiment-branches">
         {['original', 'alternative'].map(branch => <article key={branch} aria-labelledby={`${id}-${branch}`} className={`fork-experiment-branch${check.selected === branch ? ' is-selected' : ''}`}>
-          <header><h3 id={`${id}-${branch}`}>{nameOf(branch)}</h3><span>{check.selected === branch ? 'Selected history' : 'Competing history'}</span></header>
-          <p className="fork-experiment-work"><strong>{check.branches[branch].work} work units</strong> · {experiment.branches[branch].length} blocks · {check.branches[branch].valid ? 'All proofs valid' : 'Invalid branch'}</p>
+          <header><h3 id={`${id}-${branch}`}>{nameOf(branch)}</h3><span {...term('lab.fork.selected', check.selected === branch)}>{check.selected === branch ? 'Selected history' : 'Competing history'}</span></header>
+          <p className="fork-experiment-work"><strong {...term('lab.fork.work')}>{check.branches[branch].work} work units</strong> · {experiment.branches[branch].length} blocks · {check.branches[branch].valid ? 'All proofs valid' : 'Invalid branch'}</p>
           <ol className="fork-experiment-blocks" start={check.commonLength + 1}>{experiment.branches[branch].slice(check.commonLength).map(block => <BlockRecord key={block.hash} block={block} />)}</ol>
         </article>)}
       </div>

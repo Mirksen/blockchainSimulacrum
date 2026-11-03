@@ -3,6 +3,7 @@ import { DEFAULT_FEE_RATE, FEE_RATES } from '../../lib/blockchain';
 import { CoachMark } from './CoachMark';
 import { RepeatToggle } from './RepeatToggle';
 import './cardKit.css';
+import { hint, term } from '../../lib/hints';
 import './MempoolCard.css';
 
 // Mempool card (web/DESIGN.md, "Card grid" and "Interaction patterns"). "New
@@ -34,11 +35,6 @@ function formatRate(rate) {
 }
 const RATE_LABELS = { [FEE_RATES[0]]: 'low', [FEE_RATES[1]]: 'normal', [FEE_RATES[2]]: 'high' };
 const WAITS = { full: 'waits · block full', parent: 'waits for its parent', invalid: 'orphaned by an edit' };
-const WAIT_TITLES = {
-  full: 'No room left in the next block: transactions with a higher fee per byte go first.',
-  parent: 'It spends a coin from a transaction that is still waiting; it can follow that one at the earliest.',
-  invalid: 'An edit of history removed a coin it spends. Undo the edit, or it never fits into a block.'
-};
 
 // What the form will spend, before anything is signed.
 function SpendPreview({ plan, to }) {
@@ -93,26 +89,26 @@ function NewTransactionForm({ names, coinName, onCreate, onPreview, onClose }) {
     <form id="mempool-card-form" className="card-kit-form mempool-card-form" onSubmit={submit} aria-label="New transaction" noValidate
       onKeyDown={event => { if (event.key === 'Escape') onClose(); }}>
       <div className="mempool-card-fields">
-        <label className="card-kit-field">From
+        <label className="card-kit-field"><span {...term('mempool.from')}>From</span>
           <select className="card-kit-select" value={from} onChange={edit(setFrom)}>
             <option value="">Choose…</option>
             {names.map(name => <option key={name} value={name}>{name}</option>)}
           </select>
         </label>
-        <label className="card-kit-field">To
+        <label className="card-kit-field"><span {...term('mempool.to')}>To</span>
           <select className="card-kit-select" value={to} onChange={edit(setTo)}>
             <option value="">Choose…</option>
             {names.map(name => <option key={name} value={name}>{name}</option>)}
           </select>
         </label>
-        <label className="card-kit-field">Amount ({coinName})
+        <label className="card-kit-field"><span {...term('mempool.amount')}>Amount ({coinName})</span>
           <input className="card-kit-input is-mono" inputMode="decimal" placeholder="0.25" value={amount} onChange={edit(setAmount)}
             aria-invalid={error.startsWith('Enter an amount') ? 'true' : 'false'} />
         </label>
-        <label className="card-kit-field mempool-card-ref">Reference
+        <label className="card-kit-field mempool-card-ref"><span {...term('mempool.reference')}>Reference</span>
           <input className="card-kit-input" placeholder="Coffee (optional)" value={reference} maxLength={64} onChange={edit(setReference)} />
         </label>
-        <label className="card-kit-field mempool-card-rate">Fee rate
+        <label className="card-kit-field mempool-card-rate"><span {...term('mempool.fee-rate')}>Fee rate</span>
           <select className="card-kit-select" value={feeRate} onChange={event => { setFeeRate(Number(event.target.value)); setError(''); }}>
             {FEE_RATES.map(rate => <option key={rate} value={rate}>{rate} sat/B · {RATE_LABELS[rate]}</option>)}
           </select>
@@ -121,7 +117,7 @@ function NewTransactionForm({ names, coinName, onCreate, onPreview, onClose }) {
       <SpendPreview plan={plan} to={to} />
       {error && <p className="card-kit-error" role="alert">{error}</p>}
       <div className="card-kit-form-actions">
-        <button type="submit" className="card-kit-btn">Add to mempool</button>
+        <button type="submit" className="card-kit-btn" {...hint('mempool.add')}>Add to mempool</button>
         <button type="button" className="card-kit-btn is-ghost" onClick={onClose}>Cancel</button>
         <span className="card-kit-t3 mempool-card-form-hint">Waits here until a block has room; a higher fee per byte goes first.</span>
       </div>
@@ -134,7 +130,7 @@ function BlockSpace({ space, nextIndex }) {
   const share = space.capacity > 0 ? Math.min(1, space.bytes / space.capacity) : 0;
   const waiting = space.total - space.included;
   return (
-    <div className="mempool-card-space" title="A block has limited room. Miners fill it with the highest fee per byte first; the rest waits for a later block.">
+    <div className="mempool-card-space" {...hint('mempool.space')}>
       <span className="mempool-card-space-label">Block space #{nextIndex}</span>
       <span className="mempool-card-space-meter" role="meter" aria-label={`Block space of #${nextIndex}`}
         aria-valuemin={0} aria-valuemax={space.capacity} aria-valuenow={space.bytes}><i style={{ width: `${share * 100}%` }} /></span>
@@ -154,7 +150,7 @@ export function MempoolCard({
   return (
     <section className={`card-kit mempool-card${mining ? ' is-mining' : ''}`} aria-label="Mempool">
       <div className="card-kit-head">
-        <h2 className="card-kit-title">Mempool</h2>
+        <h2 className="card-kit-title" {...term('mempool.title')}>Mempool</h2>
         {pending > 0
           ? <span className={`card-kit-pill ${mining ? 'is-live' : 'is-pending'}`}><i aria-hidden="true" />{mining ? `${pending} in #${nextIndex}` : `${pending} pending`}</span>
           : <span className="card-kit-pill is-none">Empty</span>}
@@ -164,12 +160,11 @@ export function MempoolCard({
           <CoachMark target="workbench.new-transaction" coach={coach} className="mempool-card-coach">
             <button type="button" className={`btn-tinted${open ? ' is-open' : newTxGlow ? '' : ' is-quiet'}`}
               aria-expanded={open ? 'true' : 'false'} aria-controls={open ? 'mempool-card-form' : undefined}
-              title="From, to, amount and a reference · opens here" onClick={() => setOpen(value => !value)}>
+              {...hint('mempool.new')} onClick={() => setOpen(value => !value)}>
               <PlusIcon />New transaction
             </button>
           </CoachMark>
-          <RepeatToggle name="Auto-transact" pressed={autoTransact} onToggle={onAutoTransact}
-            title="Auto-transact: fill an empty mempool with sample transfers between funded wallets. Waits while mining; turn off to stop filling. Existing transfers stay." />
+          <RepeatToggle name="Auto-transact" pressed={autoTransact} onToggle={onAutoTransact} hint={hint('mempool.auto', autoTransact)} />
         </div>
       </div>
       {open && <NewTransactionForm names={names} coinName={coinName} onCreate={onCreateTransaction} onPreview={onPreviewTransaction} onClose={() => setOpen(false)} />}
@@ -183,18 +178,18 @@ export function MempoolCard({
           <li key={tx.id ?? i} className={`mempool-card-tx${mining ? ' is-mining' : ''}${tx.waits ? ' is-waiting' : ''}`}>
             <span className="mempool-card-what">
               {onOpenTransaction && tx.tx
-                ? <button type="button" className="mempool-card-open" aria-label={`Details of ${tx.from} to ${tx.to}, ${formatAmount(tx.amount)}`} onClick={() => onOpenTransaction(tx.tx)}><b>{tx.from} → {tx.to}</b></button>
+                ? <button type="button" className="mempool-card-open" aria-label={`Details of ${tx.from} to ${tx.to}, ${formatAmount(tx.amount)}`} {...hint('mempool.tx')} onClick={() => onOpenTransaction(tx.tx)}><b>{tx.from} → {tx.to}</b></button>
                 : <b>{tx.from} → {tx.to}</b>}
               {tx.reference ? <small>{tx.reference}</small> : null}
               {spendSummary(tx) && <small className="mempool-card-spend">{spendSummary(tx)}</small>}
             </span>
-            {tx.waits ? <span className={`mempool-card-state is-${tx.waits}`} title={WAIT_TITLES[tx.waits]}><i aria-hidden="true" />{WAITS[tx.waits]}</span>
+            {tx.waits ? <span className={`mempool-card-state is-${tx.waits}`} {...hint('mempool.wait', tx.waits)}><i aria-hidden="true" />{WAITS[tx.waits]}</span>
               : mining && <span className="mempool-card-state"><i aria-hidden="true" />being mined into #{nextIndex}</span>}
             <span className="mempool-card-amt">{formatAmount(tx.amount)}</span>
           </li>
         ))}
         <li className="mempool-card-tx is-coinbase">
-          <span className="mempool-card-what"><b>Coinbase → winner</b><small>added when #{nextIndex} is mined</small></span>
+          <span className="mempool-card-what"><b {...term('mempool.coinbase')}>Coinbase → winner</b><small>added when #{nextIndex} is mined</small></span>
           <span className="mempool-card-amt">{reward != null ? formatAmount(reward) : ''}</span>
         </li>
       </ul>

@@ -1,4 +1,5 @@
 import './cardKit.css';
+import { term } from '../../lib/hints';
 import './ActivityCard.css';
 
 // Activity card (web/DESIGN.md, "Card grid": only on tall screens). Recent
@@ -27,7 +28,7 @@ export function ActivityCard({ confirmed = [], blockTimes = [], targetSeconds = 
       <div className="activity-card-cols">
         <div className="activity-card-col">
           <div className="card-kit-head">
-            <h2 className="card-kit-title">Activity</h2>
+            <h2 className="card-kit-title" {...term('activity.title')}>Activity</h2>
             <span className="card-kit-t3 activity-card-sub">recent confirmed transactions</span>
             <span className="card-kit-aside">{blocks.size ? `last ${blocks.size} ${blocks.size === 1 ? 'block' : 'blocks'}` : ''}</span>
           </div>
@@ -44,7 +45,7 @@ export function ActivityCard({ confirmed = [], blockTimes = [], targetSeconds = 
         </div>
         <div className="activity-card-col is-times">
           <div className="card-kit-head">
-            <h2 className="card-kit-title">Block times</h2>
+            <h2 className="card-kit-title" {...term('activity.times')}>Block times</h2>
             <span className="card-kit-aside">
               {average != null ? <>avg <b>{secondsText(average)}</b> · </> : null}target <b>{targetSeconds} s</b>
             </span>
