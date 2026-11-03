@@ -202,6 +202,49 @@ describe('backing a miner', () => {
   });
 });
 
+describe('renameMiner', () => {
+  it('renames a miner and moves its backing, last win and progress to the new name', async () => {
+    const { result } = renderHook(() => useBlockchain(config));
+    act(() => { result.current.toggleMiner('Miner2'); result.current.backMiner('Miner1'); });
+    expect(await mine(result)).toMatchObject({ success: true, winner: 'Miner1' });
+    expect(result.current.raceWinner).toBe('Miner1');
+    expect(result.current.minerProgress).toHaveProperty('Miner1');
+    const progress = result.current.minerProgress.Miner1;
+    let outcome;
+    act(() => { outcome = result.current.renameMiner('Miner1', 'Quill'); });
+    expect(outcome).toMatchObject({ success: true, error: null });
+    expect(outcome.participant.name).toBe('Quill');
+    expect(outcome.participant.colorKey).toBe('miner1');
+    expect(result.current.participants.map(p => p.name)).toEqual(['Quill', 'Miner2', 'Wallet3']);
+    expect(result.current.backedMiner).toBe('Quill');
+    expect(result.current.raceWinner).toBe('Quill');
+    expect(result.current.minerProgress).not.toHaveProperty('Miner1');
+    expect(result.current.minerProgress.Quill).toEqual(progress);
+    // The backing that counts for the next race follows the rename.
+    expect(await mine(result)).toMatchObject({ success: true, winner: 'Quill', backedWon: true });
+  });
+
+  it('refuses a taken name without publishing a change', () => {
+    const { result } = renderHook(() => useBlockchain(config));
+    act(() => result.current.backMiner('Miner1'));
+    const before = result.current.participants;
+    let outcome;
+    act(() => { outcome = result.current.renameMiner('Miner1', 'miner2'); });
+    expect(outcome).toEqual({ success: false, error: 'A wallet named miner2 already exists.' });
+    expect(result.current.participants).toBe(before);
+    expect(result.current.backedMiner).toBe('Miner1');
+  });
+
+  it('refuses during a race', async () => {
+    const { result } = renderHook(() => useBlockchain(config));
+    let pending, refused;
+    act(() => { pending = result.current.mineBlock(); refused = result.current.renameMiner('Miner1', 'Quill'); });
+    expect(refused).toEqual({ success: false, error: 'Wait until the current block is found.' });
+    await act(async () => { await vi.runAllTimersAsync(); await pending; });
+    expect(result.current.participants.map(p => p.name)).toEqual(['Miner1', 'Miner2', 'Wallet3']);
+  });
+});
+
 describe('automatic sample transfers', () => {
   it('selects a funded sender even when random picks would repeatedly hit an unfunded wallet', async () => {
     const { result } = renderHook(() => useBlockchain(config));

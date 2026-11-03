@@ -10,20 +10,45 @@ const show = (values, props = {}) => render(<MinerName identity={identity(values
 afterEach(cleanup);
 
 describe('MinerName', () => {
-  it('glows around a generated name and says what it does', () => {
+  it('invites a name while it is generated and says what it does', () => {
     const { container } = show({ name: 'Not-Satoshi-4', generated: true });
-    expect(screen.getByLabelText('Your miner name').value).toBe('Not-Satoshi-4');
+    expect(screen.getByLabelText('Enter your name').value).toBe('Not-Satoshi-4');
     expect(status().textContent).toBe('Every block you mine lands on the leaderboard under this name. Make it yours.');
     expect(container.querySelector('.miner-name.is-generated')).toBeTruthy();
+    expect(container.querySelector('.miner-name.is-chosen')).toBeNull();
     cleanup();
-    expect(show({}).container.querySelector('.miner-name.is-generated')).toBeNull();
+    const chosen = show({}).container;
+    expect(chosen.querySelector('.miner-name.is-generated')).toBeNull();
+    expect(chosen.querySelector('.miner-name.is-chosen')).toBeTruthy();
+    expect(screen.getByLabelText('Your name').value).toBe('Mirko');
+    expect(screen.queryByText('Enter your name')).toBeNull();
+  });
+
+  it('keeps inviting while a generated name is being edited and steps back once the field is left', () => {
+    const view = show({ name: 'Not-Satoshi-4', generated: true });
+    const input = screen.getByLabelText('Enter your name');
+    fireEvent.focus(input);
+    // The first keystroke makes the name chosen; the label does not jump while typing.
+    view.rerender(<MinerName identity={identity({ name: 'Mirko' })} />);
+    expect(screen.getByLabelText('Enter your name')).toBe(input);
+    expect(view.container.querySelector('.miner-name.is-generated')).toBeTruthy();
+    fireEvent.blur(input);
+    expect(screen.getByLabelText('Your name')).toBe(input);
+    expect(view.container.querySelector('.miner-name.is-chosen')).toBeTruthy();
+  });
+
+  it('says "Your name" while a chosen name is edited', () => {
+    show({});
+    const input = screen.getByLabelText('Your name');
+    fireEvent.focus(input);
+    expect(screen.getByLabelText('Your name')).toBe(input);
   });
 
   it('falls back to the generated name when the field is left empty', () => {
     const setName = vi.fn();
     show({ name: '', signingName: 'Not-Satoshi-4', generated: true, setName });
-    const input = screen.getByLabelText('Your miner name');
-    expect(input.getAttribute('placeholder')).toBe('Not-Satoshi-4');
+    const input = screen.getByLabelText('Enter your name');
+    expect(input.getAttribute('placeholder')).toBe('Enter your name');
     fireEvent.blur(input);
     expect(setName).toHaveBeenCalledWith('Not-Satoshi-4');
   });
@@ -31,13 +56,13 @@ describe('MinerName', () => {
   it('hands every keystroke up', () => {
     const setName = vi.fn();
     show({ setName });
-    fireEvent.change(screen.getByLabelText('Your miner name'), { target: { value: 'Mirko2' } });
+    fireEvent.change(screen.getByLabelText('Your name'), { target: { value: 'Mirko2' } });
     expect(setName).toHaveBeenCalledWith('Mirko2');
   });
 
   it('locks the name during a race', () => {
     show({}, { locked: true });
-    expect(screen.getByLabelText('Your miner name').disabled).toBe(true);
+    expect(screen.getByLabelText('Your name').disabled).toBe(true);
   });
 
   it.each([
@@ -53,10 +78,10 @@ describe('MinerName', () => {
 
   it('marks only a badly formed name as invalid input', () => {
     show({ name: 'no', valid: false, pool: 'idle' });
-    expect(screen.getByLabelText('Your miner name').getAttribute('aria-invalid')).toBe('true');
+    expect(screen.getByLabelText('Your name').getAttribute('aria-invalid')).toBe('true');
     cleanup();
     show({ pool: 'refused' });
-    expect(screen.getByLabelText('Your miner name').getAttribute('aria-invalid')).toBeNull();
+    expect(screen.getByLabelText('Your name').getAttribute('aria-invalid')).toBeNull();
   });
 
   it('follows a block to the leaderboard and shows the rank the board gives', () => {

@@ -21,16 +21,27 @@ const block = (overrides = {}) => ({
 const card = () => screen.getByRole('region', { name: /^Block/ });
 
 describe('SelectedBlockCard', () => {
-  it('offers the way back to the newest only while an older block is held', () => {
-    const onFollowNewest = vi.fn();
+  it('offers no Show newest and no aside for an intact block, held or newest', () => {
     const older = block({ index: 2, isNewest: false });
-    const { rerender } = render(<SelectedBlockCard block={older} status="valid" prevHash={PREV} pinned onFollowNewest={onFollowNewest} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Show newest' }));
-    expect(onFollowNewest).toHaveBeenCalledOnce();
-    rerender(<SelectedBlockCard block={block()} status="valid" prevHash={PREV} pinned onFollowNewest={onFollowNewest} />);
+    const { rerender } = render(<SelectedBlockCard block={older} status="valid" prevHash={PREV} />);
     expect(screen.queryByRole('button', { name: 'Show newest' })).toBeNull();
-    rerender(<SelectedBlockCard block={older} status="valid" prevHash={PREV} onFollowNewest={onFollowNewest} />);
+    expect(card().querySelector('.card-kit-aside')).toBeNull();
+    rerender(<SelectedBlockCard block={block()} status="valid" prevHash={PREV} />);
     expect(screen.queryByRole('button', { name: 'Show newest' })).toBeNull();
+    expect(card().querySelector('.card-kit-aside')).toBeNull();
+    rerender(<SelectedBlockCard block={block({ index: 0, isNewest: false, miner: null, previousHash: '0' })} status="valid" />);
+    expect(card().querySelector('.card-kit-aside')).toBeNull();
+    expect(card().textContent).not.toContain('first block · no miner');
+  });
+
+  it('keeps the color of a renamed miner through its color key', () => {
+    const { rerender } = render(<SelectedBlockCard block={block({ miner: 'Quill', minerKey: 'dorian' })} status="valid" prevHash={PREV} />);
+    const avatar = () => card().querySelector('.card-kit-av.is-xs');
+    expect(avatar().style.getPropertyValue('--av-color')).toBe('var(--dorian)');
+    rerender(<SelectedBlockCard block={block({ miner: 'Hal' })} status="valid" prevHash={PREV} />);
+    expect(avatar().style.getPropertyValue('--av-color')).toBe('var(--hal)');
+    rerender(<SelectedBlockCard block={block({ miner: 'Quill' })} status="valid" prevHash={PREV} />);
+    expect(avatar().classList.contains('is-plain')).toBe(true);
   });
 
   it('holds its transactions as a part of the card', () => {
@@ -48,7 +59,11 @@ describe('SelectedBlockCard', () => {
     const text = card().textContent;
     expect(screen.getByRole('heading', { name: 'Block #4' })).toBeTruthy();
     expect(text).toContain('Valid');
-    expect(text).toContain('newest · mined by Lars');
+    expect(text).not.toContain('mined by');
+    expect(card().querySelector('.card-kit-aside')).toBeNull();
+    // The Miner row names who mined it.
+    const minerRow = [...card().querySelectorAll('dt')].find(dt => dt.textContent === 'Miner').nextElementSibling;
+    expect(minerRow.textContent).toContain('Lars');
     expect(HASH).toHaveLength(64);
     expect(text).toContain(HASH);
     expect(text).toContain(PREV);

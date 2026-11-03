@@ -76,11 +76,18 @@ describe('ChainTimeline', () => {
   });
 
   it('shows the health line, the checks in timeline order and the key figures', () => {
-    const { onToggleHealth, rerender } = renderTimeline();
-    expect(screen.getByRole('status').textContent.replace(/\s+/g, ' ')).toBe('Chain valid·4/4 start 00·4/4 links');
-    fireEvent.click(screen.getByRole('button', { name: 'Show checks' }));
+    const { container, onToggleHealth, rerender } = renderTimeline();
+    expect(screen.getByRole('status').textContent).toBe('Chain valid');
+    const pill = screen.getByRole('button', { name: 'Chain valid' });
+    expect(pill.getAttribute('aria-expanded')).toBe('false');
+    expect(container.querySelector('.chain-band-health-text')).toBeNull();
+    expect(screen.queryByRole('list', { name: 'Checks per block' })).toBeNull();
+    expect(screen.queryByRole('button', { name: /checks/i })).toBeNull();
+    fireEvent.click(pill);
     expect(onToggleHealth).toHaveBeenCalledTimes(1);
     rerender(<ChainTimeline views={makeViews()} candidate={{ index: 5, txCount: 2, state: 'mining', elapsedMs: 3400, attempts: 148 }} keyFigures={keyFigures} healthOpen onToggleHealth={onToggleHealth} />);
+    expect(screen.getByRole('button', { name: 'Chain valid' }).getAttribute('aria-expanded')).toBe('true');
+    expect(container.querySelector('.chain-band-health-text').textContent.replace(/\s+/g, ' ')).toBe('4/4 start 00·4/4 links');
     const cells = within(screen.getByRole('list', { name: 'Checks per block' })).getAllByRole('listitem');
     expect(cells.map(cell => cell.getAttribute('aria-label').split(':')[0])).toEqual(['Block 5', 'Block 4', 'Block 3', 'Block 2', 'Block 1', 'Block 0']);
     expect(cells[0].getAttribute('aria-label')).toBe('Block 5: being mined');

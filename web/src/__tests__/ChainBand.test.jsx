@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ChainBand } from '../components/workbench/ChainBand';
 import { buildBlockViews } from '../components/workbench/blockView';
 
@@ -45,15 +45,42 @@ afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 describe('ChainBand tiles and selection', () => {
   it('reads left to right from Genesis to the newest block, then the candidate', () => {
     const { container } = renderBand();
-    const faces = [...container.querySelectorAll('.chain-band-tile-face')].map(face => face.querySelector('b').textContent);
-    expect(faces).toEqual(['#0', '#1', '#2', '#3', '#4']);
+    // The block number sits above each tile, outside its button.
+    const numbers = [...container.querySelectorAll('.chain-band-tile > .chain-band-num')].map(num => num.textContent);
+    expect(numbers).toEqual(['#0', '#1', '#2', '#3', '#4']);
+    expect([...container.querySelectorAll('.chain-band-tile-face .chain-band-num')]).toHaveLength(0);
     const candidate = screen.getByRole('group', { name: 'Candidate block 5, not mined yet, 2 transactions waiting' });
+    expect(candidate.querySelector('.chain-band-num').textContent).toBe('#5');
     expect(within(candidate).getByText('next')).toBeTruthy();
     expect(within(candidate).getByText('Mine it below')).toBeTruthy();
-    expect(container.querySelector('.chain-band-tile.is-newest .chain-band-tile-face').textContent).toContain('#4');
+    expect(container.querySelector('.chain-band-tile.is-newest > .chain-band-num').textContent).toBe('#4');
     expect(tile(4).getAttribute('aria-pressed')).toBe('true');
     expect(tile(2).getAttribute('aria-pressed')).toBe('false');
     expect(tile(2).textContent).toContain('0002cc…02');
+  });
+
+  it('shows how long ago each block was mined and keeps the ages current', () => {
+    vi.useFakeTimers();
+    try {
+      // Blocks were mined at T0, T0 + 2 s, …, T0 + 8 s; one clock tick later it is T0 + 11 s.
+      vi.setSystemTime((T0 + 10) * 1000);
+      const { container } = renderBand();
+      act(() => { vi.advanceTimersByTime(1000); });
+      const ages = () => [...container.querySelectorAll('.chain-band-tile-face .chain-band-age')].map(age => age.textContent);
+      expect(ages()).toEqual(['11 s ago', '9 s ago', '7 s ago', '5 s ago', 'just now']);
+      act(() => { vi.advanceTimersByTime(60000); });
+      expect(ages()).toEqual(['1 min ago', '1 min ago', '1 min ago', '1 min ago', '1 min ago']);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('has no hint text in the header', () => {
+    const { container } = renderBand();
+    const header = container.querySelector('.chain-band-header');
+    expect(header.querySelector('h2').textContent).toBe('Chain');
+    expect(header.querySelector('.chain-band-hint')).toBeNull();
+    expect(header.textContent).not.toMatch(/click a block|hover for the full hash/);
   });
 
   it('selects a block on click', () => {
@@ -117,32 +144,49 @@ describe('ChainBand statuses and links', () => {
 });
 
 describe('ChainBand health line', () => {
-  it('summarises a valid chain and toggles the checks', () => {
-    const { onToggleHealth, rerender, views } = renderBand();
-    const line = screen.getByRole('status');
-    expect(line.textContent.replace(/\s+/g, ' ')).toBe('Chain valid·4 of 4 hashes start with 00·4 of 4 links intact');
-    const toggle = screen.getByRole('button', { name: 'Show checks' });
-    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+  it('summarises a valid chain in a pill that opens the checks', () => {
+    const { container, onToggleHealth, rerender, views } = renderBand();
+    expect(screen.getByRole('status').textContent).toBe('Chain valid');
+    const pill = within(screen.getByRole('status')).getByRole('button', { name: 'Chain valid' });
+    expect(pill.getAttribute('aria-expanded')).toBe('false');
+    // Closed: no check line, no strip, and no separate show/hide control.
+    expect(container.querySelector('.chain-band-health-text')).toBeNull();
     expect(screen.queryByRole('list', { name: 'Checks per block' })).toBeNull();
-    fireEvent.click(toggle);
+    expect(screen.queryByRole('button', { name: /checks/i })).toBeNull();
+    fireEvent.click(pill);
     expect(onToggleHealth).toHaveBeenCalledTimes(1);
     rerender(<ChainBand views={views} candidate={{ index: 5, txCount: 2, state: 'idle' }} keyFigures={keyFigures} healthOpen onToggleHealth={onToggleHealth} />);
-    expect(screen.getByRole('button', { name: 'Hide checks' }).getAttribute('aria-expanded')).toBe('true');
-    const cells = within(screen.getByRole('list', { name: 'Checks per block' })).getAllByRole('listitem');
+    const open = screen.getByRole('button', { name: 'Chain valid' });
+    expect(open.getAttribute('aria-expanded')).toBe('true');
+    expect(container.querySelector('.chain-band-health-text').textContent.replace(/\s+/g, ' ')).toBe('4 of 4 hashes start with 00·4 of 4 links intact');
+    const strip = screen.getByRole('list', { name: 'Checks per block' });
+    expect(open.getAttribute('aria-controls')).toBe(strip.id);
+    const cells = within(strip).getAllByRole('listitem');
     expect(cells.map(cell => cell.getAttribute('aria-label'))).toContain('Block 2: hash starts with 00, link to block 1 intact');
     expect(cells.at(-1).getAttribute('aria-label')).toBe('Block 5: not mined yet');
+    expect(screen.queryByRole('button', { name: /checks/i })).toBeNull();
   });
 
   it('names the cause when the chain is invalid', () => {
-    renderBand({ views: makeViews(5, TAMPERED), healthOpen: true });
-    expect(screen.getByRole('status').textContent.replace(/\s+/g, ' '))
-      .toBe('Chain invalid·3 of 4 hashes start with 00·#2 changed after mining; #3 and #4 are unchanged but built on it');
+    const { container } = renderBand({ views: makeViews(5, TAMPERED), healthOpen: true });
+    expect(screen.getByRole('status').textContent).toBe('Chain invalid');
+    expect(screen.getByRole('button', { name: 'Chain invalid' }).getAttribute('aria-expanded')).toBe('true');
+    expect(container.querySelector('.chain-band-health-text').textContent.replace(/\s+/g, ' '))
+      .toBe('3 of 4 hashes start with 00·#2 changed after mining; #3 and #4 are unchanged but built on it');
     const cells = within(screen.getByRole('list', { name: 'Checks per block' })).getAllByRole('listitem');
     const byLabel = label => cells.find(cell => cell.getAttribute('aria-label').startsWith(label));
     expect(byLabel('Block 2:').textContent).toContain('#2 · hash mismatch');
     expect(byLabel('Block 3:').textContent).toContain('Built on a broken block');
     expect(byLabel('Block 3:').textContent).toContain('link unchanged');
     expect(byLabel('Block 4:').textContent).toContain('link intact');
+  });
+
+  it('keeps the invalid pill closed until it is clicked', () => {
+    const { container } = renderBand({ views: makeViews(5, TAMPERED) });
+    expect(screen.getByRole('status').textContent).toBe('Chain invalid');
+    expect(screen.getByRole('button', { name: 'Chain invalid' }).getAttribute('aria-expanded')).toBe('false');
+    expect(container.querySelector('.chain-band-health-text')).toBeNull();
+    expect(screen.queryByRole('list', { name: 'Checks per block' })).toBeNull();
   });
 });
 
@@ -182,52 +226,65 @@ describe('ChainBand full-hash tooltip', () => {
   });
 });
 
-describe('ChainBand earlier blocks', () => {
-  it('has no earlier control when every tier shows all blocks', () => {
+describe('ChainBand scrolling row', () => {
+  const row = container => [...container.querySelectorAll('.chain-band-scroll > .chain-band-row:not(.chain-band-strip) > .chain-band-item')];
+  const pagingButton = () => screen.queryByRole('button', { name: /earlier|newer|oldest/i });
+
+  it('has no paging controls for a short chain', () => {
     renderBand({ views: makeViews(3) });
-    expect(screen.queryByRole('button', { name: /earlier/ })).toBeNull();
+    expect(pagingButton()).toBeNull();
   });
 
-  const row = container => [...container.querySelectorAll('.chain-band-row:not(.chain-band-strip) > .chain-band-item')];
-  const hiddenIn = (container, tier) => row(container).filter(item => item.classList.contains(`is-hidden-${tier}`)).length;
-
-  it('offers the earlier blocks per width tier', () => {
-    const { container } = renderBand({ views: makeViews(9) });
-    const earlier = screen.getByRole('button', { name: /earlier/ });
-    expect(within(earlier).getByText('6 earlier').className).toBe('chain-band-tier-a');
-    expect(within(earlier).getByText('5 earlier').className).toBe('chain-band-tier-b');
-    expect(within(earlier).getByText('4 earlier').className).toBe('chain-band-tier-c');
-    expect([hiddenIn(container, 'a'), hiddenIn(container, 'b'), hiddenIn(container, 'c')]).toEqual([6, 5, 4]);
-    expect(container.querySelector('.chain-band').className).toContain('has-earlier-a');
-  });
-
-  it('pages through older blocks in one row and back', () => {
+  it('renders every block and the candidate in one row without paging controls', () => {
     const { container } = renderBand({ views: makeViews(12) });
-    expect(screen.queryByRole('button', { name: /newer/ })).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: /earlier/ }));
-    // Tier c shows five blocks: #2-#6 after one step back from #7-#11.
-    const shown = row(container).filter(item => item.querySelector('.chain-band-tile') && !item.classList.contains('is-hidden-c'));
-    expect(shown.map(item => item.querySelector('.chain-band-tile b').textContent)).toEqual(['#2', '#3', '#4', '#5', '#6']);
-    expect(screen.getByRole('button', { name: /5 newer/ })).toBeTruthy();
-    expect(screen.queryByRole('group', { name: /^Candidate/ })).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: /earlier/ }));
-    const oldest = screen.getByRole('button', { name: /Oldest/ });
-    expect(oldest.disabled).toBe(true);
-    fireEvent.click(screen.getByRole('button', { name: /7 newer/ }));
-    fireEvent.click(screen.getByRole('button', { name: /newer/ }));
-    expect(screen.getByRole('group', { name: /^Candidate/ })).toBeTruthy();
+    expect(pagingButton()).toBeNull();
+    const items = row(container);
+    expect(items).toHaveLength(13);
+    expect(items.slice(0, 12).map(item => item.querySelector('.chain-band-tile > .chain-band-num').textContent))
+      .toEqual(Array.from({ length: 12 }, (_, i) => `#${i}`));
+    expect(items.at(-1).querySelector('[role="group"]').getAttribute('aria-label')).toMatch(/^Candidate block 12/);
+    expect(items.every(item => ![...item.classList].some(cls => cls.startsWith('is-hidden')))).toBe(true);
+    expect(container.querySelector('.chain-band').className).not.toMatch(/has-earlier/);
+    expect(container.querySelectorAll('.chain-band-scroll')).toHaveLength(1);
   });
 
-  it('keeps the window on its blocks when the chain grows and returns when a held block is let go', () => {
-    const select = {};
-    const { container, rerender } = render(<ChainBand views={makeViews(12)} selectedIndex={3} pinned {...select} />);
-    fireEvent.click(screen.getByRole('button', { name: /earlier/ }));
-    const firstShown = () => row(container).find(item => item.querySelector('.chain-band-tile') && !item.classList.contains('is-hidden-c')).querySelector('.chain-band-tile b').textContent;
-    expect(firstShown()).toBe('#2');
-    rerender(<ChainBand views={makeViews(13)} selectedIndex={3} pinned {...select} />);
-    expect(firstShown()).toBe('#2');
-    rerender(<ChainBand views={makeViews(13)} selectedIndex={12} pinned={false} {...select} />);
-    expect(firstShown()).toBe('#8');
+  describe('following the newest block', () => {
+    let scrollTo;
+    beforeEach(() => {
+      scrollTo = vi.fn();
+      HTMLElement.prototype.scrollTo = scrollTo;
+    });
+    afterEach(() => { delete HTMLElement.prototype.scrollTo; });
+
+    it('holds a pinned block when the chain grows and returns to the newest when it is let go', () => {
+      const { rerender } = render(<ChainBand views={makeViews(12)} selectedIndex={3} pinned />);
+      rerender(<ChainBand views={makeViews(13)} selectedIndex={3} pinned />);
+      expect(scrollTo).not.toHaveBeenCalled();
+      rerender(<ChainBand views={makeViews(13)} selectedIndex={12} pinned={false} />);
+      expect(scrollTo).toHaveBeenCalledWith({ left: expect.any(Number), behavior: 'smooth' });
+    });
+
+    it('scrolls a new block into view only while the row sits at its end', () => {
+      const { container, rerender } = render(<ChainBand views={makeViews(12)} selectedIndex={11} pinned={false} />);
+      scrollTo.mockClear();
+      rerender(<ChainBand views={makeViews(13)} selectedIndex={12} pinned={false} />);
+      expect(scrollTo).toHaveBeenCalledTimes(1);
+      expect(scrollTo).toHaveBeenLastCalledWith({ left: expect.any(Number), behavior: 'smooth' });
+      // The learner scrolls left, away from the end: the next block no longer pulls the row.
+      const scroller = container.querySelector('.chain-band-scroll');
+      Object.defineProperty(scroller, 'scrollLeft', { configurable: true, value: 0 });
+      Object.defineProperty(scroller, 'clientWidth', { configurable: true, value: 600 });
+      Object.defineProperty(scroller, 'scrollWidth', { configurable: true, value: 2400 });
+      fireEvent.scroll(scroller);
+      scrollTo.mockClear();
+      rerender(<ChainBand views={makeViews(14)} selectedIndex={13} pinned={false} />);
+      expect(scrollTo).not.toHaveBeenCalled();
+      // Back at the end, it follows again.
+      Object.defineProperty(scroller, 'scrollLeft', { configurable: true, value: 1800 });
+      fireEvent.scroll(scroller);
+      rerender(<ChainBand views={makeViews(15)} selectedIndex={14} pinned={false} />);
+      expect(scrollTo).toHaveBeenCalledWith({ left: 2400, behavior: 'smooth' });
+    });
   });
 });
 

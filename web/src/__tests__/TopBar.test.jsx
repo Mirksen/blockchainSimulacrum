@@ -9,7 +9,7 @@ const renderBar = (props = {}) => {
   const handlers = {
     onNavigate: vi.fn(), onTheme: vi.fn(), onMuted: vi.fn(), onReset: vi.fn(), onOpenSettings: vi.fn(),
   };
-  const utils = render(<TopBar view="workbench" coinName="testCoin" chainValid theme="dark" muted={false} {...handlers} {...props} />);
+  const utils = render(<TopBar view="workbench" coinName="testCoin" theme="dark" muted={false} {...handlers} {...props} />);
   return { ...utils, ...handlers };
 };
 const more = () => screen.getByRole('button', { name: 'More' });
@@ -36,13 +36,15 @@ describe('navigation', () => {
     expect(onNavigate).not.toHaveBeenCalled();
   });
 
-  it('shows the virtual coin label and the chain status as text', () => {
-    const { rerender } = renderBar();
-    expect(screen.getByText('testCoin · virtual')).toBeTruthy();
-    expect(screen.getByText('Chain valid')).toBeTruthy();
-    rerender(<TopBar view="workbench" coinName="testCoin" chainValid={false} />);
-    expect(screen.getByText('Chain invalid')).toBeTruthy();
-    expect(screen.queryByText('Chain valid')).toBeNull();
+  it('shows no chain status and keeps the virtual coin label inside the menu', () => {
+    const { container } = renderBar();
+    expect(screen.queryByText(/^Chain (valid|invalid)$/)).toBeNull();
+    expect(container.querySelector('.top-bar-chain')).toBeNull();
+    expect(screen.queryByText('testCoin · virtual')).toBeNull();
+    fireEvent.click(more());
+    const menu = screen.getByRole('group', { name: 'More' });
+    expect(within(menu).getByText('testCoin · virtual').className).toBe('top-bar-menu-coin');
+    expect(screen.getAllByText('testCoin · virtual')).toHaveLength(1);
   });
 });
 
@@ -122,5 +124,13 @@ describe('compact (below 768 px)', () => {
     expect(onNavigate).toHaveBeenCalledWith('hash-lab');
     expect(screen.queryByRole('navigation')).toBeNull();
     expect(document.activeElement).toBe(menuButton);
+  });
+
+  it('names the virtual coin only inside the menu', () => {
+    renderBar({ compact: true });
+    expect(screen.queryByText('testCoin · virtual')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Menu' }));
+    const menu = screen.getByRole('group', { name: 'Menu' });
+    expect(within(menu).getByText('testCoin · virtual')).toBeTruthy();
   });
 });

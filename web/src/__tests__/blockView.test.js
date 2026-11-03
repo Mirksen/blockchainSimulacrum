@@ -1,8 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { candidateHash, createBlockchain } from '../lib/blockchain';
 import { meetsTarget as meetsBits } from '../../../shared/bitcoin-block.mjs';
+import * as blockView from '../components/workbench/blockView';
 import {
-  bandWindow, buildBlockViews, candidateCopy, formatSeconds, healthSummary, linkInto, listBlocks, pendingLink,
+  buildBlockViews, candidateCopy, formatAge, formatSeconds, healthSummary, linkInto, listBlocks, pendingLink,
   shortHash, stateOf, statusLabel, zerosOf
 } from '../components/workbench/blockView';
 
@@ -16,7 +17,7 @@ function findNonce(candidate) {
 }
 // Genesis plus four mined blocks, 3 s apart (deterministic clock).
 function minedChain() {
-  const chain = createBlockchain({ participants: ['Lars', 'Dana7'], miners: ['Lars'], miningDifficulty: 1 });
+  const chain = createBlockchain({ participants: ['Hal', 'Dana7'], miners: ['Hal'], miningDifficulty: 1 });
   for (let i = 1; i <= 4; i++) {
     const candidate = chain.prepareCandidate(chain.getActiveMiner(), { time: T0 + i * 3 });
     const nonce = findNonce(candidate);
@@ -62,10 +63,29 @@ describe('buildBlockViews', () => {
     // The genesis time is a fixed launch moment, so block #1 has no mining interval.
     expect(views[1].seconds).toBeNull();
     expect(views[2]).toMatchObject({
-      index: 2, minerName: 'Lars', minerKey: 'lars', txCount: 1, seconds: 3, status: 'valid', difficulty: 1,
+      index: 2, minerName: 'Hal', minerKey: 'hal', txCount: 1, seconds: 3, time: T0 + 6, status: 'valid', difficulty: 1,
       storedHash: chain.blockArray[2].hash, prevHash: chain.blockArray[1].hash, edited: false, edits: []
     });
+    expect(views.slice(1).map(view => view.time)).toEqual([T0 + 3, T0 + 6, T0 + 9, T0 + 12]);
     expect(views.every(view => view.status === 'valid')).toBe(true);
+  });
+
+  it('keeps the color key of a renamed miner and gives a miner without one the plain key', () => {
+    const chain = minedChain();
+    expect(chain.renameParticipant('Hal', 'Quill').success).toBe(true);
+    const views = snapshotViews(chain);
+    expect(views[2]).toMatchObject({ minerName: 'Quill', minerKey: 'hal' });
+    const plain = createBlockchain({ participants: ['Dana7'], miners: ['Dana7'], miningDifficulty: 1 });
+    const candidate = plain.prepareCandidate(plain.getActiveMiner(), { time: T0 + 3 });
+    const nonce = findNonce(candidate);
+    plain.acceptBlock(candidate, nonce, candidateHash(candidate, nonce));
+    expect(snapshotViews(plain)[1]).toMatchObject({ minerName: 'Dana7', minerKey: 'other' });
+  });
+
+  it('has no time for a block without a header time', () => {
+    const blocks = [{ hash: 'aa', transactions: [], difficulty: 0 }, { hash: '00bb', previousHash: 'aa', transactions: [], difficulty: 2 }];
+    const views = buildBlockViews({ blocks, blockStatus: [{ status: 'valid' }, { status: 'valid' }] });
+    expect(views.map(view => view.time)).toEqual([null, null]);
   });
 
   it('marks an edited block, its descendants and a broken link after re-mining', () => {
@@ -120,12 +140,34 @@ describe('healthSummary', () => {
   });
 });
 
-describe('band window and candidate copy', () => {
-  it('hides older blocks only when the tier cannot show all of them', () => {
-    expect(bandWindow(5)).toEqual({ a: { hidden: 2, visible: 3 }, b: { hidden: 0, visible: 5 }, c: { hidden: 0, visible: 5 } });
-    expect(bandWindow(9)).toEqual({ a: { hidden: 6, visible: 3 }, b: { hidden: 5, visible: 4 }, c: { hidden: 4, visible: 5 } });
-    expect(bandWindow(2).a.hidden).toBe(0);
+describe('formatAge', () => {
+  const NOW = T0 + 1000000;
+  it.each([
+    [0, 'just now'], [4, 'just now'], [5, '5 s ago'], [59, '59 s ago'], [60, '1 min ago'], [3599, '59 min ago'],
+    [3600, '1 h ago'], [86399, '23 h ago'], [86400, '1 day ago'], [172800, '2 days ago']
+  ])('words an age of %i s as "%s"', (age, text) => {
+    expect(formatAge(NOW - age, NOW)).toBe(text);
   });
+  it('treats a time in the future as just now and has no age without a time', () => {
+    expect(formatAge(NOW + 30, NOW)).toBe('just now');
+    expect(formatAge(null, NOW)).toBeNull();
+    expect(formatAge(undefined, NOW)).toBeNull();
+    expect(formatAge(NOW, Number.NaN)).toBeNull();
+  });
+  it('reads the clock when no time is given', () => {
+    // The fake clock stands at T0.
+    expect(formatAge(T0 - 12)).toBe('12 s ago');
+  });
+});
+
+describe('band layout', () => {
+  it('has no band window any more: the band scrolls instead of paging', () => {
+    expect(blockView).not.toHaveProperty('bandWindow');
+    expect(blockView).not.toHaveProperty('BAND_TIERS');
+  });
+});
+
+describe('candidate copy', () => {
   it('words each candidate state', () => {
     expect(candidateCopy({ index: 5, txCount: 2, state: 'idle' })).toMatchObject({ tag: 'next', what: '2 tx waiting', down: 'Mine it below' });
     expect(candidateCopy({ index: 5, txCount: 2, state: 'mining', elapsedMs: 3400, attempts: 1480 })).toMatchObject({ tag: 'mining', time: '3.4 s', tries: '1,480' });
