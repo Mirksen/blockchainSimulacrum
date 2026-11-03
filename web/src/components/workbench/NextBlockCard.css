@@ -169,7 +169,7 @@
 
 .next-block-action .btn-primary:focus-visible { outline: 2px solid var(--focus); outline-offset: -3px; position: relative; z-index: 1; }
 
-/* ---------- miner editor: a click on a miner between races ---------- */
+/* ---------- a click on a miner opens its popover (MinerDetails.css); between races it holds the name ---------- */
 .next-block-lane-wrap { display: grid; gap: 4px; min-width: 0; }
 .next-block-who.is-button {
   margin: 0 0 0 -4px; padding: 2px 4px; border: 0; border-radius: var(--r-sm); background: transparent;
@@ -178,16 +178,8 @@
 .next-block-who.is-button:hover { background: var(--panel-2); }
 .next-block-who.is-button:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
 .next-block-lane.is-editing { border-color: var(--miner-color, var(--line-3)); }
-.next-block-editor {
-  display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2) var(--s-4);
-  padding: var(--s-2) var(--s-3); border: 1px solid var(--line-2); border-radius: var(--r-md); background: var(--panel);
-  font-size: 12px; color: var(--text-2);
-}
-.next-block-editor-field { display: inline-flex; align-items: center; gap: var(--s-2); min-width: 0; }
+.next-block-editor-field { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); min-width: 0; font-size: 12px; color: var(--text-2); }
 .next-block-editor-field .card-kit-input { width: 140px; height: 28px; }
-.next-block-editor-power { flex: 1 1 200px; }
-.next-block-editor-power input[type="range"] { flex: 1 1 auto; min-width: 80px; accent-color: var(--miner-color, var(--blue)); }
-.next-block-editor-share { min-width: 42px; text-align: right; font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; }
 .next-block-editor-error { flex-basis: 100%; margin: 0; }
 
 /* Auto-mine on lights up like Mining beside it (Mirko, 2026-11-03): the same fill and text,

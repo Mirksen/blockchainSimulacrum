@@ -4,12 +4,19 @@ import { search } from './powSearch.js';
 // the worker's message queue responsive and posts progress at most every ~50 ms.
 const PACE_MS = 50;
 
+// The first message starts the search; later `control` messages change its live settings.
+let control = null;
 self.onmessage = async ({ data }) => {
+  if (data.type === 'control') {
+    if (control) Object.assign(control, data.control);
+    return;
+  }
   let lastYield = performance.now();
   let lastPost = -Infinity;
+  control = data.control ? { ...data.control } : null;
   try {
     const result = await search({
-      ...data,
+      ...data, control,
       onProgress: progress => {
         const now = performance.now();
         if (now - lastPost < PACE_MS) return false;

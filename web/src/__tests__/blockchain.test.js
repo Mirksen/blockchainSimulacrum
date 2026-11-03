@@ -60,6 +60,43 @@ describe('created participants', () => {
     expect(chain.addMiner('Quill').participant.colorKey).toBe('spare');
     expect(chain.addWallet('Rowan').participant.colorKey).toBe('rowan');
   });
+  it('gives a created miner an equal share: the average hashpower of the racing miners', () => {
+    const chain = createBlockchain();
+    chain.setMinerShare('Hal', 40);
+    expect(chain.addMiner('Quill').participant.hashpower).toBe(33);
+    expect(createBlockchain().addMiner('Rowan').participant.hashpower).toBe(5);
+  });
+});
+describe('setMinerShare', () => {
+  const weights = chain => chain.getActiveMiners().map(p => [p.name, p.hashpower]);
+  it('gives the miner its percent and the others the rest in their previous proportion', () => {
+    const chain = createBlockchain();
+    expect(chain.setMinerShare('Hal', 70)).toEqual({ Hal: 70, Dorian: 15, Laszlo: 15 });
+    expect(weights(chain)).toEqual([['Hal', 70], ['Dorian', 15], ['Laszlo', 15]]);
+    // Dorian and Laszlo keep their 1:1 when Dorian moves and Hal gives way with Laszlo.
+    chain.setMinerShare('Dorian', 50);
+    expect(weights(chain)).toEqual([['Hal', 41], ['Dorian', 50], ['Laszlo', 9]]);
+    expect(chain.getActiveMiners().reduce((sum, p) => sum + p.hashpower, 0)).toBe(100);
+  });
+  it('keeps the share between 5 and 90 percent and every other miner at weight 1 or more', () => {
+    const chain = createBlockchain();
+    chain.setMinerShare('Hal', 100);
+    expect(chain.getParticipantByName('Hal').hashpower).toBe(90);
+    chain.setMinerShare('Hal', 0);
+    expect(chain.getParticipantByName('Hal').hashpower).toBe(5);
+    chain.setMinerShare('Dorian', 90);
+    expect(weights(chain)).toEqual([['Hal', 1], ['Dorian', 90], ['Laszlo', 9]]);
+  });
+  it('changes nothing for a wallet, a switched-off miner, a lone miner or a non-number', () => {
+    const chain = createBlockchain();
+    expect(chain.setMinerShare('Alice', 50)).toBeNull();
+    expect(chain.setMinerShare('Hal', Number.NaN)).toBeNull();
+    chain.toggleMiner('Laszlo');
+    expect(chain.setMinerShare('Laszlo', 50)).toBeNull();
+    chain.toggleMiner('Dorian');
+    expect(chain.setMinerShare('Hal', 50)).toBeNull();
+    expect(chain.participants.filter(p => p.isMiner).map(p => p.hashpower)).toEqual([5, 5, 5]);
+  });
 });
 describe('renameParticipant', () => {
   const twoMiners = () => createBlockchain({ participants: ['Quill', 'Rowan', 'Wallet3'], miners: ['Quill', 'Rowan'], miningDifficulty: 1 });

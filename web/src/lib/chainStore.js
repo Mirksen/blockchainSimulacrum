@@ -4,7 +4,7 @@
 // participants with their recovery phrases, the open edits and the experiment settings.
 // Everything else (UTXO set, statuses, balances) is derived again on load, so a saved
 // state is checked by the same rules as a live one. Reset clears it.
-import { Block, Blockchain, Participant } from './blockchain';
+import { Block, Blockchain, MAX_HASHPOWER, Participant } from './blockchain';
 import { Transaction } from './tx/transaction';
 
 export const CHAIN_KEY = 'proofofwork-chain';
@@ -58,7 +58,7 @@ export function deserializeChain(saved) {
     if (participant.seedPhrase !== record.seedPhrase) fail('recovery phrase');
     Object.assign(participant, {
       colorKey: String(record.colorKey ?? record.name).toLowerCase(),
-      hashpower: Math.max(1, Math.min(10, Math.round(Number(record.hashpower) || 5))),
+      hashpower: Math.max(1, Math.min(MAX_HASHPOWER, Math.round(Number(record.hashpower) || 5))),
       minerEnabled: record.minerEnabled !== false, blocksWon: isCount(record.blocksWon) ? record.blocksWon : 0,
       activeMiner: record.activeMiner === true
     });

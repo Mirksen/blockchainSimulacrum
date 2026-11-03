@@ -8,6 +8,7 @@ import './cardKit.css';
 import './NextBlockCard.css';
 import { issueText } from './blockView';
 import { colorOf } from './minerColors';
+import { MinerPopover, StreamWall } from './MinerDetails';
 
 // Next block card (web/DESIGN.md, "Card grid" and "Interaction patterns").
 // One filled primary per mode:
@@ -26,9 +27,12 @@ import { colorOf } from './minerColors';
 //            blocks before `next` in `order` count as done
 // onCreateMiner(name) returns { success, error }; "Create miner" sits under the lanes between
 // races (a miner joins from the next block) and is disabled with `minersFull`.
-// Between races a click on a miner opens its editor: onRenameMiner(name, next) -> { success, error }
-// renames it for this session, onHashpower(name, value) sets its hashpower (1–10), shown as its
-// share of all hashpower: its chance to find the next block.
+// A click on a miner opens its popover (MinerDetails.jsx), between races and during one:
+// onShare(name, percent) sets its share of the hashpower, which is its chance to find the next
+// block; onOpenMiner(name) opens the miner drawer. Between races the popover also renames it:
+// onRenameMiner(name, next) -> { success, error } for this session. perMiner: { [name]: progress }
+// of the running or the last race, with each miner's newest attempts (`stream`).
+// During a race "All streams" shows every miner's attempts side by side.
 
 // The "M" key presses the button that announces it (aria-keyshortcuts="M"): Mining between
 // races, "Re-mine block #K" during a repair. It stays off while the learner types, with a
@@ -60,12 +64,10 @@ function formatAmount(value) {
   return `${whole}.${fraction.padEnd(2, '0')}`;
 }
 const count = value => Number(value ?? 0).toLocaleString('en-US');
-const weightOf = miner => Number(miner.hashpower ?? miner.hashrate) || 0;
 // From three miners on the lanes get slimmer, so the cards below keep their lists.
 const lanesClass = miners => `next-block-lanes${miners.length > 2 ? ' is-compact' : ''}`;
 const seconds = ms => `${(Math.max(0, Number(ms) || 0) / 1000).toFixed(1)} s`;
 const minerColor = miner => miner.color ?? colorOf(miner.name) ?? 'var(--text-3)';
-const shareOf = (miner, total) => (total > 0 ? Math.round(weightOf(miner) / total * 100) : 0);
 
 const BoltIcon = ({ size = 16 }) => (
   <svg width={size} height={size} viewBox="0 0 16 16" aria-hidden="true"><path d="M9.5 1.5L3 9h4.5l-1 5.5L13 7H8.5z" fill="currentColor" /></svg>
@@ -128,7 +130,7 @@ function zeroStatus(zeros, difficulty, isWinner) {
 export function NextBlockCard({
   mode = 'idle', index, txCount = 0, reward, difficulty = 2, onDifficulty, autoMine = false, onAutoMine, repeating = false,
   onStartDemo, onMine, onPause, onRemine, repair = null, miners = [], race = null, lastRound = null,
-  backedMiner = null, onBack, coach = null, signature = null, onCreateMiner, minersFull = false, onRenameMiner, onHashpower
+  backedMiner = null, onBack, coach = null, signature = null, onCreateMiner, minersFull = false, onRenameMiner, onShare, onOpenMiner, perMiner = {}
 }) {
   const isMining = mode === 'mining';
   const isRepair = mode === 'repair';
@@ -136,6 +138,8 @@ export function NextBlockCard({
   const isPaused = mode === 'paused';
   const settingsLocked = isMining || isRepair;
   const target = '0'.repeat(difficulty);
+  const [liveOpen, setLiveOpen] = useState(null);
+  const [wall, setWall] = useState(false);
 
   const meta = isFresh ? '· Genesis only'
     : `· ${txCount} tx${isMining ? '' : ' waiting'}${reward != null ? ` · reward ${formatAmount(reward)}` : ''}`;
@@ -205,16 +209,17 @@ export function NextBlockCard({
       {isRepair
         ? <RepairBody repair={repair} difficulty={difficulty} target={target} onRemine={onRemine} coach={coach} />
         : isMining
-          ? <LiveRace miners={miners} race={race} index={index} difficulty={difficulty} target={target} backedMiner={backedMiner} coach={coach} />
+          ? <LiveRace miners={miners} race={race} index={index} difficulty={difficulty} target={target} backedMiner={backedMiner} coach={coach}
+            onShare={onShare} onOpenMiner={onOpenMiner} open={liveOpen} setOpen={setLiveOpen} wall={wall} setWall={setWall} />
           : <LastRound miners={miners} lastRound={lastRound} race={isPaused ? race : null} difficulty={difficulty}
             backedMiner={backedMiner} onBack={onBack} coach={coach} isFresh={isFresh}
-            onCreateMiner={onCreateMiner} minersFull={minersFull} onRenameMiner={onRenameMiner} onHashpower={onHashpower} />}
+            onCreateMiner={onCreateMiner} minersFull={minersFull} onRenameMiner={onRenameMiner} onShare={onShare} onOpenMiner={onOpenMiner} perMiner={perMiner} />}
     </section>
   );
 }
 
-// The editor of one miner: a display name for this session and its hashpower as a share.
-function MinerEditor({ miner, total, onRename, onHashpower, onClose }) {
+// The name field of a miner's popover between races: a display name for this session.
+function MinerNameField({ miner, onRename, onDone }) {
   const id = useId();
   const [draft, setDraft] = useState(miner.name);
   const [error, setError] = useState('');
@@ -226,37 +231,24 @@ function MinerEditor({ miner, total, onRename, onHashpower, onClose }) {
     setError('');
     return true;
   };
-  const share = shareOf(miner, total);
   return (
-    <div className="next-block-editor" role="group" aria-label={`Edit miner ${miner.name}`} style={{ '--miner-color': minerColor(miner) }}
-      onKeyDown={event => { if (event.key === 'Escape') { event.stopPropagation(); onClose(); } }}>
-      <label className="next-block-editor-field" htmlFor={`${id}-name`}>
-        <span>Name</span>
-        <input id={`${id}-name`} className="card-kit-input" value={draft} maxLength={16} autoComplete="off" spellCheck={false}
-          aria-invalid={error ? 'true' : 'false'} aria-describedby={error ? `${id}-error` : undefined}
-          onChange={event => { setDraft(event.target.value); setError(''); }} onBlur={commit}
-          onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); if (commit()) onClose(); } }} />
-      </label>
-      <label className="next-block-editor-field next-block-editor-power" htmlFor={`${id}-power`}>
-        <span>Hashpower</span>
-        <input id={`${id}-power`} type="range" min="1" max="10" step="1" value={weightOf(miner) || 5}
-          aria-valuetext={`${share} % chance to find the next block`}
-          onChange={event => onHashpower?.(miner.name, Number(event.target.value))} />
-        <output htmlFor={`${id}-power`} className="next-block-editor-share" aria-label={`Chance to find the next block: ${share} %`}>{share} %</output>
-      </label>
-      <button type="button" className="card-kit-btn is-sm is-ghost" onClick={() => { if (commit()) onClose(); }}>Done</button>
+    <div className="next-block-editor-field">
+      <label htmlFor={`${id}-name`}>Name</label>
+      <input id={`${id}-name`} className="card-kit-input" value={draft} maxLength={16} autoComplete="off" spellCheck={false}
+        aria-invalid={error ? 'true' : 'false'} aria-describedby={error ? `${id}-error` : undefined}
+        onChange={event => { setDraft(event.target.value); setError(''); }} onBlur={commit}
+        onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); if (commit()) onDone(); } }} />
       {error && <p className="card-kit-error next-block-editor-error" role="alert" id={`${id}-error`}>{error}</p>}
     </div>
   );
 }
 
-function LastRound({ miners, lastRound, race, difficulty, backedMiner, onBack, coach, isFresh, onCreateMiner, minersFull, onRenameMiner, onHashpower }) {
+function LastRound({ miners, lastRound, race, difficulty, backedMiner, onBack, coach, isFresh, onCreateMiner, minersFull, onRenameMiner, onShare, onOpenMiner, perMiner }) {
   const [creating, setCreating] = useState(false);
   // The miner whose editor is open, by its position: a rename keeps the editor on it.
   const [editing, setEditing] = useState(null);
-  const editable = Boolean(onRenameMiner || onHashpower);
+  const editable = Boolean(onRenameMiner || onShare || onOpenMiner);
   const d = lastRound?.difficulty ?? difficulty;
-  const total = miners.reduce((sum, m) => sum + weightOf(m), 0);
   const coached = coach?.target === 'workbench.back-miner';
   let summary;
   if (race) {
@@ -287,8 +279,8 @@ function LastRound({ miners, lastRound, race, difficulty, backedMiner, onBack, c
               <div className={`next-block-lane${isWinner ? ' is-winner' : ''}${backed ? ' is-backed' : ''}${open ? ' is-editing' : ''}`}
                 style={{ '--miner-color': minerColor(miner) }} data-miner={miner.name}>
                 {editable ? (
-                  <button type="button" className="next-block-who is-button" aria-expanded={open} title={`Rename ${miner.name} or change its hashpower`}
-                    aria-label={`${miner.name}: rename or change hashpower`} onClick={() => setEditing(open ? null : index)}>{who}</button>
+                  <button type="button" className="next-block-who is-button" aria-expanded={open} title={`${miner.name}: hashpower, attempts, name`}
+                    aria-label={`${miner.name}: hashpower, attempts and name`} onClick={() => setEditing(open ? null : index)}>{who}</button>
                 ) : <div className="next-block-who">{who}</div>}
                 <Track zeros={zeros} difficulty={d}
                   label={result ? `${miner.name} reached ${zeros} of ${d} leading zeros` : `${miner.name} has not raced yet`} />
@@ -299,7 +291,12 @@ function LastRound({ miners, lastRound, race, difficulty, backedMiner, onBack, c
                   </button>
                 </div>
               </div>
-              {open && <MinerEditor miner={miner} total={total} onRename={onRenameMiner} onHashpower={onHashpower} onClose={() => setEditing(null)} />}
+              {open && (
+                <MinerPopover miner={miner} miners={miners} progress={perMiner?.[miner.name]} difficulty={d} onShare={onShare}
+                  onOpenDetails={onOpenMiner} onClose={() => setEditing(null)}>
+                  {onRenameMiner && <MinerNameField key={miner.name} miner={miner} onRename={onRenameMiner} onDone={() => setEditing(null)} />}
+                </MinerPopover>
+              )}
               </div>
             );
           })}
@@ -308,7 +305,7 @@ function LastRound({ miners, lastRound, race, difficulty, backedMiner, onBack, c
       {creating && !minersFull && (
         <div className="next-block-create">
           <CreateNameForm noun="miner" label="New miner name" placeholder="New miner, e.g. Hal"
-            hint="A simulated miner: races from the next block at hashpower 5 of 10, starts at 0."
+            hint="A simulated miner: races from the next block with an equal share of the hashpower, starts at 0."
             onCreate={onCreateMiner} onCancel={() => setCreating(false)} />
         </div>
       )}
@@ -323,15 +320,19 @@ function LastRound({ miners, lastRound, race, difficulty, backedMiner, onBack, c
   );
 }
 
-function LiveMinerLane({ miner, p, difficulty, isWinner, backed }) {
+function LiveMinerLane({ miner, p, difficulty, isWinner, backed, open = false, onOpen }) {
   const zeros = Math.min(p?.zeros ?? 0, difficulty);
   const peak = usePeakHold(Math.min(p?.peakZeros ?? zeros, difficulty), p?.iterations ?? -1);
   const st = zeroStatus(zeros, difficulty, isWinner);
+  const who = <><Avatar miner={miner} /><span className="next-block-nm"><b>{miner.name}</b>
+    <small>nonce {p ? count(p.nonce) : '–'}{backed && <> · <em className="is-backed">backed</em></>}</small></span></>;
   return (
-    <div className={`next-block-lane is-live${isWinner ? ' is-winner' : ''}${backed ? ' is-backed' : ''}`}
+    <div className={`next-block-lane is-live${isWinner ? ' is-winner' : ''}${backed ? ' is-backed' : ''}${open ? ' is-editing' : ''}`}
       style={{ '--miner-color': minerColor(miner) }} data-miner={miner.name}>
-      <div className="next-block-who"><Avatar miner={miner} /><span className="next-block-nm"><b>{miner.name}</b>
-        <small>nonce {p ? count(p.nonce) : '–'}{backed && <> · <em className="is-backed">backed</em></>}</small></span></div>
+      {onOpen ? (
+        <button type="button" className="next-block-who is-button" aria-expanded={open} title={`${miner.name}: hashpower and attempts`}
+          aria-label={`${miner.name}: hashpower and attempts`} onClick={onOpen}>{who}</button>
+      ) : <div className="next-block-who">{who}</div>}
       <div className="next-block-live" title="Recent peak: holds the highest leading-zero count for one second, then settles to the highest newer result.">
         <CheckedHash hash={p?.hash} difficulty={difficulty} />
         <Track zeros={peak} difficulty={difficulty} label={`${miner.name} recent peak ${peak} of ${difficulty} leading zeros`} />
@@ -341,7 +342,9 @@ function LiveMinerLane({ miner, p, difficulty, isWinner, backed }) {
   );
 }
 
-function LiveRace({ miners, race, index, difficulty, target, backedMiner, coach }) {
+// `open` (the miner whose popover is open) and `wall` live in the card, so they stay through
+// the blocks of an Auto-mine run, when each new race mounts LiveRace again.
+function LiveRace({ miners, race, index, difficulty, target, backedMiner, coach, onShare, onOpenMiner, open, setOpen, wall, setWall }) {
   const targetSeconds = race?.targetSeconds;
   const elapsed = race?.elapsedMs ?? 0;
   const timePct = targetSeconds ? Math.min(100, (elapsed / 1000 / targetSeconds) * 100) : 0;
@@ -352,15 +355,27 @@ function LiveRace({ miners, race, index, difficulty, target, backedMiner, coach 
       <CoachMark target="workbench.mine" coach={coach} className="next-block-coach-block">
       <CoachMark target="workbench.back-miner" coach={coach} className="next-block-coach-block">
         <div className={lanesClass(miners)}>
-          {miners.map(miner => <LiveMinerLane key={miner.name} miner={miner} p={race?.perMiner?.[miner.name]}
-            difficulty={difficulty} isWinner={race?.winner === miner.name} backed={backedMiner === miner.name} />)}
+          {miners.map(miner => (
+            <div key={miner.name} className="next-block-lane-wrap">
+              <LiveMinerLane miner={miner} p={race?.perMiner?.[miner.name]} difficulty={difficulty} isWinner={race?.winner === miner.name}
+                backed={backedMiner === miner.name} open={open === miner.name}
+                onOpen={onShare || onOpenMiner ? () => setOpen(current => (current === miner.name ? null : miner.name)) : undefined} />
+              {open === miner.name && (
+                <MinerPopover miner={miner} miners={miners} progress={race?.perMiner?.[miner.name]} difficulty={difficulty}
+                  onShare={onShare} onOpenDetails={onOpenMiner} onClose={() => setOpen(null)} />
+              )}
+            </div>
+          ))}
         </div>
       </CoachMark>
       </CoachMark>
       <div className="next-block-foot">
         <span><b>{count(race?.attempts)}</b> attempts · <b>{seconds(elapsed)}</b>{targetSeconds ? <> of the {targetSeconds} s target</> : null}</span>
         {targetSeconds ? <span className="next-block-timebar" role="img" aria-label={`${(elapsed / 1000).toFixed(1)} of ${targetSeconds} seconds`}><i style={{ width: `${timePct}%` }} /></span> : null}
+        <button type="button" className="next-block-new" aria-pressed={wall} onClick={() => setWall(on => !on)}
+          title="Every miner's newest attempts side by side">{wall ? 'Hide streams' : 'All streams'}</button>
       </div>
+      {wall && <StreamWall miners={miners} perMiner={race?.perMiner} difficulty={difficulty} onShare={onShare} onOpenDetails={onOpenMiner} />}
     </div>
   );
 }

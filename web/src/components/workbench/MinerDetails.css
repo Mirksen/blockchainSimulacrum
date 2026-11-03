@@ -1,0 +1,123 @@
+/* Miner details: popover, drawer and stream wall share these parts (web/DESIGN.md, "Miner details"). */
+.miner-note { margin: 4px 0 0; font-size: 12px; line-height: 16px; color: var(--text-3); }
+.miner-note b { color: var(--text-2); font-weight: 600; }
+
+.miner-av {
+  display: grid; place-items: center; flex: none; border-radius: 50%; font-weight: 700;
+  background: var(--av-color); color: var(--on-light);
+}
+.miner-av.is-sm { width: 20px; height: 20px; font-size: 11px; }
+.miner-av.is-md { width: 26px; height: 26px; font-size: 13px; }
+.miner-av.is-lg { width: 36px; height: 36px; font-size: 16px; }
+
+/* share slider */
+.miner-share-row { display: flex; align-items: center; gap: var(--s-3); }
+.miner-share-row input[type="range"] { flex: 1 1 auto; min-width: 80px; accent-color: var(--miner-color, var(--blue)); cursor: pointer; }
+.miner-share-row input[type="range"]:disabled { cursor: not-allowed; opacity: .55; }
+.miner-share-row input[type="range"]:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.miner-share-value { min-width: 48px; text-align: right; font: 700 18px/22px var(--mono); color: var(--text); font-variant-numeric: tabular-nums; }
+.miner-share.is-compact .miner-share-value { font-size: 13px; min-width: 40px; }
+.miner-share-bar { display: flex; height: 6px; margin-top: 8px; border-radius: 3px; overflow: hidden; background: var(--panel-3); }
+.miner-share-bar i { display: block; height: 100%; transition: width 160ms ease; }
+
+/* hashes and the attempt stream */
+.miner-hash { font-family: var(--mono); color: var(--text-3); }
+.miner-hash-hit { color: var(--green); font-weight: 700; }
+.miner-hash-miss { color: var(--red); }
+.miner-stream {
+  --row: 19px;
+  height: calc(var(--rows) * var(--row) + 8px); overflow: hidden; margin-top: 8px; padding: 4px 0;
+  border: 1px solid var(--line); border-radius: var(--r-md); background: var(--bg);
+  font: 12px/var(--row) var(--mono); font-variant-numeric: tabular-nums;
+}
+.miner-stream-row { display: grid; grid-template-columns: 84px minmax(0, 1fr) 22px; gap: 8px; padding: 0 10px; white-space: nowrap; }
+.miner-stream-row.is-empty { display: block; color: var(--text-3); font-family: var(--ui); white-space: normal; }
+.miner-stream-nonce { color: var(--text-3); text-align: right; }
+.miner-stream-hash { overflow: hidden; text-overflow: ellipsis; }
+.miner-stream-zeros { text-align: right; color: var(--text-3); }
+.miner-stream-row.is-some { background: color-mix(in srgb, var(--green) 6%, transparent); }
+.miner-stream-row.is-some .miner-stream-zeros { color: var(--green); }
+.miner-stream-row.is-close { background: var(--green-bg); }
+.miner-stream-row.is-close .miner-hash { color: var(--text-2); }
+.miner-stream-row.is-close .miner-stream-zeros { color: var(--green); font-weight: 700; }
+.miner-stream-row.is-win { background: var(--green); }
+.miner-stream-row.is-win, .miner-stream-row.is-win * { color: var(--on-light); font-weight: 700; }
+
+/* popover under a lane */
+.miner-pop {
+  display: grid; gap: 6px; padding: var(--s-2) var(--s-3) var(--s-3);
+  border: 1px solid var(--miner-color, var(--line-2)); border-radius: var(--r-md); background: var(--panel);
+  font-size: 12px; color: var(--text-2);
+}
+.miner-pop .miner-stream { --row: 18px; margin-top: 2px; }
+.miner-pop-foot { display: flex; justify-content: flex-end; gap: var(--s-2); }
+
+/* drawer beside the workbench */
+.miner-drawer {
+  position: fixed; z-index: 40; top: 0; right: 0; bottom: 0; width: min(460px, 100vw);
+  display: flex; flex-direction: column; background: var(--panel); color: var(--text);
+  border-left: 1px solid var(--line-3); box-shadow: -24px 0 60px var(--shadow);
+  font: 13px/18px var(--ui); animation: miner-drawer-in 200ms ease-out;
+}
+@keyframes miner-drawer-in { from { transform: translateX(24px); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .miner-drawer { animation: none; } .miner-share-bar i { transition: none; } }
+.miner-drawer-head { display: flex; align-items: center; gap: var(--s-3); padding: var(--s-3) var(--s-4); border-bottom: 1px solid var(--line); }
+.miner-drawer-who { flex: 1; display: grid; gap: 2px; justify-items: start; min-width: 0; }
+.miner-drawer-who h2 { margin: 0; font-size: 17px; line-height: 22px; }
+.miner-drawer-body { flex: 1; overflow: auto; padding: 0 var(--s-4) var(--s-5); }
+.miner-sec { padding-top: var(--s-4); }
+.miner-sec-head { display: flex; align-items: center; flex-wrap: wrap; gap: var(--s-2); margin-bottom: 6px; }
+.miner-sec-head h3 { margin: 0; flex: 1; font-size: 11px; line-height: 16px; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); font-weight: 600; }
+.miner-tools { display: inline-flex; gap: 6px; }
+.miner-tools .card-kit-btn[aria-pressed="true"] { border-color: var(--blue); background: var(--blue-bg); color: var(--text); }
+.miner-majority {
+  border: 0; border-radius: 999px; padding: 2px 10px; background: var(--amber-bg); color: var(--amber);
+  font: 600 11px/16px var(--ui); cursor: pointer; text-align: left;
+}
+.miner-majority:hover { text-decoration: underline; }
+.miner-majority:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.miner-kpis { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; margin: 10px 0 0; }
+.miner-kpis div { padding: 6px 10px; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--bg-2); }
+.miner-kpis dt { font-size: 11px; color: var(--text-3); }
+.miner-kpis dd { margin: 0; font: 600 15px/20px var(--mono); font-variant-numeric: tabular-nums; }
+.miner-slow { margin: 6px 0 0; padding: 6px 10px; border: 1px dashed var(--line-3); border-radius: var(--r-md); font: 12px/18px var(--mono); color: var(--text-2); }
+.miner-best { margin: 0; padding: 6px 10px; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--bg-2); font-size: 11px; word-break: break-all; }
+.miner-best small { display: block; margin-top: 2px; font-family: var(--ui); color: var(--text-3); }
+
+.miner-hist { margin: 0; }
+.miner-hist-cols { display: flex; align-items: flex-end; gap: 10px; height: 110px; padding-top: 16px; }
+.miner-hist-col { position: relative; flex: 1; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; }
+.miner-hist-bar { width: 100%; border-radius: 4px 4px 0 0; background: var(--miner-color, var(--blue)); opacity: .85; }
+.miner-hist-col.is-goal .miner-hist-bar { background: var(--green); }
+.miner-hist-exp { position: absolute; left: -3px; right: -3px; margin-bottom: 18px; border-top: 2px dashed var(--text-2); }
+.miner-hist-n { position: absolute; top: -16px; font: 10px var(--mono); color: var(--text-2); }
+.miner-hist-label { height: 18px; font: 11px/18px var(--mono); color: var(--text-3); }
+
+.miner-luck-bar { position: relative; height: 8px; border-radius: 4px; background: var(--panel-3); }
+.miner-luck-won { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 4px; background: var(--miner-color, var(--blue)); }
+.miner-luck-exp { position: absolute; top: -3px; width: 3px; height: 14px; margin-left: -1px; border-radius: 2px; background: var(--text); }
+
+.miner-header { display: grid; gap: 2px; margin: 0; padding: 8px 10px; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--bg-2); font: 12px/18px var(--mono); }
+.miner-header div { display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 8px; }
+.miner-header dt { color: var(--text-3); font-family: var(--ui); }
+.miner-header dd { margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.miner-header .is-nonce dd { color: var(--amber); font-weight: 700; }
+
+/* stream wall in the live race */
+.miner-wall { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: var(--s-2); margin-top: 10px; }
+.miner-wall-col { display: grid; gap: 6px; align-content: start; min-width: 0; padding: var(--s-2); border: 1px solid var(--line); border-top: 2px solid var(--miner-color, var(--line-3)); border-radius: var(--r-md); background: var(--panel); }
+.miner-wall-head { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.miner-wall-head .miner-note { margin: 0 0 0 auto; white-space: nowrap; }
+.miner-wall-name { padding: 0; border: 0; background: none; color: var(--text); font: 600 13px var(--ui); cursor: pointer; }
+.miner-wall-name:hover { text-decoration: underline; }
+.miner-wall-name:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.miner-wall .miner-stream { --row: 17px; margin-top: 0; font-size: 11px; }
+.miner-wall .miner-stream-row { grid-template-columns: 64px minmax(0, 1fr) 16px; gap: 6px; padding: 0 6px; }
+
+/* Where the screen is wide enough, the workbench gives the drawer room instead of hiding under it. */
+@media (min-width: 1280px) {
+  .app-shell.has-miner-drawer .wb-shell { box-sizing: border-box; padding-right: 460px; }
+}
+
+/* An open popover or stream wall can be taller than the card: the card body scrolls then. */
+.next-block-body:has(.miner-pop, .miner-wall) { flex: 1 1 auto; overflow-y: auto; overscroll-behavior: contain; }

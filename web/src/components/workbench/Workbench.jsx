@@ -25,7 +25,7 @@ export function Workbench({
   sim, coinName, targetSeconds, autoMine, onAutoMine, repeating = false, autoTransact, onAutoTransact, selectedIndex, held = false, onSelect, healthOpen, onToggleHealth,
   lastRound, remining, coach, identity, boardRows,
   onStartDemo, onMine, onPause, onRemine, onTamper, onUndo, onDifficulty, onBack,
-  onCreateTransaction, onCreateWallet, onCreateMiner, onRenameMiner, onHashpower, onOpenWallet, onOpenDetails, onOpenTransaction, onOpenBlockTx, onOpenChainLab, error
+  onCreateTransaction, onCreateWallet, onCreateMiner, onRenameMiner, onShare, onOpenMiner, onOpenWallet, onOpenDetails, onOpenTransaction, onOpenBlockTx, onOpenChainLab, error
 }) {
   const { blocks, blockStatus, participants, memPool, balances, tamperedEdits, describeTx, previewTransaction, blockTemplate, difficulty, blockReward, halvingInterval,
     isMining, isSettingUp, minerProgress, miningProgress, raceWinner, backedMiner } = sim;
@@ -125,7 +125,7 @@ export function Workbench({
           onStartDemo={onStartDemo} onMine={onMine} onPause={onPause} onRemine={onRemine}
           repair={repair ? { ...repair, onUndo } : null} miners={miners} race={race} lastRound={lastRound}
           backedMiner={backedMiner} onBack={onBack} coach={workbenchCoach}
-          onCreateMiner={onCreateMiner} onRenameMiner={onRenameMiner} onHashpower={onHashpower} minersFull={participants.filter(p => p.isMiner).length >= MAX_MINERS}
+          onCreateMiner={onCreateMiner} onRenameMiner={onRenameMiner} onShare={onShare} onOpenMiner={onOpenMiner} perMiner={minerProgress} minersFull={participants.filter(p => p.isMiner).length >= MAX_MINERS}
           signature={<MinerName identity={identity} rows={boardRows} locked={busy} />} />
       </div>
       <div className="wb-wallets">

@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import SHA256 from 'crypto-js/sha256.js';
 import CryptoJS from 'crypto-js/core.js';
-import { createHasher, hashAt, runSearch, search } from '../lib/powSearch';
+import { COUNT_ZEROS, STREAM_LIMIT, createHasher, createSearchControl, hashAt, runSearch, search } from '../lib/powSearch';
 import { createTrial, findNonce } from '../lib/hashLab';
 import { blockTrial, remineBlock, sampleChain } from '../lib/chainLab';
 
@@ -258,5 +258,92 @@ describe('per-attempt weighted allocation for easy targets', () => {
     expect(await runSearch(options, { mode: 'worker' })).toEqual(await search({ ...options, yieldControl: noWait }));
     await expect(search({ ...options, scheduling: 'unknown' })).rejects.toThrow(RangeError);
     for (const seed of [-1, 2 ** 32, 1.5]) await expect(search({ ...options, seed })).rejects.toThrow(RangeError);
+  });
+});
+
+describe('live control and per-entrant detail', () => {
+  it('takes new weights from the next turn of a running search', async () => {
+    const control = createSearchControl({ weights: { a: 1, b: 1 } });
+    const seen = [];
+    const result = await search({ entrants: [{ id: 'a', prefix: 'synthetic-a|' }, { id: 'b', prefix: 'synthetic-b|' }],
+      target: NEVER, limit: 2000, batch: 100, yieldControl: noWait, control,
+      onProgress: progress => {
+        seen.push(progress);
+        if (progress.attempts === 1000) control.update({ weights: { a: 3 } });
+      } });
+    expect(result.status).toBe('exhausted');
+    // 1:1 for the first 1,000 attempts, then 3:1 for the next 1,000.
+    expect(seen[9].entrants.a.attempts).toBe(500);
+    expect(Math.abs(result.entrants.a.attempts - (500 + 750))).toBeLessThanOrEqual(3);
+    expect(() => control.update({ weights: { a: 0 } })).toThrow(RangeError);
+  });
+
+  it('keeps the newest attempts, the smallest hash and the counts by leading zeros of each entrant', async () => {
+    const result = await search({ entrants: [{ id: 'a', prefix: 'synthetic-a|' }, { id: 'b', weight: 2, prefix: 'synthetic-b|' }],
+      target: NEVER, limit: 300, yieldControl: noWait, detail: true });
+    const { a } = result.entrants;
+    expect(a.stream).toHaveLength(STREAM_LIMIT);
+    expect(a.stream.at(-1)).toEqual({ nonce: a.nonce, hash: plain('synthetic-a|', a.nonce), zeros: a.zeros });
+    expect(a.stream.map(item => item.nonce)).toEqual(Array.from({ length: STREAM_LIMIT }, (_, i) => a.nonce - STREAM_LIMIT + 1 + i));
+    const hashes = Array.from({ length: a.attempts }, (_, nonce) => plain('synthetic-a|', nonce));
+    const smallest = hashes.reduce((min, hash) => (hash < min ? hash : min));
+    expect(a.best.hash).toBe(smallest);
+    expect(a.best.nonce).toBe(hashes.indexOf(smallest));
+    const zerosOf = hash => hash.length - hash.replace(/^0+/, '').length;
+    const counts = new Array(COUNT_ZEROS + 1).fill(0);
+    for (const hash of hashes) counts[Math.min(zerosOf(hash), COUNT_ZEROS)]++;
+    expect(a.zeroCounts).toEqual(counts);
+    // Without `detail` the snapshot stays as before.
+    const bare = await search({ entrants: [{ id: 'a', prefix: 'synthetic-a|' }], target: NEVER, limit: 10, yieldControl: noWait });
+    expect(Object.keys(bare.entrants.a)).toEqual(['nonce', 'hash', 'attempts', 'zeros']);
+  });
+
+  it('in slow motion reports every attempt, draws by weight and waits between attempts', async () => {
+    const control = createSearchControl({ slow: true });
+    const frames = [];
+    const result = await search({ entrants: [{ id: 'a', weight: 3, prefix: 'synthetic-a|' }, { id: 'b', prefix: 'synthetic-b|' }],
+      target: NEVER, limit: 400, yieldControl: noWait, control, slowMs: 0, detail: true,
+      onProgress: progress => { frames.push(progress.attempts); } });
+    expect(frames).toEqual(Array.from({ length: 400 }, (_, i) => i + 1));
+    // A weighted draw, not one long turn of `a` first.
+    expect(result.entrants.a.attempts).toBeGreaterThan(240);
+    expect(result.entrants.a.attempts).toBeLessThan(360);
+  });
+
+  it('a worker search receives every control update as data', async () => {
+    class FakeWorker {
+      static last = null;
+      constructor() { Object.assign(this, { sent: [], terminated: false }); FakeWorker.last = this; }
+      postMessage(message) { this.sent.push(message); }
+      terminate() { this.terminated = true; }
+    }
+    vi.stubGlobal('Worker', FakeWorker);
+    const control = createSearchControl({ weights: { a: 2 } });
+    const pending = runSearch({ entrants: [{ id: 'a', prefix: 'a' }], target: '00', control, detail: true }, { mode: 'worker' });
+    const worker = FakeWorker.last;
+    expect(worker.sent[0]).toMatchObject({ detail: true, control: { weights: { a: 2 }, slow: false } });
+    control.update({ weights: { a: 5 }, slow: true });
+    expect(worker.sent[1]).toEqual({ type: 'control', control: { weights: { a: 5 }, slow: true } });
+    expect(() => structuredClone(worker.sent)).not.toThrow();
+    worker.onmessage({ data: { type: 'result', result: { status: 'found', winner: 'a', nonce: 1, hash: '00', attempts: 2, entrants: {} } } });
+    await pending;
+    // A finished search no longer listens.
+    control.update({ slow: false });
+    expect(worker.sent).toHaveLength(2);
+  });
+
+  it('the worker module applies control messages to its running search', async () => {
+    const posted = [];
+    vi.stubGlobal('self', { postMessage: message => posted.push(message) });
+    vi.resetModules();
+    await import('../lib/powSearch.worker.js');
+    const running = self.onmessage({ data: { entrants: [{ id: 'a', prefix: 'synthetic-a|' }, { id: 'b', prefix: 'synthetic-b|' }],
+      target: NEVER, limit: 4000, control: { weights: { a: 1, b: 1 }, slow: false } } });
+    await self.onmessage({ data: { type: 'control', control: { weights: { a: 9, b: 1 }, slow: false } } });
+    await running;
+    const final = posted.at(-1).result;
+    expect(final.attempts).toBe(4000);
+    // The update lands before the first attempt: 9 of every 10 attempts go to `a`.
+    expect(Math.abs(final.entrants.a.attempts - 3600)).toBeLessThanOrEqual(9);
   });
 });
