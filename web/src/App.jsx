@@ -151,7 +151,7 @@ function App() {
   useEffect(() => {
     const onHash = () => {
       const next = viewFromHash();
-      if (next !== 'workbench') setSlowMotion(false);
+      if (next !== 'workbench') setSlowMotion?.(false);
       setView(next);
       setProfile(profileFromHash());
     };
@@ -174,7 +174,7 @@ function App() {
     writeFlag(INTRO_KEY, true);
     setIntroSeen(true);
     // Slow motion belongs to the miner drawer, which only the workbench shows.
-    if (next !== 'workbench') setSlowMotion(false);
+    if (next !== 'workbench') setSlowMotion?.(false);
     const hash = next === 'workbench' ? '#/' : `#/${next}`;
     if (globalThis.location.hash !== hash) globalThis.history.pushState(null, '', hash);
     setView(next);
@@ -396,7 +396,7 @@ function App() {
   const wallet = walletDetails && participants.find(p => p.name === walletDetails);
   // Slow motion is a look at one miner: closing the drawer or opening another miner ends it.
   const openMiner = name => {
-    if (name !== minerDetails) setSlowMotion(false);
+    if (name !== minerDetails) setSlowMotion?.(false);
     setMinerDetails(name);
   };
   const racingMiners = participants.filter(p => p.isMiner && p.minerEnabled)
