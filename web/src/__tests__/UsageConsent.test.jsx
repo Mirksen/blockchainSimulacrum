@@ -26,14 +26,37 @@ describe('UsageConsent (opt-out notice)', () => {
         expect(request).toHaveBeenCalledTimes(1);
         expect(screen.getByRole('link', { name: 'Privacy policy' }).getAttribute('href')).toBe('/privacy.html');
     });
-    it('Opt out saves the no, stops sharing and closes', async () => {
+    it('makes OK the one filled button and offers no direct opt-out', () => {
+        fixture();
+        expect(screen.getByRole('button', { name: 'OK' }).className).toBe('btn-primary');
+        expect(screen.queryByRole('button', { name: /opt out/i })).toBeNull();
+        expect(screen.queryByRole('checkbox')).toBeNull();
+    });
+    it('opts out only via Settings, an unticked switch and Save choice', async () => {
         const { client, storage, request } = fixture();
-        fireEvent.click(screen.getByRole('button', { name: 'Opt out' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
+        const share = screen.getByRole('checkbox', { name: 'Share usage counts' });
+        expect(share.checked).toBe(true);
+        expect(storage.setItem).not.toHaveBeenCalled();
+        fireEvent.click(share);
+        expect(client.getSnapshot().enabled).toBe(true);
+        fireEvent.click(screen.getByRole('button', { name: 'Save choice' }));
         expect(storage.setItem).toHaveBeenCalledWith(CONSENT_KEY, 'false');
         expect(notice()).toBeNull();
         expect(client.getSnapshot().enabled).toBe(false);
         await client.track('chain_reset', { previous_block_count: 2 });
         expect(request).toHaveBeenCalledTimes(1);
+    });
+    it('Back returns to OK, and Save choice with the switch on keeps sharing', () => {
+        const { client, storage } = fixture();
+        fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+        expect(screen.getByRole('button', { name: 'OK' })).toBeTruthy();
+        fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Save choice' }));
+        expect(storage.setItem).toHaveBeenCalledWith(CONSENT_KEY, 'true');
+        expect(notice()).toBeNull();
+        expect(client.getSnapshot().enabled).toBe(true);
     });
     it('OK saves the yes, keeps sharing and closes without a second app-open', () => {
         const { client, storage, request } = fixture();
