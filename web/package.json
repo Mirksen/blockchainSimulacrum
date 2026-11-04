@@ -13,7 +13,8 @@
     "deploy:check": "npm run build && wrangler deploy --env production --dry-run",
     "deploy": "npm run build && wrangler deploy --env \"\"",
     "deploy:production": "npm run build && wrangler deploy --env production",
-    "test:browser": "npm run build && node scripts/acceptance.mjs"
+    "test:browser": "npm run build && node scripts/acceptance.mjs",
+    "test:webkit": "npm run build && node scripts/webkit-layout.mjs"
   },
   "dependencies": {
     "@scure/bip32": "2.4.0",

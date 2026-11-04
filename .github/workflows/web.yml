@@ -29,6 +29,10 @@ jobs:
           VITE_POSTHOG_PROJECT_TOKEN: phc_syntheticproject
           EXPECT_POSTHOG: '1'
           SCREENSHOT_DIR: ${{ github.workspace }}/web/screenshots
+      # Safari on iPhone runs WebKit; the Chrome acceptance above does not see its layout.
+      # Uses the build from test:browser.
+      - run: npx playwright install --with-deps webkit
+      - run: node scripts/webkit-layout.mjs
       # The reference views (web/DESIGN.md, "Rebuild") for review on every PR.
       - uses: actions/upload-artifact@v7.0.2
         if: always()

@@ -192,7 +192,9 @@
 }
 
 /* ---------- hairline link: 1 px line at mid-height + 6 px dot ---------- */
-.chain-band-link { position: relative; flex: 0 0 var(--chain-band-link-w); min-width: 0; cursor: help; }
+/* The width is set as well as the flex basis: WebKit sizes the block's flex item from its
+   children's widths and would leave out an empty link, so the tiles overlapped in Safari. */
+.chain-band-link { position: relative; flex: 0 0 var(--chain-band-link-w); width: var(--chain-band-link-w); min-width: 0; cursor: help; }
 .chain-band-link::before {
   content: ""; position: absolute; left: var(--block-depth); right: 0; top: 50%; height: 1px; background: var(--link-line);
 }
