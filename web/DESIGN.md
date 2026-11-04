@@ -207,10 +207,9 @@ decision, 2026-10-27):
 - **Usage sharing** is on by default and can be turned off (Mirko, 2026-11-03:
   opt-out, not opt-in). A first visit shows a small notice at the bottom left, full
   width on phones: "This site counts usage", what is and is not sent, a link to the
-  privacy policy (`/privacy.html`), a filled "OK" and a quiet "Settings" (Mirko,
-  2026-11-04: nudge towards OK, opting out takes an extra step). Settings opens a
-  ticked "Share usage counts" switch with "Back" and "Save choice"; only Save choice
-  with the switch off opts out. Every answer is saved and the notice does not return. It is not a modal and moves no
+  privacy policy (`/privacy.html`), a filled "OK" and a plain "Opt out" beside it
+  (Mirko, 2026-11-04: OK is the suggested answer, opting out stays one click and
+  needs no extra menu). Both answers are saved and the notice does not return. It is not a modal and moves no
   layout. Without a token or with a browser privacy signal (GPC, Do Not Track)
   nothing is shared and no notice appears. The overflow menu keeps the same switch
   for later changes. A pre-ticked consent would not be consent; the policy names
