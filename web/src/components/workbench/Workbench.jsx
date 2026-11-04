@@ -1,4 +1,4 @@
-import { useMemo, useState, useSyncExternalStore } from 'react';
+import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { ChainBand } from './ChainBand';
 import { ChainTimeline } from './ChainTimeline';
 import { ChainViewSwitch } from './ChainViewSwitch';
@@ -37,7 +37,7 @@ const signerOf = coinbase => (coinbase.outputs.some(output => output.kind === 'c
 
 export function Workbench({
   sim, coinName, targetSeconds, autoMine, onAutoMine, repeating = false, autoTransact, onAutoTransact, selectedIndex, held = false, onSelect, healthOpen, onToggleHealth,
-  lastRound, remining, coach, identity, boardRows,
+  lastRound, blockMoment = null, onClearBlockMoment, remining, coach, identity, boardRows,
   onStartDemo, onMine, onPause, onRemine, onTamper, onUndo, onDifficulty, onBack,
   onCreateTransaction, onCreateWallet, onCreateMiner, onRenameMiner, onShare, onOpenMiner, onSlowMotion, onOpenWallet, onOpenDetails, onOpenTransaction, onOpenBlockTx, onOpenChainLab, error
 }) {
@@ -47,7 +47,9 @@ export function Workbench({
   const compact = useSyncExternalStore(subscribeNarrow, isNarrow, () => false);
   const [chainView, setChainView] = useState(readChainView);
   const showList = compact && chainView === 'list';
-  const switchView = view => { setChainView(view); storeChainView(view); };
+  // Switching representation or returning to the workbench is no new block.
+  useEffect(() => { onClearBlockMoment?.(); }, [compact, onClearBlockMoment]);
+  const switchView = view => { onClearBlockMoment?.(); setChainView(view); storeChainView(view); };
   const height = blocks.length - 1;
   const fresh = height === 0 && memPool.length === 0 && !busy;
   const views = useMemo(() => buildBlockViews({ blocks, blockStatus, participants, tamperedEdits }),
@@ -63,7 +65,7 @@ export function Workbench({
     .map(event => {
       const note = eventNote(event, { halvingInterval, targetSeconds, coinName });
       // Keyed by the block it follows, so a reset chain explains its own changes again.
-      return note && { ...note, key: `${note.key}@${blocks[event.index - 1]?.hash}` };
+      return note && { ...note, change: event, motion: blockMoment?.changes.find(change => change.kind === event.kind && change.index === event.index), key: `${note.key}@${blocks[event.index - 1]?.hash}` };
     })
     .filter(note => note && !dismissed.has(note.key));
   const dismissNote = key => setDismissed(current => new Set(current).add(key));
@@ -135,16 +137,15 @@ export function Workbench({
     <div className={`wb-band${showList ? ' is-list' : ''}`}>
       {showList ? (
         <ChainTimeline views={fresh ? views.slice(0, 1) : views} candidate={candidate} selectedIndex={selected} pinned={pinned} onSelect={onSelect}
-          onOpenChainLab={onOpenChainLab} keyFigures={keyFigures} healthOpen={healthOpen} onToggleHealth={onToggleHealth}
+          onOpenChainLab={onOpenChainLab} keyFigures={keyFigures} foundHash={blockMoment?.hash} healthOpen={healthOpen} onToggleHealth={onToggleHealth}
           coach={workbenchCoach} repairOrder={repairOrder} viewSwitch={<ChainViewSwitch view="list" onChange={switchView} />} />
       ) : (
         <ChainBand views={fresh ? views.slice(0, 1) : views} candidate={candidate} selectedIndex={selected} pinned={pinned} onSelect={onSelect}
-          keyFigures={keyFigures} events={fresh ? {} : events} notes={notes} onDismissNote={dismissNote} healthOpen={healthOpen} onToggleHealth={onToggleHealth}
+          keyFigures={keyFigures} events={fresh ? {} : events} foundHash={blockMoment?.hash} healthOpen={healthOpen} onToggleHealth={onToggleHealth}
           coach={workbenchCoach} repairOrder={repairOrder} compact={compact}
           viewSwitch={compact ? <ChainViewSwitch view="row" onChange={switchView} /> : null} />
       )}
     </div>
-    {compact && notes.length > 0 && <div className="wb-notes"><ChainEventNotes notes={notes} onDismiss={dismissNote} /></div>}
     <div className="wb-grid">
       <div className="wb-selected">
         <SelectedBlockCard block={selectedBlock} status={blockStatus[selected]} prevHash={blocks[selected - 1]?.hash ?? null}
@@ -177,6 +178,7 @@ export function Workbench({
         <ActivityCard confirmed={confirmed} blockTimes={blockTimes} targetSeconds={targetSeconds} />
       </div>
     </div>
+    {notes.length > 0 && <aside className="wb-notes" aria-label="What changed"><ChainEventNotes notes={notes} onDismiss={dismissNote} /></aside>}
     </>
   );
 }

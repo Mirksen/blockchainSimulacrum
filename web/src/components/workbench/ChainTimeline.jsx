@@ -77,7 +77,7 @@ function Details({ view, views, id, onOpenChainLab }) {
   );
 }
 
-function Row({ view, views, newest, selected, pinned, open, onTap, repairPosition, onOpenChainLab }) {
+function Row({ view, views, newest, selected, pinned, open, onTap, repairPosition, onOpenChainLab, foundHash }) {
   const detId = useId();
   const state = stateOf(view);
   const link = view.isGenesis ? null : linkInto(view, views[view.index - 1]);
@@ -85,7 +85,7 @@ function Row({ view, views, newest, selected, pinned, open, onTap, repairPositio
   const shade = view.isGenesis ? 0 : Math.max(1, 4 - (views.length - 1 - view.index));
   const marker = repairPosition
     ? <span className={`chain-timeline-order${repairPosition === 1 ? ' is-next' : ''}`} aria-hidden="true">{repairPosition}</span> : null;
-  const classes = ['chain-timeline-row', selected && 'is-selected', state !== 'ok' && `is-${state}`,
+  const classes = ['chain-timeline-row', !view.isGenesis && view.storedHash === foundHash && 'is-found', selected && 'is-selected', state !== 'ok' && `is-${state}`,
     link && link.state !== 'ok' && `is-link-${link.state}`].filter(Boolean).join(' ');
   return (
     <li className={classes} data-h={shade}>
@@ -122,7 +122,7 @@ function Row({ view, views, newest, selected, pinned, open, onTap, repairPositio
 
 export function ChainTimeline({
   views = [], candidate = { index: 1, txCount: 0, state: 'idle' }, selectedIndex = null, pinned = true, onSelect, onOpenChainLab,
-  keyFigures, healthOpen = false, onToggleHealth, coach = null, repairOrder = [], viewSwitch = null
+  keyFigures, foundHash = null, healthOpen = false, onToggleHealth, coach = null, repairOrder = [], viewSwitch = null
 }) {
   const stripId = useId();
   const [openIndex, setOpenIndex] = useState(null);
@@ -168,7 +168,7 @@ export function ChainTimeline({
             const position = repairOrder.indexOf(view.index) + 1;
             return (
               <Row key={view.index} view={view} views={views} newest={view.index === newestIndex} selected={selectedIndex === view.index} pinned={pinned}
-                open={openIndex === view.index} onTap={tap} repairPosition={position || null} onOpenChainLab={onOpenChainLab} />
+                foundHash={foundHash} open={openIndex === view.index} onTap={tap} repairPosition={position || null} onOpenChainLab={onOpenChainLab} />
             );
           })}
         </ol>

@@ -368,3 +368,75 @@ describe('lowering the difficulty by hand (ADR 0004)', () => {
     expect(screen.getByRole('button', { name: 'Start demo', exact: true })).toBeTruthy();
   });
 });
+
+
+describe('mining feedback', () => {
+  it('restarts a repeated winner notice and animates only the newly accepted block', async () => {
+    render(<App />);
+    expect(document.querySelector('.is-found')).toBeNull();
+    await completeDemo();
+    const first = document.querySelector('.wb-announce');
+    expect(first.textContent).toBe('Miner One mined a block');
+    expect(document.querySelector('.chain-band-item.is-found').dataset.index).toBe('1');
+    await wait(1500);
+    await mineOnce();
+    expect(document.querySelector('.wb-announce')).not.toBe(first);
+    expect(document.querySelectorAll('.chain-band-item.is-found')).toHaveLength(1);
+    expect(document.querySelector('.chain-band-item.is-found').dataset.index).toBe('2');
+    await wait(1000); // The old winner's deadline has passed; the new win stays visible.
+    expect(document.querySelector('.wb-announce').textContent).toBe('Miner One mined a block');
+    await wait(1400);
+    expect(document.querySelector('.wb-announce')).toBeNull();
+    expect(document.querySelector('.is-found')).toBeNull();
+  });
+
+  it('puts the halving explanation after the cards, retains it after motion, and dismisses it', async () => {
+    render(<App />);
+    await completeDemo();
+    await mineOnce(); await mineOnce(); await mineOnce();
+    const footer = screen.getByRole('complementary', { name: 'What changed' });
+    expect(footer.querySelector('.kf-note.is-halving.is-live')).not.toBeNull();
+    expect(footer.textContent).toContain('The reward halved with #4');
+    expect(footer.closest('.wb-band')).toBeNull();
+    expect(document.querySelector('.wb-grid').compareDocumentPosition(footer) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    await wait(2400);
+    expect(footer.querySelector('.is-live')).toBeNull();
+    expect(footer.textContent).toContain('The reward halved with #4');
+    fireEvent.click(within(footer).getByRole('button', { name: 'Got it' }));
+    expect(screen.queryByRole('complementary', { name: 'What changed' })).toBeNull();
+  });
+
+  it('does not replay an arrival after leaving the workbench or resetting', async () => {
+    render(<App />);
+    await completeDemo();
+    expect(document.querySelector('.is-found')).not.toBeNull();
+    fireEvent.click(screen.getByRole('link', { name: 'Hash lab', exact: true }));
+    fireEvent.click(screen.getByRole('link', { name: 'Workbench', exact: true }));
+    expect(document.querySelector('.is-found')).toBeNull();
+    await mineOnce();
+    expect(document.querySelector('.is-found')).not.toBeNull();
+    more();
+    fireEvent.click(screen.getByRole('button', { name: /^Reset/ }));
+    expect(document.querySelector('.is-found')).toBeNull();
+    expect(document.querySelector('.wb-announce')).toBeNull();
+  });
+});
+
+
+describe('compact mining feedback', () => {
+  it('keeps a block arrival from replaying when switching row and list', async () => {
+    vi.stubGlobal('matchMedia', query => ({ matches: query.includes('max-width: 1023.98px'),
+      addEventListener: () => {}, removeEventListener: () => {} }));
+    try {
+      render(<App />);
+      await completeDemo();
+      await wait(500);
+      expect(document.querySelector('.chain-band-item.is-found')).not.toBeNull();
+      fireEvent.click(screen.getByRole('button', { name: 'Show the blocks as a list' }));
+      expect(document.querySelector('.chain-timeline')).not.toBeNull();
+      expect(document.querySelector('.is-found')).toBeNull();
+      fireEvent.click(screen.getByRole('button', { name: 'Show the blocks as a row' }));
+      expect(document.querySelector('.is-found')).toBeNull();
+    } finally { vi.unstubAllGlobals(); }
+  });
+});

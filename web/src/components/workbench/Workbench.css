@@ -25,8 +25,9 @@
 .wb-rail { min-width: 0; min-height: 0; border-right: 1px solid var(--line); background: var(--bg-2); }
 .wb-main { position: relative; min-width: 0; min-height: 0; display: flex; flex-direction: column; container: main / inline-size; }
 .wb-band { flex: none; }
-/* Below 1024 px the rule-change notes sit under the compact band. */
-.wb-notes { flex: none; padding: 0 var(--page-x); }
+/* Rule changes get the full width below the workbench, without squeezing the chain.
+   In the fixed desktop layout this is a footer; on smaller screens it follows the cards. */
+.wb-notes { flex: none; padding: 0 var(--page-x) var(--s-3); max-height: 26vh; overflow-y: auto; }
 .wb-mbar { display: none; }
 
 .wb-grid {
@@ -47,7 +48,8 @@
 /* The single filled action of the view belongs to the Next block card; a short
    live region announces found blocks without stealing focus. */
 .wb-announce {
-  position: fixed; left: 50%; bottom: var(--s-6); transform: translateX(-50%); z-index: 40;
+  position: fixed; right: var(--page-x); top: 96px; z-index: 40;
+  max-width: calc(100vw - 32px); overflow-wrap: anywhere; pointer-events: none;
   padding: var(--s-2) var(--s-4); border-radius: 999px; border: 1px solid var(--line-3);
   background: var(--panel-3); color: var(--text); font-size: 13px; box-shadow: 0 8px 24px -12px var(--shadow);
 }
@@ -68,6 +70,11 @@
   .is-workbench .wb-main:has(.mission-intro) { overflow-y: auto; }
   .wb-main:has(.mission-intro) .wb-grid { flex: 1 0 auto; grid-template-rows: auto auto; }
   .wb-grid { flex: 1 1 0; min-height: 0; grid-template-rows: auto minmax(0, 1fr); }
+  .wb-main:has(.wb-notes) .wb-next .next-block { height: auto; }
+  /* Rule explanations reserve footer space; let the cards scroll instead of clipping
+     wallets or the mempool when both rules change together. */
+  .wb-main:has(.wb-notes) .wb-grid { overflow-y: auto; grid-template-rows: max-content max-content; }
+
 }
 /* ACTIVITY (>= 1100 tall): a third row takes the height lists cannot fill. */
 @media (min-width: 1024px) and (min-height: 1100px) {
@@ -97,6 +104,7 @@
 @media (max-width: 1023.98px) {
   .wb-shell { grid-template-columns: minmax(0, 1fr); }
   .wb-rail { display: none; }
+  .wb-notes { max-height: none; overflow: visible; }
   .wb-mbar { display: block; border-bottom: 1px solid var(--line); }
   .wb-grid { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; }
   .wb-next, .wb-mempool, .wb-selected, .wb-wallets, .wb-activity { grid-column: 1; grid-row: auto; }
@@ -112,4 +120,19 @@
 /* Phone: one column. */
 @media (max-width: 767.98px) {
   .app-shell { --page-x: 16px; }
+}
+
+/* One short arrival per accepted block; repair and restored history stay still. */
+.wb-announce { display: flex; align-items: center; gap: 10px; }
+.wb-found-cube { flex: none; width: 16px; height: 16px; border-radius: 3px; background: var(--blk-4); box-shadow: 2px -2px 0 var(--blk-0-top); }
+@media (prefers-reduced-motion: no-preference) {
+  .wb-announce { animation: wb-found-notice 240ms ease-out both; }
+  .chain-band-item.is-found > .chain-band-tile,
+  .chain-timeline-row.is-found { animation: wb-block-arrive 460ms cubic-bezier(.2,.8,.3,1) both; }
+}
+@keyframes wb-found-notice { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+@keyframes wb-block-arrive {
+  0% { opacity: .25; transform: translateY(-10px) scale(.94); }
+  70% { opacity: 1; transform: translateY(2px) scale(1.02); }
+  100% { transform: none; }
 }
