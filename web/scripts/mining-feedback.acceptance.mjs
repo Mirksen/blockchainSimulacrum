@@ -45,6 +45,9 @@ export async function verifyMiningFeedback(browser, baseURL, output) {
     });
     assert.ok(layout.footerTop >= layout.gridBottom - 1, 'Explanations follow the cards');
     assert.ok(layout.footerBottom <= layout.height + 1, 'Footer remains visible in the fixed desktop layout');
+    assert.ok(await page.locator('.next-block').evaluate(el =>
+      el.querySelector('.next-block-lanes').getBoundingClientRect().bottom <= el.getBoundingClientRect().bottom),
+    'The miner lanes remain inside their card above the lower cards');
     // The fixed footer must never make the bottom cards unreachable.
     const cards = page.locator('.wb-grid');
     assert.equal(await cards.evaluate(el => getComputedStyle(el).overflowY), 'auto');
