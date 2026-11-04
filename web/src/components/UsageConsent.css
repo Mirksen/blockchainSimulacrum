@@ -1,0 +1,18 @@
+/* Non-modal: it neither blocks the simulator nor moves the layout. Above the
+   page and its toasts (z 40), below menus (60) and dialogs (1000). */
+.usage-consent {
+  position: fixed; left: var(--s-4); bottom: var(--s-4); z-index: 50;
+  box-sizing: border-box; width: min(420px, calc(100vw - 2 * var(--s-4)));
+  padding: var(--s-3) var(--s-4); border: 1px solid var(--line-3); border-radius: var(--r-lg);
+  background: var(--panel); color: var(--text-2); box-shadow: 0 12px 32px -12px var(--shadow);
+  font-size: 13px; line-height: 1.55;
+}
+.usage-consent h2 { margin: 0 0 var(--s-1); color: var(--text); font-size: 14px; font-weight: 600; }
+.usage-consent p { margin: 0 0 var(--s-2); }
+.usage-consent .usage-consent-later { color: var(--text-3); font-size: 12px; }
+.usage-consent-actions { display: flex; gap: var(--s-2); }
+.usage-consent-actions .card-kit-btn { flex: 1; justify-content: center; }
+@media (max-width: 600px) {
+  .usage-consent { left: var(--s-2); right: var(--s-2); bottom: var(--s-2); width: auto; }
+}
+.usage-consent a { color: var(--blue); }

@@ -204,8 +204,15 @@ decision, 2026-10-27):
 - **Experiment settings** (coin name, difficulty, halving interval, target
   block time) move into a "Settings" dialog in the overflow menu; difficulty
   also stays in the Next block card.
-- **Usage sharing** (analytics opt-in) moves into the overflow menu and keeps
-  its consent text.
+- **Usage sharing** is on by default and can be turned off (Mirko, 2026-11-03:
+  opt-out, not opt-in). A first visit shows a small notice at the bottom left, full
+  width on phones: "This site counts usage", what is and is not sent, a link to the
+  privacy policy (`/privacy.html`) and two equal buttons, "Opt out" and "OK". Both
+  answers are saved and the notice does not return. It is not a modal and moves no
+  layout. Without a token or with a browser privacy signal (GPC, Do Not Track)
+  nothing is shared and no notice appears. The overflow menu keeps the same switch
+  for later changes. A pre-ticked consent would not be consent; the policy names
+  legitimate interest and the right to object instead.
 - **Saved chain:** the simulator chain is kept in this browser and restored on
   reload. The overflow menu says so in a quiet line under the coin, "Chain saved
   in this browser · Reset starts over" (or that it is too long to save, or that

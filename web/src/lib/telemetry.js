@@ -43,8 +43,14 @@ export function failureCode(error) {
     if (message.startsWith('Reference must')) return 'invalid_reference';
     return 'unexpected';
 }
+// Usage sharing is on unless the visitor opted out (Mirko, 2026-11-03): only a saved
+// 'false' turns it off. Browser privacy signals still keep it off (allowed() below).
 function readStorage(storage) {
-    try { return storage?.getItem(CONSENT_KEY) === 'true'; } catch { return false; }
+    try { return storage?.getItem(CONSENT_KEY) !== 'false'; } catch { return true; }
+}
+// A saved answer, OK or opt-out, means the visitor has seen the notice.
+function readDecided(storage) {
+    try { return storage?.getItem(CONSENT_KEY) != null; } catch { return false; }
 }
 function browserStorage() {
     try { return globalThis.localStorage; } catch { return undefined; }
@@ -79,13 +85,13 @@ export function createTelemetry({
 } = {}) {
     // Only a public ingestion token is valid here. No personal/project secret keys.
     const configured = /^phc_[A-Za-z0-9]+$/.test(projectToken);
-    let consent = readStorage(storage), visitor, started = false;
+    let consent = readStorage(storage), decided = readDecided(storage), visitor, started = false;
     const pending = new Set(), listeners = new Set(), seenErrors = new WeakSet();
     const allowed = () => configured && consent && !privacySignal();
-    let view = Object.freeze({ configured, enabled: allowed(), privacyBlocked: privacySignal() });
+    let view = Object.freeze({ configured, enabled: allowed(), privacyBlocked: privacySignal(), decided });
     const refreshView = () => {
-        const next = { configured, enabled: allowed(), privacyBlocked: privacySignal() };
-        if (next.enabled === view.enabled && next.privacyBlocked === view.privacyBlocked) return;
+        const next = { configured, enabled: allowed(), privacyBlocked: privacySignal(), decided };
+        if (next.enabled === view.enabled && next.privacyBlocked === view.privacyBlocked && next.decided === view.decided) return;
         view = Object.freeze(next);
         for (const listener of listeners) listener();
     };
@@ -128,6 +134,7 @@ export function createTelemetry({
     const setEnabled = (value, persist = true) => {
         const previous = allowed();
         consent = value === true;
+        if (persist) decided = true;
         if (persist) { try { storage?.setItem(CONSENT_KEY, String(consent)); } catch { /* Memory-only preference still works. */ } }
         if (!allowed()) stop();
         refreshView();
@@ -137,7 +144,7 @@ export function createTelemetry({
         track,
         start() { if (started) return; started = true; if (allowed()) void track('app_opened'); },
         setEnabled,
-        synchronize() { setEnabled(readStorage(storage), false); },
+        synchronize() { decided = readDecided(storage); setEnabled(readStorage(storage), false); },
         getSnapshot: () => view,
         subscribe(listener) { listeners.add(listener); return () => listeners.delete(listener); },
         reportError(error, source = 'window', handled = false) {

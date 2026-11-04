@@ -7,6 +7,7 @@ import { telemetry } from './lib/telemetry';
 import * as missions from './lib/missions';
 import { TopBar } from './components/workbench/TopBar';
 import { LeaderboardTicker } from './components/workbench/LeaderboardTicker';
+import { UsageConsent } from './components/UsageConsent';
 import { RecordCelebration } from './components/workbench/RecordCelebration';
 import { SettingsDialog } from './components/workbench/SettingsDialog';
 import { LowerDifficultyDialog } from './components/workbench/LowerDifficultyDialog';
@@ -415,6 +416,7 @@ function App() {
       <HintLayer />
       <TopBar view={view} onNavigate={navigate} coinName={coinName} theme={theme} onTheme={changeTheme}
         muted={muted} onMuted={changeMuted} onReset={reset} onOpenSettings={() => setShowSettings(true)} compact={compact} saveState={sim.saveState} />
+      <UsageConsent />
       <LeaderboardTicker onOpenPool={() => navigate('pool')} onBoard={onBoard} refreshKey={boardKey} ownName={identity.signingName} />
       <div className="wb-shell">
         <div className="wb-rail">

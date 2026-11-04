@@ -115,6 +115,6 @@ export const POOL_HINTS = {
   'details.size': { title: 'Bytes', text: 'The transaction’s size. Block space is limited, so miners compare fees per byte.' },
 
   // ---------- usage sharing ----------
-  'usage.toggle': { title: 'Usage sharing', text: 'Whether this site may send usage counts and error reports. It stays off until you turn it on. Open to read what is shared and to change it.' },
+  'usage.toggle': { title: 'Usage sharing', text: 'Whether this site may send usage counts and error reports. It is on unless you opt out. Open to read what is shared and to change it.' },
   'usage.share': { title: 'Share usage and technical errors', text: 'When checked, counts such as “block mined”, mining timings and cleaned-up error reports go to PostHog in the EU. Keys, seed words, payment text and names are not sent. Uncheck to stop at once.' }
 };
