@@ -60,6 +60,10 @@ export async function verifyMissionVisibility(browser, baseURL, output) {
     page.on('pageerror', error => errors.push(error.message));
     await page.goto(baseURL);
     await page.getByRole('button', { name: 'Start demo', exact: true }).waitFor();
+    // Answer the independent first-visit notice through its real control before
+    // testing missions. CI enables usage sharing; the notice can cover low controls.
+    const notice = page.locator('.usage-consent');
+    if (await notice.count()) await notice.getByRole('button', { name: 'Opt out', exact: true }).click();
     return page;
   };
   try {
