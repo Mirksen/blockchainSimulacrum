@@ -357,8 +357,37 @@ try {
   await wb.chainPill().filter({hasText:'Chain invalid'}).waitFor();
  };
 
+ // A delayed copy belongs to the old hash, even if this block changes before it finishes.
+ // Keep clipboard writes inside this page fixture; never change the system clipboard.
+ await page.evaluate(() => {
+  window.clipboardFixture = { descriptor: Object.getOwnPropertyDescriptor(navigator, 'clipboard'), writes: [] };
+  Object.defineProperty(navigator, 'clipboard', { configurable:true, value:{ writeText:text => new Promise(resolve => {
+   window.clipboardFixture.writes.push(text);
+   window.clipboardFixture.finish = resolve;
+  }) } });
+ });
+ await wb.tile(1).hover();
+ await page.getByRole('button',{name:'Copy full hash of block 1',exact:true}).click();
+ assert.equal(await page.evaluate(() => window.clipboardFixture.writes.length), 1);
  // The coinbase of block #1 is spent in block #2: a new txid leaves that spend pointing at nothing.
  await tamper(1, '3');
+ // Hold the feedback timer: waiting for it to expire would let the buggy code pass.
+ await page.clock.pauseAt(await page.evaluate(() => Date.now() + 1000));
+ try {
+  await page.evaluate(() => window.clipboardFixture.finish());
+  await wb.tile(1).hover();
+  await page.clock.runFor(50);
+  assert.equal(await page.getByRole('button',{name:'Copy full hash of block 1',exact:true}).count(), 1, 'The edited hash still offers Copy');
+  assert.equal(await page.getByRole('button',{name:'Copied',exact:true}).count(), 0, 'The old hash copy must not confirm the edited hash');
+  await page.screenshot({path:join(output,'clipboard-edited-hash.png')});
+ } finally { await page.clock.resume(); }
+ await page.evaluate(() => {
+  const descriptor = window.clipboardFixture.descriptor;
+  if (descriptor) Object.defineProperty(navigator, 'clipboard', descriptor);
+  else delete navigator.clipboard;
+  delete window.clipboardFixture;
+ });
+ results.push('A delayed chain-band copy cannot report the edited hash as copied');
  const undoEdit = page.getByRole('button',{name:'Undo edit in block #1',exact:true});
  await undoEdit.waitFor();
  assert.match(await page.locator('.next-block-repair-row').innerText(), /that output no longer exists/);

@@ -66,6 +66,19 @@ describe('ChainTimeline', () => {
     expect(row(2).getAttribute('aria-expanded')).toBe('false');
   });
 
+  it.each(['completed', 'pending'])('discards a %s copy when an expanded block changes', async state => {
+    let finish;
+    vi.stubGlobal('navigator', { clipboard: { writeText: vi.fn(() => new Promise(resolve => { finish = resolve; })) } });
+    const { rerender } = renderTimeline();
+    fireEvent.click(row(2));
+    fireEvent.click(screen.getByRole('button', { name: 'Copy full hash of block 2' }));
+    if (state === 'completed') await act(async () => finish());
+    rerender(<ChainTimeline views={makeViews({ 2: 'hash-mismatch' })} />);
+    if (state === 'pending') await act(async () => finish());
+    expect(row(2).getAttribute('aria-expanded')).toBe('true');
+    expect(screen.getByRole('button', { name: 'Copy full hash of block 2' }).textContent).toBe('Copy');
+  });
+
   it('names invalid blocks in their rows and shows re-mine order', () => {
     const { container } = renderTimeline({ views: makeViews({ 2: 'hash-mismatch', 3: 'built-on-broken', 4: 'built-on-broken' }), candidate: { index: 5, txCount: 2, state: 'paused' }, repairOrder: [2, 3, 4] });
     expect(row(2).textContent).toContain('Hash mismatch');

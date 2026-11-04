@@ -282,6 +282,17 @@ describe('ChainBand full-hash tooltip', () => {
     expect(writeText).toHaveBeenCalledWith(NOW2);
   });
 
+  it.each(['completed', 'pending'])('discards a %s copy when the same block is edited', async state => {
+    let finish;
+    vi.stubGlobal('navigator', { clipboard: { writeText: vi.fn(() => new Promise(resolve => { finish = resolve; })) } });
+    const { rerender } = renderBand();
+    fireEvent.click(screen.getByRole('button', { name: 'Copy full hash of block 2' }));
+    if (state === 'completed') await act(async () => finish());
+    rerender(<ChainBand views={makeViews(5, TAMPERED)} />);
+    if (state === 'pending') await act(async () => finish());
+    expect(screen.getByRole('button', { name: 'Copy full hash of block 2' }).textContent).toBe('Copy');
+  });
+
   it('stays quiet without a clipboard', async () => {
     vi.stubGlobal('navigator', { ...navigator, clipboard: undefined });
     renderBand();
