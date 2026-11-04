@@ -66,6 +66,16 @@
 .hash-lab-preimage { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--line); font-size: 13px; }
 .hash-lab-preimage code { display: block; padding: 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 4px; }
 .hash-lab summary { cursor: pointer; }
+.text-hash-rule strong { font: 700 24px var(--mono); color: var(--blue); }
+.hash-lab-fingerprint .text-hash-zero { color: var(--green); font-weight: 700; border-bottom-color: var(--green); }
+.text-hash-proof { margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--line); }
+.text-hash-proof h3 { margin: 0; color: var(--green); font-size: 18px; }
+.text-hash-proof pre { white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; }
+.text-hash-proof details code { display: block; margin-top: 8px; }
+.text-hash-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.text-hash-footer { margin-top: 24px; }
+.hash-lab-text-back { align-self: flex-start; }
+.text-hash-lab { max-height: none; overflow-y: visible; }
 .hash-lab :focus-visible { outline: 2px solid var(--hash-lab-action); outline-offset: 3px; }
 @media (max-width: 700px) {
   .hash-lab { padding: 20px; }

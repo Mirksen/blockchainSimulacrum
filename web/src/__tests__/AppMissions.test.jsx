@@ -21,7 +21,7 @@ vi.mock('../components/workbench/LeaderboardTicker', () => ({ LeaderboardTicker:
 vi.mock('../components/HashLab', () => ({ HashLab: ({ lesson, coach, onLessonEvent }) =>
   <section aria-label="Hash experiment">
     <span>{lesson ?? 'Free hash lab'}</span><span>{coach?.target ?? 'No coach'}</span>
-    <button onClick={() => onLessonEvent?.({ type: 'hash_changed' })}>Change message</button>
+    <button onClick={() => onLessonEvent?.({ type: 'manual_hash_found', hash: '0' + 'a'.repeat(63) })}>Complete manual proof</button>
   </section> }));
 
 const RAIL = 'proofofwork-rail-collapsed';
@@ -62,7 +62,7 @@ describe('optional missions in App', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Hash lab', exact: true }));
     expect(screen.getByText('Free hash lab')).toBeTruthy();
     expect(screen.getByText('No coach')).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Change message' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Complete manual proof' }));
     expect(JSON.parse(localStorage.getItem(STORAGE_KEY)).completed).toEqual([]);
     reload();
     expect(intro()).toBeNull();
@@ -97,7 +97,7 @@ describe('optional missions in App', () => {
     expect(intro()).toBeNull();
     expect(collapsed()).toBe(false);
     fireEvent.click(rail().getByRole('button', { name: 'Show me' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Change message' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Complete manual proof' }));
     expect(document.querySelector('.wb-rail .mission-rail-xp').textContent).toBe('20 XP0 badges1 of 9 done');
     fireEvent.click(rail().getByRole('button', { name: 'Collapse mission rail' }));
     reload();
