@@ -247,6 +247,20 @@ decision, 2026-10-27):
   mining operation. The first click or keyboard action unlocks browser audio;
   enabling Sound also unlocks it. A mute change during mining applies to its result.
 
+### Mining feedback
+
+- Each newly accepted live block settles into the chain once (460 ms, a short
+  10 px drop and slight overshoot), in the wide band, compact row and phone list.
+  A small block icon accompanies the top-right found-block notice (240 ms).
+  Each result has its own notice identity, including consecutive wins by one miner.
+- Automatic difficulty changes show the added or removed zero in their footer
+  note. Halvings split a small coin. Four small sparks and the glyph move once
+  (at most 480 ms); the explanation stays still. Both changes can appear together.
+- Motion is triggered by an accepted live result, never by restoring old blocks,
+  changing a setting or repairing history. Reset and leaving the workbench clear
+  the transient block feedback. No extra sound or looping animation is added.
+- Reduced motion keeps the messages, glyphs and final values with no movement.
+
 ### Chain band
 
 - Reads **left to right as a timeline**: #0 Genesis on the left, the newest
@@ -284,11 +298,13 @@ decision, 2026-10-27):
     "check in 5" and "½ in 3" (hover: the forecast), or the difficulty already
     changed for it.
   - **The moment explains itself:** after a check changed the difficulty or a block
-    halved the reward, a calm note under the band header gives cause and effect
+    halved the reward, a calm note at the bottom of the workbench gives cause and effect
     ("Difficulty rose from 5 to 6 after #20. Blocks #11–#20 took 6.1 s on average,
     faster than 7 s …"). It stays for that block and the two after it or until "Got
-    it"; a difficulty the learner set by hand gets no note. Below 1024 px the notes
-    sit under the compact band and scroll with the page.
+    it"; a difficulty the learner set by hand gets no note. The notes use the full width below the cards. In the fixed desktop layout they
+    form a footer with bounded scrolling; below 1024 px they follow the cards in
+    normal page flow. The short found-block notice appears at the top right,
+    separate from the centered leaderboard celebration.
   - **Kept in view:** from 1024 px on, once the chain scrolls out of view, a slim
     bar at the top of the main column repeats the key figures ("Chain #25" and the
     line); it slides in and out, and appears without motion under reduced motion.

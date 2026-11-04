@@ -1,6 +1,6 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { CoachMark } from './CoachMark';
-import { ChainEventNotes, KeyFigures } from './KeyFigures';
+import { KeyFigures } from './KeyFigures';
 import { epochMark, upcomingOf } from './keyFigureText';
 import {
   brokenBefore, candidateCopy, formatAge, formatInterval, healthSummary, linkInto, ordinal, pendingLink,
@@ -437,8 +437,8 @@ const END_SLACK = 48;
 
 export function ChainBand({
   views = [], candidate = { index: 1, txCount: 0, state: 'idle' }, selectedIndex = null, pinned = true, onSelect,
-  keyFigures, events = {}, notes = [], onDismissNote, healthOpen = false, onToggleHealth, coach = null, repairOrder = [], compact = false,
-  viewSwitch = null
+  keyFigures, events = {}, healthOpen = false, onToggleHealth, coach = null, repairOrder = [], compact = false,
+  viewSwitch = null, foundHash = null
 }) {
   const stripId = useId();
   const scrollRef = useRef(null);
@@ -513,8 +513,6 @@ export function ChainBand({
           {!(compact && healthOpen) && <KeyFigures keyFigures={keyFigures} className="chain-band-stats" short={compact} />}
           {viewSwitch}
         </div>
-        {/* The compact band stays at the top; its notes go under it, in the page (Workbench). */}
-        {!compact && <ChainEventNotes notes={notes} onDismiss={onDismissNote} />}
 
         <CoachMark target="workbench.chain" coach={coach}>
           <div className="chain-band-scroll" ref={scrollRef} onScroll={onScroll}
@@ -525,7 +523,7 @@ export function ChainBand({
                 const tile = { view, newest: view.index === newestIndex, selected: selectedIndex === view.index, pinned,
                   repairPosition: position || null, shade: shadeOf(view), onSelect };
                 return (
-                  <div key={view.index} className={`chain-band-item${view.isGenesis ? ' is-first' : ''}`} data-index={view.index}>
+                  <div key={view.index} className={`chain-band-item${view.isGenesis ? ' is-first' : ''}${!view.isGenesis && view.storedHash === foundHash ? ' is-found' : ''}`} data-index={view.index}>
                     {!view.isGenesis && <Link link={linkInto(view, views[view.index - 1])} epoch={Boolean(events[view.index]?.length)} />}
                     {compact
                       ? <MiniTile {...tile} pace={pace} />

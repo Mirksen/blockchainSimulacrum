@@ -78,6 +78,9 @@ function App() {
   const [view, setView] = useState(viewFromHash);
   const [profile, setProfile] = useState(profileFromHash);
   const [winner, setWinner] = useState(null);
+  // A live accepted block, distinct from restored history and historical repairs.
+  const [blockMoment, setBlockMoment] = useState(null);
+  const clearBlockMoment = useCallback(() => setBlockMoment(null), []);
   const [autoMining, setAutoMining] = useState(false);
   // Play starts a run; Auto-mine only decides whether the run continues after a block.
   const [running, setRunning] = useState(false);
@@ -151,7 +154,7 @@ function App() {
   useEffect(() => {
     const onHash = () => {
       const next = viewFromHash();
-      if (next !== 'workbench') setSlowMotion?.(false);
+      if (next !== 'workbench') { setSlowMotion?.(false); setBlockMoment(null); }
       setView(next);
       setProfile(profileFromHash());
     };
@@ -169,18 +172,25 @@ function App() {
     return () => clearTimeout(timer);
   }, [winner]);
 
+  useEffect(() => {
+    if (!blockMoment) return;
+    const timer = setTimeout(() => setBlockMoment(null), 2400);
+    return () => clearTimeout(timer);
+  }, [blockMoment]);
+
   const report = useCallback(event => setProgress(current => missions.reduce(current, event)), []);
   const navigate = useCallback(next => {
     writeFlag(INTRO_KEY, true);
     setIntroSeen(true);
     // Slow motion belongs to the miner drawer, which only the workbench shows.
-    if (next !== 'workbench') setSlowMotion?.(false);
+    if (next !== 'workbench') { setSlowMotion?.(false); setBlockMoment(null); }
     const hash = next === 'workbench' ? '#/' : `#/${next}`;
     if (globalThis.location.hash !== hash) globalThis.history.pushState(null, '', hash);
     setView(next);
     setProfile(null);
   }, [setSlowMotion]);
   const openProfile = useCallback(name => {
+    setBlockMoment(null);
     const hash = minerProfileHash(name);
     if (globalThis.location.hash !== hash) globalThis.history.pushState(null, '', hash);
     setView('pool');
@@ -193,7 +203,7 @@ function App() {
 
   const finishRound = useCallback(result => {
     if (result.success) {
-      setWinner(result.winner || result.winners?.at(-1));
+      setWinner({ name: result.winner || result.winners?.at(-1), id: result.block?.hash ?? Date.now() });
       setError('');
       playMiningSuccessSound(soundEnabled.current);
       return true;
@@ -231,6 +241,7 @@ function App() {
     if (next === current) return;
     setDifficulty(next, { source: 'auto' });
     report({ type: 'difficulty_changed', direction: next > current ? 'up' : 'down' });
+    return { kind: 'difficulty', index: height + 1, from: current, to: next };
   }, [report, setDifficulty, sim.blockchain, targetBlockTime]);
 
   // A run ends after its block unless Auto-mine is on when the block is found.
@@ -242,14 +253,19 @@ function App() {
     if (finishRound(result)) {
       pendingRound.current = { index, result };
       report({ type: 'block_mined', backedWon: result.backedWon, epoch: result.epoch });
-      adjustDifficulty();
+      const adjustment = adjustDifficulty();
+      setBlockMoment({ hash: result.block.hash, index,
+        changes: [adjustment, result.block.halved && { kind: 'halving', index }].filter(Boolean) });
     }
     return result;
   }, [adjustDifficulty, blocks.length, endRoundUnlessRepeating, finishRound, mineBlock, report]);
   const handleSetup = useCallback(async () => {
     const result = await setupInitialDistribution();
     endRoundUnlessRepeating();
-    if (finishRound(result)) pendingRound.current = { index: 1, result };
+    if (finishRound(result)) {
+      pendingRound.current = { index: 1, result };
+      setBlockMoment({ hash: result.block.hash, index: 1, changes: [] });
+    }
     return result;
   }, [endRoundUnlessRepeating, finishRound, setupInitialDistribution]);
   const startMining = () => { setRunning(true); return handleMine(); };
@@ -304,6 +320,7 @@ function App() {
     resetBlockchain({ miningDifficulty: startAt });
     lastAdjustedBlock.current = 0;
     setWinner(null);
+    setBlockMoment(null);
     setError('');
     setLastRound(null);
     followNewest();
@@ -427,7 +444,7 @@ function App() {
           {view === 'workbench' && <Workbench sim={sim} coinName={coinName} targetSeconds={targetBlockTime}
             autoMine={autoMining} onAutoMine={changeAutoMine} repeating={repeating} autoTransact={autoTransact} onAutoTransact={setAutoTransact}
             selectedIndex={shownIndex} held={shownIndex !== null && shownIndex === selectedIndex} onSelect={toggleSelected} healthOpen={healthOpen} onToggleHealth={() => setHealthOpen(open => !open)}
-            lastRound={lastRound} remining={remining} coach={coach}
+            lastRound={lastRound} blockMoment={blockMoment} onClearBlockMoment={clearBlockMoment} remining={remining} coach={coach}
             identity={identity} boardRows={boardRows}
             onStartDemo={startDemo} onMine={startMining} onPause={pause} onRemine={handleRemine} onTamper={onTamper} onUndo={onUndo}
             onDifficulty={onDifficulty} onBack={onBack} onCreateTransaction={onCreateTransaction} onCreateWallet={createWallet} onCreateMiner={createMiner}
@@ -447,7 +464,7 @@ function App() {
             profile={profile} onOpenProfile={openProfile} onCloseProfile={closeProfile} /></div>}
         </main>
       </div>
-      {winner && <div className="wb-announce" role="status">{winner} mined a block</div>}
+      {winner && <div key={winner.id} className="wb-announce" role="status"><span className="wb-found-cube" aria-hidden="true" /><span>{winner.name} mined a block</span></div>}
       <RecordCelebration key={record?.id} record={record} name={record?.name} onClose={() => setRecord(null)}
         onOpenLeaderboard={() => openProfile(record.name)} />
       <SettingsDialog open={showSettings} onClose={() => setShowSettings(false)} coinName={coinName} onCoinName={setCoinName}

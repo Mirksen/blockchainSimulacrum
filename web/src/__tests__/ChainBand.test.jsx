@@ -1,3 +1,4 @@
+import { ChainEventNotes } from '../components/workbench/KeyFigures';
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -144,16 +145,16 @@ describe('ChainBand tiles and selection', () => {
 
   it('explains a rule change in a note until it is dismissed', () => {
     const onDismissNote = vi.fn();
-    const { container } = renderBand({ notes: [{ key: 'halving-4', kind: 'halving', icon: '½', title: 'The reward halved with #4.', text: 'A block still needs the same work.' }], onDismissNote });
+    const { container } = render(<ChainEventNotes notes={[{ key: 'halving-4', kind: 'halving', icon: '½', title: 'The reward halved with #4.', text: 'A block still needs the same work.' }]} onDismiss={onDismissNote} />);
     const note = container.querySelector('.kf-note');
     expect(note.getAttribute('role')).toBe('status');
-    expect(note.textContent).toBe('½The reward halved with #4.A block still needs the same work.Got it');
+    expect(note.querySelector('.kf-note-body').textContent).toBe('The reward halved with #4.A block still needs the same work.');
     fireEvent.click(screen.getByRole('button', { name: 'Got it' }));
     expect(onDismissNote).toHaveBeenCalledWith('halving-4');
   });
 
-  it('leaves the notes to the page in the compact band, which stays at the top', () => {
-    const { container } = renderBand({ compact: true, notes: [{ key: 'halving-4', kind: 'halving', icon: '½', title: 'The reward halved with #4.', text: '' }] });
+  it('keeps only the short key figures in the compact band', () => {
+    const { container } = renderBand({ compact: true });
     expect(container.querySelector('.kf-note')).toBeNull();
     // The short key figures fit one line: pace, forecast and the halving countdown.
     expect(screen.getByLabelText('Key figures').textContent.replace(/\s+/g, ' ')).toBe('3.9 s / 10 s·diff 2 → 3 at #10·½ in 4');

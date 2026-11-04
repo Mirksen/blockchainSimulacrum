@@ -83,9 +83,16 @@ export function ChainEventNotes({ notes = [], onDismiss }) {
   return (
     <div className="kf-notes">
       {notes.map(note => (
-        <div key={note.key} className={`kf-note is-${note.kind}`} role="status">
-          <span className="kf-note-icon" aria-hidden="true">{note.icon}</span>
+        <div key={note.key} className={`kf-note is-${note.kind}${note.motion ? ' is-live' : ''}`} role="status">
+          <span className="kf-note-icon" aria-hidden="true">
+            {note.kind === 'halving' ? <span className="kf-coin"><i /><i /></span> : <span className="kf-arrow">{note.icon}</span>}
+            <span className="kf-sparks">{Array.from({ length: 4 }, (_, i) => <i key={i} />)}</span>
+          </span>
           <span className="kf-note-body">
+            {note.change?.kind === 'difficulty' && <span className="kf-zero-change" aria-hidden="true">
+              <span>{'0'.repeat(Math.min(note.change.from, note.change.to))}</span>
+              <b className={note.kind === 'down' ? 'is-removed' : ''}>0</b>
+            </span>}
             <b>{note.title}</b>{note.lead}
             <span className="kf-note-text">{note.text}</span>
           </span>
