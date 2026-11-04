@@ -56,20 +56,30 @@ export function DownIcon() {
 /* ---------- shared pieces ---------- */
 
 // Copy with a guarded clipboard: no clipboard, no error, no "Copied".
-export function CopyButton({ text, label = 'Copy full hash', className = '' }) {
-  const [copied, setCopied] = useState(false);
+export function CopyButton(props) {
+  // A changed hash starts a new lifetime, including when an earlier hash returns.
+  return <CopyValueButton key={props.text} {...props} />;
+}
+
+function CopyValueButton({ text, label = 'Copy full hash', className = '' }) {
+  const [copied, setCopied] = useState(null);
+  const latestRequest = useRef(null);
+  useEffect(() => () => { latestRequest.current = null; }, []);
   useEffect(() => {
     if (!copied) return undefined;
-    const timer = setTimeout(() => setCopied(false), 1200);
+    const timer = setTimeout(() => setCopied(null), 1200);
     return () => clearTimeout(timer);
   }, [copied]);
   const copy = async event => {
     event.stopPropagation();
-    const clipboard = typeof navigator === 'undefined' ? undefined : navigator.clipboard;
-    if (!clipboard || typeof clipboard.writeText !== 'function') return;
+    const request = {};
+    latestRequest.current = request;
+    setCopied(null);
     try {
+      const clipboard = typeof navigator === 'undefined' ? undefined : navigator.clipboard;
+      if (!clipboard || typeof clipboard.writeText !== 'function') return;
       await clipboard.writeText(text);
-      setCopied(true);
+      if (latestRequest.current === request) setCopied(request);
     } catch {
       // Clipboard refused (permissions, insecure context): the label stays "Copy".
     }
