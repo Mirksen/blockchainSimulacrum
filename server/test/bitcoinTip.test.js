@@ -331,3 +331,160 @@ describe('createTipTracker', () => {
     assert.equal(chain.calls.length, first + 1);
   });
 });
+
+describe('tip refresh consistency and lifecycle regressions', () => {
+  const turn = () => new Promise(resolve => setImmediate(resolve));
+
+  test('keeps the first round private until every page is checked', async () => {
+    const { chain, fetchImpl: honest } = fakeExplorer();
+    let observed;
+    const t = createTipTracker({ sources: [PRIMARY], minWorkBits: 0, fetchImpl: async (url, options) => {
+      if (url !== `${API}/v1/blocks` && !observed) {
+        observed = { round: t.round(), from: t.windowStart(), accepted: t.accepts({ height: TOP, hash: chain.hashAt(TOP) }) };
+      }
+      return honest(url, options);
+    } });
+    await t.poll();
+    assert.deepEqual(observed, { round: null, from: null, accepted: false });
+    assert.deepEqual(t.round(), { height: TOP, hash: chain.hashAt(TOP) });
+  });
+
+  test('a failed gap refresh preserves the previous complete window', async () => {
+    const { chain, fetchImpl: honest } = fakeExplorer();
+    let failGaps = false;
+    const lines = [];
+    const t = createTipTracker({ sources: [PRIMARY], minWorkBits: 0, log: line => lines.push(line), fetchImpl: async (url, options) => {
+      if (failGaps && url !== `${API}/v1/blocks`) throw new Error('synthetic gap failure');
+      return honest(url, options);
+    } });
+    await t.poll();
+    const prior = { ...t.round() };
+    const oldest = { height: TOP - 143, hash: chain.hashAt(TOP - 143) };
+    chain.top += 1;
+    chain.salt[TOP - 20] = 'replacement';
+    failGaps = true;
+    await t.poll();
+    assert.match(lines[0], /synthetic gap failure/);
+    assert.deepEqual(t.round(), prior);
+    assert.equal(t.accepts(oldest), true);
+    assert.equal(t.accepts({ height: chain.top, hash: chain.hashAt(chain.top) }), false);
+  });
+
+  test('falls back when a gap page starts at the wrong height', async () => {
+    const { chain, fetchImpl: honest } = fakeExplorer();
+    const lines = [];
+    const t = createTipTracker({ sources: [PRIMARY, SECONDARY], minWorkBits: 0, log: line => lines.push(line), fetchImpl: (url, options) => {
+      return honest(url.startsWith(`${API}/v1/blocks/`) ? `${API}/v1/blocks` : url, options);
+    } });
+    await t.poll();
+    assert.equal(t.accepts({ height: TOP - 143, hash: chain.hashAt(TOP - 143) }), true);
+    assert.ok(chain.calls.some(call => call.url.startsWith(BACKUP)));
+    assert.ok(lines.some(line => /height/.test(line)));
+  });
+
+  test('falls back when a valid gap page belongs to another fork', async () => {
+    const { chain, fetchImpl: honest } = fakeExplorer();
+    const fork = fakeExplorer();
+    fork.chain.salt[TOP - 20] = 'other fork';
+    const lines = [];
+    const t = createTipTracker({ sources: [PRIMARY, SECONDARY], minWorkBits: 0, log: line => lines.push(line), fetchImpl: (url, options) => {
+      return url.startsWith(`${API}/v1/blocks/`) ? fork.fetchImpl(url, options) : honest(url, options);
+    } });
+    await t.poll();
+    assert.equal(t.accepts({ height: TOP - 15, hash: chain.hashAt(TOP - 15) }), true);
+    assert.equal(t.accepts({ height: TOP - 15, hash: fork.chain.hashAt(TOP - 15) }), false);
+    assert.equal(t.accepts({ height: TOP - 143, hash: chain.hashAt(TOP - 143) }), true);
+    assert.ok(lines.some(line => /after/.test(line)));
+  });
+
+  test('overlapping polls share one traversal', async () => {
+    const { chain, fetchImpl: honest } = fakeExplorer();
+    let release;
+    const gate = new Promise(resolve => { release = resolve; });
+    const t = createTipTracker({ sources: [PRIMARY], minWorkBits: 0, windowBlocks: 15, fetchImpl: async (url, options) => {
+      const response = await honest(url, options);
+      await gate;
+      return response;
+    } });
+    const first = t.poll();
+    const second = t.poll();
+    await turn();
+    const calls = chain.calls.length;
+    release();
+    await Promise.all([first, second]);
+    assert.equal(calls, 1, 'one request while the first poll is waiting');
+    assert.deepEqual(t.round(), { height: TOP, hash: chain.hashAt(TOP) });
+  });
+
+  test('start is idempotent and stop removes its only interval', async (ctx) => {
+    ctx.mock.timers.enable({ apis: ['setInterval'] });
+    const { t, chain } = tracker({ pollMs: 1000, windowBlocks: 15 });
+    t.start();
+    t.start();
+    await turn();
+    const calls = chain.calls.length;
+    t.stop();
+    ctx.mock.timers.tick(5000);
+    await turn();
+    assert.equal(calls, 1, 'only one initial poll');
+    assert.equal(chain.calls.length, calls, 'no interval remains after stop');
+  });
+
+  test('stop aborts a pending request and prevents its late result from publishing', async () => {
+    const { chain, fetchImpl: honest } = fakeExplorer();
+    let release;
+    const gate = new Promise(resolve => { release = resolve; });
+    const lines = [];
+    const t = createTipTracker({ sources: [PRIMARY], minWorkBits: 0, windowBlocks: 15, log: line => lines.push(line), fetchImpl: async (url, options) => {
+      const response = await honest(url, options);
+      await gate; // Deliberately ignores abort: even a late response must be discarded.
+      return response;
+    } });
+    const pending = t.poll();
+    await turn();
+    t.stop();
+    const aborted = chain.calls[0].options.signal.aborted;
+    release();
+    await pending;
+    assert.equal(aborted, true);
+    assert.equal(t.round(), null);
+    assert.equal(t.accepts({ height: TOP, hash: chain.hashAt(TOP) }), false);
+    assert.deepEqual(lines, []);
+  });
+
+  test('a stopped refresh cannot clear the owner of its replacement', async () => {
+    const { chain, fetchImpl: honest } = fakeExplorer();
+    const releases = [];
+    const t = createTipTracker({ sources: [PRIMARY], minWorkBits: 0, windowBlocks: 15, fetchImpl: async (url, options) => {
+      const response = await honest(url, options);
+      await new Promise(resolve => releases.push(resolve));
+      return response;
+    } });
+    const old = t.poll();
+    await turn();
+    t.stop();
+    chain.top += 1;
+    const replacement = t.poll();
+    await turn();
+    releases[0]();
+    await old;
+    const joined = t.poll();
+    await turn();
+    const calls = chain.calls.length;
+    releases.slice(1).forEach(release => release());
+    await Promise.all([replacement, joined]);
+    assert.equal(calls, 2, 'the third poll joins the still-pending replacement');
+    assert.deepEqual(t.round(), { height: chain.top, hash: chain.hashAt(chain.top) });
+  });
+
+  test('fills a large tip advance and repairs the fork below newly fetched pages', async () => {
+    const { t, chain, lines } = tracker();
+    await t.poll();
+    chain.top += 30;
+    chain.salt[TOP - 20] = 'replacement after gap';
+    await t.poll();
+    assert.deepEqual(lines, []);
+    assert.deepEqual(t.round(), { height: chain.top, hash: chain.hashAt(chain.top) });
+    assert.equal(t.accepts({ height: chain.top - 143, hash: chain.hashAt(chain.top - 143) }), true);
+  });
+});
