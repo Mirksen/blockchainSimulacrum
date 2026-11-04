@@ -41,11 +41,12 @@ The server lives in `server/` (Node 24, no runtime dependencies, SQLite). `deplo
 npm --prefix web run check
 npm --prefix web run deploy:check
 npm --prefix web run test:browser
+npm --prefix web run test:webkit
 npm --prefix web run preview
 npm --prefix server test
 ```
 
-The tests cover real mainnet transactions and Bitcoin Core signature hashes, invalid transaction values and pending balances, double spends, tampering, the Merkle root against real Bitcoin blocks, block acceptance, the search module (midstate digests, weighted races, stop and limits), wallet initialization, concurrent starts, stopped halving attempts, reset, setting changes and demo distribution. Browser and server hashing are pinned to the same vectors in `shared/share-vectors.json`. The server tests cover forged, expired, duplicate and tampered shares, rate limits and CORS. `test:browser` needs Google Chrome. It starts and stops a local preview, exercises the complete demo/transfer/tamper/reset flow and checks five viewport widths. Set `BASE_URL` to check an already running site instead; screenshots go to the OS temporary directory (override with `SCREENSHOT_DIR`).
+The tests cover real mainnet transactions and Bitcoin Core signature hashes, invalid transaction values and pending balances, double spends, tampering, the Merkle root against real Bitcoin blocks, block acceptance, the search module (midstate digests, weighted races, stop and limits), wallet initialization, concurrent starts, stopped halving attempts, reset, setting changes and demo distribution. Browser and server hashing are pinned to the same vectors in `shared/share-vectors.json`. The server tests cover forged, expired, duplicate and tampered shares, rate limits and CORS. `test:browser` needs Google Chrome. It starts and stops a local preview, exercises the complete demo/transfer/tamper/reset flow and checks five viewport widths. Set `BASE_URL` to check an already running site instead; screenshots go to the OS temporary directory (override with `SCREENSHOT_DIR`). `test:webkit` checks layout in WebKit, the engine of Safari on iPhone, which Chrome does not show (run `npx playwright install webkit` once); today: the chain band blocks stand apart on a phone and on a desktop.
 
 The deployment check builds the public files and runs a Cloudflare dry run; it does not publish anything or establish live-domain acceptance.
 
