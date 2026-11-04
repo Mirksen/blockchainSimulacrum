@@ -45,7 +45,20 @@ export async function verifyMiningFeedback(browser, baseURL, output) {
     });
     assert.ok(layout.footerTop >= layout.gridBottom - 1, 'Explanations follow the cards');
     assert.ok(layout.footerBottom <= layout.height + 1, 'Footer remains visible in the fixed desktop layout');
+    // The fixed footer must never make the bottom cards unreachable.
+    const cards = page.locator('.wb-grid');
+    assert.equal(await cards.evaluate(el => getComputedStyle(el).overflowY), 'auto');
+    await cards.evaluate(el => { el.scrollTop = el.scrollHeight; });
+    const reachable = await page.evaluate(() => {
+      const grid = document.querySelector('.wb-grid').getBoundingClientRect();
+      return ['.wb-wallets', '.wb-mempool'].every(selector => {
+        const box = document.querySelector(selector).getBoundingClientRect();
+        return box.bottom <= grid.bottom + 1 && box.top < grid.bottom;
+      });
+    });
+    assert.ok(reachable, 'Bottom cards are reachable above the explanations');
     await page.screenshot({ path: join(output, 'mining-feedback-desktop.png') });
+    await cards.evaluate(el => { el.scrollTop = 0; });
     const animations = await page.evaluate(() => globalThis.feedbackAnimations);
     for (const name of ['wb-block-arrive', 'kf-rule-spark', 'kf-half-left', 'kf-extra-zero']) {
       assert.ok(animations.includes(name), `Observed ${name}`);

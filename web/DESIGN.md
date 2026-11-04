@@ -302,7 +302,8 @@ decision, 2026-10-27):
     ("Difficulty rose from 5 to 6 after #20. Blocks #11–#20 took 6.1 s on average,
     faster than 7 s …"). It stays for that block and the two after it or until "Got
     it"; a difficulty the learner set by hand gets no note. The notes use the full width below the cards. In the fixed desktop layout they
-    form a footer with bounded scrolling; below 1024 px they follow the cards in
+    form a footer with bounded scrolling; the card grid can scroll while notes
+    reserve that space, so wallets and mempool stay reachable; below 1024 px they follow the cards in
     normal page flow. The short found-block notice appears at the top right,
     separate from the centered leaderboard celebration.
   - **Kept in view:** from 1024 px on, once the chain scrolls out of view, a slim
