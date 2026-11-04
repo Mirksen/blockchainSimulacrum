@@ -28,16 +28,19 @@ export function isRound(round) {
 
 export function createTipTracker({ fetchImpl = fetch, sources = TIP_SOURCES, pollMs = TIP_POLL_MS, windowBlocks = WINDOW_BLOCKS, minWorkBits = MIN_WORK_BITS, log } = {}) {
   // height → { hash, prev } of the last `windowBlocks` blocks, each checked and linked.
-  const known = new Map();
+  let known = new Map();
   let tip = null;
   let timer = null;
+  let pending = null;
 
   // A page of consecutive blocks from one source, newest first, from `start` (the tip when omitted).
-  async function pageFrom({ api, blocks: blocksPath }, start) {
+  async function pageFrom({ api, blocks: blocksPath }, start, expectedHash, signal) {
+    signal.throwIfAborted();
     const path = start === undefined ? blocksPath : `${blocksPath}/${start}`;
-    const res = await fetchImpl(`${api}${path}`, { signal: AbortSignal.timeout(TIP_TIMEOUT_MS) });
+    const res = await fetchImpl(`${api}${path}`, { signal: AbortSignal.any([signal, AbortSignal.timeout(TIP_TIMEOUT_MS)]) });
     if (!res.ok) throw new Error(`${path} answered ${res.status}`);
     const blocks = await res.json();
+    signal.throwIfAborted();
     if (!Array.isArray(blocks) || blocks.length === 0) throw new Error('unreadable blocks');
     blocks.forEach((block, index) => {
       const problem = blockProblem(block, { minWorkBits });
@@ -47,68 +50,82 @@ export function createTipTracker({ fetchImpl = fetch, sources = TIP_SOURCES, pol
         throw new Error(`block ${block.height} does not link to the block below`);
       }
     });
+    if (start !== undefined && blocks[0].height !== start) {
+      throw new Error(`page starts at height ${blocks[0].height} instead of ${start}`);
+    }
+    if (expectedHash !== undefined && blocks[0].id !== expectedHash) {
+      throw new Error(`block ${start} does not link to the block above`);
+    }
     return blocks.map(block => ({ height: block.height, hash: block.id, prev: block.previousblockhash }));
   }
 
   // The page from the first source that answers with valid blocks.
-  async function page(start) {
+  async function page(start, expectedHash, signal) {
     const failures = [];
     for (const source of sources) {
       try {
-        const blocks = await pageFrom(source, start);
+        const blocks = await pageFrom(source, start, expectedHash, signal);
         if (failures.length) log?.(`bitcoin blocks from ${source.api} after ${failures.join('; ')}`);
         return blocks;
       } catch (error) {
+        if (signal.aborted) throw error;
         failures.push(`${source.api}: ${error?.message ?? error}`);
       }
     }
     throw new Error(failures.join('; '));
   }
 
-  // Forgets every block below the first broken link under the tip; true if it found one.
-  function dropUnlinked(from) {
-    for (let height = tip.height; height > from; height -= 1) {
-      const block = known.get(height);
-      const below = known.get(height - 1);
-      if (block && below && block.prev !== below.hash) {
-        for (const stale of [...known.keys()]) if (stale < height) known.delete(stale);
-        return true;
+  async function refresh(signal) {
+    try {
+      // Keep public round/accepts on the previous complete snapshot until every page links.
+      const newest = await page(undefined, undefined, signal);
+      const next = new Map(known);
+      for (const block of newest) next.set(block.height, block);
+      const nextTip = { height: newest[0].height, hash: newest[0].hash };
+      const from = Math.max(0, nextTip.height - windowBlocks + 1);
+      for (const height of next.keys()) if (height < from || height > nextTip.height) next.delete(height);
+      for (let height = nextTip.height; height >= from; height -= 1) {
+        const above = next.get(height + 1);
+        if (above && next.has(height) && above.prev !== next.get(height).hash) {
+          // A deeper reorganisation invalidates the cached branch below this link.
+          for (const stale of next.keys()) if (stale <= height) next.delete(stale);
+        }
+        if (next.has(height)) continue;
+        for (const block of await page(height, above.prev, signal)) {
+          if (block.height >= from) next.set(block.height, block);
+        }
       }
+      signal.throwIfAborted();
+      known = next;
+      tip = nextTip;
+    } catch (error) {
+      if (!signal.aborted) log?.(`bitcoin tip unavailable: ${error?.message ?? error}`);
     }
-    return false;
   }
 
-  async function poll() {
-    try {
-      // The newest page overwrites its heights, which also follows a reorganisation.
-      const newest = await page();
-      for (const block of newest) known.set(block.height, block);
-      tip = { height: newest[0].height, hash: newest[0].hash };
-      const from = Math.max(0, tip.height - windowBlocks + 1);
-      for (const height of [...known.keys()]) if (height < from || height > tip.height) known.delete(height);
-      // A reorganisation deeper than the newest page leaves stale blocks below it.
-      dropUnlinked(from);
-      // Fill older gaps of the window, one page at a time.
-      for (let height = tip.height; height >= from; height -= 1) {
-        if (known.has(height)) continue;
-        for (const block of await page(height)) if (block.height >= from) known.set(block.height, block);
-      }
-      if (dropUnlinked(from)) throw new Error('the window does not link up');
-    } catch (error) {
-      log?.(`bitcoin tip unavailable: ${error?.message ?? error}`);
-    }
+  function poll() {
+    if (pending) return pending.promise;
+    const current = { controller: new AbortController(), promise: null };
+    pending = current;
+    current.promise = refresh(current.controller.signal).finally(() => {
+      if (pending === current) pending = null;
+    });
+    return current.promise;
   }
 
   return {
     poll,
     start() {
-      void poll();
+      if (timer !== null) return;
       timer = setInterval(poll, pollMs);
       timer.unref?.();
+      void poll();
     },
     stop() {
       clearInterval(timer);
       timer = null;
+      pending?.controller.abort();
+      pending = null;
     },
     round: () => tip,
     // The oldest block height a proof may still name, or null before the first poll.
