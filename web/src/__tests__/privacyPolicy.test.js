@@ -10,7 +10,7 @@ describe('privacy policy page', () => {
         expect(page.match(/\[\[[A-Z_]+\]\]/g) ?? []).toEqual([]);
     });
     it('describes the opt-out of usage sharing that the app offers', () => {
-        for (const label of ['Settings', 'Share usage counts', 'Save choice']) expect(page).toContain(`<strong>${label}</strong>`);
+        expect(page).toContain('<strong>Opt out</strong>');
         expect(page).toContain('Usage sharing');
         expect(page).toContain('PostHog');
     });

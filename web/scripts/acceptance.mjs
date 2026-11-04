@@ -103,7 +103,7 @@ try {
  const wb = workbench(page);
 
  // Usage sharing is on by default (opt-out, Mirko 2026-11-03): a first visit sends
- // app_opened and shows the notice; opting out takes Settings, the switch and Save choice.
+ // app_opened and shows the notice; OK is filled, one click on Opt out stops sharing.
  const usageNotice = page.getByRole('region',{name:'This site counts usage'});
  if (process.env.EXPECT_POSTHOG === '1') {
   await usageNotice.waitFor();
@@ -112,12 +112,10 @@ try {
   assert.equal(await usageNotice.getByRole('link',{name:'Privacy policy'}).getAttribute('href'),'/privacy.html');
   await page.screenshot({path:join(output,'view-usage-notice-1440.png')});
   assert.equal(await usageNotice.locator('.btn-primary').innerText(),'OK','OK is the one filled button');
-  await usageNotice.getByRole('button',{name:'Settings',exact:true}).click();
-  await usageNotice.getByRole('checkbox',{name:'Share usage counts'}).uncheck();
-  await usageNotice.getByRole('button',{name:'Save choice',exact:true}).click();
+  await usageNotice.getByRole('button',{name:'Opt out',exact:true}).click();
   await usageNotice.waitFor({state:'detached'});
   telemetryRequests.length = 0;
-  results.push('First visit: usage sharing is on with a notice; opting out via Settings stops it and the notice stays away');
+  results.push('First visit: usage sharing is on with a notice; Opt out stops it and the notice stays away');
  } else {
   assert.equal(await usageNotice.count(), 0, 'No notice without a token: nothing is shared');
  }

@@ -10,11 +10,8 @@
 .usage-consent h2 { margin: 0 0 var(--s-1); color: var(--text); font-size: 14px; font-weight: 600; }
 .usage-consent p { margin: 0 0 var(--s-2); }
 .usage-consent .usage-consent-later { color: var(--text-3); font-size: 12px; }
-.usage-consent-actions { display: flex; align-items: center; justify-content: space-between; gap: var(--s-2); }
-.usage-consent-actions .btn-primary { flex: 0 0 60%; }
-.usage-consent-settings { margin-top: var(--s-1); }
-.usage-consent-switch { display: flex; align-items: center; gap: var(--s-2); margin-bottom: var(--s-2); color: var(--text); font-size: 13px; cursor: pointer; }
-.usage-consent-switch input { width: 16px; height: 16px; margin: 0; accent-color: var(--blue); }
+.usage-consent-actions { display: flex; gap: var(--s-2); }
+.usage-consent-actions .card-kit-btn, .usage-consent-actions .btn-primary { flex: 1; justify-content: center; }
 @media (max-width: 600px) {
   .usage-consent { left: var(--s-2); right: var(--s-2); bottom: var(--s-2); width: auto; }
 }
