@@ -76,29 +76,52 @@ export function KeyFigures({ keyFigures, className = '', short = false, label = 
   );
 }
 
-/* ---------- what changed: one calm note per rule change, until dismissed ---------- */
+/* ---------- what changed: 30 seconds per note, paused while reading ---------- */
+
+function ChainEventNote({ note, onDismiss }) {
+  const remaining = useRef(30_000);
+  const dismiss = useRef(onDismiss);
+  const [hovered, setHovered] = useState(false);
+  const [focused, setFocused] = useState(false);
+  useEffect(() => { dismiss.current = onDismiss; }, [onDismiss]);
+  const paused = hovered || focused;
+  useEffect(() => {
+    if (paused) return undefined;
+    const started = Date.now();
+    const timer = setTimeout(() => dismiss.current?.(note.key), remaining.current);
+    return () => {
+      clearTimeout(timer);
+      remaining.current = Math.max(0, remaining.current - (Date.now() - started));
+    };
+  }, [paused, note.key]);
+
+  return (
+    <div className={`kf-note is-${note.kind}${note.motion ? ' is-live' : ''}`} role="status"
+      onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
+      onFocusCapture={() => setFocused(true)}
+      onBlurCapture={event => { if (!event.currentTarget.contains(event.relatedTarget)) setFocused(false); }}>
+      <span className="kf-note-icon" aria-hidden="true">
+        {note.kind === 'halving' ? <span className="kf-coin"><i /><i /></span> : <span className="kf-arrow">{note.icon}</span>}
+        <span className="kf-sparks">{Array.from({ length: 4 }, (_, i) => <i key={i} />)}</span>
+      </span>
+      <span className="kf-note-body">
+        {note.change?.kind === 'difficulty' && <span className="kf-zero-change" aria-hidden="true">
+          <span>{'0'.repeat(Math.min(note.change.from, note.change.to))}</span>
+          <b className={note.kind === 'down' ? 'is-removed' : ''}>0</b>
+        </span>}
+        <b>{note.title}</b>{note.lead}
+        <span className="kf-note-text">{note.text}</span>
+      </span>
+      {onDismiss && <button type="button" className="kf-note-ok" onClick={() => onDismiss(note.key)}>Got it</button>}
+    </div>
+  );
+}
 
 export function ChainEventNotes({ notes = [], onDismiss }) {
   if (!notes.length) return null;
   return (
     <div className="kf-notes">
-      {notes.map(note => (
-        <div key={note.key} className={`kf-note is-${note.kind}${note.motion ? ' is-live' : ''}`} role="status">
-          <span className="kf-note-icon" aria-hidden="true">
-            {note.kind === 'halving' ? <span className="kf-coin"><i /><i /></span> : <span className="kf-arrow">{note.icon}</span>}
-            <span className="kf-sparks">{Array.from({ length: 4 }, (_, i) => <i key={i} />)}</span>
-          </span>
-          <span className="kf-note-body">
-            {note.change?.kind === 'difficulty' && <span className="kf-zero-change" aria-hidden="true">
-              <span>{'0'.repeat(Math.min(note.change.from, note.change.to))}</span>
-              <b className={note.kind === 'down' ? 'is-removed' : ''}>0</b>
-            </span>}
-            <b>{note.title}</b>{note.lead}
-            <span className="kf-note-text">{note.text}</span>
-          </span>
-          {onDismiss && <button type="button" className="kf-note-ok" onClick={() => onDismiss(note.key)}>Got it</button>}
-        </div>
-      ))}
+      {notes.map(note => <ChainEventNote key={note.key} note={note} onDismiss={onDismiss} />)}
     </div>
   );
 }

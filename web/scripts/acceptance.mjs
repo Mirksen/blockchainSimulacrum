@@ -1,4 +1,5 @@
 import { verifyMiningFeedback } from './mining-feedback.acceptance.mjs';
+import { verifyFeeMarketCounts, verifyNoticeLifetime } from './notices.acceptance.mjs';
 import { verifyMiningControlsAndSound } from './mining-controls.acceptance.mjs';
 import { verifyForkLab, verifyForkMission } from './fork-lab.acceptance.mjs';
 import { verifyHashLab } from './hash-lab.acceptance.mjs';
@@ -89,6 +90,8 @@ try {
  browser = await chromium.launch({channel:'chrome',headless:true});
  results.push(...await verifyMiningControlsAndSound(browser, baseURL, output));
  results.push(...await verifyMiningFeedback(browser, baseURL, output));
+ results.push(...await verifyNoticeLifetime(browser, baseURL, output));
+ results.push(...await verifyFeeMarketCounts(browser, baseURL, output));
  results.push(...await verifyMissionVisibility(browser, baseURL, output));
  results.push(...await verifyMissionReload(browser, baseURL, output));
  results.push(...await verifyForgeMission(browser, baseURL, output));

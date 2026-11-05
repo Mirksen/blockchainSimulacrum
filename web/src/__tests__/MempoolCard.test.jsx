@@ -41,6 +41,25 @@ describe('MempoolCard', () => {
     expect(card().textContent).toContain('added when #3 is mined');
   });
 
+  it('mines only the included five while keeping all eight pending and three waiting visible', () => {
+    const batch = Array.from({ length: 8 }, (_, index) => ({ from: 'Wallet Fixture', to: 'Recipient Fixture', amount: 0.1,
+      waits: index < 5 ? null : 'full' }));
+    render(<MempoolCard transactions={batch} space={{ bytes: 1250, capacity: 1300, included: 5, total: 8 }} nextIndex={3} mining />);
+    expect(card().textContent).toContain('5 in #3');
+    expect(card().textContent).toContain('8 pending · 3 waiting');
+    expect(screen.getAllByText('being mined into #3')).toHaveLength(5);
+    expect(card().querySelectorAll('.is-waiting')).toHaveLength(3);
+    expect(card().querySelectorAll('.mempool-card-tx.is-mining')).toHaveLength(5);
+  });
+
+  it('leaves pending payments outside the historical block during re-mining', () => {
+    render(<MempoolCard transactions={transactions} nextIndex={5} mining remining={2} />);
+    expect(card().textContent).toContain('2 pending');
+    expect(card().textContent).toContain('waiting during re-mine #2');
+    expect(card().textContent).not.toContain('being mined into');
+    expect(card().querySelectorAll('.mempool-card-tx.is-mining')).toHaveLength(0);
+  });
+
   it('New transaction opens the form at the top of the card and validates it', () => {
     const onCreateTransaction = vi.fn();
     render(<MempoolCard transactions={transactions} nextIndex={5} participants={participants} onCreateTransaction={onCreateTransaction} />);

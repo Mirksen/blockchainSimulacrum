@@ -78,6 +78,7 @@ describe('mining controls and sound in App', () => {
   it('defaults to sound on and unlocks audio during a gesture before a delayed result', async () => {
     render(<App />);
     expect(controlled.config.miningDifficulty).toBe(4);
+    expect(controlled.config.halvingEvent).toBe(21);
     more();
     expect(sound().getAttribute('aria-pressed')).toBe('true');
     fireEvent.keyDown(document.activeElement, { key: 'Escape' });
@@ -392,6 +393,10 @@ describe('mining feedback', () => {
 
   it('puts the halving explanation after the cards, retains it after motion, and dismisses it', async () => {
     render(<App />);
+    more();
+    fireEvent.click(screen.getByRole('button', { name: 'Settings', exact: true }));
+    fireEvent.change(screen.getByRole('spinbutton', { name: 'Halving interval' }), { target: { value: '4' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Done', exact: true }));
     await completeDemo();
     await mineOnce(); await mineOnce(); await mineOnce();
     const footer = screen.getByRole('complementary', { name: 'What changed' });
@@ -403,6 +408,34 @@ describe('mining feedback', () => {
     expect(footer.querySelector('.is-live')).toBeNull();
     expect(footer.textContent).toContain('The reward halved with #4');
     fireEvent.click(within(footer).getByRole('button', { name: 'Got it' }));
+    expect(screen.queryByRole('complementary', { name: 'What changed' })).toBeNull();
+    fireEvent.click(screen.getByRole('link', { name: 'Hash lab', exact: true }));
+    fireEvent.click(screen.getByRole('link', { name: 'Workbench', exact: true }));
+    expect(screen.queryByRole('complementary', { name: 'What changed' })).toBeNull();
+  });
+
+  it('keeps a hovered explanation through newer blocks, then expires the remaining time', async () => {
+    render(<App />);
+    more();
+    fireEvent.click(screen.getByRole('button', { name: 'Settings', exact: true }));
+    fireEvent.change(screen.getByRole('spinbutton', { name: 'Halving interval' }), { target: { value: '4' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Done', exact: true }));
+    await completeDemo();
+    await mineOnce(); await mineOnce(); await mineOnce();
+    const note = screen.getByRole('complementary', { name: 'What changed' }).querySelector('.kf-note.is-halving');
+    await wait(2000);
+    fireEvent.mouseEnter(note);
+    await mineOnce(); await mineOnce(); await mineOnce();
+    await wait(60_000);
+    expect(note.isConnected).toBe(true);
+    expect(note.textContent).toContain('The reward halved with #4');
+    fireEvent.mouseLeave(note);
+    await wait(27_999);
+    expect(note.isConnected).toBe(true);
+    await wait(1);
+    expect(screen.queryByRole('complementary', { name: 'What changed' })).toBeNull();
+    fireEvent.click(screen.getByRole('link', { name: 'Hash lab', exact: true }));
+    fireEvent.click(screen.getByRole('link', { name: 'Workbench', exact: true }));
     expect(screen.queryByRole('complementary', { name: 'What changed' })).toBeNull();
   });
 

@@ -38,13 +38,13 @@
 
 /* The next block's room for payments: one quiet line with a meter. */
 .mempool-card-space {
-  flex: none; display: flex; align-items: center; gap: var(--s-2); padding: 6px var(--s-4);
+  flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 4px var(--s-2); padding: 6px var(--s-4);
   border-bottom: 1px solid var(--line-2); font-size: 12px; color: var(--text-3); white-space: nowrap;
 }
 .mempool-card-space-meter { flex: 1 1 auto; min-width: 40px; max-width: 220px; height: 4px; border-radius: 2px; background: var(--line-2); overflow: hidden; }
 .mempool-card-space-meter i { display: block; height: 100%; background: var(--blue); }
 .mempool-card-space-value { font-family: var(--mono); color: var(--text-2); }
-.mempool-card-space-waiting { margin-left: auto; color: var(--text-2); }
+.mempool-card-space-counts { flex-basis: 100%; color: var(--text-2); }
 
 @container mempool-card (max-width: 520px) {
   .mempool-card-aside { display: none; }
