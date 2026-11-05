@@ -402,7 +402,7 @@ try {
  await tamper(2, '1');
  assert.match(await wb.tile(2).getAttribute('aria-label'), /hash mismatch/i);
  assert.match(await wb.tile(3).getAttribute('aria-label'), /built on a broken block/i);
- assert.ok(await wb.mine(4).isDisabled());
+ assert.ok(await wb.mine(2).isDisabled(), 'New mining stays locked while historical block #2 awaits repair');
  // Tampering opens the checks by itself; the "Chain invalid" pill closes and reopens them.
  const invalidPill = wb.chainPill().filter({hasText:'Chain invalid'});
  await checks.waitFor();
