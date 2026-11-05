@@ -135,26 +135,31 @@ function BlockSpace({ space, nextIndex }) {
       <span className="mempool-card-space-meter" role="meter" aria-label={`Block space of #${nextIndex}`}
         aria-valuemin={0} aria-valuemax={space.capacity} aria-valuenow={space.bytes}><i style={{ width: `${share * 100}%` }} /></span>
       <span className="mempool-card-space-value">{formatBytes(space.bytes)} of {formatBytes(space.capacity)}</span>
-      {waiting > 0 && <span className="mempool-card-space-waiting">{waiting} {waiting === 1 ? 'waits' : 'wait'}</span>}
+      <span className="mempool-card-space-counts">{space.total} pending
+        {waiting > 0 && <span className="mempool-card-space-waiting"> · {waiting} waiting</span>}
+      </span>
     </div>
   );
 }
 
 export function MempoolCard({
-  transactions = [], space = null, nextIndex, mining = false, participants = [], coinName = 'powfyicoin', reward,
+  transactions = [], space = null, nextIndex, mining = false, remining = null, participants = [], coinName = 'powfyicoin', reward,
   onCreateTransaction, onPreviewTransaction, onOpenTransaction, autoTransact = false, onAutoTransact, newTxGlow = false, coach = null
 }) {
   const [open, setOpen] = useState(false);
   const names = participants.map(p => (typeof p === 'string' ? p : p.name)).filter(Boolean);
   const pending = transactions.length;
+  const selecting = mining && remining === null;
+  const included = space?.included ?? transactions.filter(tx => !tx.waits).length;
   return (
-    <section className={`card-kit mempool-card${mining ? ' is-mining' : ''}`} aria-label="Mempool">
+    <section className={`card-kit mempool-card${selecting ? ' is-mining' : ''}`} aria-label="Mempool">
       <div className="card-kit-head">
         <h2 className="card-kit-title" {...term('mempool.title')}>Mempool</h2>
         {pending > 0
-          ? <span className={`card-kit-pill ${mining ? 'is-live' : 'is-pending'}`}><i aria-hidden="true" />{mining ? `${pending} in #${nextIndex}` : `${pending} pending`}</span>
+          ? <span className={`card-kit-pill ${selecting ? 'is-live' : 'is-pending'}`}><i aria-hidden="true" />{selecting ? `${included} in #${nextIndex}` : `${pending} pending`}</span>
           : <span className="card-kit-pill is-none">Empty</span>}
-        <span className="card-kit-aside mempool-card-aside">{mining ? `candidate #${nextIndex}`
+        <span className="card-kit-aside mempool-card-aside">{selecting ? `candidate #${nextIndex}`
+          : remining !== null ? `waiting during re-mine #${remining}`
           : space && space.included < space.total ? `${space.included} of ${space.total} fit into #${nextIndex}` : `goes into #${nextIndex}`}</span>
         <div className="mempool-card-action" role="group" aria-label="Transaction controls">
           <CoachMark target="workbench.new-transaction" coach={coach} className="mempool-card-coach">
@@ -175,7 +180,7 @@ export function MempoolCard({
             <small>Add one with New transaction, or mine #{nextIndex} with only its coinbase.</small></li>
         )}
         {transactions.map((tx, i) => (
-          <li key={tx.id ?? i} className={`mempool-card-tx${mining ? ' is-mining' : ''}${tx.waits ? ' is-waiting' : ''}`}>
+          <li key={tx.id ?? i} className={`mempool-card-tx${selecting && !tx.waits ? ' is-mining' : ''}${tx.waits ? ' is-waiting' : ''}`}>
             <span className="mempool-card-what">
               {onOpenTransaction && tx.tx
                 ? <button type="button" className="mempool-card-open" aria-label={`Details of ${tx.from} to ${tx.to}, ${formatAmount(tx.amount)}`} {...hint('mempool.tx')} onClick={() => onOpenTransaction(tx.tx)}><b>{tx.from} → {tx.to}</b></button>
@@ -184,7 +189,7 @@ export function MempoolCard({
               {spendSummary(tx) && <small className="mempool-card-spend">{spendSummary(tx)}</small>}
             </span>
             {tx.waits ? <span className={`mempool-card-state is-${tx.waits}`} {...hint('mempool.wait', tx.waits)}><i aria-hidden="true" />{WAITS[tx.waits]}</span>
-              : mining && <span className="mempool-card-state"><i aria-hidden="true" />being mined into #{nextIndex}</span>}
+              : selecting && <span className="mempool-card-state"><i aria-hidden="true" />being mined into #{nextIndex}</span>}
             <span className="mempool-card-amt">{formatAmount(tx.amount)}</span>
           </li>
         ))}

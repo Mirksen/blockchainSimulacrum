@@ -308,8 +308,10 @@ decision, 2026-10-27):
   - **The moment explains itself:** after a check changed the difficulty or a block
     halved the reward, a calm note at the bottom of the workbench gives cause and effect
     ("Difficulty rose from 5 to 6 after #20. Blocks #11–#20 took 6.1 s on average,
-    faster than 7 s …"). It stays for that block and the two after it or until "Got
-    it"; a difficulty the learner set by hand gets no note. The notes use the full width below the cards. In the fixed desktop layout they
+    faster than 7 s …"). It stays for 30 seconds or until "Got it"; hovering or keyboard
+    focus pauses its remaining time, including while more blocks arrive. A difficulty
+    the learner set by hand gets no note. New experiments halve every 21 blocks;
+    saved experiments retain their chosen interval. The notes use the full width below the cards. In the fixed desktop layout they
     form a footer with bounded scrolling; the card grid can scroll while notes
     reserve that space, so wallets and mempool stay reachable; below 1024 px they follow the cards in
     normal page flow. The short found-block notice appears at the top right,
@@ -404,7 +406,10 @@ decision, 2026-10-27):
   line "added when #N is mined" with reward plus the fees of what fits. Under the header a quiet
   **block space** line shows the next block's room for payments as a meter ("Block space #7 ·
   1,262 B of 1,300 B · 3 wait"); the header says "5 of 8 fit into #7" instead of "goes into #7"
-  when not all fit. A transfer without room steps back (secondary text) and names why with an amber
+  when not all fit. The candidate and Next block count only selected payments. While mining,
+  the pill says "5 in #7" and the block-space line retains "8 pending · 3 waiting" at every card width; only selected rows
+  say "being mined into #7". During re-mining, Next block counts the historical block's
+  payments and the mempool remains pending. A transfer without room steps back (secondary text) and names why with an amber
   dot: "waits · block full" or "waits for its parent"; one orphaned by an edit says so in red. While
   mining, only the rows that fit read "being mined into #N". The form offers a **Fee rate** (1 sat/B
   low, 5 normal as default, 20 high) and its preview names the size and rate. A row opens its

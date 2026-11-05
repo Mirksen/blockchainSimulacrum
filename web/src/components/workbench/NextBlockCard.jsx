@@ -145,7 +145,7 @@ export function NextBlockCard({
   const [wall, setWall] = useState(false);
 
   const meta = isFresh ? '· Genesis only'
-    : `· ${txCount} tx${isMining ? '' : ' waiting'}${reward != null ? ` · reward ${formatAmount(reward)}` : ''}`;
+    : `· ${txCount} tx${isMining ? '' : ' selected'}${reward != null ? ` · reward ${formatAmount(reward)}` : ''}`;
   let headStatus = null;
   if (isMining) headStatus = slowMotion ? (
     <span className="next-block-slow" role="status">

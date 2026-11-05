@@ -34,7 +34,7 @@ describe('NextBlockCard', () => {
     fireEvent.click(mine);
     expect(onMine).toHaveBeenCalledTimes(1);
     const text = card().textContent;
-    expect(text).toContain('2 tx waiting · reward 1.5625');
+    expect(text).toContain('2 tx selected · reward 1.5625');
     expect(text).toContain('Last round #4: Lars won at nonce 5,775 · 332 tries · 7.1 s');
     expect(text).toContain('nonce 905 · 0/2 zeros');
     expect(text).not.toContain('builds on');

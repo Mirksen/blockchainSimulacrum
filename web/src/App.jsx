@@ -29,7 +29,7 @@ import { adjustedDifficulty, averagePace, checkWindowStart, isCheckHeight } from
 import { DEFAULT_FEE_RATE } from './lib/blockchain';
 
 const INITIAL_CONFIG = {
-  name: 'powfyicoin', miningDifficulty: 4, blockReward: 3.125, halvingEvent: 4,
+  name: 'powfyicoin', miningDifficulty: 4, blockReward: 3.125, halvingEvent: 21,
   participants: ['Alice', 'Bob', 'Chris', 'Hal', 'Dorian', 'Laszlo'], miners: ['Hal', 'Dorian', 'Laszlo']
 };
 const VIEWS = { '': 'workbench', 'hash-lab': 'hash-lab', 'chain-lab': 'chain-lab', pool: 'pool' };
@@ -82,6 +82,9 @@ function App() {
   // A live accepted block, distinct from restored history and historical repairs.
   const [blockMoment, setBlockMoment] = useState(null);
   const clearBlockMoment = useCallback(() => setBlockMoment(null), []);
+  // Keep acknowledged/expired notes gone when returning from a lab in this session.
+  const [dismissedNotes, setDismissedNotes] = useState(() => new Set());
+  const dismissNote = useCallback(key => setDismissedNotes(current => new Set(current).add(key)), []);
   const [autoMining, setAutoMining] = useState(false);
   // Play starts a run; Auto-mine only decides whether the run continues after a block.
   const [running, setRunning] = useState(false);
@@ -322,6 +325,7 @@ function App() {
     lastAdjustedBlock.current = 0;
     setWinner(null);
     setBlockMoment(null);
+    setDismissedNotes(new Set());
     setError('');
     setLastRound(null);
     followNewest();
@@ -446,7 +450,8 @@ function App() {
           {view === 'workbench' && <Workbench sim={sim} coinName={coinName} targetSeconds={targetBlockTime}
             autoMine={autoMining} onAutoMine={changeAutoMine} repeating={repeating} autoTransact={autoTransact} onAutoTransact={setAutoTransact}
             selectedIndex={shownIndex} held={shownIndex !== null && shownIndex === selectedIndex} onSelect={toggleSelected} healthOpen={healthOpen} onToggleHealth={() => setHealthOpen(open => !open)}
-            lastRound={lastRound} blockMoment={blockMoment} onClearBlockMoment={clearBlockMoment} remining={remining} coach={coach}
+            lastRound={lastRound} blockMoment={blockMoment} onClearBlockMoment={clearBlockMoment}
+            dismissedNotes={dismissedNotes} onDismissNote={dismissNote} remining={remining} coach={coach}
             identity={identity} boardRows={boardRows}
             onStartDemo={startDemo} onMine={startMining} onPause={pause} onRemine={handleRemine} onTamper={onTamper} onUndo={onUndo}
             onDifficulty={onDifficulty} onBack={onBack} onCreateTransaction={onCreateTransaction} onCreateWallet={createWallet} onCreateMiner={createMiner}

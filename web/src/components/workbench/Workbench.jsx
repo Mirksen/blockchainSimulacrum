@@ -35,9 +35,23 @@ const isNarrow = () => Boolean(globalThis.matchMedia?.(NARROW).matches);
 // A signed coinbase names its miner in the memo and commits to it in a last output.
 const signerOf = coinbase => (coinbase.outputs.some(output => output.kind === 'commitment') ? coinbase.memo : null);
 
+function WorkbenchNotes({ events, blocks, halvingInterval, targetSeconds, coinName, blockMoment, dismissed, onDismiss }) {
+  // Restore only recent explanations, then keep each new one for its own lifetime.
+  // The first block keys this component, so a reset starts a fresh notice window.
+  const [after] = useState(() => blocks.length - 4);
+  const notes = Object.values(events).flat()
+    .filter(event => event.index > after)
+    .map(event => {
+      const note = eventNote(event, { halvingInterval, targetSeconds, coinName });
+      return note && { ...note, change: event, motion: blockMoment?.changes.find(change => change.kind === event.kind && change.index === event.index), key: `${note.key}@${blocks[event.index - 1]?.hash}` };
+    })
+    .filter(note => note && !dismissed?.has(note.key));
+  return notes.length > 0 && <aside className="wb-notes" aria-label="What changed"><ChainEventNotes notes={notes} onDismiss={onDismiss} /></aside>;
+}
+
 export function Workbench({
   sim, coinName, targetSeconds, autoMine, onAutoMine, repeating = false, autoTransact, onAutoTransact, selectedIndex, held = false, onSelect, healthOpen, onToggleHealth,
-  lastRound, blockMoment = null, onClearBlockMoment, remining, coach, identity, boardRows,
+  lastRound, blockMoment = null, onClearBlockMoment, dismissedNotes, onDismissNote, remining, coach, identity, boardRows,
   onStartDemo, onMine, onPause, onRemine, onTamper, onUndo, onDifficulty, onBack,
   onCreateTransaction, onCreateWallet, onCreateMiner, onRenameMiner, onShare, onOpenMiner, onSlowMotion, onOpenWallet, onOpenDetails, onOpenTransaction, onOpenBlockTx, onOpenChainLab, error
 }) {
@@ -57,23 +71,14 @@ export function Workbench({
   const repair = repairOf(blockStatus, tamperedEdits);
   const keyFigures = keyFiguresOf({ blocks, difficulty, blockReward, halvingInterval, targetSeconds });
   const events = useMemo(() => chainEventsOf({ blocks, difficulty, targetSeconds }), [blocks, difficulty, targetSeconds]);
-  // A rule change explains itself for the block it applies to and the two after it,
-  // unless the learner set it or dismissed the note (web/DESIGN.md, "Key figures").
-  const [dismissed, setDismissed] = useState(() => new Set());
-  const notes = Object.values(events).flat()
-    .filter(event => event.index > height - 3)
-    .map(event => {
-      const note = eventNote(event, { halvingInterval, targetSeconds, coinName });
-      // Keyed by the block it follows, so a reset chain explains its own changes again.
-      return note && { ...note, change: event, motion: blockMoment?.changes.find(change => change.kind === event.kind && change.index === event.index), key: `${note.key}@${blocks[event.index - 1]?.hash}` };
-    })
-    .filter(note => note && !dismissed.has(note.key));
-  const dismissNote = key => setDismissed(current => new Set(current).add(key));
   const nextIndex = blocks.length;
+  const template = blockTemplate ?? { included: memPool.map((_, i) => i), waiting: [], reasons: {}, entries: [], bytes: 0, space: 0, fees: 0 };
+  const repairIndex = busy ? remining : repair?.next;
+  const nextCardCount = repairIndex != null ? Math.max(0, blocks[repairIndex].transactions.length - 1) : template.included.length;
 
   const mode = busy ? 'mining' : fresh ? 'fresh' : repair ? 'repair' : 'idle';
   const candidate = {
-    index: nextIndex, txCount: memPool.length,
+    index: nextIndex, txCount: template.included.length,
     state: busy && remining === null ? 'mining' : repair ? 'paused' : fresh ? 'fresh' : 'idle',
     elapsedMs: miningProgress?.elapsedMs, attempts: miningProgress?.iterations, slow: busy && slowMotion
   };
@@ -108,7 +113,6 @@ export function Workbench({
   });
   // The mempool as the next block's miner sees it: what fits first, in block order, then
   // what waits, the highest fee rate first (blockTemplate in lib/blockchain.js).
-  const template = blockTemplate ?? { included: memPool.map((_, i) => i), waiting: [], reasons: {}, entries: [], bytes: 0, space: 0, fees: 0 };
   const pending = [...template.included, ...template.waiting].map(index => {
     const tx = memPool[index];
     const view = describeTx(tx);
@@ -156,7 +160,7 @@ export function Workbench({
         </SelectedBlockCard>
       </div>
       <div className="wb-next">
-        <NextBlockCard mode={mode} index={busy && remining !== null ? remining : nextIndex} txCount={memPool.length}
+        <NextBlockCard mode={mode} index={repairIndex ?? nextIndex} txCount={nextCardCount}
           reward={blockReward} difficulty={difficulty} onDifficulty={onDifficulty} autoMine={autoMine} onAutoMine={onAutoMine} repeating={repeating}
           onStartDemo={onStartDemo} onMine={onMine} onPause={onPause} onRemine={onRemine}
           repair={repair ? { ...repair, onUndo } : null} miners={miners} race={race} lastRound={lastRound}
@@ -168,7 +172,7 @@ export function Workbench({
         <WalletsCard wallets={wallets} coinName={coinName} onOpenWallet={onOpenWallet} onCreateWallet={onCreateWallet} />
       </div>
       <div className="wb-mempool">
-        <MempoolCard transactions={pending} space={space} nextIndex={nextIndex} mining={busy} participants={participants.map(p => p.name)}
+        <MempoolCard transactions={pending} space={space} nextIndex={nextIndex} mining={busy} remining={remining} participants={participants.map(p => p.name)}
           coinName={coinName} reward={blockReward + pendingFees} onCreateTransaction={onCreateTransaction}
           onPreviewTransaction={previewTransaction} onOpenTransaction={onOpenTransaction}
           autoTransact={autoTransact} onAutoTransact={onAutoTransact}
@@ -178,7 +182,8 @@ export function Workbench({
         <ActivityCard confirmed={confirmed} blockTimes={blockTimes} targetSeconds={targetSeconds} />
       </div>
     </div>
-    {notes.length > 0 && <aside className="wb-notes" aria-label="What changed"><ChainEventNotes notes={notes} onDismiss={dismissNote} /></aside>}
+    <WorkbenchNotes key={blocks[1]?.hash ?? 'fresh'} events={events} blocks={blocks} halvingInterval={halvingInterval}
+      targetSeconds={targetSeconds} coinName={coinName} blockMoment={blockMoment} dismissed={dismissedNotes} onDismiss={onDismissNote} />
     </>
   );
 }
