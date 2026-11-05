@@ -8,6 +8,17 @@ const LIMIT = SEARCH_LIMIT.toLocaleString('en-US');
 const zerosText = n => (n === 1 ? 'one zero' : `${['', 'one', 'two', 'three'][n] ?? n} zeros`);
 
 export const LAB_HINTS = {
+  'lab.text.input': { title: 'Your text', text: 'Exactly this text goes into SHA-256. Letters, spaces and numbers all count. Try adding or changing a number until the hash begins with 0.' },
+  'lab.text.hash': { title: 'SHA-256 hash', text: 'A 64-character fingerprint of the text, using 0–9 and a–f. The same text always gives the same hash. Changing the text scrambles the fingerprint. It is not encrypted text that you can decrypt.' },
+  'lab.text.nonce': { title: 'Nonce', text: 'A number miners change to get another hash. In this text experiment you append it to your name. In a Bitcoin block it has its own field in the header.' },
+  'lab.text.difficulty': { title: 'Difficulty', text: 'How hard a matching hash is to find. Here one leading zero is enough. Each extra zero makes a match about 16 times rarer per attempt, on average.' },
+  'lab.text.proof': { title: 'Your first proof', text: 'The exact text and hash of your first match found by hand. You can check them with any SHA-256 text tool. Reset clears this proof.' },
+  'lab.text.automate': { title: 'Try automatically', text: 'Keep the text, replace a final space and number if present, and try a space followed by 1, 2, 3… The full input stays visible. Stops at a match or 50,000 tries.' },
+  'lab.text.stop': { title: 'Stop trying', text: 'Stop the automated search. The last text tried stays visible, so you can check or edit it by hand.' },
+  'lab.text.harder': { title: 'Try two zeros', text: 'Ask for 00 instead of 0. This changes only the rule: the text and hash stay the same. A match is about 16 times rarer per attempt.' },
+  'lab.text.headers': { title: 'Continue to block mining', text: 'Explore the same search idea with a Bitcoin block header: fixed fields plus a changing nonce, hashed twice with SHA-256. This isolated experiment does not mine real coins.' },
+  'lab.text.reset': { title: 'Reset text experiment', text: 'Clear your text and first proof, stop the search and return to a one-zero target. Nothing changes in the simulator.' },
+  'lab.text.back': { title: 'Back to text hashing', text: 'Return to the simple text experiment. A running block-header search stops. The simulator stays unchanged.' },
   // ---------- shared ----------
   'lab.back': { title: 'Back to simulator', text: 'Leave the lab and return to the simulator. A running search stops. Nothing you did in the lab changed the simulator’s chain or wallets.' },
 

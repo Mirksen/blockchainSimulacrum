@@ -187,7 +187,7 @@ decision, 2026-10-27):
   experiments become missions; the learning path dialog goes away. A
   mission names the view it needs, switches to that tab and marks the
   element with the coach ring. Track:
-  1. Change a fingerprint (Hash lab)
+  1. Mine by hand (Hash lab)
   2. Earn a proof of work (Hash lab)
   3. Send your first coin (Workbench)
   4. Win a mining race (Workbench)
@@ -436,6 +436,20 @@ decision, 2026-10-27):
   the active mission is expanded with its steps, a hint and its reward.
 - When missions are open, the current step **marks the element it needs
   with a coach ring** and a small label ("Step 3 · back Hal").
+
+### Text hashing before block headers
+
+Hash lab opens with a plain UTF-8 text input and its single SHA-256 hash. The
+visible input is the entire preimage, matching ordinary SHA-256 text tools.
+The first challenge asks for one leading zero: type a name, then append or
+change a number by hand. A successful edit reveals the first proof, explains
+nonce and difficulty, and offers automatic attempts and a two-zero target.
+Changing this target does not change the hash. The original proof stays visible;
+Continue completes the first mission only after a real manual match. Text and
+proof remain only in the mounted experiment; neither goes to analytics or the board.
+Reset clears them, and leaving stops a search. Block-header mining remains a
+separate experiment, with the Bitcoin-format double hash explicitly explained.
+Free play may open it directly. Previously completed missions remain completed.
 
 ## Interaction patterns
 

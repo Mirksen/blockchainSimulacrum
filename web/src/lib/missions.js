@@ -4,7 +4,7 @@
 // to load() and save().
 //
 // Events (all plain objects with a `type`):
-//   Labs:      hash_changed, work_found {difficulty, attempts},
+//   Labs:      manual_hash_found {hash}, work_found {difficulty, attempts},
 //              chain_checked {consistent, changedFirstBlock}, lesson_reset
 //   Workbench: transaction_created, miner_backed {name}, block_mined {backedWon, epoch},
 //              block_tampered {blockIndex}, block_remined {blockIndex, chainValid}, edit_undone,
@@ -26,12 +26,12 @@ const freeze = value => {
 
 export const MISSIONS = freeze([
   {
-    id: 'change-fingerprint', title: 'Change a fingerprint', view: 'hash-lab',
+    id: 'change-fingerprint', title: 'Mine by hand', view: 'hash-lab',
     steps: [
-      { id: 'change-message', text: 'Change the message. Watch which characters in its hash change.', target: 'hash-lab.message' }
+      { id: 'change-message', text: 'Type your name. Change or add a number until its hash starts with 0, then continue.', target: 'hash-lab.message' }
     ],
-    hint: 'Change one letter. See how much of the fingerprint changes.',
-    result: 'A small input change produces a different fingerprint. Put the original message back and its hash returns: hashing is repeatable.',
+    hint: 'Try your name, your name 1, your name 2… The hash is calculated from exactly your text.',
+    result: 'You found text whose hash starts with 0: proof of work by hand. The same text always gives the same hash. Finding a match takes trying; checking it needs just one hash.',
     reward: { xp: 20 }
   },
   {
@@ -125,7 +125,7 @@ const isCount = value => Number.isSafeInteger(value) && value > 0;
 // ignore the event. step === steps.length completes the mission.
 const RULES = {
   'change-fingerprint': {
-    advance: (step, data, event) => event.type === 'hash_changed' ? { step: 1, data } : null
+    advance: (step, data, event) => event.type === 'manual_hash_found' && /^0[0-9a-f]{63}$/.test(event.hash) ? { step: 1, data } : null
   },
   'earn-proof-of-work': {
     advance(step, data, event) {

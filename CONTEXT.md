@@ -118,8 +118,10 @@ Terms used in code, tests and docs of proofofwork.fyi. Decisions that shape them
 
 ## Labs
 
+- **Text hashing** — the first Hash lab experiment hashes exactly the visible UTF-8 text once with SHA-256. A manual edit finding a leading zero earns a first proof; Continue completes the first mission. Automatic tries reuse the text search, with a visible space and number appended. It is separate from Bitcoin block-header hashing.
+
 - **Hash lab / chain lab / learning path** — isolated experiments with their own temporary state;
-  they never change the simulator chain or wallets. They hash real 80-byte headers: the learner's
+  they never change the simulator chain or wallets. The block-header and chain experiments hash real 80-byte headers: the learner's
   text stands in for the transactions, its double SHA-256 is the merkle root, and a fixed clock
   keeps results dependent only on what the learner types.
 

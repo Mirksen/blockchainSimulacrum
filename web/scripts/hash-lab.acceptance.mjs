@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { verifyTextHashLab } from './text-hash.acceptance.mjs';
 import { join } from 'node:path';
 import { headerHash, labHeader, openTab, settle, snapshot } from './workbench.helpers.mjs';
 
@@ -9,7 +10,9 @@ const hashName = async lab => lab.getByRole('img', { name: /^Double SHA-256 hash
 
 // Run in the app's browser acceptance session in free play, with mining stopped.
 export async function verifyHashLab(page, output, before) {
+  const textResults = await verifyTextHashLab(page, output);
   await openTab(page, 'Hash lab');
+  await page.getByRole('button', { name: 'Explore block headers', exact: true }).click();
   const lab = page.locator('section.hash-lab');
   await lab.waitFor();
   assert.match(page.url(), /#\/hash-lab$/);
@@ -62,8 +65,9 @@ export async function verifyHashLab(page, output, before) {
   await lab.waitFor({ state: 'hidden' });
   assert.deepEqual(await snapshot(page), before, 'The hash lab leaves the chain and wallets untouched');
   await openTab(page, 'Hash lab');
+  await page.getByRole('button', { name: 'Explore block headers', exact: true }).click();
   assert.equal(await hashName(lab), `Double SHA-256 hash: ${initialHash}`, 'Reopening restores the sample');
   await openTab(page, 'Workbench');
-  return ['Hash lab fingerprints and exact search result verified', 'Lab keyboard Stop and reset verified',
+  return [...textResults, 'Hash lab fingerprints and exact search result verified', 'Lab keyboard Stop and reset verified',
     'Lab fits five widths with long input; leaving preserves chain and wallet state'];
 }

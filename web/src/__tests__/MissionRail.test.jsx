@@ -146,7 +146,7 @@ describe('mission bar', () => {
 
   it('closes the sheet with its close button and on Escape', () => {
     render(<MissionRail progress={MISSION_1} variant="bar" />);
-    fireEvent.click(screen.getByRole('button', { name: /^Mission 1, Change a fingerprint, 0 of 1 steps/ }));
+    fireEvent.click(screen.getByRole('button', { name: /^Mission 1, Mine by hand, 0 of 1 steps/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Close missions' }));
     expect(screen.queryByRole('dialog')).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: /^Mission 1/ }));

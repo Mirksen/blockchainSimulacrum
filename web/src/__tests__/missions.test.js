@@ -6,7 +6,7 @@ import {
 
 // Event sequences that complete each mission from its first step.
 const COMPLETE = {
-  'change-fingerprint': [{ type: 'hash_changed' }],
+  'change-fingerprint': [{ type: 'manual_hash_found', hash: '0' + 'a'.repeat(63) }],
   'earn-proof-of-work': [{ type: 'work_found', difficulty: 1, attempts: 7 }, { type: 'work_found', difficulty: 2, attempts: 301 }],
   'send-first-coin': [{ type: 'transaction_created' }],
   'win-mining-race': [{ type: 'miner_backed', name: 'Minas' }, { type: 'block_mined', backedWon: false, epoch: 0 },
@@ -37,7 +37,7 @@ const memoryStorage = (initial = {}) => {
 describe('mission track', () => {
   it('lists the nine missions in the design order with steps, targets and rewards', () => {
     expect(MISSIONS.map(mission => mission.title)).toEqual([
-      'Change a fingerprint', 'Earn a proof of work', 'Send your first coin', 'Win a mining race', 'Change the past',
+      'Mine by hand', 'Earn a proof of work', 'Send your first coin', 'Win a mining race', 'Change the past',
       'Forge a block without getting caught', 'Survive a halving', 'Beat the difficulty adjustment', 'Follow the stronger chain'
     ]);
     expect(MISSIONS.map(mission => mission.view)).toEqual(['hash-lab', 'hash-lab', 'workbench', 'workbench', 'chain-lab',
@@ -68,10 +68,19 @@ describe('mission track', () => {
     expect(activeMission(progress).id).toBe('change-fingerprint');
     expect(MISSIONS.map(mission => missionStatus(progress, mission.id))).toEqual(['active', ...Array(8).fill('locked')]);
     // Events for later missions do nothing while mission 1 is active.
-    expect(apply(progress, ALL_EVENTS.filter(event => event.type !== 'hash_changed'))).toBe(progress);
-    const second = reduce(progress, { type: 'hash_changed' });
+    expect(apply(progress, ALL_EVENTS.filter(event => event.type !== 'manual_hash_found'))).toBe(progress);
+    const second = reduce(progress, { type: 'manual_hash_found', hash: '0' + 'a'.repeat(63) });
     expect(MISSIONS.slice(0, 3).map(mission => missionStatus(second, mission.id))).toEqual(['done', 'active', 'locked']);
     expect(missionStatus(second, 'no-such-mission')).toBe('locked');
+  });
+
+  it('requires a valid manual proof and never completes on a text edit alone', () => {
+    const progress = initialProgress();
+    for (const event of [{ type: 'hash_changed' }, { type: 'manual_hash_found' },
+      { type: 'manual_hash_found', hash: 'a'.repeat(64) }, { type: 'manual_hash_found', hash: '0' },
+      { type: 'manual_hash_found', hash: '0' + 'g'.repeat(63) }, { type: 'work_found', difficulty: 1, attempts: 2 }]) {
+      expect(reduce(progress, event)).toBe(progress);
+    }
   });
 
   it('completes every mission through its event sequence and derives XP and badges', () => {

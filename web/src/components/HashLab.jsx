@@ -1,4 +1,5 @@
-import { useEffect, useReducer, useRef } from 'react';
+import { useEffect, useReducer, useRef, useState } from 'react';
+import { TextHashLab } from './TextHashLab';
 import { changedPositions, createTrial, findNonce, INITIAL_MESSAGE, meetsTarget, parseNonce, SEARCH_LIMIT } from '../lib/hashLab';
 import { CoachMark } from './workbench/CoachMark';
 import { HeaderBytes } from './HeaderBytes';
@@ -57,7 +58,7 @@ function SearchComparison({ comparison }) {
   </section>;
 }
 
-export function HashLab({ onClose, lesson, onLessonEvent, coach = null, workComparison = null, onWorkComparison }) {
+export function BlockHeaderLab({ onClose, lesson, onLessonEvent, coach = null, workComparison = null, onWorkComparison }) {
   const [state, dispatch] = useReducer(reducer, { difficulty: lesson === 'work' ? 1 : 2, comparison: workComparison }, initialState);
   const activeSearch = useRef(null);
   useEffect(() => () => activeSearch.current?.abort(), []);
@@ -187,4 +188,17 @@ export function HashLab({ onClose, lesson, onLessonEvent, coach = null, workComp
       <p>Blocks in the simulator use the same 80 bytes with a real merkle root and the previous block’s hash. Your lab experiments never change the chain.</p>
     </details>
   </section>;
+}
+
+// Text comes first; Bitcoin's header is a separate, explicit next experiment.
+export function HashLab(props) {
+  const [headers, setHeaders] = useState(Boolean(props.workComparison));
+  if (props.lesson === 'hash' || (!props.lesson && !headers)) {
+    return <TextHashLab {...props} onHeaders={() => setHeaders(true)} />;
+  }
+  return <>
+    {!props.lesson && <button className="btn btn-transparent hash-lab-text-back" {...hint('lab.text.back')}
+      onClick={() => setHeaders(false)}>Back to text hashing</button>}
+    <BlockHeaderLab {...props} />
+  </>;
 }

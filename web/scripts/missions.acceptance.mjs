@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { join } from 'node:path';
 import { menu, openTab, settle, workbench } from './workbench.helpers.mjs';
 import { MISSIONS, earnedBadges, totalXp } from '../src/lib/missions.js';
@@ -16,9 +17,14 @@ export async function verifyMissions(page, output) {
   // Mission 1: Show me switches to the hash lab lesson and marks the message.
   await showMe().click();
   await page.waitForURL(/#\/hash-lab$/);
-  await page.getByRole('heading', { name: 'Small change. New fingerprint.' }).waitFor();
+  await page.getByRole('heading', { name: 'Mine by hand', exact: true }).waitFor();
   await activeCoach('hash-lab.message').waitFor();
-  await page.getByLabel('Message', { exact: true }).fill('Hello, block?');
+  let trial = 'Learner A';
+  for (let number = 1; !createHash('sha256').update(trial).digest('hex').startsWith('0'); number++) trial = `Learner A ${number}`;
+  await page.getByLabel('Your text', { exact: true }).fill(trial);
+  await page.getByRole('heading', { name: 'You mined by hand' }).waitFor();
+  assert.equal(await done(0).count(), 1, 'The manual result stays visible until Continue');
+  await page.getByRole('button', { name: 'Continue to block mining', exact: true }).click();
   await done(1).waitFor();
 
   // Mission 2 runs in the same tab: a fixed message and two searches from nonce 0.
