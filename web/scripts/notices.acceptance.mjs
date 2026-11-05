@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { join } from 'node:path';
-import { menu, workbench } from './workbench.helpers.mjs';
+import { menu, settle, workbench } from './workbench.helpers.mjs';
 
 // Real Chrome pointer interaction and signed blocks; virtual time covers the deadline.
 export async function verifyNoticeLifetime(browser, baseURL, output) {
@@ -41,6 +41,7 @@ export async function verifyNoticeLifetime(browser, baseURL, output) {
     await page.getByRole('link', { name: 'Workbench', exact: true }).click();
     assert.equal(await page.getByRole('complementary', { name: 'What changed' }).count(), 0, 'Lab navigation does not revive an expired note');
     await page.setViewportSize({ width: 390, height: 844 });
+    await settle(page);
     await page.screenshot({ path: join(output, 'notice-expired-phone.png'), fullPage: true });
     await page.reload();
     await wb.mine(3).waitFor();
@@ -101,6 +102,7 @@ export async function verifyFeeMarketCounts(browser, baseURL, output) {
     assert.equal(await mempool.locator('.mempool-card-tx.is-waiting').count(), 3);
     await page.screenshot({ path: join(output, 'fee-market-mining-desktop.png') });
     await page.setViewportSize({ width: 390, height: 844 });
+    await settle(page);
     assert.ok((await mempool.innerText()).includes('8 pending · 3 waiting'), 'The queue counts remain visible on phones');
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'Fee-market view fits the phone');
     await page.screenshot({ path: join(output, 'fee-market-mining-phone.png'), fullPage: true });
