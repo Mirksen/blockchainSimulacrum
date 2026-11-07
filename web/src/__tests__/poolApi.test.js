@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { getChallenge, getLeaderboard, getMiner, isValidPoolName, POOL_TIMEOUT_MS, submitProof } from '../lib/poolApi';
+import { getChallenge, getLeaderboard, getMiner, getRounds, isValidPoolName, POOL_TIMEOUT_MS, submitProof } from '../lib/poolApi';
 import { GENESIS, proofPrefix } from '../lib/poolProof';
 
 const BASE = 'https://api.proofofwork.fyi';
@@ -259,5 +259,28 @@ describe('pool API client', () => {
   it('validates names like the server', () => {
     for (const name of ['abc', 'test-miner', 'A1-b2', 'x'.repeat(20)]) expect(isValidPoolName(name)).toBe(true);
     for (const name of ['ab', 'x'.repeat(21), 'with space', 'emoji🙂', 'under_score', '', null]) expect(isValidPoolName(name)).toBe(false);
+  });
+});
+
+
+describe('finished rounds and retained summaries', () => {
+  it('accepts bounded history and rejects malformed or foreign answers', async () => {
+    const item = { name: NAME, round: ROUND, bestHash: row().bestHash, bestZeros: 5, proofs: 3, miners: 1 };
+    fetchMock.mockResolvedValue(answer({ genesisHash: GENESIS.hash, rounds: [item] }));
+    expect(await getRounds()).toEqual([item]);
+    for (const body of [null, { genesisHash: OTHER_GENESIS, rounds: [] },
+      { genesisHash: GENESIS.hash, rounds: Array(21).fill(item) },
+      ...[{ proofs: -1 }, { miners: 0 }, { round: null }, { bestHash: 'bad' }, { name: 'a b' }].map(bad => ({ genesisHash: GENESIS.hash, rounds: [{ ...item, ...bad }] }))]) {
+      fetchMock.mockResolvedValue(answer(body));
+      await refusal(getRounds());
+    }
+  });
+  it('validates summaries independently of displayed rounds', async () => {
+    const summary = { allTime: { bestHash: row().bestHash, bestZeros: 5, proofs: 300, rounds: 250 }, window: null };
+    const miner = { name: NAME, rank: { window: null, allTime: 2 }, blocks: [], summary };
+    fetchMock.mockResolvedValue(answer(miner));
+    expect((await getMiner(NAME)).summary).toEqual(summary);
+    fetchMock.mockResolvedValue(answer({ ...miner, summary: { ...summary, allTime: { ...summary.allTime, proofs: -1 } } }));
+    await refusal(getMiner(NAME));
   });
 });

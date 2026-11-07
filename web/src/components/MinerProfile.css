@@ -28,7 +28,7 @@
 .miner-profile .miner-profile-hash { overflow-wrap: anywhere; }
 .miner-profile-zero { color: var(--green); font-weight: 600; }
 .miner-profile-rounds-title { margin: 20px 0 8px; font-size: 15px; }
-.miner-profile-table { max-width: 100%; overflow-x: auto; }
+.miner-profile-table { position: relative; max-width: 100%; overflow-x: auto; }
 .miner-profile table { width: 100%; border-collapse: collapse; font-size: 14px; }
 .miner-profile th, .miner-profile td { padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--line); vertical-align: baseline; }
 .miner-profile th { font-size: 12px; font-weight: 600; color: var(--text-2); }

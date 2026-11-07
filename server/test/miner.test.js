@@ -43,6 +43,7 @@ describe('miner profile', () => {
     assert.equal(status, 200);
     assert.equal(headers.get('cache-control'), 'no-store');
     assert.equal(body.name, 'profile-miner');
+    assert.deepEqual(body.summary, { allTime: { bestHash: hashOf('0001'), bestZeros: 3, proofs: 8, rounds: 3 }, window: { bestHash: hashOf('03'), bestZeros: 1, proofs: 7, rounds: 2 } });
     assert.deepEqual(body.rank, { window: 3, allTime: 2 });
     assert.deepEqual(body.blocks.map((b) => [b.round.height, b.bestHash, b.proofs, b.inWindow]), [
       [ROUND_C.height, hashOf('03'), 2, true],
@@ -59,6 +60,7 @@ describe('miner profile', () => {
       difficulty: hashDifficulty(hashOf('03')),
       proofs: 2,
       foundAt: T0 + 3000,
+      rank: 2,
       inWindow: true,
     });
   });
@@ -96,6 +98,7 @@ describe('miner profile', () => {
       difficulty: hashDifficulty(proof.hash),
       proofs: 1,
       foundAt: T0 + 9000,
+      rank: 1,
       inWindow: true,
     }]);
   });
@@ -156,6 +159,8 @@ describe('miner profile', () => {
     const { body } = await getMiner(srv, 'many-rounds');
     assert.equal(MINER_ROUNDS, 200);
     assert.equal(body.blocks.length, MINER_ROUNDS);
+    assert.equal(body.summary.allTime.rounds, MINER_ROUNDS + 5);
+    assert.equal(body.summary.allTime.proofs, MINER_ROUNDS + 5);
     assert.deepEqual([body.blocks[0].round.height, body.blocks.at(-1).round.height], [800000 + MINER_ROUNDS + 5, 800006]);
   });
 
