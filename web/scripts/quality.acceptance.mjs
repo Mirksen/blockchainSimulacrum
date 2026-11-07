@@ -24,20 +24,48 @@ try {
     assert.ok(ready, `Preview did not start: ${log}`);
   }
   browser = await chromium.launch({ channel: 'chrome', headless: true });
-  for (const width of [360, 1512]) {
-    const context = await browser.newContext({ viewport: { width, height: 860 }, reducedMotion: 'reduce' });
+  for (const [width, height] of [[360, 860], [1512, 860], [390, 320]]) {
+    const context = await browser.newContext({ viewport: { width, height }, reducedMotion: 'reduce' });
     await context.route(/^https:\/\/(eu\.i\.posthog\.com|api\.proofofwork\.fyi)\//, route => route.abort('connectionrefused'));
     const page = await context.newPage();
+    // Browser instrumentation runs before navigation, including on production's
+    // script-src 'self' pages. Keep the application's CSP enforced.
+    await page.addInitScript({ path: require.resolve('axe-core/axe.min.js') });
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));
+    const verifyNoticeFocus = async () => {
+      if (!await page.getByRole('region', { name: 'This site counts usage', exact: true }).count()) return;
+      await page.getByRole('button', { name: 'Reset text experiment', exact: true }).focus();
+      for (const key of [null, 'Tab', 'Shift+Tab']) {
+        if (key) await page.keyboard.press(key);
+        await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+        assert.equal(await page.evaluate(() => {
+          const a = document.activeElement.getBoundingClientRect(), b = document.querySelector('.usage-consent').getBoundingClientRect();
+          return a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
+        }), false, 'Usage notice must not cover the focused lab action');
+      }
+      for (const name of ['Opt out', 'OK']) {
+        assert.ok(await page.getByRole('button', { name, exact: true }).evaluate(button => {
+          const a = button.getBoundingClientRect(), b = button.closest('.usage-consent').getBoundingClientRect();
+          return a.top >= b.top && a.bottom <= b.bottom && a.top >= 0 && a.bottom <= innerHeight;
+        }), `${name} must stay visible on the notice`);
+      }
+    };
     const audit = async label => {
-      await page.addScriptTag({ path: require.resolve('axe-core/axe.min.js') });
       const violations = await page.evaluate(async () => (await globalThis.axe.run(document, {
         runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa'] }
       })).violations.map(v => ({ id: v.id, targets: v.nodes.map(node => node.target) })));
       assert.deepEqual(violations, [], `${label} ${width}px`);
       assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `${label}: horizontal overflow`);
     };
+    if (height === 320) {
+      await page.goto(`${base}/#/hash-lab`);
+      await page.getByRole('button', { name: 'Reset text experiment', exact: true }).waitFor();
+      await verifyNoticeFocus();
+      assert.deepEqual(errors, []);
+      await context.close();
+      continue;
+    }
     for (const route of ['', '#/hash-lab', '#/chain-lab']) {
       await page.goto(`${base}/${route}`);
       await page.getByRole('main').waitFor();
@@ -47,6 +75,7 @@ try {
       await page.keyboard.press('Enter');
       assert.equal(await page.evaluate(() => document.activeElement.id), 'workbench');
       assert.equal(await page.getByRole('main').getAttribute('aria-label'), view);
+      if (route === '#/hash-lab') await verifyNoticeFocus();
       for (const theme of ['dark', 'light']) {
         await page.evaluate(theme => document.documentElement.setAttribute('data-theme', theme), theme);
         await audit(`${route || 'workbench'} ${theme}`);
