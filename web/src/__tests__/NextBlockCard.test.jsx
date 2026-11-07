@@ -423,6 +423,19 @@ describe('NextBlockCard miner popover', () => {
 });
 
 describe('NextBlockCard M key', () => {
+  it('can disable single-letter mining shortcuts while retaining the button', () => {
+    localStorage.setItem('proofofwork-mining-shortcut', '0');
+    try {
+      const onMine = vi.fn();
+      render(<NextBlockCard {...base} mode="idle" lastRound={lastRound} onMine={onMine} />);
+      const button = screen.getByRole('button', { name: 'Mining' });
+      expect(button.hasAttribute('aria-keyshortcuts')).toBe(false);
+      fireEvent.keyDown(document.body, { key: 'm' });
+      expect(onMine).not.toHaveBeenCalled();
+      fireEvent.click(button);
+      expect(onMine).toHaveBeenCalledTimes(1);
+    } finally { localStorage.removeItem('proofofwork-mining-shortcut'); }
+  });
   const pressM = (target = document.body, options = {}) => fireEvent.keyDown(target, { key: 'm', ...options });
   it('mines between races, like the button that announces it', () => {
     const onMine = vi.fn();

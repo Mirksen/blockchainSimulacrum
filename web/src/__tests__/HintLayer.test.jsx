@@ -76,6 +76,18 @@ describe('HintLayer', () => {
 });
 
 describe('hints catalog', () => {
+  it('lets the pointer cross into the explaining bubble and dismisses it with Escape', () => {
+    render(<Page />);
+    fireEvent.pointerOver(backHal(), { pointerType: 'mouse' });
+    act(() => vi.advanceTimersByTime(400));
+    const bubble = screen.getByRole('tooltip');
+    fireEvent.pointerOut(backHal(), { pointerType: 'mouse', relatedTarget: bubble });
+    fireEvent.pointerOver(bubble, { pointerType: 'mouse', relatedTarget: backHal() });
+    act(() => vi.advanceTimersByTime(500));
+    expect(screen.getByRole('tooltip')).toBe(bubble);
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.queryByRole('tooltip')).toBeNull();
+  });
   it('throws on an unknown key, so a typo fails its component test', () => {
     expect(() => hint('no.such-hint')).toThrow(/Unknown hint/);
   });

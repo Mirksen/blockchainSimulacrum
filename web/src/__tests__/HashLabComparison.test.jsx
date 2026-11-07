@@ -73,6 +73,7 @@ describe('measured work-lesson comparison', () => {
     localStorage.setItem('proofofwork-rail-collapsed', '0');
     history.replaceState(null, '', '/#/hash-lab');
     render(<App />);
+    await act(async () => { await vi.dynamicImportSettled(); await vi.advanceTimersByTimeAsync(0); });
     expect(screen.getByRole('heading', { name: 'Same message. A stricter target.' })).toBeTruthy();
     await find(1);
     const first = row('One zero').textContent;

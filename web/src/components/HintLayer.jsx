@@ -90,16 +90,26 @@ export function HintLayer() {
     };
     const onPointerOver = event => {
       if (event.pointerType === 'touch') return;
+      if (bubbleRef.current?.contains(event.target)) { clearTimeout(s.timer); s.timer = null; return; }
       const target = targetOf(event.target);
       if (!target || target === s.target || target === s.suppressed) return;
       schedule(target);
     };
     const onPointerOut = event => {
       if (event.pointerType === 'touch') return;
+      const bubble = bubbleRef.current;
+      if (bubble?.contains(event.relatedTarget)) return;
+      if (bubble?.contains(event.target)) {
+        if (!s.target?.contains(event.relatedTarget)) hide();
+        return;
+      }
       const from = targetOf(event.target);
       if (!from || from.contains(event.relatedTarget)) return;
       if (from === s.suppressed) s.suppressed = null;
-      if (from === s.target || !s.target) hide();
+      if (from === s.target || !s.target) {
+        if (from.closest('.top-bar-menu')) { clearTimeout(s.timer); s.timer = setTimeout(hide, 200); }
+        else hide();
+      }
     };
     const onFocusIn = event => {
       const target = targetOf(event.target);
@@ -171,13 +181,28 @@ export function HintLayer() {
     const viewW = document.documentElement.clientWidth || window.innerWidth;
     const viewH = window.innerHeight;
     const below = rect.bottom + GAP + height <= viewH - EDGE || rect.top - GAP - height < EDGE;
-    const top = below ? rect.bottom + GAP : rect.top - GAP - height;
+    let top = below ? rect.bottom + GAP : rect.top - GAP - height;
     const center = rect.left + rect.width / 2;
-    const left = Math.max(EDGE, Math.min(center - width / 2, viewW - EDGE - width));
+    let left = Math.max(EDGE, Math.min(center - width / 2, viewW - EDGE - width));
+    let side = below ? 'below' : 'above';
+    // A menu explanation must leave the other actions clickable. On narrow
+    // screens it sits below the menu; on a desktop it sits beside it.
+    const menu = shown.target.closest('.top-bar-menu')?.getBoundingClientRect();
+    if (menu) {
+      if (menu.left - GAP - width >= EDGE) {
+        left = menu.left - GAP - width;
+        top = Math.max(EDGE, Math.min(rect.top, viewH - EDGE - height));
+        side = 'left';
+      } else {
+        const underMenu = menu.bottom + GAP + height <= viewH - EDGE;
+        top = underMenu ? menu.bottom + GAP : Math.max(EDGE, menu.top - GAP - height);
+        side = underMenu ? 'below' : 'above';
+      }
+    }
     bubble.style.top = `${Math.round(top)}px`;
     bubble.style.left = `${Math.round(left)}px`;
     bubble.style.setProperty('--hint-arrow', `${Math.round(Math.max(12, Math.min(center - left, width - 12)))}px`);
-    bubble.dataset.side = below ? 'below' : 'above';
+    bubble.dataset.side = side;
   }, [shown]);
 
   // Every way out of explain mode starts with a tap (which closes the bubble) or Escape.

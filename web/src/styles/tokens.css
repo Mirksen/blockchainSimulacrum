@@ -27,8 +27,8 @@
   /* text */
   --text: #e7edf8;
   --text-2: #a3b2cf;
-  --text-3: #6c7d9e;
-  --on-accent: #ffffff;
+  --text-3: #8293b3;
+  --on-accent: #0b1220;
   --on-light: #0b1220;
 
   /* action */
@@ -153,7 +153,7 @@ html[data-theme="light"] {
   --focus: #2459e0;
 
   /* status */
-  --green: #047857;
+  --green: #046c50;
   --green-bg: rgba(4, 120, 87, 0.10);
   --green-line: rgba(4, 120, 87, 0.35);
   --amber: #9a5800;

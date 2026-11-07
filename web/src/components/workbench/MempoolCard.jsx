@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { DEFAULT_FEE_RATE, FEE_RATES } from '../../lib/blockchain';
 import { CoachMark } from './CoachMark';
 import { RepeatToggle } from './RepeatToggle';
@@ -147,6 +147,8 @@ export function MempoolCard({
   onCreateTransaction, onPreviewTransaction, onOpenTransaction, autoTransact = false, onAutoTransact, newTxGlow = false, coach = null
 }) {
   const [open, setOpen] = useState(false);
+  const trigger = useRef(null);
+  const closeForm = () => { setOpen(false); trigger.current?.focus(); };
   const names = participants.map(p => (typeof p === 'string' ? p : p.name)).filter(Boolean);
   const pending = transactions.length;
   const selecting = mining && remining === null;
@@ -163,7 +165,7 @@ export function MempoolCard({
           : space && space.included < space.total ? `${space.included} of ${space.total} fit into #${nextIndex}` : `goes into #${nextIndex}`}</span>
         <div className="mempool-card-action" role="group" aria-label="Transaction controls">
           <CoachMark target="workbench.new-transaction" coach={coach} className="mempool-card-coach">
-            <button type="button" className={`btn-tinted${open ? ' is-open' : newTxGlow ? '' : ' is-quiet'}`}
+            <button ref={trigger} type="button" className={`btn-tinted${open ? ' is-open' : newTxGlow ? '' : ' is-quiet'}`}
               aria-expanded={open ? 'true' : 'false'} aria-controls={open ? 'mempool-card-form' : undefined}
               {...hint('mempool.new')} onClick={() => setOpen(value => !value)}>
               <PlusIcon />New transaction
@@ -172,7 +174,7 @@ export function MempoolCard({
           <RepeatToggle name="Auto-transact" pressed={autoTransact} onToggle={onAutoTransact} hint={hint('mempool.auto', autoTransact)} />
         </div>
       </div>
-      {open && <NewTransactionForm names={names} coinName={coinName} onCreate={onCreateTransaction} onPreview={onPreviewTransaction} onClose={() => setOpen(false)} />}
+      {open && <NewTransactionForm names={names} coinName={coinName} onCreate={onCreateTransaction} onPreview={onPreviewTransaction} onClose={closeForm} />}
       {space && pending > 0 && <BlockSpace space={space} nextIndex={nextIndex} />}
       <ul className="mempool-card-list" aria-label="Pending transactions">
         {pending === 0 && (

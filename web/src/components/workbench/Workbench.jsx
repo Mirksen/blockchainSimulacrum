@@ -122,14 +122,25 @@ export function Workbench({
   });
   const space = { bytes: template.bytes, capacity: template.space, included: template.included.length, total: memPool.length };
   const pendingFees = template.fees / 1e8;
-  const confirmed = blocks.slice(1).reverse().flatMap((b, i) => {
-    const index = height - i;
-    return b.transactions.map(tx => {
-      const view = describeTx(tx);
-      return { blockIndex: index, label: `${view.coinbase ? 'Coinbase' : view.from} → ${view.to}`, amount: view.amount };
-    });
-  }).slice(0, 12);
-  const blockTimes = views.slice(1).reverse().filter(v => v.seconds !== null).map(v => ({ index: v.index, seconds: v.seconds })).slice(0, 8);
+  const confirmed = useMemo(() => {
+    const recent = [];
+    for (let index = blocks.length - 1; index > 0 && recent.length < 12; index--) {
+      for (const tx of blocks[index].transactions) {
+        const view = describeTx(tx);
+        recent.push({ blockIndex: index, label: `${view.coinbase ? 'Coinbase' : view.from} → ${view.to}`, amount: view.amount });
+        if (recent.length === 12) break;
+      }
+    }
+    return recent;
+  }, [blocks, describeTx]);
+  const blockTimes = useMemo(() => {
+    const recent = [];
+    for (let index = views.length - 1; index > 0 && recent.length < 8; index--) {
+      const view = views[index];
+      if (view.seconds !== null) recent.push({ index: view.index, seconds: view.seconds });
+    }
+    return recent;
+  }, [views]);
   const workbenchCoach = coach?.view === 'workbench' ? coach : null;
   const selectedTransactions = selectedBlock ? (blocks[selected]?.transactions ?? []).map(describeTx) : [];
   const repairOrder = repair && !repair.undoOnly ? repair.order : [];

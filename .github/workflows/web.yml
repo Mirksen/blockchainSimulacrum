@@ -32,6 +32,7 @@ jobs:
       # Safari on iPhone runs WebKit; the Chrome acceptance above does not see its layout.
       # Uses the build from test:browser.
       - run: npx playwright install --with-deps webkit
+      - run: node scripts/quality.acceptance.mjs
       - run: node scripts/webkit-layout.mjs
       # The reference views (web/DESIGN.md, "Rebuild") for review on every PR.
       - uses: actions/upload-artifact@v7.0.2
@@ -89,3 +90,6 @@ jobs:
         env:
           BASE_URL: https://proofofwork.fyi
           EXPECT_POSTHOG: '1'
+      - run: node scripts/quality.acceptance.mjs
+        env:
+          BASE_URL: https://proofofwork.fyi

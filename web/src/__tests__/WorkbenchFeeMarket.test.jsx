@@ -42,6 +42,19 @@ function view(chain, isMining = false) {
 const props = { coinName: 'FixtureCoin', targetSeconds: 10, selectedIndex: null, remining: null };
 
 describe('workbench fee-market counts', () => {
+  it('describes only the visible activity tail, and reuses it during mining progress', () => {
+    const chain = createBlockchain({ participants: ['Miner Fixture'], miners: ['Miner Fixture'], miningDifficulty: 1 });
+    for (let i = 0; i < 40; i++) mine(chain);
+    const sim = view(chain);
+    const original = sim.describeTx;
+    sim.describeTx = vi.fn(original);
+    const { rerender } = render(<Workbench {...props} selectedIndex={0} sim={sim} />);
+    // The selected genesis is separate; Activity needs at most its 12 visible payments.
+    expect(sim.describeTx.mock.calls.filter(([tx]) => tx !== chain.blockArray[0].transactions[0]).length).toBeLessThanOrEqual(12);
+    sim.describeTx.mockClear();
+    rerender(<Workbench {...props} selectedIndex={0} sim={{ ...sim, isMining: true, miningProgress: { iterations: 100, elapsedMs: 50 } }} />);
+    expect(sim.describeTx.mock.calls.filter(([tx]) => tx !== chain.blockArray[0].transactions[0])).toHaveLength(0);
+  });
   it('shows five candidate payments before and during mining, with eight still pending', () => {
     const chain = fundedBatch();
     const { rerender } = render(<Workbench {...props} sim={view(chain)} />);

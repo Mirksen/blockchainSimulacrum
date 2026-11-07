@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { headerFields, le } from '../../../../shared/bitcoin-block.mjs';
 import { MAX_SHARE, MIN_SHARE } from '../../lib/blockchain';
 import { COUNT_ZEROS, SLOW_MS } from '../../lib/powSearch';
@@ -249,10 +249,17 @@ export function MinerDrawer({ miner, miners, progress, difficulty, isMining, win
 // The popover under a race lane: share, a few attempts, the way to the drawer. `children`
 // carries what only the card knows (the name field between races).
 export function MinerPopover({ miner, miners, progress, difficulty, onShare, onOpenDetails, onClose, children }) {
+  const root = useRef(null);
+  useLayoutEffect(() => {
+    const opener = document.activeElement;
+    const element = root.current;
+    element.querySelector('input, button')?.focus();
+    return () => { if (element.contains(document.activeElement) && opener?.isConnected) opener.focus(); };
+  }, []);
   const rate = rateOf(progress);
   const racing = miners.some(m => m.name === miner.name);
   return (
-    <div className="miner-pop" role="group" aria-label={`Miner ${miner.name}`} style={{ '--miner-color': minerColor(miner) }}
+    <div ref={root} className="miner-pop" role="group" aria-label={`Miner ${miner.name}`} style={{ '--miner-color': minerColor(miner) }}
       onKeyDown={event => { if (event.key === 'Escape') { event.stopPropagation(); onClose(); } }}>
       {children}
       {racing && <ShareSlider miner={miner} miners={miners} onShare={onShare} compact />}

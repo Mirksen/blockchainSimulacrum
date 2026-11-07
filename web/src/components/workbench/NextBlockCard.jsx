@@ -10,6 +10,7 @@ import { issueText } from './blockView';
 import { colorOf } from './minerColors';
 import { MinerPopover, StreamWall } from './MinerDetails';
 import { SLOW_MS } from '../../lib/powSearch';
+import { useMiningShortcut } from '../../lib/miningShortcut';
 import { hint, term } from '../../lib/hints';
 
 // Next block card (web/DESIGN.md, "Card grid" and "Interaction patterns").
@@ -43,8 +44,9 @@ function isTyping(target) {
   return Boolean(target?.closest?.('input, textarea, select, [contenteditable=""], [contenteditable="true"]'));
 }
 function useMineKey(action) {
+  const enabled = useMiningShortcut();
   const latest = useRef(action);
-  useEffect(() => { latest.current = action; });
+  useEffect(() => { latest.current = enabled ? action : null; });
   useEffect(() => {
     const onKeyDown = event => {
       if (event.key !== 'm' && event.key !== 'M') return;
@@ -57,6 +59,7 @@ function useMineKey(action) {
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
   }, []);
+  return enabled;
 }
 
 function formatAmount(value) {
@@ -179,15 +182,15 @@ export function NextBlockCard({
   const running = isMining || (repeating && !isRepair);
   const startsDemo = isFresh;
   const repairNext = repair?.next ?? repair?.order?.[0];
-  useMineKey(isRepair
+  const shortcut = useMineKey(isRepair
     ? (repair && !repair.undoOnly && repairNext !== undefined ? () => onRemine?.(repairNext) : null)
     : (!running && !startsDemo ? () => onMine?.() : null));
   // Keep the same button mounted so keyboard focus follows Play → Pause → Play.
   const action = (
     <CoachMark target={running || isRepair || startsDemo ? undefined : "workbench.mine"} coach={running || isRepair || startsDemo ? null : coach} className="next-block-coach-inline">
       <button type="button" className={isRepair ? 'card-kit-btn is-lg' : 'btn-primary'}
-        disabled={isRepair} {...hint(isRepair ? 'next.mine-locked' : running ? 'next.pause' : startsDemo ? 'next.start-demo' : 'next.mine')}
-        aria-keyshortcuts={!running && !startsDemo && !isRepair ? 'M' : undefined}
+        disabled={isRepair} {...hint(isRepair ? 'next.mine-locked' : running ? 'next.pause' : startsDemo ? 'next.start-demo' : 'next.mine', shortcut)}
+        aria-keyshortcuts={shortcut && !running && !startsDemo && !isRepair ? 'M' : undefined}
         onClick={() => running ? onPause?.() : startsDemo ? onStartDemo?.() : onMine?.()}>
         {running ? <PauseIcon /> : <PlayIcon />}
         {running ? 'Pause' : startsDemo ? 'Start demo' : 'Mining'}
@@ -388,6 +391,7 @@ function LiveRace({ miners, race, index, difficulty, target, backedMiner, coach,
 }
 
 function RepairBody({ repair, difficulty, target, onRemine, coach }) {
+  const shortcut = useMiningShortcut();
   const order = repair?.order ?? [];
   const next = repair?.next ?? order[0];
   const done = Math.max(0, order.indexOf(next));
@@ -418,7 +422,7 @@ function RepairBody({ repair, difficulty, target, onRemine, coach }) {
         </div>
         : <CoachMark target="workbench.remine" coach={coach} className="next-block-coach-block">
           <div className="next-block-repair-row">
-            <button type="button" className="btn-primary" aria-keyshortcuts="M" {...hint('next.remine', next, target)} onClick={() => onRemine?.(next)}><BoltIcon />Re-mine block #{next}</button>
+            <button type="button" className="btn-primary" aria-keyshortcuts={shortcut ? 'M' : undefined} {...hint('next.remine', next, target, shortcut)} onClick={() => onRemine?.(next)}><BoltIcon />Re-mine block #{next}</button>
             <small>Finds a new nonce so #{next} starts with {target} again.{then}</small>
           </div>
         </CoachMark>}
