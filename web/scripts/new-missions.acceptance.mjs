@@ -11,6 +11,11 @@ async function missionPage(browser, baseURL, id) {
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
   await page.goto(baseURL);
+  await page.getByRole('button', { name: 'Start demo', exact: true }).waitFor();
+  // CI builds with usage sharing configured. Answer its independent notice
+  // through the real control before it can cover a lower mission action.
+  const notice = page.locator('.usage-consent');
+  if (await notice.isVisible()) await notice.getByRole('button', { name: 'Opt out', exact: true }).click();
   await page.evaluate(completed => {
     localStorage.setItem('proofofwork-missions', JSON.stringify({ version: 1, completed, step: 0, data: {} }));
     localStorage.setItem('proofofwork-rail-collapsed', '0');
