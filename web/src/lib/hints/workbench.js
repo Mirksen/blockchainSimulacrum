@@ -98,7 +98,7 @@ export const WORKBENCH_HINTS = {
     : 'One zero fewer: blocks are found about 16 times faster.' }),
   'next.raise': { title: 'Raise difficulty', text: 'One zero more: blocks take about 16 times longer. High settings can take longer than you want to wait; Pause stops the search.' },
   'next.start-demo': { title: 'Start demo', text: 'Mines the first block and shares its reward with the other wallets, so everyone has coins to send. A good first click.' },
-  'next.mine': { title: 'Mining', text: 'Start the race: every miner tries nonce after nonce until one finds a hash with enough leading zeros. The winner adds the block and earns the reward. Shortcut: M.' },
+  'next.mine': (shortcut = true) => ({ title: 'Mining', text: `Start the race: every miner tries nonce after nonce until one finds a hash with enough leading zeros. The winner adds the block and earns the reward.${shortcut ? ' Shortcut: M.' : ''}` }),
   'next.pause': { title: 'Pause', text: 'Stop the search. The unfinished block is dropped; nothing is added to the chain. You can change the difficulty and start again.' },
   'next.auto-mine': on => (on
     ? { title: 'Auto-mine is on', text: 'After each found block the next race starts by itself. Click to stop after the current block.' }
@@ -118,7 +118,7 @@ export const WORKBENCH_HINTS = {
   'next.all-streams': on => (on
     ? { title: 'Hide streams', text: 'Fold the miners’ attempt lists away again.' }
     : { title: 'All streams', text: 'Every miner’s newest guesses side by side. More hashpower makes a list run faster.' }),
-  'next.remine': (index, target) => ({ title: `Re-mine block #${index}`, text: `Search a new nonce so the edited block’s hash starts with ${target} again. That gives it a new hash, so the block after it must be re-mined too. This is why rewriting history costs so much work. Shortcut: M.` }),
+  'next.remine': (index, target, shortcut = true) => ({ title: `Re-mine block #${index}`, text: `Search a new nonce so the edited block’s hash starts with ${target} again. That gives it a new hash, so the block after it must be re-mined too. This is why rewriting history costs so much work.${shortcut ? ' Shortcut: M.' : ''}` }),
   'next.undo-edit': { title: 'Undo edit', text: 'Put the original payment back. A broken signature or rule cannot be repaired by re-mining, only by undoing the change.' },
   'next.repair-order': { title: 'Re-mine order', text: 'The blocks that need a new nonce, in order. Each re-mine changes a hash that the next block stores, so the repair walks forward one block at a time.' },
 
@@ -156,5 +156,6 @@ export const WORKBENCH_HINTS = {
   'settings.coin': { title: 'Coin name', text: 'Just a label for the virtual coin. It changes nothing in the rules.' },
   'settings.difficulty': { title: 'Mining difficulty', text: 'How many zeros a block hash must start with. Each step makes mining about 16 times slower on average. Raising keeps the chain; lowering by hand starts a new one.' },
   'settings.halving': { title: 'Halving interval', text: 'After this many blocks the block reward is cut in half. Bitcoin halves every 210,000 blocks.' },
-  'settings.block-time': { title: 'Target block time', text: 'How long a block should take on average. Every 10 blocks the difficulty adjusts toward it. Bitcoin aims at 10 minutes.' }
+  'settings.block-time': { title: 'Target block time', text: 'How long a block should take on average. Every 10 blocks the difficulty adjusts toward it. Bitcoin aims at 10 minutes.' },
+  'settings.shortcut': { title: 'Mining shortcut', text: 'M starts mining or re-mining between races. Turn this off if single-letter shortcuts interfere with speech input or assistive technology. The mining button always works.' }
 };

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { useBlockchain } from './hooks/useBlockchain';
 import { useMinerIdentity } from './hooks/useMinerIdentity';
 import { playMiningSuccessSound, playRecordSound, unlockMiningAudio } from './lib/sound';
@@ -15,9 +15,6 @@ import { LowerDifficultyDialog } from './components/workbench/LowerDifficultyDia
 import { Workbench } from './components/workbench/Workbench';
 import { MissionRail } from './components/workbench/MissionRail';
 import { MissionIntro } from './components/workbench/MissionIntro';
-import { HashLab } from './components/HashLab';
-import { ChainLab } from './components/ChainLab';
-import { PoolPanel } from './components/PoolPanel';
 import { minerProfileHash, POOL_HASH } from './lib/poolApi';
 import { BlockDetailsModal } from './components/BlockDetailsModal';
 import { ParticipantDetailsModal } from './components/ParticipantDetailsModal';
@@ -28,6 +25,11 @@ import { HintLayer } from './components/HintLayer';
 import './index.css';
 import { adjustedDifficulty, averagePace, checkWindowStart, isCheckHeight } from './lib/difficulty';
 import { DEFAULT_FEE_RATE } from './lib/blockchain';
+
+// Free play starts on the workbench; other experiments load when opened.
+const HashLab = lazy(() => import('./components/HashLab').then(module => ({ default: module.HashLab })));
+const ChainLab = lazy(() => import('./components/ChainLab').then(module => ({ default: module.ChainLab })));
+const PoolPanel = lazy(() => import('./components/PoolPanel').then(module => ({ default: module.PoolPanel })));
 
 const INITIAL_CONFIG = {
   name: 'powfyicoin', miningDifficulty: 4, blockReward: 3.125, halvingEvent: 21,
@@ -447,7 +449,7 @@ function App() {
   return (
     <div className={`app-shell${view === 'workbench' ? ' is-workbench' : ''}${view === 'workbench' && drawerMiner ? ' has-miner-drawer' : ''}${railCollapsed ? ' is-rail-collapsed' : ' is-rail-expanded'}`}
       onClickCapture={prepareSound} onKeyDownCapture={prepareSound}>
-      <a className="skip-link" href="#workbench">Skip to workbench</a>
+      <a className="skip-link" href="#workbench" onClick={event => { event.preventDefault(); document.getElementById('workbench')?.focus(); }}>Skip to content</a>
       <HintLayer />
       <TopBar view={view} onNavigate={navigate} coinName={coinName} theme={theme} onTheme={changeTheme}
         muted={muted} onMuted={changeMuted} onReset={reset} onOpenSettings={() => setShowSettings(true)} compact={compact} saveState={sim.saveState} />
@@ -457,7 +459,7 @@ function App() {
         <div className="wb-rail">
           <MissionRail progress={progress} collapsed={railCollapsed} onToggle={toggleRail} onShowMe={showMe} highlight={showIntro} />
         </div>
-        <main id="workbench" className="wb-main" aria-label={VIEW_LABELS[view]}>
+        <main id="workbench" tabIndex={-1} className="wb-main" aria-label={VIEW_LABELS[view]}>
           <div className="wb-mbar"><MissionRail progress={progress} variant="bar" collapsed={railCollapsed}
             onToggle={toggleRail} onShowMe={showMe} highlight={showIntro} /></div>
           {showIntro && <MissionIntro onStart={startMissions} onDismiss={dismissIntro} />}
@@ -471,6 +473,7 @@ function App() {
             onDifficulty={onDifficulty} onBack={onBack} onCreateTransaction={onCreateTransaction} onCreateWallet={createWallet} onCreateMiner={createMiner}
             onRenameMiner={onRenameMiner} onShare={setMinerShare} onOpenMiner={openMiner} onSlowMotion={setSlowMotion}
             onOpenWallet={setWalletDetails} onOpenDetails={setDetails} onOpenTransaction={setPendingTx} onOpenBlockTx={(transaction, blockIndex) => setBlockTx({ transaction, blockIndex })} onOpenChainLab={() => navigate('chain-lab')} error={error} />}
+          <Suspense fallback={<p role="status">Loading {VIEW_LABELS[view]}…</p>}>
           {view === 'hash-lab' && <div className="wb-view">
             <HashLab key={hashLesson ?? 'free'} lesson={hashLesson} onLessonEvent={hashLesson ? report : undefined}
               coach={hashLesson ? coach : null} onClose={() => navigate('workbench')}
@@ -483,6 +486,7 @@ function App() {
           {view === 'pool' && <div className="wb-view"><PoolPanel name={identity.name} onNameChange={identity.setName} refreshKey={boardKey}
             onAccepted={onBlockAccepted} onClose={() => navigate('workbench')}
             profile={profile} onOpenProfile={openProfile} onCloseProfile={closeProfile} /></div>}
+          </Suspense>
         </main>
       </div>
       {winner && <div key={winner.id} className="wb-announce" role="status"><span className="wb-found-cube" aria-hidden="true" /><span>{winner.name} mined a block</span></div>}

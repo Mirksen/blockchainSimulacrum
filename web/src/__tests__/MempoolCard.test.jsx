@@ -11,6 +11,15 @@ const card = () => screen.getByRole('region', { name: 'Mempool' });
 const newTx = () => screen.getByRole('button', { name: 'New transaction' });
 
 describe('MempoolCard', () => {
+  it('returns keyboard focus to New transaction after cancelling its inline form', () => {
+    render(<MempoolCard participants={participants} nextIndex={1} />);
+    newTx().focus();
+    fireEvent.click(newTx());
+    const cancel = screen.getByRole('button', { name: 'Cancel' });
+    cancel.focus();
+    fireEvent.click(cancel);
+    expect(document.activeElement).toBe(newTx());
+  });
   it('idle: pending pill, rows, coinbase line and a glowing New transaction', () => {
     render(<MempoolCard transactions={transactions} nextIndex={5} participants={participants} reward={1.5625} newTxGlow />);
     const text = card().textContent;

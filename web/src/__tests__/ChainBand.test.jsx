@@ -256,13 +256,26 @@ describe('ChainBand health line', () => {
 });
 
 describe('ChainBand full-hash tooltip', () => {
+  it('dismisses a full-hash group and a link explanation with Escape without losing position', () => {
+    renderBand();
+    const face = tile(2);
+    act(() => face.focus());
+    fireEvent.keyDown(face, { key: 'Escape' });
+    expect(face.closest('.chain-band-tile').classList.contains('is-tip-dismissed')).toBe(true);
+    expect(document.activeElement).toBe(face);
+    const link = document.querySelector('.chain-band-link');
+    act(() => link.focus());
+    fireEvent.keyDown(link, { key: 'Escape' });
+    expect(link.classList.contains('is-tip-dismissed')).toBe(true);
+    expect(link.getAttribute('role')).toBe('group');
+  });
   it('copies the full hash without selecting the block', async () => {
     const writeText = vi.fn(() => Promise.resolve());
     vi.stubGlobal('navigator', { ...navigator, clipboard: { writeText } });
     const { onSelect } = renderBand();
     const copy = screen.getByRole('button', { name: 'Copy full hash of block 2' });
-    expect(copy.closest('[role="tooltip"]').textContent).toContain('Starts with 00 · prev = hash of #1');
-    expect(tile(2).getAttribute('aria-describedby')).toBe(copy.closest('[role="tooltip"]').id);
+    expect(copy.closest('[role="group"]').textContent).toContain('Starts with 00 · prev = hash of #1');
+    expect(tile(2).getAttribute('aria-describedby')).toBe(copy.closest('[role="group"]').id);
     await act(async () => { fireEvent.click(copy); });
     expect(writeText).toHaveBeenCalledWith(hashOf(2));
     expect(copy.textContent).toBe('Copied');
@@ -274,7 +287,7 @@ describe('ChainBand full-hash tooltip', () => {
     vi.stubGlobal('navigator', { ...navigator, clipboard: { writeText } });
     renderBand({ views: makeViews(5, TAMPERED) });
     const copy = screen.getByRole('button', { name: 'Copy full hash of block 2' });
-    const tip = copy.closest('[role="tooltip"]');
+    const tip = copy.closest('[role="group"]');
     expect(tip.textContent).toContain('Now');
     expect(tip.textContent).toContain('As mined');
     expect(tip.textContent).toContain('Your edit: tx 1: 1.5 → 2');
@@ -318,13 +331,23 @@ describe('ChainBand scrolling row', () => {
     expect(items).toHaveLength(13);
     expect(items.slice(0, 12).map(item => item.querySelector('.chain-band-tile > .chain-band-num').textContent))
       .toEqual(Array.from({ length: 12 }, (_, i) => `#${i}`));
-    expect(items.at(-1).querySelector('[role="group"]').getAttribute('aria-label')).toMatch(/^Candidate block 12/);
+    expect(items.at(-1).querySelector('.chain-band-cand[role="group"]').getAttribute('aria-label')).toMatch(/^Candidate block 12/);
     expect(items.every(item => ![...item.classList].some(cls => cls.startsWith('is-hidden')))).toBe(true);
     expect(container.querySelector('.chain-band').className).not.toMatch(/has-earlier/);
     expect(container.querySelectorAll('.chain-band-scroll')).toHaveLength(1);
   });
 
   describe('following the newest block', () => {
+    it('scrolls instantly when reduced motion is requested', () => {
+      const original = globalThis.matchMedia;
+      globalThis.matchMedia = () => ({ matches: true, addEventListener() {}, removeEventListener() {} });
+      try {
+        const { rerender } = render(<ChainBand views={makeViews(12)} selectedIndex={11} pinned={false} />);
+        scrollTo.mockClear();
+        rerender(<ChainBand views={makeViews(13)} selectedIndex={12} pinned={false} />);
+        expect(scrollTo).toHaveBeenCalledWith({ left: expect.any(Number), behavior: 'auto' });
+      } finally { globalThis.matchMedia = original; }
+    });
     let scrollTo;
     beforeEach(() => {
       scrollTo = vi.fn();

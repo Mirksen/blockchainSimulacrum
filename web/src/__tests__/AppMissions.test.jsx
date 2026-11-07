@@ -55,12 +55,12 @@ describe('optional missions in App', () => {
     expect(collapsed()).toBe(true);
   });
 
-  it('remembers dismissal, while the page and free labs stay usable', () => {
+  it('remembers dismissal, while the page and free labs stay usable', async () => {
     render(<App />);
     fireEvent.click(screen.getByRole('button', { name: "Don't show again" }));
     expect(intro()).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Hash lab', exact: true }));
-    expect(screen.getByText('Free hash lab')).toBeTruthy();
+    expect(await screen.findByText('Free hash lab')).toBeTruthy();
     expect(screen.getByText('No coach')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Complete manual proof' }));
     expect(JSON.parse(localStorage.getItem(STORAGE_KEY)).completed).toEqual([]);

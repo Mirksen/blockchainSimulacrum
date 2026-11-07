@@ -37,7 +37,7 @@ function TrophyIcon() {
 }
 
 export function RecordCelebration({ record, name, onClose, onOpenLeaderboard, durationMs = CELEBRATION_MS }) {
-  const held = useRef(false);
+  const held = useRef({ pointer: false, focus: false });
   const timer = useRef(null);
   const closeRef = useRef(onClose);
   useEffect(() => { closeRef.current = onClose; }, [onClose]);
@@ -46,7 +46,7 @@ export function RecordCelebration({ record, name, onClose, onOpenLeaderboard, du
     if (!record) return undefined;
     const arm = () => {
       clearTimeout(timer.current);
-      timer.current = setTimeout(() => { if (!held.current) closeRef.current?.(); else arm(); }, durationMs);
+      timer.current = setTimeout(() => { if (!held.current.pointer && !held.current.focus) closeRef.current?.(); else arm(); }, durationMs);
     };
     arm();
     const onKey = event => { if (event.key === 'Escape') closeRef.current?.(); };
@@ -56,11 +56,12 @@ export function RecordCelebration({ record, name, onClose, onOpenLeaderboard, du
 
   if (!record) return null;
   const copy = recordCopy(record);
-  const hold = value => () => { held.current = value; };
   return (
     <div className="record-celebration" data-kind={record.kind}>
       <div className="record-celebration-card" role="status" aria-live="polite"
-        onPointerEnter={hold(true)} onPointerLeave={hold(false)} onFocus={hold(true)} onBlur={hold(false)}>
+        onPointerEnter={() => { held.current.pointer = true; }} onPointerLeave={() => { held.current.pointer = false; }}
+        onFocus={() => { held.current.focus = true; }}
+        onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) held.current.focus = false; }}>
         <span className="record-celebration-burst" aria-hidden="true">
           {confetti.map((piece, i) => (
             <i key={i} className={piece.round ? 'is-round' : undefined} style={{
