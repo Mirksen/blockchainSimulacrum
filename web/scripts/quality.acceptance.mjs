@@ -28,10 +28,12 @@ try {
     const context = await browser.newContext({ viewport: { width, height: 860 }, reducedMotion: 'reduce' });
     await context.route(/^https:\/\/(eu\.i\.posthog\.com|api\.proofofwork\.fyi)\//, route => route.abort('connectionrefused'));
     const page = await context.newPage();
+    // Browser instrumentation runs before navigation, including on production's
+    // script-src 'self' pages. Keep the application's CSP enforced.
+    await page.addInitScript({ path: require.resolve('axe-core/axe.min.js') });
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));
     const audit = async label => {
-      await page.addScriptTag({ path: require.resolve('axe-core/axe.min.js') });
       const violations = await page.evaluate(async () => (await globalThis.axe.run(document, {
         runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa'] }
       })).violations.map(v => ({ id: v.id, targets: v.nodes.map(node => node.target) })));
