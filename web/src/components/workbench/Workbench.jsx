@@ -69,6 +69,11 @@ export function Workbench({
   const views = useMemo(() => buildBlockViews({ blocks, blockStatus, participants, tamperedEdits }),
     [blocks, blockStatus, participants, tamperedEdits]);
   const repair = repairOf(blockStatus, tamperedEdits);
+  // The existing re-mine API accepts this block, but correctly refuses any
+  // descendants of an invalid signature. Test only the tip; validity never changes.
+  const signatureTest = repair?.undoOnly && repair.reason === 'signature' && repair.stuck === height &&
+    blockStatus.slice(0, height).every(check => check.status === 'valid') &&
+    blockStatus[height]?.status === 'hash-mismatch' ? height : null;
   const keyFigures = keyFiguresOf({ blocks, difficulty, blockReward, halvingInterval, targetSeconds });
   const events = useMemo(() => chainEventsOf({ blocks, difficulty, targetSeconds }), [blocks, difficulty, targetSeconds]);
   const nextIndex = blocks.length;
@@ -174,7 +179,7 @@ export function Workbench({
         <NextBlockCard mode={mode} index={repairIndex ?? nextIndex} txCount={nextCardCount}
           reward={blockReward} difficulty={difficulty} onDifficulty={onDifficulty} autoMine={autoMine} onAutoMine={onAutoMine} repeating={repeating}
           onStartDemo={onStartDemo} onMine={onMine} onPause={onPause} onRemine={onRemine}
-          repair={repair ? { ...repair, onUndo } : null} miners={miners} race={race} lastRound={lastRound}
+          repair={repair ? { ...repair, onUndo, signatureTest } : null} miners={miners} race={race} lastRound={lastRound}
           backedMiner={backedMiner} onBack={onBack} coach={workbenchCoach}
           onCreateMiner={onCreateMiner} onRenameMiner={onRenameMiner} onShare={onShare} onOpenMiner={onOpenMiner} perMiner={minerProgress} slowMotion={busy && slowMotion} onSlowMotion={onSlowMotion} minersFull={participants.filter(p => p.isMiner).length >= MAX_MINERS}
           signature={<MinerName identity={identity} rows={boardRows} locked={busy} />} />

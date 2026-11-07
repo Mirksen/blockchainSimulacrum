@@ -95,7 +95,7 @@ function MissionList({ progress, info, onShowMe, onSelectMission }) {
         const status = missionStatus(progress, mission.id);
         const title = onSelectMission && status !== 'locked'
           ? <button type="button" className="mission-rail-title is-button" onClick={() => onSelectMission(mission.id)}>{mission.title}</button>
-          : <div className="mission-rail-title">{mission.title}</div>;
+          : <div className="mission-rail-title" {...(mission.hintKey ? hint(mission.hintKey) : {})}>{mission.title}</div>;
         return (
           <li key={mission.id} className={`mission-rail-mission is-${status}`} aria-current={status === 'active' ? 'step' : undefined}>
             <span className="mission-rail-ic">
@@ -105,6 +105,10 @@ function MissionList({ progress, info, onShowMe, onSelectMission }) {
               <div className="mission-rail-n">Mission {index + 1} · {STATUS_WORD[status]}</div>
               {title}
               {status === 'active' && <ActiveBody info={info} onShowMe={onShowMe} />}
+              {status === 'done' && mission.hintKey && <details>
+                <summary {...hint('mission.recap')}>What you learned</summary>
+                <p>{mission.result}</p>
+              </details>}
             </div>
           </li>
         );

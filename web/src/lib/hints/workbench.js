@@ -10,6 +10,11 @@ const STATUS_TEXT = {
 };
 
 export const WORKBENCH_HINTS = {
+  'mission.fee-market': { title: 'Child pays for parent', text: 'A miner compares fees per byte for a payment and its pending ancestors together. Spend a waiting low-fee payment with a higher-fee child, then mine both. Creating a child alone does not complete the mission.' },
+  'mission.merkle': { title: 'Merkle proof', text: 'Check that one payment is included using its hash and one sibling per tree level. Then change one sibling hash and see where the computed path first differs. This lab uses toy payment texts.' },
+  'mission.signature': { title: 'A signature protects a payment', text: 'A signed payment needs its sender’s key. Changing its amount breaks that signature. This mission re-mines the newest block to show that valid proof of work cannot make the edited payment valid.' },
+  'mission.recap': { title: 'What you learned', text: 'Open the explanation of the result you observed. Completed missions and rewards stay in this browser after reload.' },
+  'next.signature-test': { title: 'Work cannot repair a signature', text: 'Re-mine this newest block to repair its hash. Its edited payment still has the old signature, so the chain stays invalid. No later blocks need repair; Undo restores the payment.' },
   // ---------- top bar ----------
   'nav.workbench': { title: 'Workbench', text: 'The main simulator: a small blockchain that runs entirely in your browser. Mine blocks, send coins and try to cheat, and watch the chain catch it.' },
   'nav.hash-lab': { title: 'Hash lab', text: 'The hash function on its own. Type any text and see its fingerprint change completely, then search for a number (nonce) that makes the fingerprint start with zeros.' },

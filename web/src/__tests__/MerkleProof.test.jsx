@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ChainLab } from '../components/ChainLab';
 import { MerkleProof } from '../components/MerkleProof';
 import { sampleBlock } from '../lib/merkleLab';
@@ -11,6 +11,22 @@ const level = name => screen.getByRole('listitem', { name });
 const flip = hash => (hash[0] === '0' ? '1' : '0') + hash.slice(1);
 
 describe('MerkleProof', () => {
+  it('reports actual proof results and discards evidence when the experiment unmounts', () => {
+    const report = vi.fn();
+    const { unmount } = render(<MerkleProof onLessonEvent={report} />);
+    expect(report).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: /^Tx 5 / }));
+    expect(report).toHaveBeenLastCalledWith(expect.objectContaining({ type: 'merkle_checked', valid: true, editedSibling: false }));
+    const sibling = screen.getByLabelText(/^Sibling at level 0 /);
+    const original = sibling.value;
+    fireEvent.change(sibling, { target: { value: 'f'.repeat(64) } });
+    expect(report).toHaveBeenLastCalledWith(expect.objectContaining({ valid: false, editedSibling: false }));
+    fireEvent.change(sibling, { target: { value: flip(original) } });
+    expect(report).toHaveBeenLastCalledWith(expect.objectContaining({ valid: false, malformed: false, failedAt: 1, editedSibling: true }));
+    unmount();
+    expect(report).toHaveBeenLastCalledWith({ type: 'lesson_reset' });
+  });
+
   it('proves the chosen payment of the 16-transaction example with 4 hashes', () => {
     render(<MerkleProof />);
     const block = sampleBlock(16);

@@ -5,6 +5,7 @@ import { playMiningSuccessSound, playRecordSound, unlockMiningAudio } from './li
 import { ownRow, recordOf } from './lib/records';
 import { telemetry } from './lib/telemetry';
 import * as missions from './lib/missions';
+import { feeMarketEvidence } from './lib/missionEvidence';
 import { TopBar } from './components/workbench/TopBar';
 import { LeaderboardTicker } from './components/workbench/LeaderboardTicker';
 import { UsageConsent } from './components/UsageConsent';
@@ -115,7 +116,7 @@ function App() {
   const [railCollapsed, setRailCollapsed] = useState(() => readFlag(RAIL_KEY, true));
   const [introSeen, setIntroSeen] = useState(() => readFlag(INTRO_KEY));
   const [progress, setProgress] = useState(() => missions.load(browserStorage()));
-  const [chainExperiment, setChainExperiment] = useState(() => missions.activeMission(progress)?.id === 'follow-stronger-chain' ? 'fork' : 'repair');
+  const [chainExperiment, setChainExperiment] = useState(() => ({ 'follow-stronger-chain': 'fork', 'prove-a-payment': 'merkle' })[missions.activeMission(progress)?.id] ?? 'repair');
   const compact = useSyncExternalStore(subscribePhone, isPhone, () => false);
   const sim = useBlockchain(INITIAL_CONFIG, { storage: browserStorage() });
   // A restored chain already had its adjustments; the next one is due at the next tenth block.
@@ -259,12 +260,13 @@ function App() {
     if (finishRound(result)) {
       pendingRound.current = { index, result };
       report({ type: 'block_mined', backedWon: result.backedWon, epoch: result.epoch });
+      report(feeMarketEvidence(sim.blockchain, result.block));
       const adjustment = adjustDifficulty();
       setBlockMoment({ hash: result.block.hash, index,
         changes: [adjustment, result.block.halved && { kind: 'halving', index }].filter(Boolean) });
     }
     return result;
-  }, [adjustDifficulty, blocks.length, endRoundUnlessRepeating, finishRound, mineBlock, report]);
+  }, [adjustDifficulty, blocks.length, endRoundUnlessRepeating, finishRound, mineBlock, report, sim.blockchain]);
   const handleSetup = useCallback(async () => {
     const result = await setupInitialDistribution();
     endRoundUnlessRepeating();
@@ -290,7 +292,11 @@ function App() {
     if (finishRound(result)) {
       pendingRound.current = { index, result };
       setRepairIndex(index);
-      report({ type: 'block_remined', blockIndex: index, chainValid: sim.blockchain.isChainValid() });
+      const checks = sim.blockchain.inspectBlocks();
+      report({ type: 'block_remined', blockIndex: index, chainValid: sim.blockchain.isChainValid(),
+        hashesAndLinksValid: checks.every(check => check.hashMatches && check.meetsTarget && check.linkIntact),
+        signatureInvalid: checks[index]?.status === 'signature-invalid',
+        editPresent: sim.blockchain.getTamperedEdits().some(edit => edit.blockIndex === index && edit.txIndex > 0) });
     }
   }, [finishRound, remineBlock, report, sim.blockchain]);
 
@@ -305,9 +311,12 @@ function App() {
   // stay untouched, and idle filling cannot grow an unbounded pending queue.
   useEffect(() => {
     if (!autoTransact || busy || !chainValid || memPool?.length) return;
-    const timer = setTimeout(generateRandomTransactions, 750);
+    const timer = setTimeout(() => {
+      generateRandomTransactions();
+      report(feeMarketEvidence(sim.blockchain));
+    }, 750);
     return () => clearTimeout(timer);
-  }, [autoTransact, busy, chainValid, blocks.length, memPool?.length, generateRandomTransactions]);
+  }, [autoTransact, busy, chainValid, blocks.length, memPool?.length, generateRandomTransactions, report, sim.blockchain]);
 
   // Nothing clicked follows the newest block; a click holds a block until it is clicked again.
   const toggleSelected = index => {
@@ -350,7 +359,7 @@ function App() {
   };
   const showMe = active => {
     if (!active) return;
-    if (active.view === 'chain-lab') setChainExperiment(active.target.startsWith('chain-lab.fork-') ? 'fork' : 'repair');
+    if (active.view === 'chain-lab') setChainExperiment(active.target.startsWith('chain-lab.fork-') ? 'fork' : active.target.startsWith('chain-lab.merkle-') ? 'merkle' : 'repair');
     navigate(active.view);
     requestAnimationFrame(() => {
       const element = document.querySelector(`[data-coach-target="${active.target}"]`);
@@ -372,15 +381,20 @@ function App() {
 
   const onCreateTransaction = (from, to, amount, reference, feeRate = DEFAULT_FEE_RATE) => {
     const result = createTransaction(from, to, Number(amount), undefined, reference, { feeRate });
-    if (result.success) report({ type: 'transaction_created' });
+    if (result.success) {
+      report({ type: 'transaction_created' });
+      report(feeMarketEvidence(sim.blockchain));
+    }
     return result;
   };
   const onTamper = (blockIndex, txIndex, amount) => {
-    tamperBlock(blockIndex, txIndex, Number(amount));
+    const result = tamperBlock(blockIndex, txIndex, Number(amount));
+    if (result?.success === false) return result;
     setRunning(false);
     setRepairIndex(blockIndex);
     setHealthOpen(true);
-    report({ type: 'block_tampered', blockIndex });
+    report({ type: 'block_tampered', blockIndex, signed: txIndex > 0 && sim.blockchain.inspectBlocks()[blockIndex]?.signaturesValid === false,
+      newest: blockIndex === sim.blockchain.blockArray.length - 1 });
   };
   const onUndo = blockIndex => {
     const result = undoTamper(blockIndex);
@@ -430,7 +444,7 @@ function App() {
   const drawerMiner = found ? { ...found, color: colorOf(found.colorKey) ?? undefined } : null;
   // A collapsed rail means free play: the labs open without the mission lesson.
   const hashLesson = !railCollapsed && activeMission ? HASH_LESSONS[activeMission.id] : undefined;
-  const chainLesson = !railCollapsed && ['change-the-past', 'follow-stronger-chain'].includes(activeMission?.id);
+  const chainLesson = !railCollapsed && ['change-the-past', 'follow-stronger-chain', 'prove-a-payment'].includes(activeMission?.id);
 
   return (
     <div className={`app-shell${view === 'workbench' ? ' is-workbench' : ''}${view === 'workbench' && drawerMiner ? ' has-miner-drawer' : ''}${railCollapsed ? ' is-rail-collapsed' : ' is-rail-expanded'}`}

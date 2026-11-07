@@ -203,10 +203,15 @@ decision, 2026-10-27):
   7. Survive a halving (Workbench)
   8. Beat the difficulty adjustment (Workbench)
   9. Follow the stronger chain (Chain lab)
+  10. Get your payment in (Workbench)
+  11. Prove a payment (Chain lab)
+  12. Try to steal a coin (Workbench)
   Missions unlock in order; free play never needs a mission. Progress stays
   in the browser. Reloading retains completed missions and rewards; the active
   mission restarts at its first step because lab state starts fresh and mission evidence must come from this visit; the simulator chain itself is restored.
-  Opening or hiding missions within the page retains the active step. Lab missions
+  Opening or hiding missions within the page retains earlier missions’ active steps.
+  An unfinished Merkle proof restarts when its experiment is left or guidance is hidden,
+  because its local proof inputs are discarded. Lab missions
   use the labs' own temporary state and never change the simulator chain.
 - **Experiment settings** (coin name, difficulty, halving interval, target
   block time) move into a "Settings" dialog in the overflow menu; difficulty
@@ -451,6 +456,28 @@ decision, 2026-10-27):
   the active mission is expanded with its steps, a hint and its reward.
 - When missions are open, the current step **marks the element it needs
   with a coach ring** and a small label ("Step 3 · back Hal").
+
+### Fee, inclusion and signature missions
+
+New missions append to the track, preserving all earlier completion IDs and rewards.
+Fee coaching first points to a low-fee transfer waiting because the block is full,
+then to spending that pending payment with a higher-fee child. Both must appear in
+an accepted block; a template or a click is not confirmation. The hint explains
+using a new receiving wallet so its only coin is the waiting payment.
+
+The Merkle mission opens Prove a payment. Choosing a payment observes its real
+valid proof. Editing exactly one well-formed sibling must then produce a different
+root for the same payment; the first divergent level stays visible after completion.
+Reset, changing the payment text or changing experiments clears unfinished proof
+steps. There is no extra filled action in this live-verdict experiment.
+
+The signature mission uses a signed transfer in the newest block, so no descendant
+needs repair. Undo remains the primary repair action. A quiet Test proof of work
+anyway offers one re-mine of that tip while its hash is broken. Afterward every
+hash, target and link must pass while its signature remains invalid; ordinary
+mining remains paused. This teaches the difference without weakening any ledger
+or historical-repair rule. The new missions expose What you learned under their
+completed rail entries; explanations and experiment outcomes remain available.
 
 ### Text hashing before block headers
 

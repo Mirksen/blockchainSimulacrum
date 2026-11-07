@@ -419,6 +419,9 @@ function RepairBody({ repair, difficulty, target, onRemine, coach }) {
         ? <div className="next-block-repair-row">
           <button type="button" className="btn-primary" {...hint('next.undo-edit')} onClick={() => repair.onUndo?.(next)}><UndoIcon />Undo edit in block #{next}</button>
           <small>{issueText(repair.reason ?? 'signature', repair.stuck ?? next)} Re-mining changes no transaction, so it cannot fix this.</small>
+          {repair.signatureTest != null && <CoachMark target="workbench.signature-test" coach={coach}>
+            <button type="button" className="card-kit-btn is-ghost" {...hint('next.signature-test')} onClick={() => onRemine?.(repair.signatureTest)}>Test proof of work anyway</button>
+          </CoachMark>}
         </div>
         : <CoachMark target="workbench.remine" coach={coach} className="next-block-coach-block">
           <div className="next-block-repair-row">
