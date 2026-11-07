@@ -6,6 +6,19 @@ import {
 
 // Event sequences that complete each mission from its first step.
 const COMPLETE = {
+  'get-payment-in': [
+    { type: 'fee_market_checked', chainValid: true, waiting: [{ txid: 'a'.repeat(64), reason: 'full', rate: 1 }] },
+    { type: 'fee_market_checked', chainValid: true, packages: [{ parent: 'a'.repeat(64), child: 'b'.repeat(64), higherFee: true, selected: true }] },
+    { type: 'fee_market_checked', chainValid: true, acceptedBlock: 'c'.repeat(64), confirmed: ['a'.repeat(64), 'b'.repeat(64)] }
+  ],
+  'prove-a-payment': [
+    { type: 'merkle_checked', root: 'a'.repeat(64), txid: 'b'.repeat(64), valid: true, editedSibling: false },
+    { type: 'merkle_checked', root: 'a'.repeat(64), txid: 'b'.repeat(64), valid: false, malformed: false, editedSibling: true, failedAt: 1 }
+  ],
+  'test-a-signature': [
+    { type: 'block_tampered', blockIndex: 2, signed: true, newest: true },
+    { type: 'block_remined', blockIndex: 2, chainValid: false, hashesAndLinksValid: true, signatureInvalid: true, editPresent: true }
+  ],
   'change-fingerprint': [{ type: 'manual_hash_found', hash: '0' + 'a'.repeat(63) }],
   'earn-proof-of-work': [{ type: 'work_found', difficulty: 1, attempts: 7 }, { type: 'work_found', difficulty: 2, attempts: 301 }],
   'send-first-coin': [{ type: 'transaction_created' }],
@@ -23,7 +36,7 @@ const COMPLETE = {
     { type: 'fork_round', scenario: 'rewrite', rounds: 3, originalWork: 48, alternativeWork: 64, selected: 'alternative', reorganized: true }
   ]
 };
-const ALL_EVENTS = Object.values(COMPLETE).flat();
+const ALL_EVENTS = MISSIONS.flatMap(mission => COMPLETE[mission.id]);
 const NOISE = [null, undefined, 42, 'hash_changed', {}, { type: 7 }, { type: 'unknown' }, { type: 'reset' }, { type: 'lesson_reset' }];
 
 const apply = (progress, events) => events.reduce(reduce, progress);
@@ -35,13 +48,13 @@ const memoryStorage = (initial = {}) => {
 };
 
 describe('mission track', () => {
-  it('lists the nine missions in the design order with steps, targets and rewards', () => {
+  it('lists the twelve missions in the design order with steps, targets and rewards', () => {
     expect(MISSIONS.map(mission => mission.title)).toEqual([
       'Mine by hand', 'Earn a proof of work', 'Send your first coin', 'Win a mining race', 'Change the past',
-      'Forge a block without getting caught', 'Survive a halving', 'Beat the difficulty adjustment', 'Follow the stronger chain'
+      'Forge a block without getting caught', 'Survive a halving', 'Beat the difficulty adjustment', 'Follow the stronger chain', 'Get your payment in', 'Prove a payment', 'Try to steal a coin'
     ]);
     expect(MISSIONS.map(mission => mission.view)).toEqual(['hash-lab', 'hash-lab', 'workbench', 'workbench', 'chain-lab',
-      'workbench', 'workbench', 'workbench', 'chain-lab']);
+      'workbench', 'workbench', 'workbench', 'chain-lab', 'workbench', 'chain-lab', 'workbench']);
     for (const mission of MISSIONS) {
       expect(mission.steps.length).toBeGreaterThan(0);
       expect(mission.hint).toMatch(/\S/);
@@ -66,7 +79,7 @@ describe('mission track', () => {
   it('starts at mission 1 and unlocks missions only in order', () => {
     const progress = initialProgress();
     expect(activeMission(progress).id).toBe('change-fingerprint');
-    expect(MISSIONS.map(mission => missionStatus(progress, mission.id))).toEqual(['active', ...Array(8).fill('locked')]);
+    expect(MISSIONS.map(mission => missionStatus(progress, mission.id))).toEqual(['active', ...Array(MISSIONS.length - 1).fill('locked')]);
     // Events for later missions do nothing while mission 1 is active.
     expect(apply(progress, ALL_EVENTS.filter(event => event.type !== 'manual_hash_found'))).toBe(progress);
     const second = reduce(progress, { type: 'manual_hash_found', hash: '0' + 'a'.repeat(63) });

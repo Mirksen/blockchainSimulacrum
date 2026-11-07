@@ -3,6 +3,7 @@ import { act, cleanup, fireEvent, render, screen, within } from '@testing-librar
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ChainLab } from '../components/ChainLab';
 import { remineBlock, sampleChain } from '../lib/chainLab';
+import { initialProgress, MISSIONS, reduce } from '../lib/missions';
 
 vi.mock('../lib/chainLab', async importOriginal => {
   const actual = await importOriginal();
@@ -16,6 +17,20 @@ const mine = async number => {
 };
 
 describe('ChainLab interaction', () => {
+  it('keeps another mission intact while freely exploring the Merkle experiment', () => {
+    let progress = { ...initialProgress(), completed: MISSIONS.slice(0, 4).map(m => m.id) };
+    render(<ChainLab onClose={() => {}} coach={{ target: 'chain-lab.remine' }}
+      onLessonEvent={event => { progress = reduce(progress, event); }} />);
+    fireEvent.change(screen.getByLabelText('Block 1 data'), { target: { value: 'Edited fixture record' } });
+    expect(progress.step).toBe(1);
+    fireEvent.click(screen.getByRole('button', { name: 'Prove a payment', exact: true }));
+    fireEvent.click(screen.getByRole('button', { name: /^Tx 5 / }));
+    expect(progress.step).toBe(1);
+    fireEvent.click(screen.getByRole('button', { name: 'Repair a chain', exact: true }));
+    expect(progress.step).toBe(1);
+    expect(screen.getByLabelText('Block 1 data').value).toBe('Edited fixture record');
+  });
+
   it('shows the complete edit and sequential repair learning flow', async () => {
     vi.useFakeTimers();
     // Restore the real implementation after other tests that use deferred results.

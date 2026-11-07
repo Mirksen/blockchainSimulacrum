@@ -1,3 +1,4 @@
+import { verifyMerkleMission } from './new-missions.acceptance.mjs';
 // Layout checks in WebKit, the engine of Safari on iPhone: the Chrome acceptance
 // (scripts/acceptance.mjs) does not see engine-specific layout. Today: the blocks of the
 // chain band stand apart, with the link between them, on a phone and on a desktop.
@@ -69,6 +70,7 @@ try {
   const desktop = await browser.newContext({ viewport: { width: 1512, height: 860 }, reducedMotion: 'reduce' });
   // full band: 32 px link
   assertApart('desktop', await tileEdges(desktop, '.chain-band:not(.is-compact)'), 32);
+  await verifyMerkleMission(browser, baseURL, process.env.SCREENSHOT_DIR || '/tmp', false);
   console.log('WebKit layout: chain band blocks stand apart on phone and desktop');
 } finally {
   await browser?.close();

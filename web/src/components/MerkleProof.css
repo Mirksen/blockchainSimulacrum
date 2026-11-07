@@ -59,3 +59,5 @@
   .merkle-proof-controls { grid-template-columns: minmax(0, 1fr); gap: var(--s-3); }
   .merkle-proof-kv { grid-template-columns: minmax(0, 1fr); }
 }
+
+.merkle-proof .merkle-proof-coach.is-active { min-width: 0; }

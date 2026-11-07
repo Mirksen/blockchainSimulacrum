@@ -1,3 +1,4 @@
+import { verifyFeeMission, verifyMerkleMission, verifySignatureMission } from './new-missions.acceptance.mjs';
 import { verifyMiningFeedback } from './mining-feedback.acceptance.mjs';
 import { verifyFeeMarketCounts, verifyNoticeLifetime } from './notices.acceptance.mjs';
 import { verifyMiningControlsAndSound } from './mining-controls.acceptance.mjs';
@@ -720,6 +721,11 @@ try {
  assert.equal(telemetryRequests.length,beforeMissionTelemetry,'Missions add no telemetry while sharing is off');
 
  results.push(...await verifyForkMission(browser, baseURL, output));
+ results.push(...await verifyMerkleMission(browser, baseURL, output));
+ if (['localhost', '127.0.0.1', '[::1]'].includes(new URL(baseURL).hostname)) {
+  results.push(...await verifyFeeMission(browser, baseURL, output));
+  results.push(...await verifySignatureMission(browser, baseURL, output));
+ }
  results.push(...await verifyMinerName(browser, baseURL, output));
  assert.deepEqual(errors,[]);
  results.push('No page errors or horizontal overflow at five widths');
