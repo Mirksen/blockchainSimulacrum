@@ -372,6 +372,9 @@ decision, 2026-10-27):
   "Mining" between races, "Re-mine block #K" during a repair. Nothing else: not "Start demo",
   not during a race or a repeating run, not while typing, with Cmd/Ctrl/Alt, on key repeat or
   under an open dialog.
+  Settings lets the learner disable this single-letter shortcut, including its
+  announcement, for speech input or assistive technology. The choice stays in this
+  browser; the mining button remains available.
 - **Miner details** (Mirko, 2026-11-03, replaces the miner editor): a click on a miner's name
   opens a **popover** under its lane, between races and during one: its **share** of the racing
   miners' hashpower as a slider from 5 to 90 %, which is its chance to find the next block; the
@@ -569,6 +572,16 @@ Rules for every workbench component (`src/components/workbench/`):
   callbacks.
 
 ## Guards
+
+- Labs and the leaderboard view load on demand; the workbench starts without their
+  code or styles. `check:bundle` follows the build manifest's static imports and caps
+  initial gzip transfer at 255 KiB JavaScript and 25 KiB CSS.
+- `test:quality` checks WCAG A/AA axe rules in both themes at 360 px and desktop,
+  plus the skip link, dialog focus return and shortcut preference. The skip link
+  focuses the current view without changing experiments. Explaining bubbles remain
+  hoverable; Escape dismisses chain explanations while preserving keyboard position.
+- Accent labels use dark ink on the brighter dark-theme blue; muted text remains
+  readable on all panel surfaces. The light theme uses white labels on darker blue.
 
 - `src/__tests__/designTokens.test.js` fails on any color literal (hex,
   `rgb()`, `hsl()`) outside `src/styles/tokens.css`.

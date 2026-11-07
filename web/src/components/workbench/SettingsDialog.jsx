@@ -2,6 +2,7 @@ import { useId, useLayoutEffect, useRef } from 'react';
 import './SettingsDialog.css';
 import { term } from '../../lib/hints';
 import { MIN_DIFFICULTY, MAX_DIFFICULTY } from '../../lib/difficulty';
+import { setMiningShortcut, useMiningShortcut } from '../../lib/miningShortcut';
 
 // "Settings" dialog of the overflow menu (web/DESIGN.md, "Existing features in the
 // workbench"): the experiment settings with the labels and help text of the former
@@ -14,6 +15,7 @@ const clampBlockTime = raw => Math.min(60, Math.max(1, Number(raw) || 10));
 function Dialog({ onClose, coinName, onCoinName, difficulty, onDifficulty, halvingInterval, onHalvingInterval,
   targetBlockTime, onTargetBlockTime, busy }) {
   const ref = useRef(null);
+  const shortcut = useMiningShortcut();
   const titleId = useId();
   const helpId = useId();
   const busyId = useId();
@@ -74,6 +76,11 @@ function Dialog({ onClose, coinName, onCoinName, difficulty, onDifficulty, halvi
           </label>
         </div>
 
+        <label className="settings-dialog-shortcut" {...term('settings.shortcut')}>
+          <input type="checkbox" checked={shortcut} onChange={event => setMiningShortcut(event.target.checked)} />
+          Enable M to mine or re-mine a block
+        </label>
+        <p className="settings-dialog-intro">Turn this off if single-letter shortcuts interfere with speech input or assistive technology.</p>
         {busy && <p className="settings-dialog-busy" id={busyId} role="status">Mining is running. Difficulty, halving interval and target block time unlock when it stops.</p>}
         <p className="settings-dialog-help" id={helpId}>Each extra leading zero takes about 16× more attempts on average. High settings may take longer than you can wait; Pause stops mining. Lowering the difficulty by hand starts a new chain, so a longer chain always took more work. Difficulty adapts every 10 mined blocks. Halving reduces the reward for future blocks; it does not rewrite earlier rewards.</p>
 

@@ -9,6 +9,24 @@ beforeEach(() => { vi.useFakeTimers(); });
 afterEach(() => { cleanup(); vi.useRealTimers(); });
 
 describe('RecordCelebration', () => {
+  it('keeps the focused action while the pointer leaves, and keeps hover when focus leaves', () => {
+    const onClose = vi.fn();
+    render(<RecordCelebration record={RECORD} onClose={onClose} durationMs={1000} />);
+    const card = screen.getByRole('status');
+    const action = screen.getByRole('button', { name: 'Leaderboard' });
+    fireEvent.pointerEnter(card);
+    act(() => action.focus());
+    fireEvent.pointerLeave(card);
+    act(() => vi.advanceTimersByTime(2000));
+    expect(onClose).not.toHaveBeenCalled();
+    fireEvent.pointerEnter(card);
+    act(() => action.blur());
+    act(() => vi.advanceTimersByTime(2000));
+    expect(onClose).not.toHaveBeenCalled();
+    fireEvent.pointerLeave(card);
+    act(() => vi.advanceTimersByTime(1000));
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
   it('renders nothing without a record', () => {
     const { container } = render(<RecordCelebration record={null} onClose={() => {}} />);
     expect(container.innerHTML).toBe('');

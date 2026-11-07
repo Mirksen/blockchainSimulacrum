@@ -187,6 +187,8 @@ function FullHash({ hash, miss = 0 }) {
 
 function Tile({ view, views, newest, selected, pinned, repairPosition, shade, onSelect, tipEnd, events, pace }) {
   const tipId = useId();
+  const [dismissed, setDismissed] = useState(false);
+  const face = useRef(null);
   const state = stateOf(view);
   const mismatch = view.status === 'hash-mismatch';
   const classes = ['chain-band-tile', newest && 'is-newest', selected && (pinned ? 'is-selected' : 'is-current'),
@@ -196,12 +198,14 @@ function Tile({ view, views, newest, selected, pinned, repairPosition, shade, on
   const shownHash = mismatch ? view.computedHash : view.storedHash;
   const miss = mismatch ? view.difficulty : 0;
   return (
-    <div className={classes} data-h={shade} data-status={view.status}>
+    <div className={`${classes}${dismissed ? ' is-tip-dismissed' : ''}`} data-h={shade} data-status={view.status}
+      onPointerEnter={() => setDismissed(false)} onFocusCapture={() => setDismissed(false)}
+      onKeyDown={event => { if (event.key === 'Escape') { event.stopPropagation(); face.current?.focus(); setDismissed(true); } }}>
       {repairPosition ? (
         <span className={`chain-band-order${repairPosition === 1 ? ' is-next' : ''}`} aria-hidden="true">{repairPosition}</span>
       ) : null}
       <span className="chain-band-num" aria-hidden="true">#{view.index}<EpochMarks events={events} /></span>
-      <button type="button" className="chain-band-tile-face" aria-pressed={selected && pinned} aria-describedby={tipId}
+      <button ref={face} type="button" className="chain-band-tile-face" aria-pressed={selected && pinned} aria-describedby={tipId}
         aria-label={tileLabel(view, { newest, selected, repairPosition, events })} onClick={() => onSelect?.(view.index)}>
         <span className="chain-band-tile-top">
           {tag && <span className={`chain-band-tag${state === 'broken' ? ' is-bad' : ''}`}>{tag}</span>}
@@ -235,7 +239,7 @@ function Tile({ view, views, newest, selected, pinned, repairPosition, shade, on
         </span>
       </button>
       {state !== 'broken' && <PaceBar seconds={view.isGenesis ? null : view.seconds} pace={pace} />}
-      <div className={`chain-band-tip${tipEnd ? ' is-end' : ''}`} role="tooltip" id={tipId}>
+      <div className={`chain-band-tip${tipEnd ? ' is-end' : ''}`} role="group" aria-label={`Full hash of block ${view.index}`} id={tipId}>
         <div className="chain-band-tip-head">Block #{view.index} · full hash<CopyButton text={shownHash} label={`Copy full hash of block ${view.index}`} /></div>
         {mismatch ? (
           <>
@@ -304,8 +308,11 @@ function MiniCandidate({ candidate }) {
 }
 
 function Link({ link, epoch = false }) {
+  const [dismissed, setDismissed] = useState(false);
   return (
-    <span className={`chain-band-link is-${link.state}${epoch ? ' is-epoch' : ''}`} tabIndex={0} aria-label={link.label}>
+    <span className={`chain-band-link is-${link.state}${epoch ? ' is-epoch' : ''}${dismissed ? ' is-tip-dismissed' : ''}`} role="group" tabIndex={0} aria-label={link.label}
+      onPointerEnter={() => setDismissed(false)} onFocus={() => setDismissed(false)}
+      onKeyDown={event => { if (event.key === 'Escape') { event.stopPropagation(); setDismissed(true); } }}>
       <span className="chain-band-link-dot" aria-hidden="true" />
       <span className="chain-band-ltip" role="tooltip"><b>{link.title}</b> · {link.text}</span>
     </span>
@@ -479,7 +486,7 @@ export function ChainBand({
     if (!el || typeof el.scrollTo !== 'function') return;
     atEnd.current = true;
     following.current = true;
-    el.scrollTo({ left: el.scrollWidth, behavior: smooth ? 'smooth' : 'auto' });
+    el.scrollTo({ left: el.scrollWidth, behavior: smooth && !globalThis.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches ? 'smooth' : 'auto' });
   };
   const mounted = useRef(false);
   // A new block, or letting go of a held one, brings the newest end into view.
@@ -504,8 +511,9 @@ export function ChainBand({
     if (!el || !tile || typeof el.scrollTo !== 'function') return;
     const left = tile.offsetLeft;
     const right = left + tile.offsetWidth;
-    if (left < el.scrollLeft) el.scrollTo({ left: left - END_SLACK, behavior: 'smooth' });
-    else if (right > el.scrollLeft + el.clientWidth) el.scrollTo({ left: right - el.clientWidth + END_SLACK, behavior: 'smooth' });
+    const behavior = globalThis.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches ? 'auto' : 'smooth';
+    if (left < el.scrollLeft) el.scrollTo({ left: left - END_SLACK, behavior });
+    else if (right > el.scrollLeft + el.clientWidth) el.scrollTo({ left: right - el.clientWidth + END_SLACK, behavior });
   }, [selectedIndex, pinned, repairOrder.length]);
 
   const shadeOf = view => {

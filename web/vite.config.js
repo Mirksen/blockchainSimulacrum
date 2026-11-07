@@ -10,6 +10,7 @@ export default defineConfig(({ mode }) => {
     throw new Error('VITE_POSTHOG_PROJECT_TOKEN must be a public phc_ ingestion token, never a personal or project secret key')
   }
   return {
+  build: { manifest: true },
   plugins: [
     react(),
     nodePolyfills({

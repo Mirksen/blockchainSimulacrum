@@ -96,6 +96,12 @@ export function HintLayer() {
     };
     const onPointerOut = event => {
       if (event.pointerType === 'touch') return;
+      const bubble = bubbleRef.current;
+      if (bubble?.contains(event.relatedTarget)) return;
+      if (bubble?.contains(event.target)) {
+        if (!s.target?.contains(event.relatedTarget)) hide();
+        return;
+      }
       const from = targetOf(event.target);
       if (!from || from.contains(event.relatedTarget)) return;
       if (from === s.suppressed) s.suppressed = null;

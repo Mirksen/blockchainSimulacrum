@@ -46,3 +46,4 @@
 @media (max-width: 480px) {
   .settings-dialog-field { grid-template-columns: minmax(0, 1fr); gap: var(--s-1); }
 }
+.settings-dialog-shortcut { display: flex; align-items: center; gap: var(--s-2); min-height: 32px; font-size: 13px; color: var(--text); }
