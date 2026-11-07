@@ -222,7 +222,10 @@ decision, 2026-10-27):
   privacy policy (`/privacy.html`), a filled "OK" and a plain "Opt out" beside it
   (Mirko, 2026-11-04: OK is the suggested answer, opting out stays one click and
   needs no extra menu). Both answers are saved and the notice does not return. It is not a modal and moves no
-  layout. Without a token or with a browser privacy signal (GPC, Do Not Track)
+  layout. If it covers an outside keyboard target, it switches to the opposite
+  vertical edge, below the header; focus and page position stay put. Its height is
+  bounded with internally scrolling copy on short viewports; both answers stay
+  visible. Without a token or with a browser privacy signal (GPC, Do Not Track)
   nothing is shared and no notice appears. The overflow menu keeps the same switch
   for later changes. A pre-ticked consent would not be consent; the policy names
   legitimate interest and the right to object instead.
