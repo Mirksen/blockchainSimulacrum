@@ -45,7 +45,7 @@ export async function verifyLeaderboardGrowth(page, output, baseURL) {
         await page.screenshot({ path: join(output, `growth-profile-${theme}-${width}.png`), fullPage: true });
       }
     }
-    await page.getByRole('link', { name: 'Leaderboard', exact: true }).click();
+    await page.locator('.miner-profile').getByRole('link', { name: 'Leaderboard', exact: true }).click();
     await page.getByRole('region', { name: 'Finished rounds' }).waitFor();
     for (const theme of ['dark', 'light']) {
       await page.evaluate(theme => document.documentElement.setAttribute('data-theme', theme), theme);
