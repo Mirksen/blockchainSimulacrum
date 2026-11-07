@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { chromium } from 'playwright';
 import { createRequire } from 'node:module';
 import { spawn } from 'node:child_process';
+import { stripVTControlCharacters } from 'node:util';
 import { fileURLToPath } from 'node:url';
 
 const require = createRequire(import.meta.url);
@@ -17,7 +18,7 @@ try {
     let ready = false;
     for (let i = 0; i < 100; i++) {
       if (server.exitCode !== null) throw new Error(`Preview exited: ${log}`);
-      try { if (log.includes(base) && (await fetch(base)).ok) { ready = true; break; } } catch { /* Startup only. */ }
+      try { if (stripVTControlCharacters(log).includes(base) && (await fetch(base)).ok) { ready = true; break; } } catch { /* Startup only. */ }
       await new Promise(resolve => setTimeout(resolve, 100));
     }
     assert.ok(ready, `Preview did not start: ${log}`);
