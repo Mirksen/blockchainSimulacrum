@@ -169,7 +169,7 @@ Terms used in code, tests and docs of proofofwork.fyi. Decisions that shape them
 - **Miner profile** — the public page of one miner name (`#/pool/<name>`, `GET /api/miner?name=`):
   every round the name has a block in (newest Bitcoin block first, at most 200), with its ranks in
   the last-144 window and all time, the places it would have on those boards. A hidden name answers
-  like an unknown one. Names match exactly, as the board groups them.
+  like an unknown one. Names match exactly, as the board groups them. Summary totals and best hashes cover every retained row for that name, separately for the window and all time; each displayed round includes its rank among visible retained names. Finished-round history (`GET /api/rounds`, optional limit 1–20) derives the newest 20 rounds below the window from the same rows, excluding hidden names. Eviction can remove weak entries and counts, so these are retained-data summaries, not a permanent ledger.
 
 ## Hosting
 

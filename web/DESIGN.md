@@ -157,6 +157,13 @@ decision, 2026-10-27):
 - **Miner profile** (2026-11-03): a name on the board opens that miner's
   profile inside the Leaderboard tab at `#/pool/<name>`, a shareable link
   ("Copy link"); browser back and a "Leaderboard" link return to the lists.
+  A quiet "Your personal bests" link opens the current name from the board.
+  Summary totals and the best hash cover all retained rounds, even beyond the
+  newest 200 displayed; each round shows its rank. "Share best find" opens the
+  native share sheet or copies text and a profile link; cancellation stays quiet.
+  No separate share image service is needed. Finished rounds show up to 20 recent
+  rounds outside the window, their best visible retained name, hash and count.
+  Both views explain that weak entries and their counts may be evicted.
   It shows both ranks, rounds, blocks sent, the whole best hash with its
   leading zeros, and one row per round (Bitcoin block linked to
   mempool.space, zeros, difficulty, blocks, time) with Verify. A name without

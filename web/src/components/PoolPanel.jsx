@@ -7,6 +7,7 @@ import { formatDifficulty, GENESIS, hashDifficulty, leadingZeros, poolCandidate,
 import { runSearch } from '../lib/powSearch';
 import { hint, term } from '../lib/hints';
 import { MinerProfile } from './MinerProfile';
+import { RoundHistory } from './RoundHistory';
 import './PoolPanel.css';
 
 // How long one search runs before the panel asks the pool again whether its round is still in the window.
@@ -256,6 +257,10 @@ export function PoolPanel({ name, onNameChange, onClose, onAccepted, refreshKey 
 
     {profile !== null && <MinerProfile key={profile} name={profile} ownName={name} refreshKey={refreshKey} onBack={onCloseProfile} />}
     {profile === null && <>
+    {nameValid && <p><a href={minerProfileHash(name)} {...hint('pool.own-profile')} onClick={event => {
+      if (!onOpenProfile || !plainClick(event)) return;
+      event.preventDefault(); onOpenProfile(name);
+    }}>Your personal bests · {name}</a></p>}
     <section className="pool-panel-board" aria-labelledby="pool-panel-round-title">
       <h3 id="pool-panel-round-title" {...term('pool.recent')}>Last 144 blocks{recent ? <> · Bitcoin #{recent.from}–<a href={blockLink(recent.to)} target="_blank" rel="noreferrer"
         {...hint('pool.bitcoin-block', recent.to)}>#{recent.to}</a></> : ''}</h3>
@@ -275,6 +280,7 @@ export function PoolPanel({ name, onNameChange, onClose, onAccepted, refreshKey 
       <p className="pool-panel-help pool-panel-genesis" {...term('pool.genesis')}>Genesis <code>{GENESIS.hash.slice(0, 16)}…</code>, built on Bitcoin block {GENESIS.anchor.height}.
         {GENESIS.status === 'bridge' && ' A bridge until the final genesis is mined on 31 October 2026; the board starts again then.'}</p>
     </section>
+    <RoundHistory refreshKey={refreshKey + stats.accepted} />
     </>}
 
     <h3 className="pool-panel-mine-title" {...term('pool.mine-title')}>Keep mining for a better hash</h3>
