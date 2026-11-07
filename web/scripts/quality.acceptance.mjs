@@ -74,6 +74,8 @@ try {
     }
     await page.goto(`${base}/`);
     await page.getByRole('button', { name: width < 768 ? 'Menu' : 'More', exact: true }).click();
+    await page.getByRole('button', { name: 'Reset', exact: true }).hover();
+    await page.getByRole('tooltip').waitFor();
     await page.getByRole('button', { name: 'Settings', exact: true }).click();
     await page.getByRole('dialog', { name: 'Settings', exact: true }).waitFor();
     for (const theme of ['dark', 'light']) {
