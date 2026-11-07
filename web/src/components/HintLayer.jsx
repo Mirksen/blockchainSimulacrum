@@ -92,7 +92,8 @@ export function HintLayer() {
       if (event.pointerType === 'touch') return;
       if (bubbleRef.current?.contains(event.target)) { clearTimeout(s.timer); s.timer = null; return; }
       const target = targetOf(event.target);
-      if (!target || target === s.target || target === s.suppressed) return;
+      if (target && target === s.target) { clearTimeout(s.timer); s.timer = null; return; }
+      if (!target || target === s.suppressed) return;
       schedule(target);
     };
     const onPointerOut = event => {

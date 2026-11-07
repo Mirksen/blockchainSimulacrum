@@ -76,6 +76,17 @@ describe('HintLayer', () => {
 });
 
 describe('hints catalog', () => {
+  it('keeps a menu hint when the pointer returns to its control during the crossing delay', () => {
+    render(<div className="top-bar-menu"><Page /></div>);
+    fireEvent.pointerOver(backHal(), { pointerType: 'mouse' });
+    act(() => vi.advanceTimersByTime(400));
+    const bubble = screen.getByRole('tooltip');
+    fireEvent.pointerOut(backHal(), { pointerType: 'mouse', relatedTarget: document.body });
+    act(() => vi.advanceTimersByTime(100));
+    fireEvent.pointerOver(backHal(), { pointerType: 'mouse', relatedTarget: document.body });
+    act(() => vi.advanceTimersByTime(250));
+    expect(screen.getByRole('tooltip')).toBe(bubble);
+  });
   it('lets the pointer cross into the explaining bubble and dismisses it with Escape', () => {
     render(<Page />);
     fireEvent.pointerOver(backHal(), { pointerType: 'mouse' });
