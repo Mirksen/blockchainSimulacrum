@@ -120,6 +120,15 @@ Terms used in code, tests and docs of proofofwork.fyi. Decisions that shape them
 
 - **Text hashing** — the first Hash lab experiment hashes exactly the visible UTF-8 text once with SHA-256. A manual edit finding a leading zero earns a first proof; Continue completes the first mission. Automatic tries reuse the text search, with a visible space and number appended. It is separate from Bitcoin block-header hashing.
 
+- **Mission evidence** — `web/src/lib/missions.js` advances only the active step. The fee
+  mission observes a low-fee payment waiting for space, a selected higher-fee child that spends
+  it, and both transaction IDs in an accepted block (`missionEvidence.js`). The Merkle mission
+  requires a valid proof followed by one well-formed changed sibling for the same payment/root.
+  The signature mission edits and re-mines a signed transfer in the newest block: every
+  hash/target/link must check out while its signature and the whole chain remain invalid.
+  There are no descendants to repair; the existing API refuses re-mining past an invalid
+  ledger block. Undo and reset discard unfinished evidence; completed IDs stay at version 1.
+
 - **Hash lab / chain lab / learning path** — isolated experiments with their own temporary state;
   they never change the simulator chain or wallets. The block-header and chain experiments hash real 80-byte headers: the learner's
   text stands in for the transactions, its double SHA-256 is the merkle root, and a fixed clock

@@ -1,7 +1,8 @@
-import { useId, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { BLOCK_SIZES, LISTED_LIMIT, sampleBlock, txidOf, verifyProof } from '../lib/merkleLab';
 import { HeaderBytes } from './HeaderBytes';
 import { hint, term } from '../lib/hints';
+import { CoachMark } from './workbench/CoachMark';
 import './MerkleProof.css';
 
 const DEFAULT_SIZE = 16;
@@ -11,7 +12,10 @@ const hashes = n => count(n, 'hash', 'hashes');
 
 // Prove a payment: an isolated Chain lab experiment. A light client holds the block header
 // only; the proof is the chosen payment plus one sibling hash per tree level.
-export function MerkleProof() {
+export function MerkleProof({ onLessonEvent, coach = null }) {
+  // An unfinished proof belongs to this mounted experiment. Leaving or hiding
+  // guidance discards its evidence along with the local inputs.
+  useEffect(() => () => onLessonEvent?.({ type: 'lesson_reset' }), [onLessonEvent]);
   const id = useId();
   const [size, setSize] = useState(DEFAULT_SIZE);
   const [index, setIndex] = useState(defaultIndex(DEFAULT_SIZE));
@@ -28,30 +32,47 @@ export function MerkleProof() {
   const top = proof.path.length;
   const edited = text !== null || Object.keys(siblings).length > 0;
 
-  function choose(nextIndex) {
+  function choose(nextIndex, nextSize = size, report = true) {
     setIndex(nextIndex);
     setIndexInput(String(nextIndex));
     setText(null);
     setSiblings({});
+    onLessonEvent?.({ type: 'lesson_reset' });
+    if (report) {
+      const nextBlock = sampleBlock(nextSize);
+      const nextProof = nextBlock.proofFor(nextIndex);
+      const checked = verifyProof(nextBlock.txids[nextIndex], nextProof.path, nextBlock.root, nextProof.levels);
+      onLessonEvent?.({ type: 'merkle_checked', root: nextBlock.root, txid: nextBlock.txids[nextIndex],
+        valid: checked.valid, malformed: Boolean(checked.malformed), failedAt: checked.failedAt, editedSibling: false });
+    }
   }
   function changeSize(nextSize) {
     setSize(nextSize);
-    choose(defaultIndex(nextSize));
+    choose(defaultIndex(nextSize), nextSize, false);
   }
   function reset() {
     setSize(DEFAULT_SIZE);
-    choose(defaultIndex(DEFAULT_SIZE));
+    choose(defaultIndex(DEFAULT_SIZE), DEFAULT_SIZE, false);
   }
   function typeIndex(value) {
     setIndexInput(value);
     const parsed = /^\d+$/.test(value.trim()) ? Number(value) : NaN;
     if (Number.isInteger(parsed) && parsed >= 0 && parsed < size) {
-      setIndex(parsed);
-      setText(null);
-      setSiblings({});
+      choose(parsed);
     }
   }
   const indexInvalid = !(/^\d+$/.test(indexInput.trim()) && Number(indexInput) < size);
+
+  function editSibling(level, value) {
+    const next = { ...siblings, [level]: value.trim() };
+    setSiblings(next);
+    const nextPath = proof.path.map(step => ({ ...step, hash: next[step.level] ?? step.hash }));
+    const checked = verifyProof(txid, nextPath, block.root, proof.levels);
+    onLessonEvent?.({ type: 'merkle_checked', root: block.root, txid, valid: checked.valid,
+      malformed: Boolean(checked.malformed), failedAt: checked.failedAt,
+      editedSibling: text === null && nextPath.reduce((changes, step, i) => changes +
+        [...step.hash].filter((character, position) => character !== proof.path[i].hash[position]).length, 0) === 1 });
+  }
 
   function levelName(level) {
     if (level === 0) return 'Level 0 · transaction';
@@ -81,6 +102,7 @@ export function MerkleProof() {
         <span>plus the 80-byte header: the light client never downloads the other payments.</span></p>
     </div>
 
+    <CoachMark target="chain-lab.merkle-payment" coach={coach} className="merkle-proof-coach">
     {size <= LISTED_LIMIT ? <div className="merkle-proof-list">
       <h3>Transactions in the block</h3>
       <ol start={0}>{block.texts.map((payment, position) => <li key={position}>
@@ -96,6 +118,7 @@ export function MerkleProof() {
       <p className="merkle-proof-hint">The other {count(size - 1, 'transaction')} stay hidden: the proof does not need them.</p>
     </div>}
 
+    </CoachMark>
     <div className="merkle-proof-header-card">
       <h3 {...term('lab.merkle.header')}>Block header (what the light client holds)</h3>
       <dl className="merkle-proof-kv">
@@ -107,7 +130,7 @@ export function MerkleProof() {
 
     <div className="merkle-proof-payment">
       <label htmlFor={`${id}-text`}>Payment text of transaction {index}</label>
-      <textarea id={`${id}-text`} rows={2} maxLength={300} value={paymentText} {...hint('lab.merkle.text')} onChange={event => setText(event.target.value)} />
+      <textarea id={`${id}-text`} rows={2} maxLength={300} value={paymentText} {...hint('lab.merkle.text')} onChange={event => { setText(event.target.value); onLessonEvent?.({ type: 'lesson_reset' }); }} />
     </div>
 
     <h3 className="merkle-proof-path-title" {...term('lab.merkle.path')}>Proof path for transaction {index}</h3>
@@ -124,13 +147,13 @@ export function MerkleProof() {
           <p className="merkle-proof-formula">{step.level === 0 ? 'txid = SHA-256d(payment text)'
             : `= SHA-256d(${path[step.level - 1].side === 'left' ? `sibling ‖ level ${step.level - 1}` : `level ${step.level - 1} ‖ sibling`})`}</p>
           <code className="merkle-proof-hash">{step.hash ?? 'Cannot compute: an input below is not a hash.'}</code>
-          {sibling && <div className="merkle-proof-sibling">
+          {sibling && <CoachMark target={step.level === 0 ? 'chain-lab.merkle-sibling' : undefined} coach={coach} className="merkle-proof-coach"><div className="merkle-proof-sibling">
             <label htmlFor={`${id}-sibling-${step.level}`}>Sibling at level {step.level} (on the {sibling.side})</label>
             <input id={`${id}-sibling-${step.level}`} className="merkle-proof-hash-input" spellCheck={false} value={sibling.hash} {...hint('lab.merkle.sibling', sibling.side)}
               aria-invalid={siblingInvalid} aria-describedby={siblingInvalid ? `${id}-sibling-${step.level}-error` : undefined}
-              onChange={event => setSiblings(current => ({ ...current, [step.level]: event.target.value.trim() }))} />
+              onChange={event => editSibling(step.level, event.target.value)} />
             {siblingInvalid && <p id={`${id}-sibling-${step.level}-error`} className="merkle-proof-error">Enter 64 hexadecimal characters.</p>}
-          </div>}
+          </div></CoachMark>}
         </li>;
       })}
     </ol>
