@@ -209,7 +209,9 @@ decision, 2026-10-27):
   Missions unlock in order; free play never needs a mission. Progress stays
   in the browser. Reloading retains completed missions and rewards; the active
   mission restarts at its first step because lab state starts fresh and mission evidence must come from this visit; the simulator chain itself is restored.
-  Opening or hiding missions within the page retains the active step. Lab missions
+  Opening or hiding missions within the page retains earlier missions’ active steps.
+  An unfinished Merkle proof restarts when its experiment is left or guidance is hidden,
+  because its local proof inputs are discarded. Lab missions
   use the labs' own temporary state and never change the simulator chain.
 - **Experiment settings** (coin name, difficulty, halving interval, target
   block time) move into a "Settings" dialog in the overflow menu; difficulty
