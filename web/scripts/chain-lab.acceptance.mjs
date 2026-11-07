@@ -49,9 +49,11 @@ export async function verifyChainLab(page, output, before) {
     await block(1).getByRole('button', { name: 'Re-mine Block 1' }).press('Enter');
     await block(1).getByRole('button', { name: 'Stop search', exact: true }).press('Enter');
     await page.clock.runFor(1);
-    await lab.getByRole('status').filter({ hasText: 'Stopped after 0 attempts' }).waitFor();
-    assert.deepEqual(await hashes(), original);
   } finally { await page.clock.resume(); }
+  // Stop was pressed while the inline search's first yield was frozen. Resume
+  // before awaiting React's result paint; its scheduling must be allowed to settle.
+  await lab.getByRole('status').filter({ hasText: 'Stopped after 0 attempts' }).waitFor();
+  assert.deepEqual(await hashes(), original);
   await lab.getByRole('button', { name: 'Reset chain lab' }).click();
 
   for (const theme of ['light', 'dark']) {
