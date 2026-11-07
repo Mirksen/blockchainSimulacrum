@@ -96,6 +96,7 @@ export async function verifyMerkleMission(browser, baseURL, output, screenshots 
     await page.getByRole('button', { name: /^Tx 5 / }).click();
     await coach(page, 'chain-lab.merkle-sibling').waitFor();
     await page.getByRole('button', { name: 'Back to simulator', exact: true }).click();
+    await page.waitForFunction(() => JSON.parse(localStorage.getItem('proofofwork-missions')).step === 0);
     assert.equal((await progress(page)).step, 0, 'Leaving discards the unmounted proof evidence');
     await rail.getByRole('button', { name: 'Show me' }).click();
     await page.getByRole('button', { name: /^Tx 5 / }).click();
@@ -103,6 +104,7 @@ export async function verifyMerkleMission(browser, baseURL, output, screenshots 
     await sibling.fill('abc');
     assert.equal((await progress(page)).step, 1, 'Malformed text is not an observed cryptographic failure');
     await page.getByRole('button', { name: 'Reset example', exact: true }).click();
+    await page.waitForFunction(() => JSON.parse(localStorage.getItem('proofofwork-missions')).step === 0);
     assert.equal((await progress(page)).step, 0, 'Reset discards the first proof');
     const original = await sibling.inputValue();
     const changed = (original[0] === '0' ? '1' : '0') + original.slice(1);
