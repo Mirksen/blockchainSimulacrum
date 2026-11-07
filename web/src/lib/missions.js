@@ -113,6 +113,37 @@ export const MISSIONS = freeze([
     hint: 'Change the alternative branch’s hash power. Equal work keeps the current branch; only strictly more work switches it.',
     result: 'The rewritten branch became the selected history because its valid blocks accumulated more work. This local text model does not forge signatures or move money, and more hash power never guarantees a win within twelve blocks.',
     reward: { xp: 80, badge: 'Fork watcher' }
+  },
+  {
+    id: 'get-payment-in', title: 'Get your payment in', view: 'workbench', hintKey: 'mission.fee-market',
+    steps: [
+      { id: 'wait-for-space', text: 'Fill the mempool until a low-fee payment waits because the block is full.', target: 'workbench.new-transaction' },
+      { id: 'pay-for-parent', text: 'Spend that pending payment in a new transfer with a higher fee rate.', target: 'workbench.new-transaction' },
+      { id: 'confirm-package', text: 'Mine a block that includes both payments.', target: 'workbench.mine' }
+    ],
+    hint: 'Send a low-fee payment to a new wallet, then add high-fee transfers until it waits. From that wallet send a smaller amount at 20 sat/B. Its child fee can pull both into the block.',
+    result: 'Your waiting payment and its higher-fee child were mined together. Miners choose packages by fee per byte within 1,300 bytes of payment space here. This is child pays for parent: the child helps pay for its pending ancestor.',
+    reward: { xp: 80, badge: 'Fee planner' }
+  },
+  {
+    id: 'prove-a-payment', title: 'Prove a payment', view: 'chain-lab', hintKey: 'mission.merkle',
+    steps: [
+      { id: 'check-path', text: 'Choose a payment and follow its proof to the header’s Merkle root.', target: 'chain-lab.merkle-payment' },
+      { id: 'change-sibling', text: 'Change one character of one sibling hash. Find the first diverging level.', target: 'chain-lab.merkle-sibling' }
+    ],
+    hint: 'Choose a transaction to check its real proof. Then replace one hex character (0–9 or a–f) in a sibling, keeping all 64 characters. Reset example starts over.',
+    result: 'The original path matched the header’s Merkle root. Changing one sibling changed the computed root, with the first diverging level marked. These toy payment texts prove inclusion only; they are not signed transfers.',
+    reward: { xp: 60, badge: 'Proof reader' }
+  },
+  {
+    id: 'test-a-signature', title: 'Try to steal a coin', view: 'workbench', hintKey: 'mission.signature',
+    steps: [
+      { id: 'edit-signed-payment', text: 'Mine a payment, then change a signed transfer’s amount in the newest block.', target: 'workbench.selected-block.tamper' },
+      { id: 'redo-work', text: 'Choose Test proof of work anyway. See the signature stay invalid after re-mining.', target: 'workbench.signature-test' }
+    ],
+    hint: 'Use the newest block, so there are no later blocks to repair. Choose a transfer, not the coinbase. Re-mining can repair its hash, but only the sender’s key can sign the changed payment. Undo starts over.',
+    result: 'Every stored hash meets its target and every link matches, yet the signed payment is invalid. Proof of work can be redone; the sender’s signature cannot be reused for a changed amount. This is a local experiment with virtual coins, not a network attack.',
+    reward: { xp: 80, badge: 'Signature checker' }
   }
 ]);
 
@@ -120,10 +151,46 @@ const BY_ID = new Map(MISSIONS.map((mission, index) => [mission.id, index]));
 const isObject = value => value !== null && typeof value === 'object' && !Array.isArray(value);
 const isIndex = value => Number.isSafeInteger(value) && value >= 0;
 const isCount = value => Number.isSafeInteger(value) && value > 0;
+const isHash = value => typeof value === 'string' && /^[0-9a-f]{64}$/.test(value);
 
 // Per mission: advance(stepIndex, data, event) returns the next {step, data} or null to
 // ignore the event. step === steps.length completes the mission.
 const RULES = {
+  'get-payment-in': {
+    advance(step, data, event) {
+      if (event.type !== 'fee_market_checked' || event.chainValid !== true) return null;
+      if (step === 0) {
+        const waiting = Array.isArray(event.waiting) && event.waiting.find(entry => isObject(entry) && isHash(entry.txid) && entry.reason === 'full' && entry.rate > 0 && entry.rate < 2);
+        return waiting ? { step: 1, data: { parent: waiting.txid } } : null;
+      }
+      if (step === 1) {
+        if (isHash(event.acceptedBlock) && Array.isArray(event.confirmed) && event.confirmed.includes(data.parent)) return { step: 0, data: {} };
+        const child = Array.isArray(event.packages) && event.packages.find(entry => isObject(entry) && entry.parent === data.parent && isHash(entry.child) && entry.higherFee === true && entry.selected === true);
+        return child ? { step: 2, data: { ...data, child: child.child } } : null;
+      }
+      if (!isHash(event.acceptedBlock) || !Array.isArray(event.confirmed)) return null;
+      if (event.confirmed.includes(data.parent) && event.confirmed.includes(data.child)) return { step: 3, data };
+      return event.confirmed.includes(data.parent) ? { step: 0, data: {} } : null;
+    }
+  },
+  'prove-a-payment': {
+    advance(step, data, event) {
+      if (event.type !== 'merkle_checked' || !isHash(event.root) || !isHash(event.txid)) return null;
+      if (step === 0) return event.valid === true && event.editedSibling === false
+        ? { step: 1, data: { root: event.root, txid: event.txid } } : null;
+      return event.root === data.root && event.txid === data.txid && event.valid === false && event.malformed === false &&
+        event.editedSibling === true && isCount(event.failedAt) ? { step: 2, data } : null;
+    }
+  },
+  'test-a-signature': {
+    advance(step, data, event) {
+      if (event.type === 'edit_undone') return step > 0 ? { step: 0, data: {} } : null;
+      if (event.type === 'block_tampered') return event.signed === true && event.newest === true && isCount(event.blockIndex)
+        ? { step: 1, data: { tampered: event.blockIndex } } : step > 0 ? { step: 0, data: {} } : null;
+      return step === 1 && event.type === 'block_remined' && event.blockIndex === data.tampered && event.chainValid === false &&
+        event.hashesAndLinksValid === true && event.signatureInvalid === true && event.editPresent === true ? { step: 2, data } : null;
+    }
+  },
   'change-fingerprint': {
     advance: (step, data, event) => event.type === 'manual_hash_found' && /^0[0-9a-f]{63}$/.test(event.hash) ? { step: 1, data } : null
   },
