@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { chromium, webkit } from 'playwright';
+import { settle } from './workbench.helpers.mjs';
 import { readFileSync } from 'node:fs';
 const GENESIS = JSON.parse(readFileSync(new URL('../../shared/genesis.json', import.meta.url), 'utf8'));
 
@@ -40,6 +41,7 @@ export async function verifyLeaderboardGrowth(page, output, baseURL) {
       await page.evaluate(theme => document.documentElement.setAttribute('data-theme', theme), theme);
       for (const width of [320, 390, 768, 1200, 1440]) {
         await page.setViewportSize({ width, height: 900 });
+        await settle(page);
         const size = await page.evaluate(() => ({ width: innerWidth, scroll: document.documentElement.scrollWidth }));
         assert.ok(size.scroll <= size.width, JSON.stringify({ theme, ...size }));
         await page.screenshot({ path: join(output, `growth-profile-${theme}-${width}.png`), fullPage: true });
@@ -51,6 +53,7 @@ export async function verifyLeaderboardGrowth(page, output, baseURL) {
       await page.evaluate(theme => document.documentElement.setAttribute('data-theme', theme), theme);
       for (const width of [320, 390, 768, 1200, 1440]) {
         await page.setViewportSize({ width, height: 900 });
+        await settle(page);
         assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
         await page.screenshot({ path: join(output, `growth-history-${theme}-${width}.png`), fullPage: true });
       }
