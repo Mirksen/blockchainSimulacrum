@@ -46,6 +46,11 @@ export const POOL_HINTS = {
 
   // ---------- miner profile ----------
   'pool.profile-back': { title: 'Leaderboard', text: 'Back to the two leaderboard lists.' },
+  'pool.share-find': { title: 'Share best find', text: 'Share your name, best retained hash and profile link with another app. If sharing is unavailable, copy them instead. Nothing is posted until you choose where to send it.' },
+  'pool.own-profile': { title: 'Your personal bests', text: 'Open the blocks kept under your current miner name, with its ranks and best hashes. Names are public, shared labels, not accounts.' },
+  'pool.round-rank': { title: 'Rank in this round', text: 'This name’s place among retained visible names mining the same Bitcoin block. The smallest hash leads.' },
+  'pool.personal-window': { title: 'Recent personal best', text: 'The count and best hash kept for this name in the last 144 Bitcoin blocks. All-time figures also include finished rounds. Evicted weak entries no longer count.' },
+  'pool.finished-rounds': { title: 'Finished rounds', text: 'Up to 20 recent rounds whose Bitcoin block has left the 144-block window. The smallest retained hash wins. Counts cover retained visible entries, not every block ever mined.' },
   'pool.copy-link': { title: 'Copy link', text: 'Copy the address of this profile to the clipboard, to share it.' },
   'pool.you': { title: 'You', text: 'This is the name you mine under. Others can mine under the same name too.' },
   'pool.rank-recent': { title: 'Rank · last 144 blocks', text: 'This name’s place among rounds whose Bitcoin block is one of the last 144 (about a day). A dash means no block in that window.' },

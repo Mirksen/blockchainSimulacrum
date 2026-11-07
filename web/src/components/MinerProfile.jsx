@@ -2,6 +2,7 @@ import { Fragment, useEffect, useState } from 'react';
 import { getMiner, isValidPoolName, minerProfileHash, POOL_HASH, POOL_UNAVAILABLE_MESSAGE, UNKNOWN_MINER_MESSAGE } from '../lib/poolApi';
 import { formatDifficulty, leadingZeros, verifyRow } from '../lib/poolProof';
 import { hint, term } from '../lib/hints';
+import { shareFind } from '../lib/shareFind';
 import './MinerProfile.css';
 
 const blockLink = height => `https://mempool.space/block/${height}`;
@@ -50,7 +51,7 @@ function Rounds({ blocks }) {
             <td>{formatDifficulty(block.difficulty)}</td>
             <td>{formatNumber(block.proofs)}</td>
             <td><time dateTime={new Date(block.foundAt).toISOString()}>{formatTime(block.foundAt)}</time></td>
-            <td><button type="button" className="btn btn-transparent miner-profile-verify-btn" aria-expanded={isOpen} {...hint('pool.verify')}
+            <td>{block.rank && <span {...term('pool.round-rank')}>#{block.rank} · </span>}<button type="button" className="btn btn-transparent miner-profile-verify-btn" aria-expanded={isOpen} {...hint('pool.verify')}
               aria-label={`Verify the block of round ${block.round.height}`} onClick={() => setOpen(isOpen ? null : key)}>Verify</button></td>
           </tr>
           {isOpen && <tr className="miner-profile-verify-row"><td colSpan={6}><Verification block={block} /></td></tr>}
@@ -83,8 +84,9 @@ export function MinerProfile({ name, ownName = '', refreshKey = 0, onBack }) {
   if (!valid || (state === 'ready' && loaded.miner.blocks.length === 0)) state = 'unknown';
   const miner = state === 'ready' ? loaded.miner : null;
   const blocks = miner?.blocks ?? [];
-  const best = blocks.reduce((smallest, block) => (smallest === null || block.bestHash < smallest ? block.bestHash : smallest), null);
-  const sent = blocks.reduce((total, block) => total + block.proofs, 0);
+  const listedBest = blocks.reduce((smallest, block) => (smallest === null || block.bestHash < smallest ? block.bestHash : smallest), null);
+  const best = miner?.summary?.allTime.bestHash ?? listedBest;
+  const sent = miner?.summary?.allTime.proofs ?? blocks.reduce((total, block) => total + block.proofs, 0);
 
   async function copyLink() {
     const { origin, pathname, search } = globalThis.location;
@@ -114,11 +116,16 @@ export function MinerProfile({ name, ownName = '', refreshKey = 0, onBack }) {
       <dl className="miner-profile-stats">
         <div><dt {...term('pool.rank-recent')}>Rank · last 144 blocks</dt><dd>{formatRank(miner.rank.window)}</dd></div>
         <div><dt {...term('pool.rank-all-time')}>Rank · all time</dt><dd>{formatRank(miner.rank.allTime)}</dd></div>
-        <div><dt {...term('pool.rounds')}>Rounds</dt><dd>{formatNumber(blocks.length)}</dd></div>
+        <div><dt {...term('pool.rounds')}>Rounds</dt><dd>{formatNumber(miner.summary?.allTime.rounds ?? blocks.length)}</dd></div>
         <div><dt {...term('pool.blocks-sent')}>Blocks sent</dt><dd>{formatNumber(sent)}</dd></div>
       </dl>
+      {miner.summary?.window && <p className="miner-profile-help" {...term('pool.personal-window')}>Last 144 blocks: {formatNumber(miner.summary.window.proofs)} blocks · best {miner.summary.window.bestZeros ?? '—'} zeros{miner.summary.window.bestHash && <FullHash hash={miner.summary.window.bestHash} />}</p>}
+      {best && <button type="button" className="btn btn-transparent" {...hint('pool.share-find')} onClick={async () => {
+        setCopied(await shareFind({ name, bestHash: best }));
+      }}>Share best find</button>}
       {best && <div className="miner-profile-best"><span className="miner-profile-label" {...term('pool.profile-best')}>Best hash</span><FullHash hash={best} /></div>}
       <h4 id="miner-profile-rounds-title" className="miner-profile-rounds-title" {...term('pool.rounds')}>Rounds</h4>
+      <p className="miner-profile-help">Newest {blocks.length} rounds shown. Totals cover retained blocks; weak entries may leave the board when storage fills.</p>
       <Rounds blocks={blocks} />
     </>}
   </section>;

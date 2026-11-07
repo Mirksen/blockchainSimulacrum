@@ -17,9 +17,10 @@ export const MAX_BODY_BYTES = 2048;
 export const LEADERBOARD_SIZE = 20;
 // The most rounds a miner profile lists.
 export const MINER_ROUNDS = 200;
+export const HISTORY_ROUNDS = 20;
 // Keeps the database well inside its filesystem, whatever a script sends (ADR 0003).
 export const MAX_BLOCKS = 20_000;
-export const RATE_LIMITS = Object.freeze({ challenge: 30, share: 120 });
+export const RATE_LIMITS = Object.freeze({ challenge: 30, share: 120, history: 30 });
 const RATE_WINDOW_MS = 60 * 1000;
 const HEX_RE = /^[0-9a-f]+$/;
 const HASH_RE = /^[0-9a-f]{64}$/;
@@ -281,11 +282,35 @@ export function createApp({
   // Every round of one name, newest Bitcoin block first. Names match exactly, as the
   // leaderboard groups them.
   const selectMinerBlocks = db.prepare(`
-    SELECT round_height, round_hash, header, coinbase, branch, hash, zeros, proofs, created_at
-    FROM blocks WHERE genesis_hash = ? AND name = ?
+    WITH placed AS (
+      SELECT *, ROW_NUMBER() OVER (PARTITION BY round_height, round_hash ORDER BY hash, created_at, name) AS place
+      FROM blocks WHERE genesis_hash = ?1
+        AND NOT EXISTS (SELECT 1 FROM hidden_names h WHERE h.folded = fold_name(blocks.name))
+    )
+    SELECT place, round_height, round_hash, header, coinbase, branch, hash, zeros, proofs, created_at
+    FROM placed WHERE genesis_hash = ?1 AND name = ?2
     ORDER BY round_height DESC, round_hash ASC
     LIMIT ${MINER_ROUNDS}
   `);
+  const selectSummary = db.prepare(`
+    SELECT MIN(hash) AS best, SUM(proofs) AS proofs, COUNT(*) AS rounds
+    FROM blocks WHERE genesis_hash = ? AND name = ? AND (? IS NULL OR round_height >= ?)
+  `);
+  const selectHistory = db.prepare(`
+    WITH finished AS (
+      SELECT *, ROW_NUMBER() OVER (PARTITION BY round_height, round_hash ORDER BY hash, created_at, name) AS place,
+        SUM(proofs) OVER (PARTITION BY round_height, round_hash) AS total,
+        COUNT(*) OVER (PARTITION BY round_height, round_hash) AS miners
+      FROM blocks WHERE genesis_hash = ? AND round_height < ?
+        AND NOT EXISTS (SELECT 1 FROM hidden_names h WHERE h.folded = fold_name(blocks.name))
+    ) SELECT * FROM finished WHERE place = 1 ORDER BY round_height DESC, round_hash ASC LIMIT ?
+  `);
+  const summarize = (name, from) => {
+    const row = selectSummary.get(genesisHash, name, from, from);
+    return { bestHash: row.best, bestZeros: row.best ? leadingHexZeros(row.best) : null,
+      proofs: row.proofs ?? 0, rounds: row.rounds };
+  };
+
   const leaderboardRows = (fromHeight) => selectBest.all(genesisHash, fromHeight).map((row) => ({
     name: row.name,
     round: { height: row.round_height, hash: row.round_hash },
@@ -384,6 +409,7 @@ export function createApp({
     const rankIn = (fromHeight) => selectRank.get(genesisHash, fromHeight, name)?.place ?? null;
     send(res, 200, {
       name,
+      summary: { allTime: summarize(name, null), window: from === null ? null : summarize(name, from) },
       rank: { window: from === null ? null : rankIn(from), allTime: rankIn(null) },
       blocks: rows.map((row) => ({
         round: { height: row.round_height, hash: row.round_hash },
@@ -395,9 +421,22 @@ export function createApp({
         difficulty: hashDifficulty(row.hash),
         proofs: row.proofs,
         foundAt: row.created_at,
+        rank: row.place,
         inWindow: from !== null && row.round_height >= from,
       })),
     });
+  }
+
+  function handleRounds(url, req, res) {
+    if (!takeToken('history', clientKeyOf(req))) throw new HttpError(429, 'rate limited');
+    const raw = url.searchParams.get('limit');
+    if (raw !== null && !/^(?:[1-9]|1[0-9]|20)$/.test(raw)) throw new HttpError(400, 'invalid limit');
+    const from = tip.windowStart();
+    if (!tip.round() || from === null) throw new HttpError(503, 'round unavailable');
+    send(res, 200, { genesisHash, rounds: selectHistory.all(genesisHash, from, Number(raw ?? HISTORY_ROUNDS)).map(row => ({
+      round: { height: row.round_height, hash: row.round_hash },
+      name: row.name, bestHash: row.hash, bestZeros: row.zeros, proofs: row.total, miners: row.miners,
+    })) });
   }
 
   async function serveStatic(url, req, res) {
@@ -466,6 +505,10 @@ export function createApp({
       if (pathname === '/api/leaderboard') {
         if (req.method !== 'GET') throw new HttpError(405, 'method not allowed');
         return handleLeaderboard(res);
+      }
+      if (pathname === '/api/rounds') {
+        if (req.method !== 'GET') throw new HttpError(405, 'method not allowed');
+        return handleRounds(url, req, res);
       }
       if (pathname === '/api/miner') {
         if (req.method !== 'GET') throw new HttpError(405, 'method not allowed');

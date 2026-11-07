@@ -3,14 +3,14 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testi
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MinerProfile } from '../components/MinerProfile';
 import App from '../App';
-import { getLeaderboard, getMiner } from '../lib/poolApi';
+import { getLeaderboard, getMiner, getRounds } from '../lib/poolApi';
 import { le, meetsTarget } from '../../../shared/bitcoin-block.mjs';
 import { hashAtNonce } from '../lib/blockHeader';
 import { GENESIS, hashDifficulty, leadingZeros, poolCandidate, proofPrefix, signatureOf } from '../lib/poolProof';
 import { HINTS } from '../lib/hints';
 
 vi.mock('../lib/poolApi', async importOriginal => ({ ...(await importOriginal()),
-  getChallenge: vi.fn(), submitProof: vi.fn(), getLeaderboard: vi.fn(), getMiner: vi.fn() }));
+  getChallenge: vi.fn(), submitProof: vi.fn(), getLeaderboard: vi.fn(), getMiner: vi.fn(), getRounds: vi.fn().mockResolvedValue([]) }));
 // App around the Leaderboard tab: the simulation and the other views are covered elsewhere.
 vi.mock('../hooks/useMinerIdentity', () => ({ useMinerIdentity: () => ({ name: 'own-miner', setName: () => {}, signer: {} }) }));
 vi.mock('../hooks/useBlockchain', () => ({ useBlockchain: () => ({
@@ -49,6 +49,7 @@ const unknown = () => Object.assign(new Error('No blocks for this name yet.'), {
 const boardRow = name => ({ ...blockOf(name, roundOf(900200)), name });
 
 beforeEach(() => {
+  vi.mocked(getRounds).mockResolvedValue([]);
   vi.mocked(getMiner).mockReset();
   vi.mocked(getLeaderboard).mockReset();
 });
@@ -206,4 +207,24 @@ describe('miner profile route in App', () => {
     expect(await screen.findByText('you')).toBeTruthy();
     expect(getMiner).toHaveBeenCalledWith('own-miner', expect.anything());
   });
+});
+
+
+it('shows retained totals and best beyond the newest displayed rounds, and shares that best', async () => {
+  const writeText = vi.fn().mockResolvedValue();
+  Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } });
+  const oldBest = '000000' + 'a'.repeat(58);
+  vi.mocked(getMiner).mockResolvedValue({ ...PROFILE, summary: {
+    allTime: { bestHash: oldBest, bestZeros: 6, proofs: 9876, rounds: 250 },
+    window: { bestHash: NEW.bestHash, bestZeros: NEW.bestZeros, proofs: 3, rounds: 1 }
+  } });
+  render(<MinerProfile name={NAME} />);
+  await screen.findByRole('region', { name: 'Rounds' });
+  expect(stat('Rounds')).toBe('250');
+  expect(stat('Blocks sent')).toBe('9,876');
+  expect(document.querySelector('.miner-profile-best .miner-profile-hash').textContent).toBe(oldBest);
+  fireEvent.click(screen.getByRole('button', { name: 'Share best find' }));
+  await screen.findByText('Find and link copied.');
+  expect(writeText).toHaveBeenCalledWith(expect.stringContaining(oldBest));
+  delete navigator.clipboard;
 });

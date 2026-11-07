@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PoolPanel, ROUND_CHECK_MS } from '../components/PoolPanel';
-import { getChallenge, getLeaderboard, getMiner, submitProof } from '../lib/poolApi';
+import { getChallenge, getLeaderboard, getMiner, getRounds, submitProof } from '../lib/poolApi';
 import { bitsOfZeros, displayHash, le, meetsTarget } from '../../../shared/bitcoin-block.mjs';
 import { hashAtNonce, sha256d } from '../lib/blockHeader';
 import { formatDifficulty, GENESIS, hashDifficulty, leadingZeros, poolCandidate, proofPrefix, signatureOf } from '../lib/poolProof';
@@ -11,7 +11,7 @@ import { runSearch } from '../lib/powSearch';
 import { HINTS } from '../lib/hints';
 
 vi.mock('../lib/poolApi', async importOriginal => ({ ...(await importOriginal()),
-  getChallenge: vi.fn(), submitProof: vi.fn(), getLeaderboard: vi.fn(), getMiner: vi.fn() }));
+  getChallenge: vi.fn(), submitProof: vi.fn(), getLeaderboard: vi.fn(), getMiner: vi.fn(), getRounds: vi.fn().mockResolvedValue([]) }));
 // The real inline search by default; one test replaces it to drive the round check.
 vi.mock('../lib/powSearch', async importOriginal => {
   const actual = await importOriginal();
@@ -76,6 +76,7 @@ const join = (name = NAME) => {
 };
 
 beforeEach(async () => {
+  vi.mocked(getRounds).mockResolvedValue([]);
   vi.mocked(runSearch).mockImplementation((await vi.importActual('../lib/powSearch')).runSearch);
   vi.spyOn(Math, 'random').mockReturnValue(0.25);
   vi.spyOn(Date, 'now').mockReturnValue(NOW);

@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { verifyLeaderboardGrowth } from './leaderboard-growth.acceptance.mjs';
 import { join } from 'node:path';
 import { menu, openTab, settle, snapshot } from './workbench.helpers.mjs';
 
@@ -22,7 +23,7 @@ export async function verifyPool(page, output, before) {
     await status.filter({ hasText: UNAVAILABLE }).waitFor();
     assert.equal(await status.innerText(), UNAVAILABLE);
     // The ticker may refresh meanwhile; it only ever reads the leaderboard.
-    const poolRequests = () => requests.filter(path => path !== '/api/leaderboard');
+    const poolRequests = () => requests.filter(path => path !== '/api/leaderboard' && path !== '/api/rounds');
     await pool.locator('.pool-panel-board').getByText(UNAVAILABLE, { exact: true }).waitFor();
     assert.equal(await pool.getByRole('table').count(), 0);
     assert.ok(requests.includes('/api/leaderboard'));
@@ -65,7 +66,7 @@ export async function verifyPool(page, output, before) {
         await page.screenshot({ path: join(output, `pool-${theme}-${width}.png`) });
       }
     }
-    assert.ok(requests.every(path => path === '/api/leaderboard' || path === '/api/challenge'), JSON.stringify(requests));
+    assert.ok(requests.every(path => path === '/api/leaderboard' || path === '/api/challenge' || path === '/api/rounds'), JSON.stringify(requests));
     await pool.getByRole('button', { name: 'Back to simulator' }).click();
     await pool.waitFor({ state: 'hidden' });
     assert.deepEqual(await snapshot(page), before, 'The pool leaves the simulator chain and wallets untouched');
@@ -74,6 +75,9 @@ export async function verifyPool(page, output, before) {
     page.off('pageerror', onError);
     await page.unroute(`${API}/**`, refuse);
   }
+  const growthPage = await page.context().browser().newPage({ reducedMotion: 'reduce' });
+  try { await verifyLeaderboardGrowth(growthPage, output, new URL(page.url()).origin); }
+  finally { await growthPage.close(); }
   return ['Leaderboard: unreachable server shows the unavailable status and table state without page errors',
     'Leaderboard: invalid name blocked inline; leaving keeps the simulator unchanged',
     'Leaderboard: five widths in both themes'];

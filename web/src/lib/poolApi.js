@@ -99,6 +99,11 @@ const isBlock = row => Boolean(row) && isRound(row.round) && /^[0-9a-f]{160}$/.t
 const isRow = row => isBlock(row) && isValidPoolName(row.name);
 const isRank = rank => rank === null || (Number.isSafeInteger(rank) && rank >= 1);
 
+const isSummary = summary => Boolean(summary) &&
+  (summary.bestHash === null || HASH.test(summary.bestHash ?? '')) &&
+  (summary.bestZeros === null || (Number.isInteger(summary.bestZeros) && summary.bestZeros >= 0 && summary.bestZeros <= 64)) &&
+  Number.isSafeInteger(summary.proofs) && summary.proofs >= 0 && Number.isSafeInteger(summary.rounds) && summary.rounds >= 0;
+
 // The round to mine. The client rebuilds the prefix itself, so a server answering for
 // another chain or another name is refused instead of mined.
 export async function getChallenge(name, { signal } = {}) {
@@ -135,11 +140,23 @@ export async function getLeaderboard({ signal } = {}) {
 export async function getMiner(name, { signal } = {}) {
   const miner = await request(`/api/miner?name=${encodeURIComponent(name)}`, { signal });
   if (!miner || miner.name !== name || !miner.rank || !isRank(miner.rank.window) || !isRank(miner.rank.allTime) ||
-    !Array.isArray(miner.blocks)) throw invalidAnswer();
+    !Array.isArray(miner.blocks) || (miner.summary !== undefined && (!isSummary(miner.summary?.allTime) ||
+      (miner.summary.window !== null && !isSummary(miner.summary.window))))) throw invalidAnswer();
   return {
     name,
+    ...(miner.summary ? { summary: miner.summary } : {}),
     rank: { window: miner.rank.window, allTime: miner.rank.allTime },
-    blocks: miner.blocks.filter(block => isBlock(block) && typeof block.inWindow === 'boolean' && Number.isFinite(block.foundAt))
+    blocks: miner.blocks.filter(block => isBlock(block) && typeof block.inWindow === 'boolean' && Number.isFinite(block.foundAt) && (block.rank === undefined || isRank(block.rank)))
       .map(block => ({ ...block, name })),
   };
+}
+
+// Recent finished rounds, derived from the same bounded storage as the board.
+export async function getRounds({ signal } = {}) {
+  const answer = await request('/api/rounds', { signal });
+  if (!answer || answer.genesisHash !== GENESIS.hash || !Array.isArray(answer.rounds) || answer.rounds.length > 20 ||
+    !answer.rounds.every(row => Boolean(row) && isRound(row.round) && isValidPoolName(row.name) && HASH.test(row.bestHash) &&
+      Number.isInteger(row.bestZeros) && row.bestZeros >= 0 && row.bestZeros <= 64 &&
+      Number.isSafeInteger(row.proofs) && row.proofs > 0 && Number.isSafeInteger(row.miners) && row.miners > 0)) throw invalidAnswer();
+  return answer.rounds;
 }
