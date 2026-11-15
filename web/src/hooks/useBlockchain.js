@@ -16,6 +16,11 @@ function snapshot(chain) {
         difficulty: chain.miningDifficulty,
         blockReward: chain.blockReward,
         halvingInterval: chain.halvingEvent,
+        targetSeconds: chain.targetSeconds,
+        // The chain's own answers about the next block (lib/blockchain.js); views never derive them.
+        nextBlock: chain.nextBlock(),
+        loweringStartsNewChain: chain.loweringStartsNewChain(),
+        canAddMiner: chain.canAddMiner(),
         blockStatus: chain.inspectBlocks(),
         tamperedEdits: chain.getTamperedEdits(),
         describeTx: chain.describer(),
@@ -254,12 +259,21 @@ export function useBlockchain(config = {}, { storage = null } = {}) {
         // Every miner here hashes in this browser, so every candidate carries its visitor's signature.
         const signature = controller.signer?.current() ?? null;
         const prepare = extraNonce => new Map(miners.map(miner => [miner.name, chain.prepareCandidate(miner, { time, extraNonce, signature })]));
+        // A block at a check height may retarget the difficulty (acceptBlock); it applies from the next block on.
+        let retarget = null;
         const result = await race(run, chain, miners, prepare, (candidate, found) => {
             const outcome = chain.acceptBlock(candidate, found.nonce, found.hash);
-            return outcome.status === 'accepted' ? outcome.block : null;
+            if (outcome.status !== 'accepted') return null;
+            retarget = outcome.retarget;
+            if (retarget) {
+                setLastDifficultyChange({ from: retarget.from, to: retarget.to, direction: retarget.to > retarget.from ? 'up' : 'down',
+                    height: candidate.height, source: 'auto' });
+                void telemetry.track('difficulty_changed', { previous: retarget.from, value: retarget.to });
+            }
+            return outcome.block;
         });
         if (result.success && signature) void controller.signer.submit(result.block, signature, height);
-        return result.success ? { ...result, epoch: chain.epochAt(height) } : result;
+        return result.success ? { ...result, epoch: chain.epochAt(height), retarget } : result;
     }, [controller, race]);
 
     // `signer` is { current() → the signature of the next block or null, submit(block, signature,
@@ -338,34 +352,43 @@ export function useBlockchain(config = {}, { storage = null } = {}) {
         }
     }, [controller, doMining, publish]);
 
-    // Each change is recorded with its direction for missions; `source` lets the
-    // caller say why it changed (e.g. 'adjustment'), null when not given.
+    // The chain decides (requestDifficulty): { outcome } is 'applied', 'unchanged', 'invalid',
+    // 'needs-reset' (lowering a chain with mined blocks starts a new one, ADR 0004) or 'busy'
+    // during a race. Each change is recorded with its direction for missions; `source` says
+    // why it changed (e.g. 'manual'), null when not given.
     const setDifficulty = useCallback((value, { source = null } = {}) => {
-        if (controller.run || controller.setup) return;
-        const n = Number(value);
-        if (!Number.isInteger(n) || n < MIN_DIFFICULTY || n > MAX_DIFFICULTY) return;
+        if (controller.run || controller.setup) return { outcome: 'busy' };
         const previous = controller.chain.miningDifficulty;
-        if (n === previous) return;
-        controller.chain.miningDifficulty = n;
+        const result = controller.chain.requestDifficulty(value, { source });
+        if (result.outcome !== 'applied') return result;
+        const n = controller.chain.miningDifficulty;
         setLastDifficultyChange({ from: previous, to: n, direction: n > previous ? 'up' : 'down',
             height: controller.chain.blockArray.length - 1, source });
         publish();
         void telemetry.track('difficulty_changed', { previous, value: n });
+        return result;
     }, [controller, publish]);
     const setHalvingInterval = useCallback(value => {
         if (controller.run || controller.setup) return;
-        const n = Number(value);
-        if (!Number.isInteger(n) || n < 2 || n > 100) return;
-        if (n === controller.chain.halvingEvent) return;
-        controller.chain.halvingEvent = n;
+        if (controller.chain.setHalvingInterval(value).outcome !== 'applied') return;
         publish();
-        void telemetry.track('settings_changed', { setting: 'halving_interval', value: n });
+        void telemetry.track('settings_changed', { setting: 'halving_interval', value: controller.chain.halvingEvent });
     }, [controller, publish]);
-    const tamperBlock = useCallback((blockIndex, txIndex, amount) => {
+    // The target block time is a chain setting: saved with the chain, kept by a reset.
+    const setTargetBlockTime = useCallback(value => {
         if (controller.run || controller.setup) return;
-        const applied = controller.chain.tamperTransaction(blockIndex, txIndex, amount);
+        if (controller.chain.setTargetSeconds(value).outcome !== 'applied') return;
         publish();
-        if (applied) void telemetry.track('tamper_applied', { block_height: blockIndex });
+        void telemetry.track('settings_changed', { setting: 'target_block_time', value: controller.chain.targetSeconds });
+    }, [controller, publish]);
+    // Returns the chain's { applied, reason }; a refused edit changes nothing.
+    const tamperBlock = useCallback((blockIndex, txIndex, amount) => {
+        if (controller.run || controller.setup) return { applied: false, reason: 'busy' };
+        const result = controller.chain.tamperTransaction(blockIndex, txIndex, amount);
+        if (!result.applied) return result;
+        publish();
+        void telemetry.track('tamper_applied', { block_height: blockIndex });
+        return result;
     }, [controller, publish]);
     const undoTamper = useCallback(blockIndex => {
         if (controller.run || controller.setup) return { success: false, restored: 0, error: 'Stop mining first.' };
@@ -421,11 +444,11 @@ export function useBlockchain(config = {}, { storage = null } = {}) {
         const previous_block_count = controller.chain.blockArray.length - 1;
         cancelMining('reset');
         void telemetry.track('chain_reset', { previous_block_count });
-        const { miningDifficulty: previous, halvingEvent } = controller.chain;
+        const { miningDifficulty: previous, halvingEvent, targetSeconds } = controller.chain;
         const valid = Number.isInteger(next) && next >= MIN_DIFFICULTY && next <= MAX_DIFFICULTY;
         const miningDifficulty = valid ? next : previous;
         if (miningDifficulty !== previous) void telemetry.track('difficulty_changed', { previous, value: miningDifficulty });
-        controller.chain = createBlockchain({ ...controller.config, miningDifficulty, halvingEvent });
+        controller.chain = createBlockchain({ ...controller.config, miningDifficulty, halvingEvent, targetSeconds });
         controller.restored = false;
         setSelectedBlock(null);
         setHashAttempts([]);
@@ -494,6 +517,6 @@ export function useBlockchain(config = {}, { storage = null } = {}) {
     return { ...view, restored: controller.restored, saveState, isMining, isSettingUp, miningProgress, minerProgress, raceWinner, hashAttempts, selectedBlock,
         backedMiner, lastDifficultyChange, slowMotion, minerLuck,
         setSelectedBlock, createTransaction, previewTransaction, mineBlock, mineEmptyBlock: mineBlock, setupInitialDistribution,
-        generateRandomTransactions, setDifficulty, setHalvingInterval, tamperBlock, undoTamper, remineBlock,
+        generateRandomTransactions, setDifficulty, setHalvingInterval, setTargetBlockTime, tamperBlock, undoTamper, remineBlock,
         resetBlockchain, cancelMining, toggleMiner, setMinerShare, setSlowMotion, getActiveMiners, createWallet, createMiner, renameMiner, backMiner, setSigner };
 }

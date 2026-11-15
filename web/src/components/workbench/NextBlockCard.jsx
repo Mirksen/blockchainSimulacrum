@@ -131,7 +131,7 @@ export function NextBlockCard({
   mode = 'idle', index, txCount = 0, reward, difficulty = 2, onDifficulty, autoMine = false, onAutoMine, repeating = false,
   onStartDemo, onMine, onPause, onRemine, repair = null, miners = [], race = null, lastRound = null,
   backedMiner = null, onBack, coach = null, signature = null, onCreateMiner, minersFull = false, onRenameMiner, onShare, onOpenMiner, perMiner = {},
-  slowMotion = false, onSlowMotion
+  slowMotion = false, onSlowMotion, loweringStartsNewChain = false
 }) {
   const isMining = mode === 'mining';
   const isRepair = mode === 'repair';
@@ -165,7 +165,7 @@ export function NextBlockCard({
         <span {...term('next.difficulty', isMining ? 'mining' : isRepair ? 'repair' : null)}>Difficulty</span>
         <span className="next-block-stepper-box">
           <button type="button" aria-label="Lower difficulty" disabled={settingsLocked || difficulty <= MIN_DIFFICULTY}
-            {...hint('next.lower', !isFresh)} onClick={() => onDifficulty?.(difficulty - 1)}><MinusIcon /></button>
+            {...hint('next.lower', loweringStartsNewChain)} onClick={() => onDifficulty?.(difficulty - 1)}><MinusIcon /></button>
           <output aria-label="Difficulty">{difficulty}</output>
           <button type="button" aria-label="Raise difficulty" disabled={settingsLocked || difficulty >= MAX_DIFFICULTY}
             {...hint('next.raise')} onClick={() => onDifficulty?.(difficulty + 1)}><PlusIcon /></button>

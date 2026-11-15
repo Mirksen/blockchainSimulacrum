@@ -281,10 +281,10 @@ describe('tampering under the ledger rules', () => {
   it('rejects a value outside the money range without editing', () => {
     const chain = setup();
     mine(chain);
-    expect(chain.tamperTransaction(1, 0, 21_000_001)).toBe(false);
-    expect(chain.tamperTransaction(1, 0, -1)).toBe(false);
-    expect(chain.tamperTransaction(1, 0, Number.NaN)).toBe(false);
-    expect(chain.tamperTransaction(1, 0, 3.125000001)).toBe(false);
+    expect(chain.tamperTransaction(1, 0, 21_000_001)).toEqual({ applied: false, reason: 'invalid-amount' });
+    expect(chain.tamperTransaction(1, 0, -1)).toEqual({ applied: false, reason: 'invalid-amount' });
+    expect(chain.tamperTransaction(1, 0, Number.NaN)).toEqual({ applied: false, reason: 'invalid-amount' });
+    expect(chain.tamperTransaction(1, 0, 3.125000001)).toEqual({ applied: false, reason: 'invalid-amount' });
     expect(chain.getTamperedEdits()).toEqual([]);
   });
 
