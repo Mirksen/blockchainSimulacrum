@@ -35,15 +35,8 @@ export const POOL_UNAVAILABLE_MESSAGE = 'The leaderboard server is unavailable r
 const messageFor = status => MESSAGES[status] ||
   (status >= 500 ? 'The leaderboard server is unavailable right now.' : 'The leaderboard answered with an unexpected error.');
 
-// The `code` of a pool answer (POOL_ERRORS) decides. Transition: a server from before
-// `code` is recognized by its `error` text; remove this fallback once the live server
-// sends `code` (server and web deploy separately).
-function errorCodeOf(status, body) {
-  if (typeof body?.code === 'string') return body.code;
-  if (status === 400 && body?.error === 'name unavailable') return POOL_ERRORS.nameUnavailable;
-  if (status === 404 && body?.error === 'unknown name') return POOL_ERRORS.unknownName;
-  return null;
-}
+// The `code` of a pool answer (POOL_ERRORS) decides; the `error` text is for people.
+const errorCodeOf = body => (typeof body?.code === 'string' ? body.code : null);
 
 // The server decides which names are available; a refused name gets its own code
 // so the panel can point at the name field instead of retrying.
@@ -51,7 +44,7 @@ async function failureFor(response) {
   if (response.status === 400 || response.status === 404) {
     let body = null;
     try { body = await response.json(); } catch { /* No readable body: a plain error. */ }
-    const code = errorCodeOf(response.status, body);
+    const code = errorCodeOf(body);
     if (response.status === 400 && code === POOL_ERRORS.nameUnavailable) {
       return poolError(response.status, NAME_UNAVAILABLE_MESSAGE, code);
     }
