@@ -14,6 +14,7 @@ import { createDescriber } from './tx/describe';
 import { MAX_MEMO_BYTES, opReturnScript, p2pkhScript, p2pkScript } from './tx/script';
 import { createCoinbase, Transaction } from './tx/transaction';
 import { MAX_MONEY, selectCoins, validateChain } from './tx/utxo';
+import { adjustedDifficulty, averagePace, checkWindowStart, isCheckHeight, MAX_DIFFICULTY, MIN_DIFFICULTY, nextCheckAfter } from './difficulty';
 
 export { Transaction };
 
@@ -119,6 +120,13 @@ function proofProblem(candidate, nonce, hash) {
 const WALLET_NAME = /^[A-Za-z0-9]{2,16}$/;
 // Race lanes stay readable in the Next block card up to this many miners.
 export const MAX_MINERS = 4;
+// The halving interval a learner may set, in blocks.
+export const MIN_HALVING_INTERVAL = 2;
+export const MAX_HALVING_INTERVAL = 100;
+// The target block time a learner may set, in seconds; the retarget steers towards it.
+export const DEFAULT_TARGET_SECONDS = 10;
+export const MIN_TARGET_SECONDS = 1;
+export const MAX_TARGET_SECONDS = 60;
 // Hashpower is a weight of 1–100; a learner sets a miner's share of the enabled miners'
 // hashpower in percent, between MIN_SHARE and MAX_SHARE.
 export const MAX_HASHPOWER = 100;
@@ -144,14 +152,53 @@ const estimateSize = ({ inputs, change, memoBytes }) => 10 + 148 * inputs + 34 *
 const satoshis = coins => Math.round(coins * 1e8);
 const walletScript = publicKey => p2pkhScript(hash160(publicKey));
 const sumValues = coins => coins.reduce((sum, coin) => sum + coin.value, 0);
+// Integer satoshis of a block reward in coins, the coinbase subsidy.
+const subsidyOf = reward => Math.floor(reward * 1e8);
+
+// The saved form (lib/chainStore.js adds the storage key and version around it).
+const HASH = /^[0-9a-f]{64}$/;
+const HEX = /^(?:[0-9a-f]{2})+$/;
+const isCount = value => Number.isSafeInteger(value) && value >= 0;
+const fail = reason => { throw new Error(`Saved chain refused: ${reason}`); };
+const isDifficulty = n => Number.isInteger(n) && n >= MIN_DIFFICULTY && n <= MAX_DIFFICULTY;
+const isTargetSeconds = n => Number.isFinite(n) && n >= MIN_TARGET_SECONDS && n <= MAX_TARGET_SECONDS;
+const retargetOf = record => (record && isDifficulty(record.from) && isDifficulty(record.to) && record.from !== record.to
+  ? { from: record.from, to: record.to } : null);
+
+// The block reward, in coins, of a block at `height` after the newest one and up to the
+// next halving: half the newest block's reward at a halving height. The one reward rule
+// of the candidate (prepareCandidate) and of what the views show (nextBlock).
+function rewardAt(chain, height) {
+  return height % chain.halvingEvent === 0 ? chain.blockReward / 2 : chain.blockReward;
+}
+
+// The difficulty after the block at `height` of `chain`: at a check height the pace of the
+// blocks the check measures moves it towards the target block time (lib/difficulty.js).
+function retargetAt(chain, height, current) {
+  if (!isCheckHeight(height)) return current;
+  return adjustedDifficulty(current, averagePace(chain.blockArray, checkWindowStart(height), height), chain.targetSeconds);
+}
+
+function blockRecord(block) {
+  return {
+    version: block.version, time: block.time, previousHash: block.previousHash, bits: block.bits, difficulty: block.difficulty,
+    txRoot: block.txRoot, nonce: block.nonce, hash: block.hash, halved: block.halved === true,
+    // Written for older pages still open; a load derives it from `halved` (Blockchain.fromSaved).
+    subsidy: block.subsidy ?? null, retarget: block.retarget ?? null,
+    transactions: block.transactions.map(tx => tx.serialize())
+  };
+}
 
 // Blockchain class - the main chain management
 export class Blockchain {
-  constructor(name, miningDifficulty = 3, blockReward = 3.125, halvingEvent = 210000) {
+  constructor(name, miningDifficulty = 3, blockReward = 3.125, halvingEvent = 210000, targetSeconds = DEFAULT_TARGET_SECONDS) {
     this.name = name;
     this.miningDifficulty = miningDifficulty;
+    // The reward of the newest block; the next block pays it, or half of it at a halving height (rewardAt).
     this.blockReward = blockReward;
     this.halvingEvent = halvingEvent;
+    // The target block time the retarget in acceptBlock steers towards, in seconds.
+    this.targetSeconds = targetSeconds;
     this.participants = [];
     this.blockArray = [this.createGenesisBlock()];
     this.memPool = [];
@@ -192,10 +239,15 @@ export class Blockchain {
     return this.addNamed(name, false);
   }
 
+  // Whether one more miner may join the race (MAX_MINERS).
+  canAddMiner() {
+    return this.participants.filter(p => p.isMiner).length < MAX_MINERS;
+  }
+
   // A miner the learner creates: a wallet that races from the next block on with the
   // default hashpower. Miners and wallets share one name space.
   addMiner(name) {
-    if (this.participants.filter(p => p.isMiner).length >= MAX_MINERS) {
+    if (!this.canAddMiner()) {
       return { success: false, error: `At most ${MAX_MINERS} miners race in this simulation.` };
     }
     // The new miner joins with the average hashpower of the enabled miners: an equal share.
@@ -482,19 +534,74 @@ export class Blockchain {
     return Math.max(Math.floor(Date.now() / 1000), this.blockArray.at(-1).time);
   }
 
+  // What the chain says about the next block it will accept: its height, its subsidy in
+  // satoshis (halved at a halving height), the difficulty and bits it must meet, and how far
+  // the next halving (with the subsidy the block there pays) and the next difficulty check
+  // are. `in` counts the blocks still to be mined up to and including the one at `at`, so
+  // `in` is 1 when the next block is that block.
+  nextBlock() {
+    const tip = this.blockArray.length - 1;
+    const height = tip + 1;
+    const halvingAt = Math.ceil(height / this.halvingEvent) * this.halvingEvent;
+    const checkAt = nextCheckAfter(tip);
+    return {
+      height,
+      subsidy: subsidyOf(rewardAt(this, height)),
+      difficulty: this.miningDifficulty,
+      bits: bitsOfZeros(this.miningDifficulty),
+      halving: { at: halvingAt, in: halvingAt - tip, subsidy: subsidyOf(rewardAt(this, halvingAt)) },
+      check: { at: checkAt, in: checkAt - tip }
+    };
+  }
+
+  // Whether lowering the difficulty starts a new chain (ADR 0004): as soon as a block
+  // follows genesis, a chain of easier blocks could otherwise outgrow one of more work.
+  loweringStartsNewChain() {
+    return this.blockArray.length > 1;
+  }
+
+  // A difficulty for the next blocks. `needs-reset` leaves the chain unchanged: the learner
+  // lowers it only together with a new chain (ADR 0004); the automatic adjustment ('auto') may lower.
+  requestDifficulty(value, { source = null } = {}) {
+    const n = Number(value);
+    if (!isDifficulty(n)) return { outcome: 'invalid' };
+    if (n === this.miningDifficulty) return { outcome: 'unchanged' };
+    if (n < this.miningDifficulty && source !== 'auto' && this.loweringStartsNewChain()) return { outcome: 'needs-reset' };
+    this.miningDifficulty = n;
+    return { outcome: 'applied' };
+  }
+
+  // A new halving interval (MIN_HALVING_INTERVAL–MAX_HALVING_INTERVAL blocks) from the next block on.
+  setHalvingInterval(value) {
+    const n = Number(value);
+    if (!Number.isInteger(n) || n < MIN_HALVING_INTERVAL || n > MAX_HALVING_INTERVAL) return { outcome: 'invalid' };
+    if (n === this.halvingEvent) return { outcome: 'unchanged' };
+    this.halvingEvent = n;
+    return { outcome: 'applied' };
+  }
+
+  // A new target block time (MIN_TARGET_SECONDS–MAX_TARGET_SECONDS) for the next difficulty checks.
+  setTargetSeconds(value) {
+    const n = Number(value);
+    if (!isTargetSeconds(n)) return { outcome: 'invalid' };
+    if (n === this.targetSeconds) return { outcome: 'unchanged' };
+    this.targetSeconds = n;
+    return { outcome: 'applied' };
+  }
+
   // Freeze the work for one miner: everything except the nonce is fixed here, so a
   // search only varies the last four header bytes. A further extraNonce changes the
   // coinbase and with it the root, which opens a fresh nonce space. A `signature` writes
   // the miner's name into the coinbase and commits it to a leaderboard round.
   prepareCandidate(miner, { time = this.nextBlockTime(), extraNonce = 0, signature = null } = {}) {
     const height = this.blockArray.length;
-    const reward = height % this.halvingEvent === 0 ? this.blockReward / 2 : this.blockReward;
+    const reward = rewardAt(this, height);
     // The block takes what fits, highest fee rate first (blockTemplate). An edit of history can
     // orphan a pending transaction; it stays for an undo but stays out of the block.
     const template = this.blockTemplate();
     const included = template.included.map(index => this.memPool[index]);
     const fees = template.fees;
-    const subsidy = Math.floor(reward * 1e8);
+    const subsidy = subsidyOf(reward);
     const difficulty = this.miningDifficulty;
     const bits = bitsOfZeros(difficulty);
     const coinbase = createCoinbase({ height, value: subsidy + fees, recipientScript: miner.scriptPubKey, extraNonce,
@@ -520,7 +627,9 @@ export class Blockchain {
   }
 
   // Append a solved candidate. Nothing changes unless the proof is valid and
-  // the candidate still extends the current tip.
+  // the candidate still extends the current tip. At a check height the block ends a
+  // difficulty check (retargetAt): a changed difficulty applies from the next block on
+  // and is recorded on this block as `retarget: { from, to }`, null when it stays.
   acceptBlock(candidate, nonce, hash) {
     const problem = proofProblem(candidate, nonce, hash);
     if (problem) return { status: 'rejected', reason: problem };
@@ -541,7 +650,12 @@ export class Blockchain {
     this.blockReward = candidate.reward;
     this.incrementBlocksWon(candidate.minerPublicKey);
     this.miningLog.push({ blockNumber: candidate.height, nonce, hash });
-    return { status: 'accepted', block };
+    const from = this.miningDifficulty;
+    const to = retargetAt(this, candidate.height, from);
+    const retarget = to === from ? null : { from, to };
+    this.miningDifficulty = to;
+    block.retarget = retarget;
+    return { status: 'accepted', block, retarget };
   }
 
   // Halving epoch of the block at `height`: the number of halvings applied up
@@ -666,17 +780,19 @@ export class Blockchain {
   // Tamper with a transaction (for demo purposes): changes the value of its first
   // output, the payment or the reward. The first edit of a transaction remembers the
   // original value; setting that value again ends the edit.
+  // Returns { applied, reason }: `no-output` or `invalid-amount` when nothing changed.
   tamperTransaction(blockIndex, txIndex, newAmount) {
     const output = this.blockArray[blockIndex]?.transactions[txIndex]?.outputs[0];
+    if (!output) return { applied: false, reason: 'no-output' };
     const value = satoshis(newAmount);
-    if (!output || !Number.isSafeInteger(value) || value < 0 || value > MAX_MONEY || value / 1e8 !== newAmount) return false;
+    if (!Number.isSafeInteger(value) || value < 0 || value > MAX_MONEY || value / 1e8 !== newAmount) return { applied: false, reason: 'invalid-amount' };
     const key = `${blockIndex}:${txIndex}`;
     if (!this.tamperedOriginals.has(key)) this.tamperedOriginals.set(key, { blockIndex, txIndex, value: output.value });
     output.value = value;
     this.historyEdited = true;
     this.revision++;
     if (this.tamperedOriginals.get(key).value === value) this.tamperedOriginals.delete(key);
-    return true;
+    return { applied: true, reason: null };
   }
 
   // Restore the original values of every edited transaction in one block.
@@ -712,6 +828,94 @@ export class Blockchain {
   getBlockDetails(index) {
     return this.blockArray[index] || null;
   }
+
+  // The saved form of this chain, a plain JSON object: everything it cannot recompute, the
+  // blocks as stored (header fields and the raw bytes of every transaction, including edits),
+  // the mempool, the participants with their recovery phrases, the open edits and the settings.
+  toSaved() {
+    return {
+      genesis: this.blockArray[0].hash,
+      name: this.name, miningDifficulty: this.miningDifficulty, blockReward: this.blockReward, halvingEvent: this.halvingEvent,
+      targetSeconds: this.targetSeconds,
+      historyEdited: this.historyEdited,
+      participants: this.participants.map(p => ({ name: p.name, colorKey: p.colorKey, seedPhrase: p.seedPhrase, isMiner: p.isMiner,
+        hashpower: p.hashpower, minerEnabled: p.minerEnabled, blocksWon: p.blocksWon, activeMiner: p.activeMiner })),
+      blocks: this.blockArray.slice(1).map(blockRecord),
+      memPool: this.memPool.map(tx => tx.serialize()),
+      edits: [...this.tamperedOriginals.values()].map(({ blockIndex, txIndex, value }) => ({ blockIndex, txIndex, value })),
+      miningLog: this.miningLog
+    };
+  }
+
+  /**
+   * The chain `saved` (toSaved) describes; throws an Error naming why it cannot be. It must
+   * start at this site's genesis, and a chain that was never edited must still be valid; an
+   * edited one may be invalid, exactly as it was left. The UTXO set, statuses and balances are
+   * derived again, so a saved state is checked by the same rules as a live one. A block's
+   * subsidy is never read from the save: it follows from the genesis reward and the blocks
+   * marked `halved`, so a coinbase that claims more shows as `coinbase-overclaim`. A save
+   * without a target block time (written before it was saved) gets DEFAULT_TARGET_SECONDS.
+   */
+  static fromSaved(saved) {
+    if (!saved) fail('shape');
+    const targetSeconds = saved.targetSeconds === undefined ? DEFAULT_TARGET_SECONDS : saved.targetSeconds;
+    if (typeof saved.name !== 'string' || !isCount(saved.miningDifficulty) || !(saved.halvingEvent >= 1) || !isTargetSeconds(targetSeconds)) fail('settings');
+    const chain = new Blockchain(saved.name, saved.miningDifficulty, genesis.coinbase.amount, saved.halvingEvent, targetSeconds);
+    if (saved.genesis !== chain.blockArray[0].hash) fail('another genesis');
+    if (!Array.isArray(saved.participants) || !Array.isArray(saved.blocks) || !Array.isArray(saved.memPool) || !Array.isArray(saved.edits)) fail('shape');
+    for (const record of saved.participants) {
+      const participant = new Participant(record.name, record.isMiner === true, record.seedPhrase);
+      if (participant.seedPhrase !== record.seedPhrase) fail('recovery phrase');
+      participant.colorKey = String(record.colorKey ?? record.name).toLowerCase();
+      participant.hashpower = clampHashpower(record.hashpower);
+      participant.minerEnabled = record.minerEnabled !== false;
+      participant.blocksWon = isCount(record.blocksWon) ? record.blocksWon : 0;
+      participant.activeMiner = record.activeMiner === true;
+      chain.participants.push(participant);
+    }
+    let reward = chain.blockReward;
+    saved.blocks.forEach((record, offset) => {
+      if (!Array.isArray(record?.transactions) || !record.transactions.length || !record.transactions.every(hex => typeof hex === 'string' && HEX.test(hex))) fail(`block ${offset + 1}`);
+      if (![record.previousHash, record.txRoot, record.hash].every(hash => HASH.test(hash ?? '')) || !isCount(record.time) || !isCount(record.nonce) ||
+        !isCount(record.bits) || !isCount(record.version)) fail(`block ${offset + 1}`);
+      const block = new Block(record.time, record.transactions.map(hex => Transaction.parse(hex)), record.previousHash, record.bits);
+      // The stored header fields win over what the constructor recomputes: an edited block keeps its old hash.
+      block.version = record.version;
+      block.difficulty = record.difficulty;
+      block.txRoot = record.txRoot;
+      block.nonce = record.nonce;
+      block.hash = record.hash;
+      block.halved = record.halved === true;
+      if (block.halved) reward /= 2;
+      block.subsidy = subsidyOf(reward);
+      block.retarget = retargetOf(record.retarget);
+      chain.blockArray.push(block);
+    });
+    chain.blockReward = reward;
+    // A save written before retargets were recorded: mark the checks whose result shows in the
+    // next difficulty, measured against the target block time it is loaded with.
+    if (saved.blocks.some(record => !('retarget' in record))) {
+      chain.blockArray.forEach((block, height) => {
+        if (height === 0 || 'retarget' in saved.blocks[height - 1] || !isCheckHeight(height)) return;
+        const to = chain.blockArray[height + 1]?.difficulty ?? chain.miningDifficulty;
+        block.retarget = to !== block.difficulty && retargetAt(chain, height, block.difficulty) === to ? { from: block.difficulty, to } : null;
+      });
+    }
+    chain.memPool = saved.memPool.map(hex => {
+      if (typeof hex !== 'string' || !HEX.test(hex)) fail('mempool');
+      return Transaction.parse(hex);
+    });
+    for (const { blockIndex, txIndex, value } of saved.edits) {
+      if (!chain.blockArray[blockIndex]?.transactions[txIndex] || !isCount(value)) fail('edit');
+      chain.tamperedOriginals.set(`${blockIndex}:${txIndex}`, { blockIndex, txIndex, value });
+    }
+    chain.historyEdited = saved.historyEdited === true;
+    chain.miningLog = Array.isArray(saved.miningLog) ? saved.miningLog : [];
+    chain.revision++;
+    if (!chain.historyEdited && !chain.isChainValid()) fail('invalid chain');
+    if (chain.memPool.length && !chain.ledger().memPool.every(entry => entry.valid) && !chain.historyEdited) fail('invalid mempool');
+    return chain;
+  }
 }
 
 // Factory function for easy initialization
@@ -721,11 +925,12 @@ export function createBlockchain(config = {}) {
     miningDifficulty = 1,
     blockReward = 3.125,
     halvingEvent = 210000,
+    targetSeconds = DEFAULT_TARGET_SECONDS,
     participants = ['Alice', 'Bob', 'Chris', 'Hal', 'Dorian', 'Laszlo'],
     miners = ['Hal', 'Dorian', 'Laszlo']
   } = config;
 
-  const blockchain = new Blockchain(name, miningDifficulty, blockReward, halvingEvent);
+  const blockchain = new Blockchain(name, miningDifficulty, blockReward, halvingEvent, targetSeconds);
 
   // Add participants, marking miners accordingly
   participants.forEach(pName => {

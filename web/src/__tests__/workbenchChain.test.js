@@ -171,8 +171,8 @@ describe('tamper bookkeeping', () => {
 
   it('ignores edits of blocks or transactions that do not exist', () => {
     const chain = minedChain();
-    expect(chain.tamperTransaction(9, 0, 1)).toBe(false);
-    expect(chain.tamperTransaction(2, 5, 1)).toBe(false);
+    expect(chain.tamperTransaction(9, 0, 1)).toEqual({ applied: false, reason: 'no-output' });
+    expect(chain.tamperTransaction(2, 5, 1)).toEqual({ applied: false, reason: 'no-output' });
     expect(chain.getTamperedEdits()).toEqual([]);
   });
 

@@ -304,9 +304,57 @@ describe('halving and difficulty events', () => {
     expect(result.current.lastDifficultyChange).toBeNull();
     act(() => result.current.setDifficulty(3));
     expect(result.current.lastDifficultyChange).toEqual({ from: 1, to: 3, direction: 'up', height: 1, source: null });
-    act(() => result.current.setDifficulty('2', { source: 'adjustment' }));
-    expect(result.current.lastDifficultyChange).toEqual({ from: 3, to: 2, direction: 'down', height: 1, source: 'adjustment' });
+    // Lowering a chain with mined blocks needs a new chain (ADR 0004); the chain says so and stays.
+    let answer;
+    act(() => { answer = result.current.setDifficulty(2, { source: 'manual' }); });
+    expect(answer).toEqual({ outcome: 'needs-reset' });
+    expect(result.current.difficulty).toBe(3);
+    expect(result.current.loweringStartsNewChain).toBe(true);
+    act(() => result.current.setDifficulty('2', { source: 'auto' }));
+    expect(result.current.lastDifficultyChange).toEqual({ from: 3, to: 2, direction: 'down', height: 1, source: 'auto' });
     act(() => { result.current.setDifficulty(2); result.current.setDifficulty(11); result.current.setDifficulty('x'); });
     expect(result.current.lastDifficultyChange).toMatchObject({ from: 3, to: 2 });
+  });
+
+  it('retargets when the tenth block is accepted and reports it as automatic', async () => {
+    const { result } = renderHook(() => useBlockchain(config));
+    // The fake clock stands still, so every block arrives at once: far faster than the 10 s target.
+    for (let i = 0; i < 9; i++) expect((await mine(result)).retarget).toBeNull();
+    expect(result.current.lastDifficultyChange).toBeNull();
+    const tenth = await mine(result);
+    expect(tenth.retarget).toEqual({ from: 1, to: 2 });
+    expect(tenth.block.retarget).toEqual({ from: 1, to: 2 });
+    expect(result.current.difficulty).toBe(2);
+    expect(result.current.lastDifficultyChange).toEqual({ from: 1, to: 2, direction: 'up', height: 10, source: 'auto' });
+    expect(events('difficulty_changed').at(-1)).toEqual(['difficulty_changed', { previous: 1, value: 2 }]);
+    expect(result.current.nextBlock).toMatchObject({ height: 11, difficulty: 2, check: { at: 20, in: 10 } });
+  });
+
+  it('keeps the target block time as a chain setting through a reset', () => {
+    const { result } = renderHook(() => useBlockchain(config));
+    expect(result.current.targetSeconds).toBe(10);
+    act(() => result.current.setTargetBlockTime(25));
+    expect(result.current.targetSeconds).toBe(25);
+    expect(events('settings_changed')).toEqual([['settings_changed', { setting: 'target_block_time', value: 25 }]]);
+    act(() => result.current.setTargetBlockTime(25));
+    act(() => result.current.setTargetBlockTime(0));
+    expect(events('settings_changed')).toHaveLength(1);
+    act(() => result.current.resetBlockchain());
+    expect(result.current.targetSeconds).toBe(25);
+  });
+});
+
+describe('tamperBlock', () => {
+  it('passes the chain answer through and publishes and reports only an applied edit', async () => {
+    const { result } = await minedHook(1);
+    let answer;
+    act(() => { answer = result.current.tamperBlock(1, 0, 3.125000001); });
+    expect(answer).toEqual({ applied: false, reason: 'invalid-amount' });
+    expect(result.current.tamperedEdits).toEqual([]);
+    expect(events('tamper_applied')).toHaveLength(0);
+    act(() => { answer = result.current.tamperBlock(1, 0, 1); });
+    expect(answer).toEqual({ applied: true, reason: null });
+    expect(result.current.tamperedEdits).toHaveLength(1);
+    expect(events('tamper_applied')).toEqual([['tamper_applied', { block_height: 1 }]]);
   });
 });

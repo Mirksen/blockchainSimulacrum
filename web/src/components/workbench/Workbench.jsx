@@ -10,7 +10,6 @@ import { MempoolCard } from './MempoolCard';
 import { ActivityCard } from './ActivityCard';
 import { BlockTransactions } from './BlockTransactions';
 import { buildBlockViews } from './blockView';
-import { MAX_MINERS } from '../../lib/blockchain';
 import { readChainView, storeChainView } from '../../lib/chainView';
 import { chainEventsOf, keyFiguresOf, rateOf, repairOf } from './workbenchModel';
 import { ChainEventNotes, KeyFigureBar } from './KeyFigures';
@@ -56,7 +55,7 @@ export function Workbench({
   onCreateTransaction, onCreateWallet, onCreateMiner, onRenameMiner, onShare, onOpenMiner, onSlowMotion, onOpenWallet, onOpenDetails, onOpenTransaction, onOpenBlockTx, onOpenChainLab, error
 }) {
   const { blocks, blockStatus, participants, memPool, balances, tamperedEdits, describeTx, previewTransaction, blockTemplate, difficulty, blockReward, halvingInterval,
-    isMining, isSettingUp, minerProgress, miningProgress, raceWinner, backedMiner, slowMotion = false } = sim;
+    nextBlock, loweringStartsNewChain, canAddMiner, isMining, isSettingUp, minerProgress, miningProgress, raceWinner, backedMiner, slowMotion = false } = sim;
   const busy = isMining || isSettingUp;
   const compact = useSyncExternalStore(subscribeNarrow, isNarrow, () => false);
   const [chainView, setChainView] = useState(readChainView);
@@ -74,8 +73,8 @@ export function Workbench({
   const signatureTest = repair?.undoOnly && repair.reason === 'signature' && repair.stuck === height &&
     blockStatus.slice(0, height).every(check => check.status === 'valid') &&
     blockStatus[height]?.status === 'hash-mismatch' ? height : null;
-  const keyFigures = keyFiguresOf({ blocks, difficulty, blockReward, halvingInterval, targetSeconds });
-  const events = useMemo(() => chainEventsOf({ blocks, difficulty, targetSeconds }), [blocks, difficulty, targetSeconds]);
+  const keyFigures = keyFiguresOf({ blocks, difficulty, blockReward, nextBlock, halvingInterval, targetSeconds });
+  const events = useMemo(() => chainEventsOf({ blocks, difficulty }), [blocks, difficulty]);
   const nextIndex = blocks.length;
   const template = blockTemplate ?? { included: memPool.map((_, i) => i), waiting: [], reasons: {}, entries: [], bytes: 0, space: 0, fees: 0 };
   const repairIndex = busy ? remining : repair?.next;
@@ -177,11 +176,11 @@ export function Workbench({
       </div>
       <div className="wb-next">
         <NextBlockCard mode={mode} index={repairIndex ?? nextIndex} txCount={nextCardCount}
-          reward={blockReward} difficulty={difficulty} onDifficulty={onDifficulty} autoMine={autoMine} onAutoMine={onAutoMine} repeating={repeating}
+          reward={nextBlock.subsidy / 1e8} difficulty={difficulty} onDifficulty={onDifficulty} loweringStartsNewChain={loweringStartsNewChain} autoMine={autoMine} onAutoMine={onAutoMine} repeating={repeating}
           onStartDemo={onStartDemo} onMine={onMine} onPause={onPause} onRemine={onRemine}
           repair={repair ? { ...repair, onUndo, signatureTest } : null} miners={miners} race={race} lastRound={lastRound}
           backedMiner={backedMiner} onBack={onBack} coach={workbenchCoach}
-          onCreateMiner={onCreateMiner} onRenameMiner={onRenameMiner} onShare={onShare} onOpenMiner={onOpenMiner} perMiner={minerProgress} slowMotion={busy && slowMotion} onSlowMotion={onSlowMotion} minersFull={participants.filter(p => p.isMiner).length >= MAX_MINERS}
+          onCreateMiner={onCreateMiner} onRenameMiner={onRenameMiner} onShare={onShare} onOpenMiner={onOpenMiner} perMiner={minerProgress} slowMotion={busy && slowMotion} onSlowMotion={onSlowMotion} minersFull={!canAddMiner}
           signature={<MinerName identity={identity} rows={boardRows} locked={busy} />} />
       </div>
       <div className="wb-wallets">
@@ -189,7 +188,7 @@ export function Workbench({
       </div>
       <div className="wb-mempool">
         <MempoolCard transactions={pending} space={space} nextIndex={nextIndex} mining={busy} remining={remining} participants={participants.map(p => p.name)}
-          coinName={coinName} reward={blockReward + pendingFees} onCreateTransaction={onCreateTransaction}
+          coinName={coinName} reward={nextBlock.subsidy / 1e8 + pendingFees} onCreateTransaction={onCreateTransaction}
           onPreviewTransaction={previewTransaction} onOpenTransaction={onOpenTransaction}
           autoTransact={autoTransact} onAutoTransact={onAutoTransact}
           newTxGlow={!busy && !repair && !fresh} coach={workbenchCoach} />

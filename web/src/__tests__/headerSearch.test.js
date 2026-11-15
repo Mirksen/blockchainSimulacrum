@@ -149,11 +149,11 @@ describe('a simulator block', () => {
     const { block } = simulator.acceptBlock(candidate, nonce, candidateHash(candidate, nonce));
     const [coinbase] = block.transactions;
     const txids = [3.125, 3.12500001, 3.12500002].map(amount => {
-      expect(simulator.tamperTransaction(1, 0, amount)).toBe(true);
+      expect(simulator.tamperTransaction(1, 0, amount)).toEqual({ applied: true, reason: null });
       return coinbase.createHash();
     });
     expect(new Set(txids).size).toBe(txids.length);
-    for (const amount of [3.125000001, 1e30, -1]) expect(simulator.tamperTransaction(1, 0, amount)).toBe(false);
+    for (const amount of [3.125000001, 1e30, -1]) expect(simulator.tamperTransaction(1, 0, amount)).toEqual({ applied: false, reason: 'invalid-amount' });
     expect(coinbase.createHash()).toBe(txids[2]);
     simulator.tamperTransaction(1, 0, 3.125);
     expect(block.isValid()).toBe(true);

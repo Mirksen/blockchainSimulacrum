@@ -19,8 +19,14 @@ Terms used in code, tests and docs of proofofwork.fyi. Decisions that shape them
   `bitsOfZeros` turns it into the easiest target that still demands those zeros, and
   `meetsTarget` decides. Each extra zero makes a valid hash about 16 times rarer. Raising the
   difficulty keeps the chain; lowering it by hand starts a new chain (a Reset at the new difficulty),
-  so a longer chain always took more work (ADR 0004). The automatic adjustment every 10 blocks may
-  lower it by one without a Reset.
+  so a longer chain always took more work (ADR 0004): `chain.requestDifficulty(n)` answers
+  `needs-reset` instead of lowering a chain with a block after genesis. The **retarget** (automatic
+  adjustment) is a rule of accepting a block: at every tenth height `acceptBlock` compares the pace of
+  the last ten blocks with the **target block time** and moves the difficulty by one zero from the
+  next block on; the block records it as `block.retarget` (`{ from, to }`), so views read the fact
+  instead of recomputing it. It may lower without a Reset.
+- **Target block time** — the pace the retarget steers towards (`chain.targetSeconds`, 10 s by
+  default): a setting of the chain, saved with it and kept by a Reset.
 - **extraNonce** — a counter in the coinbase. When all 2^32 nonces of a candidate are tried, the
   next round mines with extraNonce + 1, which changes the coinbase, the merkle root and with them
   the header.
@@ -51,6 +57,13 @@ Terms used in code, tests and docs of proofofwork.fyi. Decisions that shape them
   fees of the included transactions.
 - **Coinbase** — transaction 0 of a block. It spends nothing and may claim at most the block's
   **subsidy** plus its fees. The genesis coinbase cannot be spent.
+- **Subsidy** — the new coins a coinbase may create (`block.subsidy`, in satoshis). It follows from
+  the predecessor's subsidy, halved where the block is marked `halved`, starting at the genesis
+  reward; it is never taken over from a saved value, so a coinbase that claims more shows as
+  `coinbase-overclaim`.
+- **Next block** — `chain.nextBlock()`: what the chain says about the next block it will accept:
+  its height, its subsidy (halved at a halving height), its target, and how far the next halving and
+  the next retarget check are. Views read it and never derive it from the settings.
 - **Memo** — a reference, stored as an OP_RETURN output of 0 value.
 - **Transaction view** — `describeTx(tx)`, what the UI reads: inputs, outputs with their role, fee,
   signature state. `tx.createHash()` is the only thing the block layer reads from a transaction.
@@ -63,8 +76,9 @@ Terms used in code, tests and docs of proofofwork.fyi. Decisions that shape them
   earlier block is broken), `signature-invalid` and `transaction-invalid` (hash and link fine, but a
   ledger rule fails; `issue` names it, also while a hash mismatch still decides the status),
   otherwise `valid`.
-- **Edit** — a tampered value of a transaction's first output. `tamperTransaction` remembers the
-  original once; `undoTamper(block)` restores the originals of that block. An edit changes the txid.
+- **Edit** — a tampered value of a transaction's first output. `tamperTransaction` answers
+  `{ applied, reason }` and remembers the original once; `undoTamper(block)` restores the originals
+  of that block. An edit changes the txid.
 - **Re-mine** — find a new nonce for a historical block at the current target after re-linking it
   to its predecessor's stored hash; its transactions stay as they are, so after 2^32 nonces the
   header's time moves one second instead of an extraNonce. Allowed only when every earlier block is
@@ -90,10 +104,12 @@ Terms used in code, tests and docs of proofofwork.fyi. Decisions that shape them
 - **Luck** — per miner this session: blocks won against the sum of its shares at the end of each
   race, the blocks it should have won on average. Not saved.
 
-- **Saved chain** — `web/src/lib/chainStore.js`: what the simulator keeps in `localStorage`
-  (`proofofwork-chain`) to survive a reload: the blocks as stored (header fields and raw transaction
-  bytes, edits included), the mempool, the participants with their recovery phrases, the open edits
-  and the chain settings. Everything derived (UTXO set, statuses, balances) is recomputed on load. A
+- **Saved chain** — what the simulator keeps in `localStorage` (`proofofwork-chain`,
+  `web/src/lib/chainStore.js`) to survive a reload; the chain module defines its form
+  (`chain.toSaved()`, `Blockchain.fromSaved(saved)`): the blocks as stored (header fields and raw
+  transaction bytes, edits included), the mempool, the participants with their recovery phrases, the
+  open edits and the chain settings. Everything derived (UTXO set, statuses, balances, subsidies) is
+  recomputed on load. A
   save from another genesis, an unknown version, broken data or an unedited chain that no longer
   validates is dropped and the simulator starts fresh. Saved after every change; Reset replaces it.
 
