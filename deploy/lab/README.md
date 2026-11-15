@@ -7,8 +7,8 @@ Application repository files are never downloaded and executed as root on the ho
 ## Build and publication
 
 `server.yml` checks the server, builds and checks the web bundle, and builds a native
-Linux ARM64 image containing `server/src`, `server/data`, `server/package.json` and
-`web/dist`. A credential-free container with no external network must serve both
+Linux ARM64 image containing `server/src`, `server/data`, `server/package.json`, `shared`
+(the proof rule and genesis the server imports, at `/shared`) and `web/dist`. A credential-free container with no external network must serve both
 `/api/health` and every built static asset, compared with independent SHA-256 values
 from the checked web build. The checked image is saved with its
 image ID and checksums. Publication loads that same archive; it never rebuilds it.

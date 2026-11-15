@@ -7,6 +7,8 @@ WORKDIR /app
 COPY --chown=1000:1000 server/package.json /app/package.json
 COPY --chown=1000:1000 server/src/ /app/src/
 COPY --chown=1000:1000 server/data/ /app/data/
+# The server imports ../../shared/ from /app/src, as from server/src in the repository.
+COPY --chown=1000:1000 shared/ /shared/
 COPY --chown=1000:1000 web/dist/ /static/
 ENV NODE_ENV=production PORT=8080 DB_PATH=/data/leaderboard.sqlite STATIC_DIR=/static
 USER 1000:1000

@@ -1,26 +1,27 @@
-// A leaderboard proof is a mined block in Bitcoin's byte format, recomputable by anyone
-// (same rule as server/src/blockProof.js). Its coinbase ends with an OP_RETURN output holding
-// SHA256("proofofwork.fyi|<genesis hash>|<bitcoin height>:<bitcoin hash>|<name>|"): the genesis
-// hash ties the work to this chain, a recent Bitcoin block to its round, the name to the
-// person who did it. The header commits to the coinbase through the merkle root.
+// A leaderboard proof is a mined block in Bitcoin's byte format, recomputable by anyone with
+// the rule the server applies (shared/pool-proof.mjs). Its coinbase ends with an OP_RETURN
+// output holding SHA256("proofofwork.fyi|<genesis hash>|<bitcoin height>:<bitcoin hash>|<name>|"):
+// the genesis hash ties the work to this chain, a recent Bitcoin block to its round, the name
+// to the person who did it. The header commits to the coinbase through the merkle root.
 import SHA256 from 'crypto-js/sha256';
 import genesis from '../../../shared/genesis.json';
 import { bitsOfZeros, displayHash, headerHex, merkleBranch } from '../../../shared/bitcoin-block.mjs';
+import { commitmentOf, commitsTo, proofPrefix, proofScore } from '../../../shared/pool-proof.mjs';
 import { BLOCK_VERSION, headerPrefix, sha256d } from './blockHeader';
 import { opReturnScript } from './tx/script';
 import { createCoinbase } from './tx/transaction';
 
+export { proofPrefix, proofScore };
+
 export const GENESIS = genesis;
 
-export function proofPrefix(genesisHash, round, name) {
-  return `proofofwork.fyi|${genesisHash}|${round.height}:${round.hash}|${name}|`;
-}
+const sha256 = text => SHA256(text).toString();
 
-export const proofCommitment = (genesisHash, round, name) => SHA256(proofPrefix(genesisHash, round, name)).toString();
+export const proofCommitment = (genesisHash, round, name) => commitmentOf(sha256, genesisHash, round, name);
 
 // What signs a block for a round the pool offered.
 export function signatureOf({ name, round, prefix }) {
-  return { name, round, commitment: SHA256(prefix).toString() };
+  return { name, round, commitment: sha256(prefix) };
 }
 
 // What the server needs of a mined block: everything that proves the hash and the signature.
@@ -43,21 +44,12 @@ export function leadingZeros(hex) {
   return match ? match[0].length : 0;
 }
 
-// Bitcoin-style difficulty relative to one leading hex zero: 2^252 / (hash + 1).
-export function hashDifficulty(hex) {
-  return Number((2n ** 252n * 100n) / (BigInt(`0x${hex}`) + 1n)) / 100;
-}
-
-const MERKLE_ROOT_AT = 72; // Hex offset: 4 version bytes, 32 previous-hash bytes.
-
-// Recomputes a leaderboard row from its public fields: true when its header hashes to the
-// listed hash and commits to a coinbase that names this miner and round.
+// Recomputes a leaderboard row from its public fields with the server's rule: true when its
+// header hashes to the listed hash and commits to a coinbase that names this miner and round.
 export function verifyRow(row, genesisHash = GENESIS.hash) {
   const hash = displayHash(row.header, sha256d);
   const commitment = proofCommitment(genesisHash, row.round, row.name);
-  const root = row.branch.reduce((node, sibling) => sha256d(node + sibling), sha256d(row.coinbase));
-  const signed = row.coinbase.endsWith(`${'00'.repeat(8)}22${opReturnScript(commitment)}${'00'.repeat(4)}`) &&
-    row.header.slice(MERKLE_ROOT_AT, MERKLE_ROOT_AT + 64) === root;
+  const signed = commitsTo(sha256d, row, commitment);
   return { header: row.header, hash, commitment, signed, matches: signed && hash === row.bestHash };
 }
 

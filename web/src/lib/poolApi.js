@@ -1,14 +1,14 @@
 // Client for the leaderboard pool server. Every call has its own timeout and
 // turns a failed answer into an Error with a numeric `status` (0 when the
 // server could not be reached or answered with something unreadable).
+import { NAME_RE, POOL_ERRORS } from '../../../shared/pool-proof.mjs';
 import { GENESIS, proofPrefix } from './poolProof';
 
 export const POOL_API = (import.meta.env?.VITE_POOL_API || 'https://api.proofofwork.fyi').replace(/\/+$/, '');
 export const POOL_TIMEOUT_MS = 10_000;
 
-// Same rule as the server: 3–20 letters, digits or hyphens.
-const NAME_PATTERN = /^[A-Za-z0-9-]{3,20}$/;
-export const isValidPoolName = name => typeof name === 'string' && NAME_PATTERN.test(name);
+// The server's rule (shared/pool-proof.mjs): 3–20 letters, digits or hyphens.
+export const isValidPoolName = name => typeof name === 'string' && NAME_RE.test(name);
 export const NAME_HINT = 'Use 3–20 characters: letters, digits or hyphens.';
 // The page addresses of the board and of one miner's profile (App.jsx reads them back).
 export const POOL_HASH = '#/pool';
@@ -35,18 +35,29 @@ export const POOL_UNAVAILABLE_MESSAGE = 'The leaderboard server is unavailable r
 const messageFor = status => MESSAGES[status] ||
   (status >= 500 ? 'The leaderboard server is unavailable right now.' : 'The leaderboard answered with an unexpected error.');
 
+// The `code` of a pool answer (POOL_ERRORS) decides. Transition: a server from before
+// `code` is recognized by its `error` text; remove this fallback once the live server
+// sends `code` (server and web deploy separately).
+function errorCodeOf(status, body) {
+  if (typeof body?.code === 'string') return body.code;
+  if (status === 400 && body?.error === 'name unavailable') return POOL_ERRORS.nameUnavailable;
+  if (status === 404 && body?.error === 'unknown name') return POOL_ERRORS.unknownName;
+  return null;
+}
+
 // The server decides which names are available; a refused name gets its own code
 // so the panel can point at the name field instead of retrying.
 async function failureFor(response) {
   if (response.status === 400 || response.status === 404) {
     let body = null;
     try { body = await response.json(); } catch { /* No readable body: a plain error. */ }
-    if (response.status === 400 && body?.error === 'name unavailable') {
-      return poolError(response.status, NAME_UNAVAILABLE_MESSAGE, 'name-unavailable');
+    const code = errorCodeOf(response.status, body);
+    if (response.status === 400 && code === POOL_ERRORS.nameUnavailable) {
+      return poolError(response.status, NAME_UNAVAILABLE_MESSAGE, code);
     }
     // A name without blocks, or one the operator hid: the server answers both alike.
-    if (response.status === 404 && body?.error === 'unknown name') {
-      return poolError(response.status, UNKNOWN_MINER_MESSAGE, 'unknown-name');
+    if (response.status === 404 && code === POOL_ERRORS.unknownName) {
+      return poolError(response.status, UNKNOWN_MINER_MESSAGE, code);
     }
   }
   return poolError(response.status, messageFor(response.status));

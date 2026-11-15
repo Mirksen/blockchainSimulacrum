@@ -7,8 +7,9 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { NAME_RE } from '../../shared/pool-proof.mjs';
 
-export const NAME_RE = /^[A-Za-z0-9-]{3,20}$/;
+export { NAME_RE };
 /** Folded blocked terms at least this long also match inside a longer name; shorter ones only exactly. */
 export const MIN_SUBSTRING_TERM_LENGTH = 4;
 export const DEFAULT_DATA_DIR = fileURLToPath(new URL('../data/', import.meta.url));
