@@ -3,7 +3,7 @@ import CryptoJS from 'crypto-js/core';
 import SHA256 from 'crypto-js/sha256';
 import { Blockchain, createGenesisBlock, GENESIS } from '../lib/blockchain';
 import { buildBlock, displayHash, leadingZeroBits, targetOf, zerosOfTarget } from '../../../shared/bitcoin-block.mjs';
-import { formatDifficulty, hashDifficulty, leadingZeros, poolCandidate, proofPrefix, signatureOf, verifyRow } from '../lib/poolProof';
+import { formatDifficulty, leadingZeros, poolCandidate, proofPrefix, proofScore, signatureOf, verifyRow } from '../lib/poolProof';
 
 const ROUND = { height: 900001, hash: `0000${'ab'.repeat(30)}` };
 const sha256d = hex => SHA256(SHA256(CryptoJS.enc.Hex.parse(hex))).toString();
@@ -81,11 +81,11 @@ describe('pool proof', () => {
     expect(verifyRow({ ...row, branch: ['ab'.repeat(32)] }).signed).toBe(false);
   });
 
-  it('scores difficulty relative to one zero, finer than counting zeros', () => {
-    expect(hashDifficulty(`0${'f'.repeat(63)}`)).toBe(1);
-    expect(hashDifficulty(`00${'f'.repeat(62)}`)).toBe(16);
-    // Equal zeros, smaller hash, higher difficulty.
-    expect(hashDifficulty(`0001${'0'.repeat(60)}`)).toBeGreaterThan(hashDifficulty(`0009${'0'.repeat(60)}`));
+  it('scores a proof relative to one zero, finer than counting zeros', () => {
+    expect(proofScore(`0${'f'.repeat(63)}`)).toBe(1);
+    expect(proofScore(`00${'f'.repeat(62)}`)).toBe(16);
+    // Equal zeros, smaller hash, higher score.
+    expect(proofScore(`0001${'0'.repeat(60)}`)).toBeGreaterThan(proofScore(`0009${'0'.repeat(60)}`));
   });
 
   it('abbreviates large difficulties', () => {

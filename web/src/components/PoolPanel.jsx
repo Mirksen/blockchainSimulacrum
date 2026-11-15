@@ -1,9 +1,10 @@
 import { Fragment, useEffect, useRef, useState } from 'react';
 import { le } from '../../../shared/bitcoin-block.mjs';
+import { ROUND_WINDOW } from '../../../shared/pool-proof.mjs';
 import { MAX_NONCE } from '../lib/blockHeader';
 import { getChallenge, getLeaderboard, isValidPoolName, minerProfileHash, NAME_HINT, NAME_UNAVAILABLE_MESSAGE, POOL_UNAVAILABLE_MESSAGE,
   submitProof } from '../lib/poolApi';
-import { formatDifficulty, GENESIS, hashDifficulty, leadingZeros, poolCandidate, signatureOf, verifyRow } from '../lib/poolProof';
+import { formatDifficulty, GENESIS, leadingZeros, poolCandidate, proofScore, signatureOf, verifyRow } from '../lib/poolProof';
 import { runSearch } from '../lib/powSearch';
 import { hint, term } from '../lib/hints';
 import { MinerProfile } from './MinerProfile';
@@ -139,7 +140,7 @@ export function PoolPanel({ name, onNameChange, onClose, onAccepted, refreshKey 
       setPhase('connecting');
       const offer = await getChallenge(minerName, { signal });
       if (!current()) return;
-      // A round stays minable while its Bitcoin block is in the window (the last 144
+      // A round stays minable while its Bitcoin block is in the window (the last ROUND_WINDOW
       // blocks, about a day); then the newest block starts a new round with fresh nonces.
       if (!active || active.round.height < offer.windowStart) {
         active = offer;
@@ -262,7 +263,7 @@ export function PoolPanel({ name, onNameChange, onClose, onAccepted, refreshKey 
       event.preventDefault(); onOpenProfile(name);
     }}>Your personal bests · {name}</a></p>}
     <section className="pool-panel-board" aria-labelledby="pool-panel-round-title">
-      <h3 id="pool-panel-round-title" {...term('pool.recent')}>Last 144 blocks{recent ? <> · Bitcoin #{recent.from}–<a href={blockLink(recent.to)} target="_blank" rel="noreferrer"
+      <h3 id="pool-panel-round-title" {...term('pool.recent')}>{`Last ${ROUND_WINDOW} blocks`}{recent ? <> · Bitcoin #{recent.from}–<a href={blockLink(recent.to)} target="_blank" rel="noreferrer"
         {...hint('pool.bitcoin-block', recent.to)}>#{recent.to}</a></> : ''}</h3>
       {board.state === 'loading' && <p className="pool-panel-help">Loading the leaderboard…</p>}
       {board.state === 'unavailable' && <p className="pool-panel-board-note">{UNAVAILABLE}</p>}
@@ -310,12 +311,12 @@ export function PoolPanel({ name, onNameChange, onClose, onAccepted, refreshKey 
       <div><dt {...term('pool.rate')}>Hashes per second</dt><dd>{formatNumber(stats.rate)}</dd></div>
       <div><dt {...term('pool.accepted')}>Accepted blocks</dt><dd>{formatNumber(stats.accepted)}</dd></div>
       <div><dt {...term('pool.best')}>Your best this round</dt><dd>{stats.bestHash
-        ? `${leadingZeros(stats.bestHash)} · ${formatDifficulty(hashDifficulty(stats.bestHash))}` : '—'}</dd></div>
+        ? `${leadingZeros(stats.bestHash)} · ${formatDifficulty(proofScore(stats.bestHash))}` : '—'}</dd></div>
     </dl>
 
     <ul className="pool-panel-explainer">
       <li>Your name goes into the coinbase of every block you mine, and the coinbase commits to <code>genesis | round | your name</code>. Whichever miner wins, your browser did the work.</li>
-      <li>The genesis hash ties the work to this chain. The round is a recent Bitcoin block: a block counts while its Bitcoin block is one of the last 144 (about a day), so nobody can mine further ahead.</li>
+      <li>{`The genesis hash ties the work to this chain. The round is a recent Bitcoin block: a block counts while its Bitcoin block is one of the last ${ROUND_WINDOW} (about a day), so nobody can mine further ahead.`}</li>
       <li>Most leading zeros wins. Among equal zeros, the higher difficulty (the smaller hash) is ahead.</li>
       <li>The server re-checks every block with its 80-byte header, and Verify recomputes it in your browser. Only the name you choose is stored; there is no account.</li>
     </ul>

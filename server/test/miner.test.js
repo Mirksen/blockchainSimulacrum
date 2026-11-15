@@ -1,6 +1,7 @@
 import { test, describe, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { hashDifficulty, leadingHexZeros, MINER_ROUNDS } from '../src/app.js';
+import { proofScore } from '../../shared/pool-proof.mjs';
+import { leadingHexZeros, MINER_ROUNDS } from '../src/app.js';
 import { createHiddenNames } from '../src/names.js';
 import { T0, TEST_GENESIS, ROUND_A, ROUND_B, ROUND_C, fakeTip, startServer, getLeaderboard, prove } from './helpers.js';
 
@@ -57,7 +58,7 @@ describe('miner profile', () => {
       branch: [],
       bestHash: hashOf('03'),
       bestZeros: 1,
-      difficulty: hashDifficulty(hashOf('03')),
+      difficulty: proofScore(hashOf('03')),
       proofs: 2,
       foundAt: T0 + 3000,
       rank: 2,
@@ -95,7 +96,7 @@ describe('miner profile', () => {
       ...proof.block,
       bestHash: proof.hash,
       bestZeros: proof.zeros,
-      difficulty: hashDifficulty(proof.hash),
+      difficulty: proofScore(proof.hash),
       proofs: 1,
       foundAt: T0 + 9000,
       rank: 1,
@@ -131,14 +132,14 @@ describe('miner profile', () => {
     for (const name of [undefined, '', 'ab', 'bad name', 'x'.repeat(21), 'emoji-☃']) {
       const { status, body } = await getMiner(srv, name);
       assert.equal(status, 400, String(name));
-      assert.deepEqual(body, { error: 'invalid name' });
+      assert.deepEqual(body, { error: 'invalid name', code: 'invalid-name' });
     }
   });
 
   test('an unknown and a hidden name get the same 404', async () => {
     const unknown = await getMiner(srv, 'nobody-here');
     assert.equal(unknown.status, 404);
-    assert.deepEqual(unknown.body, { error: 'unknown name' });
+    assert.deepEqual(unknown.body, { error: 'unknown name', code: 'unknown-name' });
     const hidden = createHiddenNames(srv.db);
     hidden.hide('Window-Leadder', T0); // folds to the same name as window-leader
     try {

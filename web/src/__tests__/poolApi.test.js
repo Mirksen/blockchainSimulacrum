@@ -153,25 +153,48 @@ describe('pool API client', () => {
     expect((await submitProof(challenge, PROOF).catch(caught => caught)).message).toBe('This round is over: its Bitcoin block left the window.');
   });
 
-  it('turns a 400 "name unavailable" answer into a name-unavailable error', async () => {
+  it('turns a 400 answer with code "name-unavailable" into a name-unavailable error, whatever its text', async () => {
+    for (const body of [{ error: 'name unavailable', code: 'name-unavailable' }, { error: 'synthetic new wording', code: 'name-unavailable' }]) {
+      for (const call of [() => getChallenge(NAME), () => submitProof(challenge, PROOF)]) {
+        fetchMock.mockReset();
+        fetchMock.mockResolvedValue(answer(body, 400));
+        const error = await call().catch(caught => caught);
+        expect(error).toBeInstanceOf(Error);
+        expect(error.status).toBe(400);
+        expect(error.code).toBe('name-unavailable');
+        expect(error.message).toBe('This name is not available. Please choose another.');
+        expect(fetchMock).toHaveBeenCalledTimes(1);
+      }
+    }
+  });
+
+  it('still recognizes a server without codes by its "name unavailable" text (transition)', async () => {
     for (const call of [() => getChallenge(NAME), () => submitProof(challenge, PROOF)]) {
       fetchMock.mockReset();
       fetchMock.mockResolvedValue(answer({ error: 'name unavailable' }, 400));
       const error = await call().catch(caught => caught);
-      expect(error).toBeInstanceOf(Error);
       expect(error.status).toBe(400);
       expect(error.code).toBe('name-unavailable');
       expect(error.message).toBe('This name is not available. Please choose another.');
-      expect(fetchMock).toHaveBeenCalledTimes(1);
     }
   });
 
-  it('keeps other 400 answers generic, even with an unreadable body', async () => {
-    fetchMock.mockResolvedValue(answer({ error: 'invalid name' }, 400));
+  it('lets the code decide over the text', async () => {
+    fetchMock.mockResolvedValue(answer({ error: 'name unavailable', code: 'invalid-name' }, 400));
     const invalid = await getChallenge(NAME).catch(caught => caught);
     expect(invalid.status).toBe(400);
     expect(invalid.code).toBeUndefined();
     expect(invalid.message).toBe('The leaderboard did not accept this request.');
+  });
+
+  it('keeps other 400 answers generic, even with an unreadable body', async () => {
+    for (const body of [{ error: 'invalid name' }, { error: 'invalid name', code: 'invalid-name' }]) {
+      fetchMock.mockResolvedValue(answer(body, 400));
+      const invalid = await getChallenge(NAME).catch(caught => caught);
+      expect(invalid.status).toBe(400);
+      expect(invalid.code).toBeUndefined();
+      expect(invalid.message).toBe('The leaderboard did not accept this request.');
+    }
     fetchMock.mockResolvedValue({ ok: false, status: 400, json: async () => { throw new SyntaxError('synthetic'); } });
     const unreadable = await getChallenge(NAME).catch(caught => caught);
     expect(unreadable.status).toBe(400);
@@ -244,12 +267,14 @@ describe('pool API client', () => {
     expect((await getMiner(NAME)).blocks).toEqual([{ ...good, name: NAME }]);
   });
 
-  it('turns a 404 "unknown name" answer into an unknown-name error; other 404s stay generic', async () => {
-    fetchMock.mockResolvedValue(answer({ error: 'unknown name' }, 404));
-    const unknown = await getMiner(NAME).catch(caught => caught);
-    expect(unknown.status).toBe(404);
-    expect(unknown.code).toBe('unknown-name');
-    expect(unknown.message).toBe('No blocks for this name yet.');
+  it('turns a 404 answer with code "unknown-name", or from a server without codes its text, into an unknown-name error; other 404s stay generic', async () => {
+    for (const body of [{ error: 'unknown name', code: 'unknown-name' }, { error: 'synthetic new wording', code: 'unknown-name' }, { error: 'unknown name' }]) {
+      fetchMock.mockResolvedValue(answer(body, 404));
+      const unknown = await getMiner(NAME).catch(caught => caught);
+      expect(unknown.status).toBe(404);
+      expect(unknown.code).toBe('unknown-name');
+      expect(unknown.message).toBe('No blocks for this name yet.');
+    }
     fetchMock.mockResolvedValue(answer({ error: 'not found' }, 404));
     const other = await getMiner(NAME).catch(caught => caught);
     expect(other.status).toBe(404);

@@ -1,13 +1,15 @@
 // The pool's round is a recent Bitcoin block. Its hash goes into every proof, so a
 // proof cannot be computed before that block existed. A proof stays valid while its
-// block is one of the last WINDOW_BLOCKS (144, about a day): work cannot be stockpiled
-// for longer than that. Anyone can look the block up and recompute a proof with one SHA-256.
+// block is one of the last WINDOW_BLOCKS (ROUND_WINDOW of shared/pool-proof.mjs: 144, about a
+// day): work cannot be stockpiled for longer than that. Anyone can look the block up and
+// recompute a proof with one SHA-256.
 //
 // The explorer is not trusted: every block it reports must pass blockProblem() (its header
 // hashes to its id with real proof of work) and link to the block below it, so a wrong or
 // compromised explorer can only make the pool unavailable, not invent rounds. That makes a
 // second explorer safe: each page comes from the first one that answers with valid blocks.
 
+import { ROUND_WINDOW } from '../../shared/pool-proof.mjs';
 import { blockProblem, MIN_WORK_BITS } from './bitcoinHeader.js';
 
 // Both serve Esplora block pages, newest first: mempool.space 15 blocks, blockstream.info 10.
@@ -17,7 +19,7 @@ export const TIP_SOURCES = [
 ];
 export const TIP_POLL_MS = 60 * 1000;
 export const TIP_TIMEOUT_MS = 10 * 1000;
-export const WINDOW_BLOCKS = 144;
+export const WINDOW_BLOCKS = ROUND_WINDOW;
 
 const HASH_RE = /^[0-9a-f]{64}$/;
 

@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useState } from 'react';
+import { ROUND_WINDOW } from '../../../shared/pool-proof.mjs';
 import { getMiner, isValidPoolName, minerProfileHash, POOL_HASH, POOL_UNAVAILABLE_MESSAGE, UNKNOWN_MINER_MESSAGE } from '../lib/poolApi';
 import { formatDifficulty, leadingZeros, verifyRow } from '../lib/poolProof';
 import { hint, term } from '../lib/hints';
@@ -114,12 +115,12 @@ export function MinerProfile({ name, ownName = '', refreshKey = 0, onBack }) {
     {state === 'unavailable' && <p className="miner-profile-note">{POOL_UNAVAILABLE_MESSAGE}</p>}
     {state === 'ready' && <>
       <dl className="miner-profile-stats">
-        <div><dt {...term('pool.rank-recent')}>Rank · last 144 blocks</dt><dd>{formatRank(miner.rank.window)}</dd></div>
+        <div><dt {...term('pool.rank-recent')}>{`Rank · last ${ROUND_WINDOW} blocks`}</dt><dd>{formatRank(miner.rank.window)}</dd></div>
         <div><dt {...term('pool.rank-all-time')}>Rank · all time</dt><dd>{formatRank(miner.rank.allTime)}</dd></div>
         <div><dt {...term('pool.rounds')}>Rounds</dt><dd>{formatNumber(miner.summary?.allTime.rounds ?? blocks.length)}</dd></div>
         <div><dt {...term('pool.blocks-sent')}>Blocks sent</dt><dd>{formatNumber(sent)}</dd></div>
       </dl>
-      {miner.summary?.window && <p className="miner-profile-help" {...term('pool.personal-window')}>Last 144 blocks: {formatNumber(miner.summary.window.proofs)} blocks · best {miner.summary.window.bestZeros ?? '—'} zeros{miner.summary.window.bestHash && <FullHash hash={miner.summary.window.bestHash} />}</p>}
+      {miner.summary?.window && <p className="miner-profile-help" {...term('pool.personal-window')}>Last {ROUND_WINDOW} blocks: {formatNumber(miner.summary.window.proofs)} blocks · best {miner.summary.window.bestZeros ?? '—'} zeros{miner.summary.window.bestHash && <FullHash hash={miner.summary.window.bestHash} />}</p>}
       {best && <button type="button" className="btn btn-transparent" {...hint('pool.share-find')} onClick={async () => {
         setCopied(await shareFind({ name, bestHash: best }));
       }}>Share best find</button>}

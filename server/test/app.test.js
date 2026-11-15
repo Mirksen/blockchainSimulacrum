@@ -5,10 +5,9 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import http from 'node:http';
 import { DatabaseSync } from 'node:sqlite';
+import { proofPrefix, proofScore } from '../../shared/pool-proof.mjs';
 import {
   createApp,
-  proofPrefix,
-  hashDifficulty,
   sha256hex,
   leadingHexZeros,
   GENESIS,
@@ -51,7 +50,7 @@ async function withApp(options, fn) {
   }
 }
 
-describe('proofPrefix and hashDifficulty', () => {
+describe('proofPrefix and proofScore', () => {
   test('the prefix names the genesis hash, the round and the miner', () => {
     assert.equal(
       proofPrefix(TEST_GENESIS, ROUND_A, 'sample-miner'),
@@ -59,14 +58,14 @@ describe('proofPrefix and hashDifficulty', () => {
     );
   });
 
-  test('difficulty is 2^252 / (hash + 1) with two decimals', () => {
-    assert.equal(hashDifficulty(`0${'f'.repeat(63)}`), 1, 'the easiest one-zero hash scores 1');
-    assert.equal(hashDifficulty(`00${'f'.repeat(62)}`), 16, 'the easiest two-zero hash scores 16');
-    assert.equal(hashDifficulty(`1${'0'.repeat(63)}`), 0.99);
-    assert.equal(hashDifficulty('f'.repeat(64)), 0.06);
-    assert.equal(hashDifficulty(`8${'0'.repeat(63)}`), 0.12, 'truncated, not rounded');
-    assert.ok(Math.abs(hashDifficulty('0'.repeat(64)) / 2 ** 252 - 1) < 1e-12, 'the zero hash scores 2^252');
-    assert.ok(hashDifficulty(`00${'1'.repeat(62)}`) > hashDifficulty(`00${'2'.repeat(62)}`), 'smaller hash, higher difficulty');
+  test('the proof score is 2^252 / (hash + 1) with two decimals', () => {
+    assert.equal(proofScore(`0${'f'.repeat(63)}`), 1, 'the easiest one-zero hash scores 1');
+    assert.equal(proofScore(`00${'f'.repeat(62)}`), 16, 'the easiest two-zero hash scores 16');
+    assert.equal(proofScore(`1${'0'.repeat(63)}`), 0.99);
+    assert.equal(proofScore('f'.repeat(64)), 0.06);
+    assert.equal(proofScore(`8${'0'.repeat(63)}`), 0.12, 'truncated, not rounded');
+    assert.ok(Math.abs(proofScore('0'.repeat(64)) / 2 ** 252 - 1) < 1e-12, 'the zero hash scores 2^252');
+    assert.ok(proofScore(`00${'1'.repeat(62)}`) > proofScore(`00${'2'.repeat(62)}`), 'smaller hash, higher difficulty');
   });
 });
 
@@ -131,7 +130,7 @@ describe('challenge endpoint', () => {
     for (const name of ['ab', 'bad name', 'x'.repeat(21), 'semi;colon', 'émile', '', undefined]) {
       const { status, body } = await getChallenge(srv, name);
       assert.equal(status, 400, `name ${JSON.stringify(name)}`);
-      assert.deepEqual(body, { error: 'invalid name' });
+      assert.deepEqual(body, { error: 'invalid name', code: 'invalid-name' });
     }
   });
 
@@ -179,7 +178,7 @@ describe('share verification', () => {
       accepted: true,
       hash: proof.hash,
       zeros: proof.zeros,
-      difficulty: hashDifficulty(proof.hash),
+      difficulty: proofScore(proof.hash),
       round: ROUND_B,
     });
     assert.ok(proof.block.coinbase.includes(sha256hex(`proofofwork.fyi|${TEST_GENESIS}|${ROUND_B.height}:${ROUND_B.hash}|honest-miner|`)));
@@ -305,7 +304,8 @@ describe('share verification', () => {
     for (const [payload, error] of cases) {
       const res = await postShare(srv, payload);
       assert.equal(res.status, 400, JSON.stringify(payload));
-      assert.deepEqual(res.body, { error }, JSON.stringify(payload));
+      // A refused name also carries its code; other errors only their text.
+      assert.deepEqual(res.body, error === 'invalid name' ? { error, code: 'invalid-name' } : { error }, JSON.stringify(payload));
     }
     assert.equal(countProofs(srv), before);
   });
@@ -371,7 +371,7 @@ describe('leaderboard', () => {
   test('ranks the best hash per name: more zeros first, among equal zeros the smaller hash', async () => {
     // equal-big comes first in time, equal-small later with a smaller hash at the same zeros.
     big = mine(srv.prefix('equal-big'), { exact: 1 });
-    small = mine(srv.prefix('equal-small'), { exact: 1, accept: ({ hash }) => hashDifficulty(hash) > hashDifficulty(big.hash) });
+    small = mine(srv.prefix('equal-small'), { exact: 1, accept: ({ hash }) => proofScore(hash) > proofScore(big.hash) });
     deep = mine(srv.prefix('deep-miner'), { exact: 2 });
     const worseDeep = mine(srv.prefix('deep-miner'), { exact: 1 });
     const worseBig = mine(srv.prefix('equal-big'), { exact: 1, accept: ({ hash }) => hash > big.hash });
@@ -399,7 +399,7 @@ describe('leaderboard', () => {
       ...deep.block,
       bestHash: deep.hash,
       bestZeros: 2,
-      difficulty: hashDifficulty(deep.hash),
+      difficulty: proofScore(deep.hash),
       proofs: 2,
       foundAt: T0 + 3000,
     });
@@ -622,10 +622,11 @@ describe('CORS', () => {
     assert.equal(res.headers.get('access-control-allow-origin'), 'https://proofofwork.fyi');
   });
 
-  test('health reports the source tree when the server knows it', async () => {
+  test('health reports the source and shared trees when the server knows them', async () => {
     const source = 'ab'.repeat(20);
-    await withApp({ tip: fakeTip(), source }, async (base) => {
-      assert.deepEqual(await (await fetch(`${base}/api/health`)).json(), { ok: true, source });
+    const shared = 'cd'.repeat(20);
+    await withApp({ tip: fakeTip(), source, shared }, async (base) => {
+      assert.deepEqual(await (await fetch(`${base}/api/health`)).json(), { ok: true, source, shared });
     });
   });
 

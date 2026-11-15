@@ -26,11 +26,11 @@ describe('challenge refuses unavailable names', () => {
     for (const name of ['zorblax', 'Z0RBL4X', 'my-zorblax-rig', 'qux', 'sysop', 'Sys-0p']) {
       const { status, body } = await getChallenge(srv, name);
       assert.equal(status, 400, name);
-      assert.deepEqual(body, { error: 'name unavailable' }, name);
+      assert.deepEqual(body, { error: 'name unavailable', code: 'name-unavailable' }, name);
     }
     const format = await getChallenge(srv, 'ab');
     assert.equal(format.status, 400);
-    assert.deepEqual(format.body, { error: 'invalid name' });
+    assert.deepEqual(format.body, { error: 'invalid name', code: 'invalid-name' });
     assert.equal((await getChallenge(srv, 'qux-miner')).status, 200);
   });
 
@@ -39,7 +39,7 @@ describe('challenge refuses unavailable names', () => {
       const proof = mine(srv.prefix(name), { min: 1 });
       const res = await postShare(srv, { name, round: ROUND_A, ...proof.block });
       assert.equal(res.status, 400, name);
-      assert.deepEqual(res.body, { error: 'name unavailable' }, name);
+      assert.deepEqual(res.body, { error: 'name unavailable', code: 'name-unavailable' }, name);
     }
     assert.equal(srv.db.prepare('SELECT COUNT(*) AS n FROM blocks').get().n, 0);
     assert.equal((await prove(srv, 'qux-miner')).res.status, 200);
@@ -57,7 +57,7 @@ describe('default term files', () => {
     for (const name of ['Admin', 'r00t', 'Pro0f-of-Work']) {
       const { status, body } = await getChallenge(srv, name);
       assert.equal(status, 400, name);
-      assert.deepEqual(body, { error: 'name unavailable' }, name);
+      assert.deepEqual(body, { error: 'name unavailable', code: 'name-unavailable' }, name);
     }
   });
 });
@@ -102,11 +102,11 @@ describe('operator hides a name with src/admin.js', () => {
     for (const name of ['loud-miner', 'LOUD-MINER', 'l0ud-miner']) {
       const refused = await getChallenge(srv, name);
       assert.equal(refused.status, 400, name);
-      assert.deepEqual(refused.body, { error: 'name unavailable' });
+      assert.deepEqual(refused.body, { error: 'name unavailable', code: 'name-unavailable' });
     }
     const late = await postShare(srv, { name: 'loud-miner', round: ROUND_A, ...held.block });
     assert.equal(late.status, 400);
-    assert.deepEqual(late.body, { error: 'name unavailable' });
+    assert.deepEqual(late.body, { error: 'name unavailable', code: 'name-unavailable' });
     assert.equal(srv.db.prepare("SELECT COUNT(*) AS n FROM blocks WHERE name = 'loud-miner'").get().n, 1);
 
     assert.equal((await admin('unhide', 'loud-miner')).stdout, 'unhidden: loud-miner (folded: loudminer)\n');

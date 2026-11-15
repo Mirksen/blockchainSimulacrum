@@ -66,6 +66,15 @@ export function headerHex({ version, previousHash, merkleRoot, time, bits, nonce
 /** Display-order hash of a hex byte string. */
 export const displayHash = (hex, sha256d) => reverseHex(sha256d(hex));
 
+/**
+ * Display-order hash of a block as a block explorer reports it (Esplora fields: version,
+ * previousblockhash, merkle_root, timestamp, bits, nonce), rebuilt from its header fields.
+ */
+export function explorerBlockHash(block, sha256d) {
+  return displayHash(headerHex({ version: block.version, previousHash: block.previousblockhash, merkleRoot: block.merkle_root,
+    time: block.timestamp, bits: block.bits, nonce: block.nonce }), sha256d);
+}
+
 const HEADER_FIELDS = [['version', 4], ['previousHash', 32], ['merkleRoot', 32], ['time', 4], ['bits', 4], ['nonce', 4]];
 
 /** The six fields of an 80-byte header: name, their bytes as stored and the value they encode. */

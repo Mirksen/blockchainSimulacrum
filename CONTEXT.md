@@ -163,7 +163,12 @@ Terms used in code, tests and docs of proofofwork.fyi. Decisions that shape them
   miner in the browser is signed, so every block counts whichever miner wins (ADR 0003).
 - **Block proof** — what the server re-checks and the board stores: header, coinbase and the **merkle
   branch** from the coinbase to the root. The server checks the work and the signature, never the
-  block's place in a chain, which lives in one browser.
+  block's place in a chain, which lives in one browser. The rule exists once for browser and server
+  (`shared/pool-proof.mjs`, `commitsTo`): the coinbase starts like a coinbase, ends with the
+  commitment, and the header's merkle root commits to it; **Verify** in a profile applies the same rule.
+- **Proof score** — the rank value of a block proof's hash, 2^252/(hash + 1), relative to one leading
+  hex zero (`proofScore`, the boards' `difficulty` field). Not Bitcoin's difficulty
+  (`hashDifficulty` in `shared/bitcoin-block.mjs`).
 - **Best hash** — the smallest hash of a name; it decides the rank. The server keeps one block per
   name and round, plus how many were sent.
 - **Miner profile** — the public page of one miner name (`#/pool/<name>`, `GET /api/miner?name=`):
