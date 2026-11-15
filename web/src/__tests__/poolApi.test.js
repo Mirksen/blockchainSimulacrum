@@ -168,14 +168,13 @@ describe('pool API client', () => {
     }
   });
 
-  it('still recognizes a server without codes by its "name unavailable" text (transition)', async () => {
+  it('reads the code, not the text: an answer without a code is a plain error', async () => {
     for (const call of [() => getChallenge(NAME), () => submitProof(challenge, PROOF)]) {
       fetchMock.mockReset();
       fetchMock.mockResolvedValue(answer({ error: 'name unavailable' }, 400));
       const error = await call().catch(caught => caught);
       expect(error.status).toBe(400);
-      expect(error.code).toBe('name-unavailable');
-      expect(error.message).toBe('This name is not available. Please choose another.');
+      expect(error.code).toBeUndefined();
     }
   });
 
@@ -267,14 +266,16 @@ describe('pool API client', () => {
     expect((await getMiner(NAME)).blocks).toEqual([{ ...good, name: NAME }]);
   });
 
-  it('turns a 404 answer with code "unknown-name", or from a server without codes its text, into an unknown-name error; other 404s stay generic', async () => {
-    for (const body of [{ error: 'unknown name', code: 'unknown-name' }, { error: 'synthetic new wording', code: 'unknown-name' }, { error: 'unknown name' }]) {
+  it('turns a 404 answer with code "unknown-name" into an unknown-name error; other 404s stay generic', async () => {
+    for (const body of [{ error: 'unknown name', code: 'unknown-name' }, { error: 'synthetic new wording', code: 'unknown-name' }]) {
       fetchMock.mockResolvedValue(answer(body, 404));
       const unknown = await getMiner(NAME).catch(caught => caught);
       expect(unknown.status).toBe(404);
       expect(unknown.code).toBe('unknown-name');
       expect(unknown.message).toBe('No blocks for this name yet.');
     }
+    fetchMock.mockResolvedValue(answer({ error: 'unknown name' }, 404));
+    expect((await getMiner(NAME).catch(caught => caught)).code).toBeUndefined();
     fetchMock.mockResolvedValue(answer({ error: 'not found' }, 404));
     const other = await getMiner(NAME).catch(caught => caught);
     expect(other.status).toBe(404);
