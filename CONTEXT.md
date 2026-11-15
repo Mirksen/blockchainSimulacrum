@@ -6,8 +6,14 @@ Terms used in code, tests and docs of proofofwork.fyi. Decisions that shape them
 ## Simulator
 
 - **Chain module** — `web/src/lib/blockchain.js`. Owns every block rule: reward and halving,
-  coinbase, merkle root, header hash, proof-of-work check, appending. The React hook only
-  orchestrates the miner race and UI state.
+  coinbase, merkle root, header hash, proof-of-work check, appending. The workbench session only
+  runs the miner races against it and keeps the run's state.
+- **Workbench session** — `web/src/lib/workbenchSession.js`. The simulator run the learner steers:
+  the miner races and their progress, Auto-mine and Auto-transact with their intervals, the last
+  round, slow motion, backing, and saving after every change. It owns the chain; views read its
+  snapshot (plain views, never the chain) and call its actions, each answering with the snapshot
+  after its commit and typed events (`block-accepted`, `block-tampered`, `block-remined`, …).
+  `useWorkbenchSession` only subscribes React to it.
 - **Header** — the 80 bytes of every block, in Bitcoin's format (ADR 0002): version, previous hash,
   merkle root, time in seconds, bits, nonce (`shared/bitcoin-block.mjs`). Its double SHA-256,
   byte-reversed for display, is the block hash.

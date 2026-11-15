@@ -22,19 +22,19 @@ import { hint, term } from '../../lib/hints';
 // started with Play continues with the next block.
 //   repair  "Re-mine block #K"      paused "Mining" (a new search)
 //
-// miners:    [{ name, hashpower?, hashrate?, color? }]  (color: any CSS color, defaults to var(--<name>));
-//            the odds follow hashpower, the nonces a miner tries per turn, else the measured hashrate
+// miners:    [{ name, hashpower?, color? }]  (color: any CSS color, defaults to var(--<name>));
+//            the odds follow hashpower, the nonces a miner tries per turn
 // race:      { perMiner: { [name]: { nonce, hash, zeros, iterations } }, attempts, elapsedMs, targetSeconds, winner }
 // lastRound: { index, winner, nonce, attempts, elapsedMs, difficulty?, perMiner: { [name]: { nonce, zeros } } }
 // repair:    { next, order, undoOnly?, stuck?, reason? }  order = the re-mine path in order, `next` the block to re-mine now
 //            (with undoOnly the edited block; `stuck` and `reason` name the block and the rule re-mining cannot fix);
 //            blocks before `next` in `order` count as done
-// onCreateMiner(name) returns { success, error }; "Create miner" sits under the lanes between
+// onCreateMiner(name) returns { ok, error }; "Create miner" sits under the lanes between
 // races (a miner joins from the next block) and is disabled with `minersFull`.
 // A click on a miner opens its popover (MinerDetails.jsx), between races and during one:
 // onShare(name, percent) sets its share of the hashpower, which is its chance to find the next
 // block; onOpenMiner(name) opens the miner drawer. Between races the popover also renames it:
-// onRenameMiner(name, next) -> { success, error } for this session. perMiner: { [name]: progress }
+// onRenameMiner(name, next) -> { ok, error } for this session. perMiner: { [name]: progress }
 // of the running or the last race, with each miner's newest attempts (`stream`).
 // During a race "All streams" shows every miner's attempts side by side.
 
@@ -230,8 +230,8 @@ function MinerNameField({ miner, onRename, onDone }) {
   const commit = () => {
     const next = draft.trim();
     if (next === miner.name) return true;
-    const result = onRename?.(miner.name, next) ?? { success: false, error: 'This miner cannot be renamed.' };
-    if (!result.success) { setError(result.error || 'This name is not available.'); return false; }
+    const result = onRename?.(miner.name, next) ?? { ok: false, error: 'This miner cannot be renamed.' };
+    if (!result.ok) { setError(result.error || 'This name is not available.'); return false; }
     setError('');
     return true;
   };

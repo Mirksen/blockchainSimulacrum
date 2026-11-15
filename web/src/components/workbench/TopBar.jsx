@@ -6,7 +6,7 @@ import './TopBar.css';
 
 // Top bar of the rebuilt shell (web/DESIGN.md, "Information architecture"):
 // brand, the four views and the overflow menu (its last lines name the virtual coin and
-// whether this browser keeps the chain: `saveState` from useBlockchain).
+// whether this browser keeps the chain: `saveState` of the workbench session).
 // The chain status lives once, on the chain itself.
 // Presentational: the parent owns the view (and the URL hash), theme, sound and
 // settings. Navigation links carry their hash for "open in new tab"; a plain

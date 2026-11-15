@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import App from '../App';
 import { reduce } from '../lib/missions';
 
-// Real App, hook and chain; the search is held and released through the real hasher (as in
+// Real App, session and chain; the search is held and released through the real hasher (as in
 // AppMining.test.jsx). `refuse` makes every tamper ask the chain for a sub-satoshi amount,
 // which the chain refuses, so App sees exactly what the chain answered.
 const controlled = vi.hoisted(() => ({ runs: [], walletSequence: 0, refuse: false }));
@@ -13,11 +13,15 @@ vi.mock('../lib/wallet', async importOriginal => ({ ...await importOriginal(), d
   privateKey[31] = ++controlled.walletSequence;
   return { privateKey, seedPhrase: 'synthetic wallet fixture' };
 } }));
-vi.mock('../hooks/useBlockchain', async importOriginal => {
+vi.mock('../hooks/useWorkbenchSession', async importOriginal => {
   const actual = await importOriginal();
-  return { useBlockchain: (config, options) => {
-    const sim = actual.useBlockchain({ ...config, miningDifficulty: 1, participants: ['Miner One', 'Wallet Two'], miners: ['Miner One'] }, options);
-    return controlled.refuse ? { ...sim, tamperBlock: (block, tx, amount) => sim.tamperBlock(block, tx, amount + 1e-9) } : sim;
+  const refusing = new WeakMap();
+  return { ...actual, useWorkbenchSession: (config, options) => {
+    const { session, snapshot } = actual.useWorkbenchSession({ ...config, miningDifficulty: 1, participants: ['Miner One', 'Wallet Two'], miners: ['Miner One'] }, options);
+    if (!controlled.refuse) return { session, snapshot };
+    if (!refusing.has(session)) refusing.set(session, { ...session, actions: { ...session.actions,
+      tamper: (block, tx, amount) => session.actions.tamper(block, tx, amount + 1e-9) } });
+    return { session: refusing.get(session), snapshot };
   } };
 });
 vi.mock('../lib/powSearch', async importOriginal => {

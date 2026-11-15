@@ -13,11 +13,22 @@ vi.mock('../lib/poolApi', async importOriginal => ({ ...(await importOriginal())
   getChallenge: vi.fn(), submitProof: vi.fn(), getLeaderboard: vi.fn(), getMiner: vi.fn(), getRounds: vi.fn().mockResolvedValue([]) }));
 // App around the Leaderboard tab: the simulation and the other views are covered elsewhere.
 vi.mock('../hooks/useMinerIdentity', () => ({ useMinerIdentity: () => ({ name: 'own-miner', setName: () => {}, signer: {} }) }));
-vi.mock('../hooks/useBlockchain', () => ({ useBlockchain: () => ({
-  setSigner: () => {},
-  blocks: [{}], participants: [], balances: [], memPool: [], chainValid: true,
-  isMining: false, isSettingUp: false, difficulty: 2, halvingInterval: 4,
-}) }));
+// A test session: an in-memory store and a clock only the test moves (lib/workbenchSession.js),
+// over synthetic fixture keys instead of BIP39 derivation (covered in wallet.test.js).
+const fixtureKeys = vi.hoisted(() => ({ wallet: 0 }));
+vi.mock('../lib/wallet', async importOriginal => ({ ...await importOriginal(), deriveWallet: () => {
+  const privateKey = new Uint8Array(32);
+  privateKey[31] = ++fixtureKeys.wallet % 250 + 1;
+  return { privateKey, seedPhrase: 'synthetic wallet fixture' };
+} }));
+vi.mock('../hooks/useWorkbenchSession', async importOriginal => {
+  const actual = await importOriginal();
+  const { createTestClock, inlineSearch, memoryStore } = await import('../lib/workbenchSession');
+  return { ...actual, useWorkbenchSession: config => {
+    const clock = createTestClock();
+    return actual.useWorkbenchSession(config, { store: memoryStore(), clock, search: inlineSearch(clock) });
+  } };
+});
 vi.mock('../components/workbench/Workbench', () => ({ Workbench: () => <div>Workbench view</div> }));
 vi.mock('../components/workbench/TopBar', () => ({ TopBar: () => null }));
 vi.mock('../components/workbench/LeaderboardTicker', () => ({ LeaderboardTicker: () => null }));

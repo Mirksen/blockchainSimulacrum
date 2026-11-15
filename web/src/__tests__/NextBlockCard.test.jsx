@@ -47,7 +47,7 @@ describe('NextBlockCard', () => {
   });
 
   it('Create miner opens a name form under the lanes and reports the name', () => {
-    const onCreateMiner = vi.fn(() => ({ success: true, error: null }));
+    const onCreateMiner = vi.fn(() => ({ ok: true, error: null }));
     render(<NextBlockCard {...base} mode="idle" lastRound={lastRound} onCreateMiner={onCreateMiner} />);
     const create = screen.getByRole('button', { name: 'Create miner' });
     expect(create.getAttribute('aria-expanded')).toBe('false');
@@ -77,7 +77,7 @@ describe('NextBlockCard', () => {
   });
 
   it('Create miner shows the refusal and is disabled while the race is full', () => {
-    const onCreateMiner = vi.fn(() => ({ success: false, error: 'A wallet named Lars already exists.' }));
+    const onCreateMiner = vi.fn(() => ({ ok: false, error: 'A wallet named Lars already exists.' }));
     const { rerender } = render(<NextBlockCard {...base} mode="idle" onCreateMiner={onCreateMiner} />);
     fireEvent.click(screen.getByRole('button', { name: 'Create miner' }));
     fireEvent.change(screen.getByLabelText('New miner name'), { target: { value: 'lars' } });
@@ -308,7 +308,7 @@ describe('NextBlockCard miner popover', () => {
   };
 
   it('renames a miner with Enter and closes the editor', () => {
-    const onRenameMiner = vi.fn(() => ({ success: true, error: null }));
+    const onRenameMiner = vi.fn(() => ({ ok: true, error: null }));
     render(<NextBlockCard {...base} mode="idle" lastRound={lastRound} onRenameMiner={onRenameMiner} />);
     expect(screen.queryByRole('group', { name: /^Miner / })).toBeNull();
     const editor = openEditor('Minas');
@@ -322,7 +322,7 @@ describe('NextBlockCard miner popover', () => {
   });
 
   it('commits the name when the field is left and skips an unchanged name', () => {
-    const onRenameMiner = vi.fn(() => ({ success: true, error: null }));
+    const onRenameMiner = vi.fn(() => ({ ok: true, error: null }));
     render(<NextBlockCard {...base} mode="idle" onRenameMiner={onRenameMiner} />);
     const name = within(openEditor('Lars')).getByRole('textbox', { name: 'Name' });
     fireEvent.blur(name);
@@ -333,7 +333,7 @@ describe('NextBlockCard miner popover', () => {
   });
 
   it('shows a refused name as an alert and keeps the editor open', () => {
-    const onRenameMiner = vi.fn(() => ({ success: false, error: 'A wallet named Minas already exists.' }));
+    const onRenameMiner = vi.fn(() => ({ ok: false, error: 'A wallet named Minas already exists.' }));
     render(<NextBlockCard {...base} mode="idle" onRenameMiner={onRenameMiner} />);
     const editor = openEditor('Lars');
     const name = within(editor).getByRole('textbox', { name: 'Name' });

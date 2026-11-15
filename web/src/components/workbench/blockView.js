@@ -1,7 +1,7 @@
 // Pure helpers for the chain band and the chain timeline: short hashes, one
 // view model per block, link states and the chain health summary.
 // No React, no simulation calls; everything comes from the snapshot
-// (blocks, blockStatus, participants, tamperedEdits) of useBlockchain.
+// (blocks, blockStatus, participants, tamperedEdits) of the workbench session.
 
 import GENESIS from '../../../../shared/genesis.json';
 import { colorKeyOf } from './minerColors';

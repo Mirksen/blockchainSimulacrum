@@ -52,7 +52,7 @@ describe('WalletsCard', () => {
   });
 
   it('shows the error from onCreateWallet and keeps the input', () => {
-    const onCreateWallet = vi.fn(() => ({ success: false, error: 'A wallet named Alice already exists.' }));
+    const onCreateWallet = vi.fn(() => ({ ok: false, error: 'A wallet named Alice already exists.' }));
     render(<WalletsCard wallets={wallets} onCreateWallet={onCreateWallet} />);
     fireEvent.click(screen.getByRole('button', { name: /Create wallet/ }));
     fireEvent.change(screen.getByLabelText('Wallet name'), { target: { value: ' Alice ' } });
@@ -63,7 +63,7 @@ describe('WalletsCard', () => {
   });
 
   it('closes the form after a created wallet and on Cancel', () => {
-    const onCreateWallet = vi.fn(() => ({ success: true, error: null }));
+    const onCreateWallet = vi.fn(() => ({ ok: true, error: null }));
     render(<WalletsCard wallets={wallets} onCreateWallet={onCreateWallet} />);
     fireEvent.click(screen.getByRole('button', { name: /Create wallet/ }));
     fireEvent.change(screen.getByLabelText('Wallet name'), { target: { value: 'Dana2' } });

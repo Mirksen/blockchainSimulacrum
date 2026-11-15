@@ -16,11 +16,11 @@ vi.mock('../lib/wallet', async importOriginal => ({ ...await importOriginal(), d
   privateKey[31] = ++controlled.walletSequence;
   return { privateKey, seedPhrase: 'synthetic wallet fixture' };
 } }));
-vi.mock('../hooks/useBlockchain', async importOriginal => {
+vi.mock('../hooks/useWorkbenchSession', async importOriginal => {
   const actual = await importOriginal();
-  return { useBlockchain: config => {
+  return { ...actual, useWorkbenchSession: config => {
     controlled.config = config;
-    return actual.useBlockchain({ ...config, miningDifficulty: 1,
+    return actual.useWorkbenchSession({ ...config, miningDifficulty: 1,
       participants: ['Miner One', 'Wallet Two'], miners: ['Miner One'] });
   } };
 });

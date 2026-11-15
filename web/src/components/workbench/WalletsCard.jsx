@@ -7,7 +7,7 @@ import { Avatar } from './blockParts';
 
 // Wallets card (web/DESIGN.md, "Card grid").
 // wallets: [{ name, balance, isMiner?, blocksWon?, hashrate? }]  hashrate in H/s, shown for miners
-// onCreateWallet(name) returns { success, error }; the error text is shown under the field.
+// onCreateWallet(name) returns { ok, error }; the error text is shown under the field.
 
 const PlusIcon = () => (
   <svg width="10" height="10" viewBox="0 0 12 12" aria-hidden="true"><path d="M6 2v8M2 6h8" stroke="currentColor" strokeWidth="1.8" /></svg>

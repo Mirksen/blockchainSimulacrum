@@ -70,9 +70,3 @@ export function repairOf(blockStatus, tamperedEdits = []) {
   const last = blockStatus.length - 1;
   return { next: first.index, order: Array.from({ length: last - first.index + 1 }, (_, i) => first.index + i), undoOnly: false };
 }
-
-// Hashes per second of one miner's last progress report.
-export function rateOf(progress) {
-  if (!progress?.iterations || !progress.elapsedMs) return undefined;
-  return Math.round(progress.iterations / (progress.elapsedMs / 1000));
-}
