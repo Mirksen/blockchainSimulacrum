@@ -3,7 +3,7 @@
 // No React, no simulation calls; everything comes from the snapshot
 // (blocks, blockStatus, participants, tamperedEdits) of useBlockchain.
 
-import { GENESIS } from '../../lib/poolProof';
+import GENESIS from '../../../../shared/genesis.json';
 import { colorKeyOf } from './minerColors';
 
 const BROKEN_STATUSES = new Set(['hash-mismatch', 'signature-invalid', 'transaction-invalid', 'link-broken']);
@@ -20,6 +20,19 @@ export function zerosOf(hash) {
   if (typeof hash !== 'string') return 0;
   const match = hash.match(/^0*/);
   return match ? match[0].length : 0;
+}
+
+// The zeros a block's target needs ("00"), or null without a target.
+export function targetZeros(view) {
+  return view.difficulty > 0 ? '0'.repeat(view.difficulty) : null;
+}
+
+// A coin amount with at least two decimals and at most eight: "2.00", "0.125".
+export function formatAmount(value) {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return String(value ?? '');
+  const fixed = value.toFixed(8).replace(/0+$/, '');
+  const [whole, fraction = ''] = fixed.split('.');
+  return `${whole}.${fraction.padEnd(2, '0')}`;
 }
 
 // "7.1 s"; null when there is no duration (Genesis, unknown timestamps).
@@ -121,16 +134,30 @@ export function stateOf(view) {
   return 'ok';
 }
 
+// Every block status once: its name (text, never color alone) and the sentence that
+// explains it. The band, the list, the block card and the status hint all read here.
+const STATUSES = {
+  valid: { title: 'Valid', text: 'This block passes every check: its contents still produce its hash, the hash starts with enough zeros, and it correctly stores the hash of the block before it.' },
+  'hash-mismatch': { title: 'Hash mismatch', text: 'Something in this block changed after it was mined. Its contents now produce a different hash, and that hash no longer starts with the required zeros. Re-mining finds a new nonce that fixes it.' },
+  'link-broken': { title: 'Link broken', text: 'This block still stores the old hash of the block before it. That block was changed and got a new hash, so the link points to something that no longer exists. Re-mining this block fixes the link.' },
+  'built-on-broken': { title: 'Built on a broken block', text: 'This block itself checks out, but it sits on top of a broken block. A chain is only valid if every earlier block is valid too.' },
+  'signature-invalid': { title: 'Signature invalid', text: 'A payment in this block was changed, so its digital signature no longer fits. Re-mining cannot fix that: only the sender’s private key could sign the new version. Undo the edit instead.' },
+  'transaction-invalid': { title: 'Transaction invalid', text: 'A payment in this block breaks a rule, for example it spends coins that do not exist. Re-mining cannot fix that. Undo the edit instead.' }
+};
+
+// A known status, or 'valid' for anything else.
+export function statusKind(status) {
+  return Object.hasOwn(STATUSES, status) ? status : 'valid';
+}
+
+// The status as { title, text }: its name and the sentence that explains it.
+export function statusSentence(status) {
+  return STATUSES[statusKind(status)];
+}
+
 // Text status of a block, never color alone.
 export function statusLabel(status) {
-  switch (status) {
-    case 'hash-mismatch': return 'Hash mismatch';
-    case 'signature-invalid': return 'Signature invalid';
-    case 'transaction-invalid': return 'Transaction invalid';
-    case 'link-broken': return 'Link broken';
-    case 'built-on-broken': return 'Built on a broken block';
-    default: return 'Valid';
-  }
+  return statusSentence(status).title;
 }
 
 // Why re-mining cannot repair a block: the ledger rule it breaks, in one sentence.
@@ -153,26 +180,27 @@ export function hashChecksOut(view) {
 // The link from block view.index - 1 into `view`. `previous` is the view before it.
 // ok: intact (neutral); broken: the stored previous hash differs (red);
 // dependent: the stored previous hash is the predecessor's hash *as mined*,
-// but the predecessor changed afterwards (amber, "Link unchanged").
+// but the predecessor changed afterwards (amber, "Link unchanged"). `word` is the
+// link's state in one word: intact, unchanged or broken.
 export function linkInto(view, previous) {
   const k = view.index;
   const p = k - 1;
   if (!view.linkIntact || view.status === 'link-broken') {
     return {
-      state: 'broken', title: 'Link broken',
+      state: 'broken', title: 'Link broken', word: 'broken',
       text: `#${k} stores ${shortHash(view.prevHash)}, not the hash of #${p}`,
       label: `Link broken: block ${k} does not store the hash of block ${p}`
     };
   }
   if (previous && previous.status === 'hash-mismatch') {
     return {
-      state: 'dependent', title: 'Link unchanged',
+      state: 'dependent', title: 'Link unchanged', word: 'unchanged',
       text: `#${k} still stores ${shortHash(view.prevHash)}, #${p} as mined`,
       label: `Link unchanged: block ${k} still stores ${shortHash(view.prevHash)}, the hash of block ${p} as mined`
     };
   }
   return {
-    state: 'ok', title: 'Link intact',
+    state: 'ok', title: 'Link intact', word: 'intact',
     text: `#${k} stores the hash of #${p}`,
     label: `Link intact: block ${k} stores the hash of block ${p}`
   };
@@ -211,6 +239,8 @@ export function healthSummary(views) {
   const linkOk = mined.filter(view => view.linkIntact).length;
   const target = sharedTarget(views);
   const hashPhrase = target ? `hashes start with ${target}` : 'hashes meet their target';
+  // The same for the compact line: "start 00", "meet target".
+  const shortHashPhrase = target ? `start ${target}` : 'meet target';
 
   const issues = [];
   const byStatus = status => views.filter(view => view.status === status).map(view => view.index);
@@ -235,13 +265,14 @@ export function healthSummary(views) {
     linkOk,
     target,
     hashPhrase,
+    shortHashPhrase,
     issues,
     firstBroken: views.find(view => view.status !== 'valid')?.index ?? null
   };
 }
 
-// Text of the candidate in each state.
-export function candidateCopy(candidate) {
+// Text of the candidate in each state; `short` for the list, where "Mine below" fits.
+export function candidateCopy(candidate, { short = false } = {}) {
   const { index, txCount = 0, state = 'idle', elapsedMs, attempts, slow = false } = candidate;
   const tx = `${txCount} tx`;
   switch (state) {
@@ -259,7 +290,7 @@ export function candidateCopy(candidate) {
       return { tag: 'next', time: 'not mined', what: 'reward only', down: 'Start demo below',
         label: `Candidate block ${index}, not mined yet, it holds only the mining reward` };
     default:
-      return { tag: 'next', time: 'not mined', what: `${tx} waiting`, down: 'Mine it below',
+      return { tag: 'next', time: 'not mined', what: `${tx} waiting`, down: short ? 'Mine below' : 'Mine it below',
         label: `Candidate block ${index}, not mined yet, ${txCount} transactions waiting` };
   }
 }

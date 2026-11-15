@@ -1,13 +1,5 @@
 // Hints for the top bar, the missions and the workbench cards. Format and tone: see ./index.js.
-
-const STATUS_TEXT = {
-  valid: { title: 'Valid', text: 'This block passes every check: its contents still produce its hash, the hash starts with enough zeros, and it correctly stores the hash of the block before it.' },
-  'hash-mismatch': { title: 'Hash mismatch', text: 'Something in this block changed after it was mined. Its contents now produce a different hash, and that hash no longer starts with the required zeros. Re-mining finds a new nonce that fixes it.' },
-  'link-broken': { title: 'Link broken', text: 'This block still stores the old hash of the block before it. That block was changed and got a new hash, so the link points to something that no longer exists. Re-mining this block fixes the link.' },
-  'built-on-broken': { title: 'Built on a broken block', text: 'This block itself checks out, but it sits on top of a broken block. A chain is only valid if every earlier block is valid too.' },
-  'signature-invalid': { title: 'Signature invalid', text: 'A payment in this block was changed, so its digital signature no longer fits. Re-mining cannot fix that: only the sender’s private key could sign the new version. Undo the edit instead.' },
-  'transaction-invalid': { title: 'Transaction invalid', text: 'A payment in this block breaks a rule, for example it spends coins that do not exist. Re-mining cannot fix that. Undo the edit instead.' }
-};
+import { statusSentence } from '../../components/workbench/blockView';
 
 export const WORKBENCH_HINTS = {
   'mission.fee-market': { title: 'Child pays for parent', text: 'A miner compares fees per byte for a payment and its pending ancestors together. Spend a waiting low-fee payment with a higher-fee child, then mine both. Creating a child alone does not complete the mission.' },
@@ -59,7 +51,8 @@ export const WORKBENCH_HINTS = {
   'chain.candidate': { title: 'Next block', text: 'The block being built now. It does not belong to the chain until a miner finds a valid hash for it. Its controls are in the Next block card below.' },
 
   // ---------- block card ----------
-  'block.status': kind => STATUS_TEXT[kind] ?? STATUS_TEXT.valid,
+  // A block status by its name, explained (components/workbench/blockView.js).
+  'block.status': kind => statusSentence(kind),
   'block.hash': { title: 'Hash', text: 'The block’s fingerprint: a double SHA-256 of its 80-byte header. Change anything in the block and the hash changes completely. The highlighted leading zeros are the proof of work.' },
   'block.hash-now': { title: 'Hash now', text: 'The hash the block’s contents produce today, after the change. It no longer starts with enough zeros, so the block fails.' },
   'block.as-mined': { title: 'As mined', text: 'The hash the block had when it was mined. The next block still stores this one as its link.' },

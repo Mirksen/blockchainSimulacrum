@@ -1,5 +1,5 @@
 import { headerFields } from '../../../shared/bitcoin-block.mjs';
-import { CopyButton } from './workbench/ChainBand';
+import { CopyButton } from './workbench/blockParts';
 import './HeaderBytes.css';
 
 const LABELS = { version: 'Version', previousHash: 'Previous hash', merkleRoot: 'Merkle root', time: 'Time', bits: 'Bits', nonce: 'Nonce' };

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
-import { CopyButton } from '../components/workbench/ChainBand';
+import { CopyButton } from '../components/workbench/blockParts';
 
 const FIRST = 'a'.repeat(64);
 const SECOND = 'b'.repeat(64);

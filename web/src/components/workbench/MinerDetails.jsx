@@ -4,6 +4,8 @@ import { MAX_SHARE, MIN_SHARE } from '../../lib/blockchain';
 import { COUNT_ZEROS, SLOW_MS } from '../../lib/powSearch';
 import { hint } from '../../lib/hints';
 import { duration, expectedAttempts, minerColor, rateOf, shareOf } from './minerDetailsModel';
+import { Avatar } from './blockParts';
+import { zerosOf } from './blockView';
 import './cardKit.css';
 import './MinerDetails.css';
 
@@ -18,7 +20,7 @@ const count = value => Math.round(Number(value) || 0).toLocaleString('en-US');
 //             best: { nonce, hash, zeros } | null, zeroCounts: [n0, n1, …], header: hex of 76 bytes }
 
 export function MinerAvatar({ miner, size = 'md' }) {
-  return <span className={`miner-av is-${size}`} style={{ '--av-color': minerColor(miner) }} aria-hidden="true">{String(miner.name).charAt(0).toUpperCase()}</span>;
+  return <Avatar name={miner.name} color={miner.color} colorKey={miner.colorKey} className={`miner-av is-${size}`} fallback="var(--text-3)" />;
 }
 
 // The share slider: `onShare(name, percent)`; the other miners give way in proportion.
@@ -50,8 +52,7 @@ export function ShareSlider({ miner, miners, onShare, compact = false, note = tr
 // One hash with its first `difficulty` characters checked: zeros that meet the target
 // are green, the first character that does not is red.
 export function MarkedHash({ hash, difficulty }) {
-  let zeros = 0;
-  while (zeros < difficulty && hash[zeros] === '0') zeros++;
+  const zeros = Math.min(zerosOf(hash), difficulty > 0 ? difficulty : 0);
   return (
     <span className="miner-hash">
       <span className="miner-hash-hit">{hash.slice(0, zeros)}</span>

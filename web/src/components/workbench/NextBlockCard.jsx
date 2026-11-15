@@ -6,8 +6,9 @@ import { usePeakHold } from '../../hooks/usePeakHold';
 import { MIN_DIFFICULTY, MAX_DIFFICULTY } from '../../lib/difficulty';
 import './cardKit.css';
 import './NextBlockCard.css';
-import { issueText } from './blockView';
-import { colorOf } from './minerColors';
+import { formatAmount, issueText } from './blockView';
+import { Avatar as Initial } from './blockParts';
+import { minerColor } from './minerDetailsModel';
 import { MinerPopover, StreamWall } from './MinerDetails';
 import { SLOW_MS } from '../../lib/powSearch';
 import { useMiningShortcut } from '../../lib/miningShortcut';
@@ -62,17 +63,10 @@ function useMineKey(action) {
   return enabled;
 }
 
-function formatAmount(value) {
-  if (typeof value !== 'number' || !Number.isFinite(value)) return String(value ?? '');
-  const fixed = value.toFixed(8).replace(/0+$/, '');
-  const [whole, fraction = ''] = fixed.split('.');
-  return `${whole}.${fraction.padEnd(2, '0')}`;
-}
 const count = value => Number(value ?? 0).toLocaleString('en-US');
 // From three miners on the lanes get slimmer, so the cards below keep their lists.
 const lanesClass = miners => `next-block-lanes${miners.length > 2 ? ' is-compact' : ''}`;
 const seconds = ms => `${(Math.max(0, Number(ms) || 0) / 1000).toFixed(1)} s`;
-const minerColor = miner => miner.color ?? colorOf(miner.name) ?? 'var(--text-3)';
 
 const BoltIcon = ({ size = 16 }) => (
   <svg width={size} height={size} viewBox="0 0 16 16" aria-hidden="true"><path d="M9.5 1.5L3 9h4.5l-1 5.5L13 7H8.5z" fill="currentColor" /></svg>
@@ -92,8 +86,9 @@ const CheckIcon = () => (
   <svg width="10" height="10" viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 6.3l2.3 2.3 4.7-5" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" /></svg>
 );
 
+// A miner's initial: a miner always has a color, without its own the third text color.
 function Avatar({ miner }) {
-  return <span className="card-kit-av" style={{ '--av-color': minerColor(miner) }} aria-hidden="true">{String(miner.name).charAt(0).toUpperCase()}</span>;
+  return <Initial name={miner.name} color={miner.color} colorKey={miner.colorKey} fallback="var(--text-3)" />;
 }
 
 function Track({ zeros, difficulty, label, hintProps = null }) {
