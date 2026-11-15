@@ -20,6 +20,8 @@ const ChevronIcon = () => (
     <svg className="details-modal-row-chevron" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M4.5 2.5L8 6l-3.5 3.5" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" /></svg>
 );
 
+// `block` is a block view of the workbench session (plain data): its header fields, its
+// transactions and `computedHash`, the hash its content gives now.
 export function BlockDetailsModal({
     block,
     blockIndex,
@@ -41,7 +43,8 @@ export function BlockDetailsModal({
     const recomputedRoot = transactionRoot(block.transactions || []);
     const rootChanged = block.txRoot !== undefined && block.txRoot !== recomputedRoot;
 
-    const isInvalid = !block.isValid?.() ||
+    const contentChanged = block.hash !== block.computedHash;
+    const isInvalid = contentChanged ||
         (blockIndex > 0 && block.previousHash !== blocks[blockIndex - 1]?.hash);
 
     // Handle transaction click
@@ -136,21 +139,21 @@ export function BlockDetailsModal({
 
                     <div className="details-modal-section">
                         <div className="details-modal-label" {...term('details.header')}>80-byte header</div>
-                        <HeaderBytes header={headerHex(block.header())} hash={block.hash} />
+                        <HeaderBytes header={headerHex({ version: block.version, previousHash: block.previousHash, merkleRoot: block.txRoot, time: block.time, bits: block.bits, nonce: block.nonce })} hash={block.hash} />
                     </div>
 
                     {isInvalid && (
                         <div className="details-modal-tamper">
                             <div className="details-modal-tamper-title" {...term('details.tamper')}><WarningIcon />Tamper analysis</div>
 
-                            {block.hash !== block.createHash?.() && (
+                            {contentChanged && (
                                 <div className="details-modal-tamper-item">
                                     <strong>Content modified</strong> (hash mismatch)
                                     <div className="details-modal-tamper-detail">
                                         Stored: {block.hash?.substring(0, 20)}...
                                     </div>
                                     <div className="details-modal-tamper-detail">
-                                        Actual: {block.createHash?.()?.substring(0, 20)}...
+                                        Actual: {block.computedHash?.substring(0, 20)}...
                                     </div>
                                 </div>
                             )}

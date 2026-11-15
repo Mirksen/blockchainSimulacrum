@@ -62,7 +62,7 @@ describe('MempoolCard', () => {
   });
 
   it('leaves pending payments outside the historical block during re-mining', () => {
-    render(<MempoolCard transactions={transactions} nextIndex={5} mining remining={2} />);
+    render(<MempoolCard transactions={transactions} nextIndex={5} remining={2} />);
     expect(card().textContent).toContain('2 pending');
     expect(card().textContent).toContain('waiting during re-mine #2');
     expect(card().textContent).not.toContain('being mined into');
@@ -94,8 +94,8 @@ describe('MempoolCard', () => {
 
   it('creates a transaction, keeps inputs on error and closes on success', () => {
     const onCreateTransaction = vi.fn()
-      .mockReturnValueOnce({ success: false, error: 'Insufficient funds. Balance: 0.6, Required: 0.90000001' })
-      .mockReturnValueOnce({ success: true });
+      .mockReturnValueOnce({ ok: false, error: 'Insufficient funds. Balance: 0.6, Required: 0.90000001' })
+      .mockReturnValueOnce({ ok: true });
     render(<MempoolCard transactions={transactions} nextIndex={5} participants={['Alice', 'Bob']} onCreateTransaction={onCreateTransaction} />);
     fireEvent.click(newTx());
     const form = screen.getByRole('form', { name: 'New transaction' });
@@ -164,7 +164,7 @@ describe('MempoolCard', () => {
   });
 
   it('prices the transfer at the chosen fee rate and shows its size in the preview', () => {
-    const onCreateTransaction = vi.fn().mockReturnValue({ success: true });
+    const onCreateTransaction = vi.fn().mockReturnValue({ ok: true });
     const onPreviewTransaction = vi.fn((from, amount, rate) => ({ funded: true, coins: [{ value: 50000000 }], amount: amount * 1e8,
       change: 50000000 - amount * 1e8 - rate * 226, fee: rate * 226, size: 226, feeRate: rate }));
     render(<MempoolCard transactions={[]} nextIndex={5} participants={['Alice', 'Bob']} onCreateTransaction={onCreateTransaction} onPreviewTransaction={onPreviewTransaction} />);

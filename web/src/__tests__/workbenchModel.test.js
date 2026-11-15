@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { chainEventsOf, keyFiguresOf, rateOf, repairOf } from '../components/workbench/workbenchModel';
+import { chainEventsOf, keyFiguresOf, repairOf } from '../components/workbench/workbenchModel';
 
 const status = list => list.map((s, index) => ({ index, status: s }));
 
@@ -96,17 +96,5 @@ describe('repairOf', () => {
     expect(repairOf(status(['valid', 'valid', 'signature-invalid', 'built-on-broken']))).toEqual({
       next: 2, order: [2], undoOnly: true
     });
-  });
-});
-
-describe('rateOf', () => {
-  it('turns attempts and elapsed time into hashes per second', () => {
-    expect(rateOf({ iterations: 500, elapsedMs: 2000 })).toBe(250);
-  });
-
-  it('is undefined without a usable report', () => {
-    expect(rateOf(undefined)).toBeUndefined();
-    expect(rateOf({ iterations: 0, elapsedMs: 100 })).toBeUndefined();
-    expect(rateOf({ iterations: 10, elapsedMs: 0 })).toBeUndefined();
   });
 });

@@ -3,7 +3,7 @@ import './cardKit.css';
 import './CreateNameForm.css';
 
 // The inline form behind "Create wallet" and "Create miner": one name, checked here
-// against the shared rule, then by `onCreate(name)` -> { success, error }.
+// against the shared rule, then by `onCreate(name)` -> { ok, error }.
 // noun: 'wallet' | 'miner'; label: the field's accessible name; hint: the quiet line under the field.
 
 const NAME_RULE = /^[A-Za-z0-9]{2,16}$/;
@@ -18,8 +18,8 @@ export function CreateNameForm({ noun, label, placeholder, hint, onCreate, onCan
     const trimmed = name.trim();
     if (!trimmed) return setError(`Enter a name for the ${noun}.`);
     if (!NAME_RULE.test(trimmed)) return setError(`Use 2–16 letters or digits for the ${noun} name.`);
-    const result = onCreate?.(trimmed) ?? { success: false, error: failed };
-    if (result.success) onCancel();
+    const result = onCreate?.(trimmed) ?? { ok: false, error: failed };
+    if (result.ok) onCancel();
     else setError(result.error || failed);
   };
   return (

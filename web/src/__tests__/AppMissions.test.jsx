@@ -4,16 +4,30 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import App from '../App';
 import { initialProgress, MISSIONS, STORAGE_KEY } from '../lib/missions';
 
-// Keep real App, rail, invitation and progress storage. Simulation and lab internals
-// are covered separately; their evidence callbacks exercise the real App wiring here.
+// Keep real App, rail, invitation, progress storage and Workbench with a test session. Lab
+// internals are covered separately; their evidence callbacks exercise the real App wiring here.
 vi.mock('../hooks/useMinerIdentity', () => ({ useMinerIdentity: () => ({ name: 'Not-Satoshi-4', setName: () => {}, signer: {} }) }));
-vi.mock('../hooks/useBlockchain', () => ({ useBlockchain: () => ({
-  setSigner: () => {},
-  blocks: [{}], participants: [], balances: [], memPool: [], chainValid: true,
-  isMining: false, isSettingUp: false, difficulty: 2, halvingInterval: 4,
-}) }));
-vi.mock('../components/workbench/Workbench', () => ({ Workbench: ({ coach }) =>
-  <div data-testid="workbench-coach">{coach?.target ?? 'Free play'}</div> }));
+// A test session: an in-memory store and a clock only the test moves (lib/workbenchSession.js),
+// over synthetic fixture keys instead of BIP39 derivation (covered in wallet.test.js).
+const fixtureKeys = vi.hoisted(() => ({ wallet: 0 }));
+vi.mock('../lib/wallet', async importOriginal => ({ ...await importOriginal(), deriveWallet: () => {
+  const privateKey = new Uint8Array(32);
+  privateKey[31] = ++fixtureKeys.wallet % 250 + 1;
+  return { privateKey, seedPhrase: 'synthetic wallet fixture' };
+} }));
+vi.mock('../hooks/useWorkbenchSession', async importOriginal => {
+  const actual = await importOriginal();
+  const { createTestClock, inlineSearch, memoryStore } = await import('../lib/workbenchSession');
+  return { ...actual, useWorkbenchSession: config => {
+    const clock = createTestClock();
+    return actual.useWorkbenchSession(config, { store: memoryStore(), clock, search: inlineSearch(clock) });
+  } };
+});
+// The real Workbench; beside it the coach App hands it, for the assertions on free play.
+vi.mock('../components/workbench/Workbench', async importOriginal => {
+  const { Workbench } = await importOriginal();
+  return { Workbench: props => <><span data-testid="workbench-coach" hidden>{props.coach?.target ?? 'Free play'}</span><Workbench {...props} /></> };
+});
 vi.mock('../components/workbench/TopBar', () => ({ TopBar: ({ onNavigate }) =>
   <nav><button onClick={() => onNavigate('hash-lab')}>Hash lab</button>
     <button onClick={() => onNavigate('workbench')}>Workbench</button></nav> }));

@@ -5,6 +5,7 @@ import { createElement } from 'react';
 import { cleanup, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { BlockDetailsModal } from '../components/BlockDetailsModal';
+import { createWorkbenchSession } from '../lib/workbenchSession';
 import { Block, candidateHash, createBlockchain, transactionRoot } from '../lib/blockchain';
 import { createCoinbase } from '../lib/tx/transaction';
 import { bitsOfZeros, headerHex, merkleRoot, meetsTarget as meetsBits } from '../../../shared/bitcoin-block.mjs';
@@ -155,10 +156,11 @@ describe('block header with a transaction root', () => {
 });
 
 describe('block details transaction root row', () => {
-  const renderDetails = chain => render(createElement(BlockDetailsModal, {
-    block: chain.blockArray[2], blockIndex: 2, blocks: chain.blockArray, participants: chain.participants,
-    describeTx: chain.describer(), onClose: () => {}
-  }));
+  // The modal reads the block views of a workbench session's snapshot.
+  const renderDetails = chain => {
+    const { blocks, participants, describeTx } = createWorkbenchSession({ chain }).getSnapshot();
+    return render(createElement(BlockDetailsModal, { block: blocks[2], blockIndex: 2, blocks, participants, describeTx, onClose: () => {} }));
+  };
 
   it('shows the stored root and labels a recomputed root in text after tampering', () => {
     const { chain, block } = chainWithThreeTransactionBlock();

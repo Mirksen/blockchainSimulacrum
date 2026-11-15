@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act, cleanup, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { useBlockchain } from '../hooks/useBlockchain';
+import { useWorkbenchSession } from '../hooks/useWorkbenchSession';
 import { runSearch } from '../lib/powSearch';
 import { telemetry } from '../lib/telemetry';
 import { createCoinbase } from '../lib/tx/transaction';
@@ -30,39 +30,41 @@ async function run(start) {
   await act(async () => { const pending = start(); await vi.runAllTimersAsync(); outcome = await pending; });
   return outcome;
 }
+const snap = result => result.current.snapshot;
+const actionsOf = result => result.current.session.actions;
 
 describe('nonce space exhausted', () => {
   it('mines on with the next extraNonce and keeps counting attempts', async () => {
-    const { result } = renderHook(() => useBlockchain(config));
-    const outcome = await run(() => result.current.mineBlock());
-    expect(outcome.success).toBe(true);
+    const { result } = renderHook(() => useWorkbenchSession(config));
+    const outcome = await run(() => actionsOf(result).mine());
+    expect(outcome.ok).toBe(true);
     expect(runSearch).toHaveBeenCalledTimes(2);
     const [[first], [second]] = runSearch.mock.calls;
     expect(second.entrants[0].header).not.toBe(first.entrants[0].header);
-    const block = result.current.blocks[1];
+    const block = snap(result).blocks[1];
     const [{ value, scriptPubKey }] = block.transactions[0].outputs;
     expect(block.transactions[0].createHash()).toBe(createCoinbase({ height: 1, value, recipientScript: scriptPubKey, extraNonce: 1 }).createHash());
-    expect(block.isValid()).toBe(true);
-    expect(result.current.chainValid).toBe(true);
-    expect(result.current.miningProgress.iterations).toBeGreaterThan(WASTED);
+    expect(block.computedHash).toBe(block.hash);
+    expect(snap(result).chainValid).toBe(true);
+    expect(snap(result).progress.total.iterations).toBeGreaterThan(WASTED);
     const completed = telemetry.track.mock.calls.find(([event]) => event === 'mining_completed');
     expect(completed[1].attempt_count).toBeGreaterThan(WASTED);
   });
 
   it('re-mines on with a later time and the same transactions', async () => {
-    const { result } = renderHook(() => useBlockchain(config));
+    const { result } = renderHook(() => useWorkbenchSession(config));
     const search = await realSearch();
     runSearch.mockReset();
     runSearch.mockImplementation(options => search({ ...options, yieldControl: () => undefined }));
-    await run(() => result.current.mineBlock());
-    const block = result.current.blocks[1];
-    const { time } = block;
-    const txid = block.transactions[0].createHash();
+    await run(() => actionsOf(result).mine());
+    const { time } = snap(result).blocks[1];
+    const txid = snap(result).blocks[1].transactions[0].createHash();
     runSearch.mockResolvedValueOnce({ status: 'exhausted', winner: null, nonce: null, hash: null, attempts: WASTED, entrants: {} });
-    const outcome = await run(() => result.current.remineBlock(1));
-    expect(outcome.success).toBe(true);
+    const outcome = await run(() => actionsOf(result).remine(1));
+    expect(outcome.ok).toBe(true);
+    const block = snap(result).blocks[1];
     expect(block.time).toBe(time + 1);
     expect(block.transactions[0].createHash()).toBe(txid);
-    expect(block.isValid()).toBe(true);
+    expect(block.computedHash).toBe(block.hash);
   });
 });

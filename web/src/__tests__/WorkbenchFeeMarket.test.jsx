@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Workbench } from '../components/workbench/Workbench';
 import { candidateHash, createBlockchain } from '../lib/blockchain';
+import { createTestClock, createWorkbenchSession, inlineSearch, memoryStore } from '../lib/workbenchSession';
 import { meetsTarget } from '../../../shared/bitcoin-block.mjs';
 
 const fixture = vi.hoisted(() => ({ wallet: 0 }));
@@ -12,8 +13,9 @@ vi.mock('../lib/wallet', async original => ({ ...await original(), deriveWallet:
   return { privateKey, seedPhrase: 'synthetic wallet fixture' };
 } }));
 vi.mock('../components/workbench/MinerName', () => ({ MinerName: () => null }));
+const sessions = [];
 beforeEach(() => { fixture.wallet = 0; vi.spyOn(Date, 'now').mockReturnValue(1767355200000); });
-afterEach(() => { cleanup(); vi.restoreAllMocks(); });
+afterEach(() => { cleanup(); for (const session of sessions.splice(0)) session.dispose(); vi.restoreAllMocks(); });
 
 // Each block ten seconds after the previous one: the pace meets the target block time, so
 // the chain's retarget at every tenth block keeps difficulty 1 and the nonce search stays short.
@@ -36,36 +38,47 @@ function fundedBatch() {
   expect(chain.blockTemplate().waiting).toHaveLength(3);
   return chain;
 }
-function view(chain, isMining = false) {
-  return { blocks: [...chain.blockArray], memPool: [...chain.memPool], participants: chain.participants,
-    balances: chain.getAllBalances(), blockStatus: chain.inspectBlocks(), tamperedEdits: chain.getTamperedEdits(),
-    describeTx: chain.describer(), blockTemplate: chain.blockTemplate(), difficulty: chain.miningDifficulty,
-    blockReward: chain.blockReward, halvingInterval: chain.halvingEvent, nextBlock: chain.nextBlock(),
-    loweringStartsNewChain: chain.loweringStartsNewChain(), canAddMiner: chain.canAddMiner(), isMining, minerProgress: {}, miningProgress: null };
+// A test session over `chain`: an in-memory store and a clock that only the test moves, so
+// a race stays at its start until the test lets it run.
+function sessionOf(chain) {
+  const clock = createTestClock();
+  const session = createWorkbenchSession({ chain, clock, store: memoryStore(), search: inlineSearch(clock) });
+  sessions.push(session);
+  return { session, clock };
 }
-const props = { coinName: 'FixtureCoin', targetSeconds: 10, selectedIndex: null, remining: null };
+const props = { coinName: 'FixtureCoin' };
 
 describe('workbench fee-market counts', () => {
-  it('describes only the visible activity tail, and reuses it during mining progress', () => {
+  it('describes only the visible activity tail, and reuses it during mining progress', async () => {
     const chain = createBlockchain({ participants: ['Miner Fixture'], miners: ['Miner Fixture'], miningDifficulty: 1 });
     for (let i = 0; i < 40; i++) mine(chain);
-    const sim = view(chain);
-    const original = sim.describeTx;
-    sim.describeTx = vi.fn(original);
-    const { rerender } = render(<Workbench {...props} selectedIndex={0} sim={sim} />);
+    // Every describer the session takes from the chain reports to one spy.
+    const describe = vi.fn();
+    const describer = chain.describer.bind(chain);
+    chain.describer = () => { const real = describer(); return tx => { describe(tx); return real(tx); }; };
+    const genesisTx = chain.blockArray[0].transactions[0];
+    const { session, clock } = sessionOf(chain);
+    render(<Workbench {...props} session={session} />);
+    fireEvent.click(screen.getByRole('button', { name: /^Genesis block 0/ }));
+    // A new snapshot of the chain (a raised difficulty) renders the activity again.
+    describe.mockClear();
+    act(() => { session.actions.setDifficulty(8); });
     // The selected genesis is separate; Activity needs at most its 12 visible payments.
-    expect(sim.describeTx.mock.calls.filter(([tx]) => tx !== chain.blockArray[0].transactions[0]).length).toBeLessThanOrEqual(12);
-    sim.describeTx.mockClear();
-    rerender(<Workbench {...props} selectedIndex={0} sim={{ ...sim, isMining: true, miningProgress: { iterations: 100, elapsedMs: 50 } }} />);
-    expect(sim.describeTx.mock.calls.filter(([tx]) => tx !== chain.blockArray[0].transactions[0])).toHaveLength(0);
+    expect(describe.mock.calls.filter(([tx]) => tx !== genesisTx).length).toBeLessThanOrEqual(12);
+    describe.mockClear();
+    act(() => { session.actions.mine(); });
+    await act(async () => { await clock.tick(); });
+    expect(session.getSnapshot().progress.total.iterations).toBeGreaterThan(0);
+    expect(describe.mock.calls.filter(([tx]) => tx !== genesisTx)).toHaveLength(0);
   });
   it('shows five candidate payments before and during mining, with eight still pending', () => {
     const chain = fundedBatch();
-    const { rerender } = render(<Workbench {...props} sim={view(chain)} />);
+    const { session } = sessionOf(chain);
+    render(<Workbench {...props} session={session} />);
     expect(screen.getByRole('group', { name: /^Candidate block 3,/ }).getAttribute('aria-label')).toContain('5 transactions');
     expect(document.querySelector('.next-block-meta').textContent).toContain('5 tx selected');
     expect(screen.getByRole('region', { name: 'Mempool' }).textContent).toContain('8 pending');
-    rerender(<Workbench {...props} sim={view(chain, true)} />);
+    act(() => { session.actions.mine(); });
     expect(screen.getByRole('group', { name: /^Candidate block 3,/ }).getAttribute('aria-label')).toContain('5 transactions');
     expect(document.querySelector('.next-block-meta').textContent).toContain('5 tx');
     expect(screen.getByRole('region', { name: 'Mempool' }).textContent).toContain('5 in #3');
@@ -77,11 +90,12 @@ describe('workbench fee-market counts', () => {
     // A broken header leaves the real signed ledger/payments intact, a repairable history fixture.
     chain.blockArray[2].hash = 'f'.repeat(64);
     expect(chain.inspectBlocks()[2].status).not.toBe('valid');
-    const { rerender } = render(<Workbench {...props} sim={view(chain)} />);
+    const { session } = sessionOf(chain);
+    render(<Workbench {...props} session={session} />);
     expect(chain.blockArray[2].transactions).toHaveLength(4);
     expect(screen.getByRole('region', { name: 'Next block 2, paused while the chain is invalid' })).toBeTruthy();
     expect(document.querySelector('.next-block-meta').textContent).toContain('3 tx selected');
-    rerender(<Workbench {...props} sim={view(chain, true)} remining={2} />);
+    act(() => { session.actions.remine(2); });
     expect(screen.getByRole('region', { name: 'Next block 2, being mined' })).toBeTruthy();
     expect(document.querySelector('.next-block-meta').textContent).toContain('3 tx');
     const mempool = screen.getByRole('region', { name: 'Mempool' });

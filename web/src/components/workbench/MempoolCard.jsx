@@ -16,7 +16,9 @@ import './MempoolCard.css';
 // space:         optional { bytes, capacity, included, total }: the next block's room for payments
 // participants:  [{ name }] or names, the choices for From and To
 // reward:        optional coinbase amount (reward plus fees) shown on the coinbase line
-// onCreateTransaction(from, to, amount, reference, feeRate) returns { success, error }
+// mining:        a new block is being mined; its candidate takes what fits
+// remining:      the index of the historical block being re-mined, or null
+// onCreateTransaction(from, to, amount, reference, feeRate) returns { ok, error }
 // onPreviewTransaction(from, amount, feeRate, reference) returns the planned coins, change, size and fee, or null
 // onOpenTransaction(tx) opens the details of a pending transaction
 
@@ -72,8 +74,8 @@ function NewTransactionForm({ names, coinName, onCreate, onPreview, onClose }) {
     if (!from || !to) return setError('Choose who sends and who receives.');
     if (from === to) return setError('Sender and recipient must be different wallets.');
     if (!amount.trim() || !Number.isFinite(value) || value <= 0) return setError('Enter an amount greater than 0.');
-    const result = onCreate?.(from, to, value, reference.trim(), feeRate) ?? { success: false, error: 'The transaction could not be added. Try again.' };
-    if (result.success) onClose();
+    const result = onCreate?.(from, to, value, reference.trim(), feeRate) ?? { ok: false, error: 'The transaction could not be added. Try again.' };
+    if (result.ok) onClose();
     else setError(result.error || 'The transaction could not be added. Try again.');
   };
   const edit = setter => event => { setter(event.target.value); setError(''); };
@@ -145,7 +147,7 @@ export function MempoolCard({
   const closeForm = () => { setOpen(false); trigger.current?.focus(); };
   const names = participants.map(p => (typeof p === 'string' ? p : p.name)).filter(Boolean);
   const pending = transactions.length;
-  const selecting = mining && remining === null;
+  const selecting = mining;
   const included = space?.included ?? transactions.filter(tx => !tx.waits).length;
   return (
     <section className={`card-kit mempool-card${selecting ? ' is-mining' : ''}`} aria-label="Mempool">
