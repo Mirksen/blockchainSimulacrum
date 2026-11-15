@@ -8,8 +8,11 @@ export const shareOf = (miner, miners) => {
   const total = miners.reduce((sum, m) => sum + (Number(m.hashpower) || 0), 0);
   return total > 0 ? Math.round((Number(miner.hashpower) || 0) / total * 100) : 0;
 };
-// A CSS color for a miner: an explicit `color`, else its color key, else its name.
-export const minerColor = miner => miner.color ?? colorOf(miner.colorKey ?? miner.name) ?? 'var(--text-3)';
+// The one color rule for a wallet or miner: an explicit `color`, else its color key, else
+// its name; null for one without a color.
+export const colorFor = ({ color, colorKey, name }) => color ?? colorOf(colorKey ?? name);
+// A CSS color for a miner, which always has one: without its own, the third text color.
+export const minerColor = miner => colorFor(miner) ?? 'var(--text-3)';
 // Attempts per second: the current rate the race measures, else the average so far; 0 before any.
 export const rateOf = progress => progress?.rate ?? (progress?.iterations && progress.elapsedMs ? progress.iterations / (progress.elapsedMs / 1000) : 0);
 // Attempts a hash needs on average to meet the target of `zeros` leading zeros.

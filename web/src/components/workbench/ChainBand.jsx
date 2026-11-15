@@ -4,8 +4,9 @@ import { KeyFigures } from './KeyFigures';
 import { epochMark, upcomingOf } from './keyFigureText';
 import {
   brokenBefore, candidateCopy, formatAge, formatInterval, healthSummary, linkInto, ordinal, pendingLink,
-  shortHash, stateOf, statusLabel, zerosOf
+  shortHash, stateOf, statusLabel, targetZeros
 } from './blockView';
+import { CandidateCell, CopyButton, DownIcon, HashText, HealthCell, HealthLine, MinerMark, ShortHash } from './blockParts';
 import { hint, term } from '../../lib/hints';
 import './ChainBand.css';
 
@@ -33,84 +34,10 @@ const clock = {
   },
   read: () => clock.now
 };
-export function Age({ time, className = 'chain-band-age' }) {
+function Age({ time, className = 'chain-band-age' }) {
   const now = useSyncExternalStore(clock.subscribe, clock.read, clock.read);
   const text = formatAge(time, now);
   return text ? <span className={className}>{text}</span> : null;
-}
-
-/* ---------- icons (inline SVG, no emoji) ---------- */
-function CheckIcon({ size = 10 }) {
-  return <svg width={size} height={size} viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 6.3l2.3 2.3 4.7-5" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" /></svg>;
-}
-function CopyIcon() {
-  return <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5" fill="none" stroke="currentColor" strokeWidth="1.2" /><path d="M8.5 2.5V2a1 1 0 0 0-1-1H2a1 1 0 0 0-1 1v5.5a1 1 0 0 0 1 1h.5" fill="none" stroke="currentColor" strokeWidth="1.2" /></svg>;
-}
-export function ChevronIcon({ className }) {
-  return <svg className={className} width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M3 4.5l3 3 3-3" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" /></svg>;
-}
-export function DownIcon() {
-  return <svg width="10" height="10" viewBox="0 0 12 12" aria-hidden="true"><path d="M6 2v8M2.5 6.5L6 10l3.5-3.5" stroke="currentColor" strokeWidth="1.6" fill="none" strokeLinecap="round" strokeLinejoin="round" /></svg>;
-}
-
-/* ---------- shared pieces ---------- */
-
-// Copy with a guarded clipboard: no clipboard, no error, no "Copied".
-export function CopyButton(props) {
-  // A changed hash starts a new lifetime, including when an earlier hash returns.
-  return <CopyValueButton key={props.text} {...props} />;
-}
-
-function CopyValueButton({ text, label = 'Copy full hash', className = '' }) {
-  const [copied, setCopied] = useState(null);
-  const latestRequest = useRef(null);
-  useEffect(() => () => { latestRequest.current = null; }, []);
-  useEffect(() => {
-    if (!copied) return undefined;
-    const timer = setTimeout(() => setCopied(null), 1200);
-    return () => clearTimeout(timer);
-  }, [copied]);
-  const copy = async event => {
-    event.stopPropagation();
-    const request = {};
-    latestRequest.current = request;
-    setCopied(null);
-    try {
-      const clipboard = typeof navigator === 'undefined' ? undefined : navigator.clipboard;
-      if (!clipboard || typeof clipboard.writeText !== 'function') return;
-      await clipboard.writeText(text);
-      if (latestRequest.current === request) setCopied(request);
-    } catch {
-      // Clipboard refused (permissions, insecure context): the label stays "Copy".
-    }
-  };
-  return (
-    <button type="button" className={`chain-band-copy ${className}`.trim()} onClick={copy} aria-label={copied ? 'Copied' : label}>
-      <CopyIcon />{copied ? 'Copied' : 'Copy'}
-    </button>
-  );
-}
-
-// A hash with its leading zeros highlighted, or with the first `miss`
-// characters marked as missing the target.
-export function HashText({ hash, miss = 0, zeroClass = 'chain-band-zero', missClass = 'chain-band-miss' }) {
-  if (miss > 0) return <><b className={missClass}>{hash.slice(0, miss)}</b>{hash.slice(miss)}</>;
-  const zeros = zerosOf(hash);
-  return <><b className={zeroClass}>{hash.slice(0, zeros)}</b>{hash.slice(zeros)}</>;
-}
-
-// Short hash (6 + 2) with highlighted leading zeros.
-export function ShortHash({ hash, miss = 0, zeroClass, missClass }) {
-  return <HashText hash={shortHash(hash)} miss={miss} zeroClass={zeroClass} missClass={missClass} />;
-}
-
-// "#2 changed after mining" with the block numbers in bold.
-export function BoldBlocks({ text }) {
-  return text.split(/(#\d+)/).map((part, i) => (/^#\d+$/.test(part) ? <b key={i}>{part}</b> : part));
-}
-
-function targetZeros(view) {
-  return view.difficulty > 0 ? '0'.repeat(view.difficulty) : null;
 }
 
 /* ---------- rule changes on the chain: difficulty and halving marks ---------- */
@@ -214,7 +141,7 @@ function Tile({ view, views, newest, selected, pinned, repairPosition, shade, on
             : 'Time since the previous block'}>{time}</span>}
         </span>
         <span className="chain-band-tile-by">
-          <span className={`chain-band-av is-${view.minerKey}`} aria-hidden="true">{view.isGenesis ? 'G' : view.minerName.charAt(0).toUpperCase()}</span>
+          <MinerMark view={view} />
           <span className="chain-band-who">{view.minerName}</span>
           <span className="chain-band-btx">{view.txCount} tx</span>
         </span>
@@ -225,7 +152,7 @@ function Tile({ view, views, newest, selected, pinned, repairPosition, shade, on
         ) : mismatch ? (
           <span className="chain-band-tile-was">as mined <s>{shortHash(view.storedHash)}</s></span>
         ) : state === 'dependent' ? (
-          <span className="chain-band-tile-status">Built on a broken block</span>
+          <span className="chain-band-tile-status">{statusLabel(view.status)}</span>
         ) : view.status === 'link-broken' ? (
           <span className="chain-band-tile-was">prev <s>{shortHash(view.prevHash)}</s> · not #{view.index - 1}</span>
         ) : (
@@ -282,7 +209,7 @@ function MiniTile({ view, newest, selected, pinned, repairPosition, shade, onSel
             : view.isGenesis ? <span className="chain-band-time">genesis</span> : time && <span className="chain-band-time">{time}</span>}
         </span>
         <span className="chain-band-tile-by">
-          <span className={`chain-band-av is-${view.minerKey}`} aria-hidden="true">{view.isGenesis ? 'G' : view.minerName.charAt(0).toUpperCase()}</span>
+          <MinerMark view={view} />
           <span className="chain-band-who">{view.isGenesis ? 'Genesis' : view.minerName}</span>
         </span>
         <span className="chain-band-tile-hash"><ShortHash hash={shownHash} miss={mismatch ? Math.min(view.difficulty, 6) : 0} zeroClass="chain-band-lz" missClass="chain-band-lz" /></span>
@@ -348,104 +275,6 @@ function Candidate({ candidate, upcoming = [] }) {
     </div>
   );
 }
-
-/* ---------- health ---------- */
-
-function cellFor(view, views, twoLine) {
-  const zeros = targetZeros(view);
-  const zeroOk = zeros ? <span className="chain-band-ok"><CheckIcon /><span className="chain-band-mono">{zeros}</span></span> : null;
-  if (view.isGenesis) {
-    const label = 'Block 0: genesis, no previous block';
-    return twoLine
-      ? { cls: 'is-ok', label, st: '#0 · valid', dt: <>genesis</> }
-      : { cls: 'is-ok', label, one: <><b>#0</b><span>genesis</span></> };
-  }
-  const prevLink = linkInto(view, views[view.index - 1]);
-  const linkWord = prevLink.state === 'dependent' ? 'link unchanged' : 'link intact';
-  switch (view.status) {
-    case 'hash-mismatch':
-      return { cls: 'is-broken', label: `Block ${view.index}: hash mismatch, hash now ${shortHash(view.computedHash)}, ${Math.min(view.zerosNow, view.difficulty)} of ${view.difficulty} zeros`,
-        st: `#${view.index} · hash mismatch`, dt: <><span className="chain-band-mono">{shortHash(view.computedHash)}</span> · {Math.min(view.zerosNow, view.difficulty)}/{view.difficulty} zeros</> };
-    case 'signature-invalid':
-      return { cls: 'is-broken', label: `Block ${view.index}: signature invalid; its hash and link are intact`,
-        st: `#${view.index} · signature invalid`, dt: <>a transaction signature fails</> };
-    case 'transaction-invalid':
-      return { cls: 'is-broken', label: `Block ${view.index}: transaction invalid; its hash and link are intact`,
-        st: `#${view.index} · transaction invalid`, dt: <>a transaction breaks a rule</> };
-    case 'link-broken':
-      return { cls: 'is-broken', label: `Block ${view.index}: link broken, it does not store the hash of block ${view.index - 1}`,
-        st: `#${view.index} · link broken`, dt: <>prev is not the hash of #{view.index - 1}</> };
-    case 'built-on-broken':
-      return { cls: 'is-dependent', label: `Block ${view.index}: built on a broken block; its own hash ${zeros ? `starts with ${zeros}` : 'checks out'} and its ${linkWord}`,
-        st: 'Built on a broken block', dt: <>#{view.index} · {zeroOk}{zeroOk ? ' · ' : ''}{linkWord}</> };
-    default: {
-      const label = `Block ${view.index}${twoLine ? ' valid' : ''}: hash ${zeros ? `starts with ${zeros}` : 'checks out'}, link to block ${view.index - 1} intact`;
-      return twoLine
-        ? { cls: 'is-ok', label, st: `#${view.index} · valid`, dt: <>{zeroOk}{zeroOk ? ' · ' : ''}link intact</> }
-        : { cls: 'is-ok', label, one: <><b>#{view.index}</b>{zeroOk}{zeroOk && <span className="chain-band-sep">·</span>}<span className="chain-band-ok">link<CheckIcon /></span></> };
-    }
-  }
-}
-
-function candidateCell(candidate, twoLine) {
-  const n = candidate.index;
-  if (candidate.state === 'paused') {
-    return { cls: 'is-pending', label: `Block ${n}: paused until the chain is valid`, st: `#${n} · paused`, dt: <>until the chain is valid</>, one: <><b>#{n}</b><span>paused</span></> };
-  }
-  const word = candidate.state === 'mining' ? 'being mined' : 'not mined yet';
-  return twoLine
-    ? { cls: 'is-pending', label: `Block ${n}: ${word}`, st: `#${n} · ${word}`, dt: <>no hash yet</> }
-    : { cls: 'is-pending', label: `Block ${n}: ${word}`, one: <><b>#{n}</b><span>{word}</span></> };
-}
-
-function Cell({ cell, twoLine }) {
-  return (
-    <div className={`chain-band-chk ${cell.cls}${twoLine ? ' is-two' : ''}`} role="listitem" aria-label={cell.label}>
-      {twoLine || !cell.one ? <><span className="chain-band-chk-st">{cell.st}</span><span className="chain-band-chk-dt">{cell.dt}</span></> : cell.one}
-    </div>
-  );
-}
-
-// The one standing chain status: a pill. A click opens the checks behind it.
-function HealthLine({ summary, healthOpen, onToggleHealth, stripId, compact = false }) {
-  const { valid, minedCount, hashOk, linkOk, hashPhrase, issues } = summary;
-  const label = valid ? 'Chain valid' : 'Chain invalid';
-  const pill = <><i aria-hidden="true" /><b>{label}</b></>;
-  return (
-    <span className="chain-band-health-line">
-      <span role="status" className="chain-band-health-status">
-        {onToggleHealth ? (
-          <button type="button" className="chain-band-health-sum" aria-expanded={Boolean(healthOpen)} aria-controls={stripId}
-            {...hint('chain.health', valid, healthOpen)} onClick={onToggleHealth}>{pill}</button>
-        ) : <span className="chain-band-health-sum" {...hint('chain.health', valid, true)}>{pill}</span>}
-      </span>
-      {healthOpen && (
-        <span className="chain-band-health-text">
-          {minedCount === 0 ? (
-            <span>Genesis only · no links yet</span>
-          ) : (
-            <>
-              <span><b>{compact ? `${hashOk}/${minedCount}` : `${hashOk} of ${minedCount}`}</b> {compact ? hashPhrase.replace('hashes start with', 'start').replace('hashes meet their target', 'meet target') : hashPhrase}</span>
-              <span className="chain-band-sep" aria-hidden="true">·</span>
-              {valid || compact ? (
-                <span><b>{compact ? `${linkOk}/${minedCount}` : `${linkOk} of ${minedCount}`}</b> {compact ? 'links' : 'links intact'}</span>
-              ) : (
-                <span className="chain-band-health-issues"><BoldBlocks text={issues.join('; ')} /></span>
-              )}
-            </>
-          )}
-        </span>
-      )}
-    </span>
-  );
-}
-export function HealthCell({ view, views, twoLine }) {
-  return <Cell cell={cellFor(view, views, twoLine)} twoLine={twoLine} />;
-}
-export function CandidateCell({ candidate, twoLine }) {
-  return <Cell cell={candidateCell(candidate, twoLine)} twoLine={twoLine} />;
-}
-export { HealthLine };
 
 /* ---------- band ---------- */
 

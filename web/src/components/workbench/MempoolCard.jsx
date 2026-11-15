@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { DEFAULT_FEE_RATE, FEE_RATES } from '../../lib/blockchain';
 import { CoachMark } from './CoachMark';
 import { RepeatToggle } from './RepeatToggle';
+import { formatAmount } from './blockView';
 import './cardKit.css';
 import { hint, term } from '../../lib/hints';
 import './MempoolCard.css';
@@ -18,13 +19,6 @@ import './MempoolCard.css';
 // onCreateTransaction(from, to, amount, reference, feeRate) returns { success, error }
 // onPreviewTransaction(from, amount, feeRate, reference) returns the planned coins, change, size and fee, or null
 // onOpenTransaction(tx) opens the details of a pending transaction
-
-function formatAmount(value) {
-  if (typeof value !== 'number' || !Number.isFinite(value)) return String(value ?? '');
-  const fixed = value.toFixed(8).replace(/0+$/, '');
-  const [whole, fraction = ''] = fixed.split('.');
-  return `${whole}.${fraction.padEnd(2, '0')}`;
-}
 
 const coinCount = count => `${count} ${count === 1 ? 'coin' : 'coins'}`;
 const formatBytes = bytes => `${bytes.toLocaleString('en-US')} B`;

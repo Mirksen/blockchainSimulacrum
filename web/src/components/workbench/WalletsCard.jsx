@@ -3,7 +3,7 @@ import { CreateNameForm } from './CreateNameForm';
 import './cardKit.css';
 import { hint, term } from '../../lib/hints';
 import './WalletsCard.css';
-import { colorOf } from './minerColors';
+import { Avatar } from './blockParts';
 
 // Wallets card (web/DESIGN.md, "Card grid").
 // wallets: [{ name, balance, isMiner?, blocksWon?, hashrate? }]  hashrate in H/s, shown for miners
@@ -12,12 +12,6 @@ import { colorOf } from './minerColors';
 const PlusIcon = () => (
   <svg width="10" height="10" viewBox="0 0 12 12" aria-hidden="true"><path d="M6 2v8M2 6h8" stroke="currentColor" strokeWidth="1.8" /></svg>
 );
-
-function Avatar({ name, colorKey }) {
-  const color = colorOf(colorKey ?? name);
-  const style = color ? { '--av-color': color } : undefined;
-  return <span className={`card-kit-av${style ? '' : ' is-plain'}`} style={style} aria-hidden="true">{String(name).charAt(0).toUpperCase()}</span>;
-}
 
 function balanceText(value) {
   return typeof value === 'number' && Number.isFinite(value) ? value.toFixed(8) : String(value ?? '');

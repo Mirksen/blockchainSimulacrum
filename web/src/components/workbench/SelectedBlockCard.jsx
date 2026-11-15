@@ -1,10 +1,10 @@
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { CoachMark } from './CoachMark';
-import { formatInterval, issueText } from './blockView';
+import { formatAmount, formatInterval, isBrokenStatus, issueText, statusKind, statusLabel, zerosOf } from './blockView';
+import { Avatar, CheckIcon, CopyButton } from './blockParts';
 import './cardKit.css';
 import { hint, term } from '../../lib/hints';
 import './SelectedBlockCard.css';
-import { colorOf } from './minerColors';
 
 // Block card (web/DESIGN.md, "Card grid"): the newest block, or the block held by a click
 // on the chain. Presentational: the parent passes the block as a view model with names
@@ -18,33 +18,12 @@ import { colorOf } from './minerColors';
 //         or just the status string; missing means 'valid'
 // edit:   tamperedEdits entry { txIndex, from, to } for this block (or a list), null when unchanged
 
-const STATUS = {
-  valid: { cls: 'is-valid', text: 'Valid' },
-  'hash-mismatch': { cls: 'is-err', text: 'Hash mismatch' },
-  'link-broken': { cls: 'is-err', text: 'Link broken' },
-  'signature-invalid': { cls: 'is-err', text: 'Signature invalid' },
-  'transaction-invalid': { cls: 'is-err', text: 'Transaction invalid' },
-  'built-on-broken': { cls: 'is-warn', text: 'Built on a broken block' }
-};
-
-function formatAmount(value) {
-  if (typeof value !== 'number' || !Number.isFinite(value)) return String(value ?? '');
-  const fixed = value.toFixed(8).replace(/0+$/, '');
-  const [whole, fraction = ''] = fixed.split('.');
-  return `${whole}.${fraction.padEnd(2, '0')}`;
-}
-
-function leadingZeros(hash = '') {
-  const match = /^0*/.exec(hash);
-  return match ? match[0].length : 0;
-}
-
 // All 64 characters, always: their length is part of what the card teaches. Where a
 // line is too short for them they break once, in the middle.
 function FullHash({ hash, struck = false }) {
   if (!hash) return <span className="card-kit-mono card-kit-t3">none</span>;
   // A struck (no longer valid) hash shows no highlighted zeros.
-  const zeros = struck ? 0 : leadingZeros(hash);
+  const zeros = struck ? 0 : zerosOf(hash);
   const half = Math.ceil(hash.length / 2);
   const part = (from, to) => {
     const lead = Math.max(0, Math.min(zeros, to) - from);
@@ -54,42 +33,6 @@ function FullHash({ hash, struck = false }) {
   return <span className="selected-block-hash">{struck ? <s>{body}</s> : body}</span>;
 }
 
-function CopyButton({ value, label }) {
-  const [copied, setCopied] = useState(null);
-  const latestRequest = useRef(null);
-  useEffect(() => () => { latestRequest.current = null; }, []);
-  useEffect(() => {
-    if (!copied) return undefined;
-    const timer = setTimeout(() => setCopied(null), 1200);
-    return () => clearTimeout(timer);
-  }, [copied]);
-  const copy = async () => {
-    const request = {};
-    latestRequest.current = request;
-    setCopied(null);
-    try {
-      const clipboard = navigator.clipboard;
-      if (typeof clipboard?.writeText !== 'function') return;
-      await clipboard.writeText(value);
-      if (latestRequest.current === request) setCopied(request);
-    } catch { /* Clipboard refused: keep the Copy label. */ }
-  };
-  return (
-    <button type="button" className="card-kit-copy" onClick={copy} aria-label={copied ? `${label} copied` : `Copy ${label}`} {...hint('block.copy')}>
-      {copied ? 'Copied' : 'Copy'}
-    </button>
-  );
-}
-
-function Avatar({ name, colorKey }) {
-  const color = colorOf(colorKey ?? name);
-  const style = color ? { '--av-color': color } : undefined;
-  return <span className={`card-kit-av is-xs${style ? '' : ' is-plain'}`} style={style} aria-hidden="true">{String(name).charAt(0).toUpperCase()}</span>;
-}
-
-const CheckIcon = () => (
-  <svg width="10" height="10" viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 6.3l2.3 2.3 4.7-5" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" /></svg>
-);
 const ExternalIcon = () => (
   <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M4.5 2.5h5v5M9.5 2.5L3 9" stroke="currentColor" strokeWidth="1.4" fill="none" strokeLinecap="round" strokeLinejoin="round" /></svg>
 );
@@ -99,6 +42,9 @@ const PenIcon = () => (
 const UndoIcon = () => (
   <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 7a4 4 0 1 0 1.2-2.9M2.5 2v2.3h2.3" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" /></svg>
 );
+
+// Copy in the card: "Copy hash", "hash copied".
+const COPY_HASH = { look: 'card', label: 'Copy hash', copiedLabel: 'hash copied', hintKey: 'block.copy' };
 
 const txLabel = tx => `${tx.from ?? 'Coinbase'} → ${tx.to ?? 'unknown'}`;
 const MAX_MONEY = 21000000;
@@ -174,8 +120,9 @@ export function SelectedBlockCard({ block, status, prevHash, edit, onOpenDetails
   }
 
   const check = typeof status === 'string' ? { status } : (status ?? {});
-  const kind = STATUS[check.status] ? check.status : 'valid';
-  const pill = STATUS[kind];
+  const kind = statusKind(check.status);
+  // The pill's tone: green when valid, red when broken, amber when built on a broken block.
+  const pillClass = kind === 'valid' ? 'is-valid' : isBrokenStatus(kind) ? 'is-err' : 'is-warn';
   const edits = Array.isArray(edit) ? edit : (edit ? [edit] : []);
   const transactions = block.transactions ?? [];
   const difficulty = block.difficulty ?? 0;
@@ -201,8 +148,8 @@ export function SelectedBlockCard({ block, status, prevHash, edit, onOpenDetails
   const hashRow = kind === 'hash-mismatch' ? (
     <>
       <div className="card-kit-kv is-wrap"><dt {...term('block.hash-now')}>Hash now</dt><dd>
-        <FullHash hash={computedHash} /><CopyButton key={`${block.index}:${computedHash}`} value={computedHash} label="hash" />
-        <span className="card-kit-bad">{Math.min(leadingZeros(computedHash), difficulty)}/{difficulty} zeros</span>
+        <FullHash hash={computedHash} /><CopyButton key={`${block.index}:${computedHash}`} text={computedHash} {...COPY_HASH} />
+        <span className="card-kit-bad">{Math.min(zerosOf(computedHash), difficulty)}/{difficulty} zeros</span>
         <span className="card-kit-t3">· does not start with {target}</span>
       </dd></div>
       <div className="card-kit-kv is-wrap"><dt {...term('block.as-mined')}>As mined</dt><dd>
@@ -212,7 +159,7 @@ export function SelectedBlockCard({ block, status, prevHash, edit, onOpenDetails
     </>
   ) : (
     <div className="card-kit-kv"><dt {...term('block.hash')}>Hash</dt><dd>
-      <FullHash hash={block.hash} /><CopyButton key={`${block.index}:${block.hash}`} value={block.hash} label="hash" />
+      <FullHash hash={block.hash} /><CopyButton key={`${block.index}:${block.hash}`} text={block.hash} {...COPY_HASH} />
     </dd></div>
   );
 
@@ -253,7 +200,7 @@ export function SelectedBlockCard({ block, status, prevHash, edit, onOpenDetails
   const minerRow = (
     <div className="card-kit-kv"><dt {...term('block.miner')}>Miner</dt><dd>
       {minerName ? (
-        <><Avatar name={minerName} colorKey={block.minerKey} /><span>{minerName}</span>{minerFacts.length > 0 && <span className="card-kit-t3">· {minerFacts.join(' · ')}</span>}</>
+        <><Avatar name={minerName} colorKey={block.minerKey} className="card-kit-av is-xs" /><span>{minerName}</span>{minerFacts.length > 0 && <span className="card-kit-t3">· {minerFacts.join(' · ')}</span>}</>
       ) : <span className="card-kit-t3">{isGenesis ? 'none · Genesis was mined once before launch' : 'unknown'}</span>}
     </dd></div>
   );
@@ -279,7 +226,7 @@ export function SelectedBlockCard({ block, status, prevHash, edit, onOpenDetails
     <section className={`card-kit selected-block is-${kind}`} aria-label={`Block ${block.index}`}>
       <div className="card-kit-head">
         <h2 className="card-kit-title">Block #{block.index}</h2>
-        <span className={`card-kit-pill ${pill.cls}`} {...hint('block.status', kind)}>{kind === 'valid' ? <CheckIcon /> : <i aria-hidden="true" />}{pill.text}</span>
+        <span className={`card-kit-pill ${pillClass}`} {...hint('block.status', kind)}>{kind === 'valid' ? <CheckIcon /> : <i aria-hidden="true" />}{statusLabel(kind)}</span>
         {aside && <span className="card-kit-aside">{aside}</span>}
       </div>
       <dl className="card-kit-kv-list selected-block-rows">

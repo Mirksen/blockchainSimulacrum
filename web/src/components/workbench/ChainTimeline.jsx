@@ -1,11 +1,12 @@
 import { useId, useState } from 'react';
 import { CoachMark } from './CoachMark';
 import {
-  CandidateCell, ChevronIcon, CopyButton, DownIcon, HashText, HealthCell, HealthLine, ShortHash
-} from './ChainBand';
+  CandidateCell, ChevronIcon, CopyButton, DownIcon, HashText, HealthCell, HealthLine, MinerMark, ShortHash
+} from './blockParts';
 import { KeyFigures } from './KeyFigures';
 import {
-  brokenBefore, candidateCopy, formatInterval, healthSummary, linkInto, ordinal, pendingLink, shortHash, stateOf, statusLabel
+  brokenBefore, candidateCopy, formatInterval, healthSummary, linkInto, ordinal, pendingLink, shortHash, stateOf, statusLabel,
+  targetZeros
 } from './blockView';
 import './ChainTimeline.css';
 
@@ -25,7 +26,7 @@ function rowLabel(view, { newest, selected, link, repairPosition }) {
   const time = formatInterval(view.seconds);
   if (time) parts.push(time);
   parts.push(`hash ${shortHash(view.status === 'hash-mismatch' ? view.computedHash : view.storedHash)}`);
-  if (link) parts.push(link.label.replace(/^Link (intact|unchanged|broken):.*/, `link to block ${view.index - 1} $1`));
+  if (link) parts.push(`link to block ${view.index - 1} ${link.word}`);
   return parts.join(', ');
 }
 
@@ -40,15 +41,16 @@ function FullHashLines({ hash, miss = 0 }) {
 
 function Details({ view, views, id, onOpenChainLab }) {
   const mismatch = view.status === 'hash-mismatch';
-  const zeros = view.difficulty > 0 ? '0'.repeat(view.difficulty) : null;
+  const zeros = targetZeros(view);
   const link = view.isGenesis ? null : linkInto(view, views[view.index - 1]);
+  // The status by its one name, in bold, then what that means for this block.
+  const status = <b className={view.status === 'built-on-broken' ? 'is-dep' : 'chain-band-bad'}>{statusLabel(view.status)}</b>;
   let foot;
   if (view.isGenesis) foot = view.anchor ? <>Built on Bitcoin block #{view.anchor.height}</> : <>First block, no parent</>;
   else if (mismatch) foot = <><b className="chain-band-bad">{Math.min(view.zerosNow, view.difficulty)}/{view.difficulty} zeros</b> · stored hash no longer matches</>;
-  else if (view.status === 'built-on-broken') foot = <><b className="is-dep">Built on a broken block</b> · sits on #{brokenBefore(views, view.index)}</>;
-  else if (view.status === 'signature-invalid') foot = <><b className="chain-band-bad">Signature invalid</b> · hash and link intact</>;
-  else if (view.status === 'transaction-invalid') foot = <><b className="chain-band-bad">Transaction invalid</b> · hash and link intact</>;
-  else if (view.status === 'link-broken') foot = <><b className="chain-band-bad">Link broken</b> · prev is not the hash of #{view.index - 1}</>;
+  else if (view.status === 'built-on-broken') foot = <>{status} · sits on #{brokenBefore(views, view.index)}</>;
+  else if (view.status === 'signature-invalid' || view.status === 'transaction-invalid') foot = <>{status} · hash and link intact</>;
+  else if (view.status === 'link-broken') foot = <>{status} · prev is not the hash of #{view.index - 1}</>;
   else foot = <><b>{zeros ? `Starts with ${zeros}` : 'No target'}</b> · {link?.title.toLowerCase()} to #{view.index - 1}</>;
   return (
     <div className="chain-timeline-det" id={id}>
@@ -97,7 +99,7 @@ function Row({ view, views, newest, selected, pinned, open, onTap, repairPositio
         {state === 'ok' ? (
           <>
             <span className="chain-timeline-who">
-              <span className={`chain-band-av is-${view.minerKey}`} aria-hidden="true">{view.isGenesis ? 'G' : view.minerName.charAt(0).toUpperCase()}</span>
+              <MinerMark view={view} />
               <span className="chain-timeline-name">{view.minerName}</span>
               {marker}
             </span>
@@ -130,7 +132,7 @@ export function ChainTimeline({
   const newestIndex = count - 1;
   const summary = healthSummary(views);
   const invalid = !summary.valid;
-  const copy = candidateCopy(candidate);
+  const copy = candidateCopy(candidate, { short: true });
   const state = candidate.state ?? 'idle';
   const pending = count > 0 ? pendingLink(candidate.index, state) : null;
   const newestFirst = [...views].reverse();
@@ -159,7 +161,7 @@ export function ChainTimeline({
               <span className="chain-timeline-ctxt">{copy.tries ? <>{copy.what} · <b>{copy.tries}</b> tries</> : copy.what}</span>
               <span className="chain-timeline-cend">
                 <span className="chain-timeline-ctime">{copy.time}</span>
-                <span className="chain-timeline-down">{copy.down.replace(' it', '')}<DownIcon /></span>
+                <span className="chain-timeline-down">{copy.down}<DownIcon /></span>
               </span>
               {state === 'mining' && <span className="chain-timeline-mine-line" aria-hidden="true" />}
             </div>
