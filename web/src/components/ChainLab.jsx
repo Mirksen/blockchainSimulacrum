@@ -6,6 +6,7 @@ import { ForkExperiment } from './ForkExperiment';
 import { HeaderBytes } from './HeaderBytes';
 import { MerkleProof } from './MerkleProof';
 import { hint, term } from '../lib/hints';
+import { experimentOf } from '../lib/missions';
 import './ChainLab.css';
 
 const TITLES = { repair: 'Change the past. Follow the links.', fork: 'Competing branches', merkle: 'Prove a payment' };
@@ -16,7 +17,7 @@ const INTROS = {
 };
 
 export function ChainLab({ onClose, embedded = false, onLessonEvent, coach = null, experiment, onExperimentChange }) {
-  const [localExperiment, setLocalExperiment] = useState(() => coach?.target?.startsWith('chain-lab.fork-') ? 'fork' : 'repair');
+  const [localExperiment, setLocalExperiment] = useState(() => experimentOf(coach?.mission));
   const shownExperiment = experiment ?? localExperiment;
   const [blocks, setBlocks] = useState(sampleChain);
   const [searching, setSearching] = useState(null);

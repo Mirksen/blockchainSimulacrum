@@ -3,6 +3,7 @@ import { BLOCK_SIZES, LISTED_LIMIT, sampleBlock, txidOf, verifyProof } from '../
 import { HeaderBytes } from './HeaderBytes';
 import { hint, term } from '../lib/hints';
 import { CoachMark } from './workbench/CoachMark';
+import { merkleEvidence } from '../lib/missionEvidence';
 import './MerkleProof.css';
 
 const DEFAULT_SIZE = 16;
@@ -41,9 +42,7 @@ export function MerkleProof({ onLessonEvent, coach = null }) {
     if (report) {
       const nextBlock = sampleBlock(nextSize);
       const nextProof = nextBlock.proofFor(nextIndex);
-      const checked = verifyProof(nextBlock.txids[nextIndex], nextProof.path, nextBlock.root, nextProof.levels);
-      onLessonEvent?.({ type: 'merkle_checked', root: nextBlock.root, txid: nextBlock.txids[nextIndex],
-        valid: checked.valid, malformed: Boolean(checked.malformed), failedAt: checked.failedAt, editedSibling: false });
+      onLessonEvent?.(merkleEvidence(nextBlock.txids[nextIndex], nextProof.path, nextBlock.root, nextProof.levels));
     }
   }
   function changeSize(nextSize) {
@@ -67,11 +66,8 @@ export function MerkleProof({ onLessonEvent, coach = null }) {
     const next = { ...siblings, [level]: value.trim() };
     setSiblings(next);
     const nextPath = proof.path.map(step => ({ ...step, hash: next[step.level] ?? step.hash }));
-    const checked = verifyProof(txid, nextPath, block.root, proof.levels);
-    onLessonEvent?.({ type: 'merkle_checked', root: block.root, txid, valid: checked.valid,
-      malformed: Boolean(checked.malformed), failedAt: checked.failedAt,
-      editedSibling: text === null && nextPath.reduce((changes, step, i) => changes +
-        [...step.hash].filter((character, position) => character !== proof.path[i].hash[position]).length, 0) === 1 });
+    // Only a sibling edit of the block's own payment can count as one.
+    onLessonEvent?.(merkleEvidence(txid, nextPath, block.root, proof.levels, text === null ? proof.path : null));
   }
 
   function levelName(level) {

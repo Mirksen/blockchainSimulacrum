@@ -294,6 +294,14 @@ export function activeStep(progress) {
   return { mission, step, view: mission.view, target: step.target };
 }
 
+// The Chain lab experiment each mission runs in; every other mission opens the repair.
+const EXPERIMENTS = Object.freeze({ 'follow-stronger-chain': 'fork', 'prove-a-payment': 'merkle' });
+
+/** The Chain lab experiment ('repair' | 'fork' | 'merkle') for a mission id (or none). */
+export function experimentOf(missionId) {
+  return Object.hasOwn(EXPERIMENTS, missionId ?? '') ? EXPERIMENTS[missionId] : 'repair';
+}
+
 export function totalXp(progress) {
   return progress.completed.reduce((sum, id) => sum + MISSIONS[BY_ID.get(id)].reward.xp, 0);
 }

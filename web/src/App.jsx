@@ -1,12 +1,11 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { useWorkbenchSession } from './hooks/useWorkbenchSession';
-import { ledgerOf } from './lib/workbenchSession';
 import { useMinerIdentity } from './hooks/useMinerIdentity';
 import { playMiningSuccessSound, playRecordSound, unlockMiningAudio } from './lib/sound';
 import { ownRow, recordOf } from './lib/records';
 import { telemetry } from './lib/telemetry';
 import * as missions from './lib/missions';
-import { feeMarketEvidence } from './lib/missionEvidence';
+import { evidenceOf } from './lib/missionEvidence';
 import { TopBar } from './components/workbench/TopBar';
 import { LeaderboardTicker } from './components/workbench/LeaderboardTicker';
 import { UsageConsent } from './components/UsageConsent';
@@ -67,37 +66,11 @@ const isPhone = () => Boolean(globalThis.matchMedia?.(PHONE).matches);
 // Lab missions run the existing lessons of the hash and chain labs.
 const HASH_LESSONS = { 'change-fingerprint': 'hash', 'earn-proof-of-work': 'work' };
 
-// The mission reports of one session event (ARC-5 moves the evidence into lib/missionEvidence.js).
-function reportsOf(event, snapshot) {
-  switch (event.type) {
-    case 'block-accepted':
-      // The demo's block is no mined block of the learner's.
-      return event.demo ? [] : [{ type: 'block_mined', backedWon: event.backedWon, epoch: event.epoch },
-        feeMarketEvidence(ledgerOf(snapshot), event.block)];
-    // Difficulty adapts every 10 mined blocks towards the target block time: the chain's
-    // retarget on accepting the block ('auto'), or the learner's change ('manual').
-    case 'difficulty-changed':
-      return [{ type: 'difficulty_changed', direction: event.to > event.from ? 'up' : 'down', ...(event.source === 'manual' ? { manual: true } : {}) }];
-    case 'block-remined':
-      return [{ type: 'block_remined', blockIndex: event.blockIndex, chainValid: event.chainValid,
-        hashesAndLinksValid: event.hashesAndLinksValid, signatureInvalid: event.signatureInvalid, editPresent: event.editPresent }];
-    // Only an edit the chain applied counts.
-    case 'block-tampered':
-      return event.applied ? [{ type: 'block_tampered', blockIndex: event.blockIndex, signed: event.signed, newest: event.newest }] : [];
-    case 'transaction-created':
-      return [...(event.source === 'manual' ? [{ type: 'transaction_created' }] : []), feeMarketEvidence(ledgerOf(snapshot))];
-    case 'edit-undone': return [{ type: 'edit_undone' }];
-    case 'miner-backed': return [{ type: 'miner_backed', name: event.name }];
-    case 'reset': return [{ type: 'reset' }];
-    default: return [];
-  }
-}
-
 function coachOf(progress) {
   const active = missions.activeStep(progress);
   if (!active) return null;
   const number = progress.step + 1;
-  return { view: active.view, target: active.target, label: `Step ${number} · ${active.step.id.replace(/-/g, ' ')}` };
+  return { mission: active.mission.id, view: active.view, target: active.target, label: `Step ${number} · ${active.step.id.replace(/-/g, ' ')}` };
 }
 
 function App() {
@@ -123,7 +96,7 @@ function App() {
   const [railCollapsed, setRailCollapsed] = useState(() => readFlag(RAIL_KEY, true));
   const [introSeen, setIntroSeen] = useState(() => readFlag(INTRO_KEY));
   const [progress, setProgress] = useState(() => missions.load(browserStorage()));
-  const [chainExperiment, setChainExperiment] = useState(() => ({ 'follow-stronger-chain': 'fork', 'prove-a-payment': 'merkle' })[missions.activeMission(progress)?.id] ?? 'repair');
+  const [chainExperiment, setChainExperiment] = useState(() => missions.experimentOf(missions.activeMission(progress)?.id));
   const compact = useSyncExternalStore(subscribePhone, isPhone, () => false);
   const { session, snapshot } = useWorkbenchSession(INITIAL_CONFIG, { storage: browserStorage() });
   const { actions } = session;
@@ -193,7 +166,7 @@ function App() {
       if (event.type === 'reset') setWinner(null);
       // A manual lowering waits for the learner to confirm the new chain (ADR 0004).
       if (event.type === 'difficulty-needs-reset') setLowerTo(event.to);
-      for (const evidence of reportsOf(event, after)) report(evidence);
+      for (const evidence of evidenceOf(event, after)) report(evidence);
     }
   }), [session, report]);
   const navigate = useCallback(next => {
@@ -225,7 +198,7 @@ function App() {
   };
   const showMe = active => {
     if (!active) return;
-    if (active.view === 'chain-lab') setChainExperiment(active.target.startsWith('chain-lab.fork-') ? 'fork' : active.target.startsWith('chain-lab.merkle-') ? 'merkle' : 'repair');
+    if (active.view === 'chain-lab') setChainExperiment(missions.experimentOf(active.mission.id));
     navigate(active.view);
     requestAnimationFrame(() => {
       const element = document.querySelector(`[data-coach-target="${active.target}"]`);
