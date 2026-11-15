@@ -1,4 +1,5 @@
 import './cardKit.css';
+import { formatAmount } from './blockView';
 import { term } from '../../lib/hints';
 import './ActivityCard.css';
 
@@ -9,12 +10,6 @@ import './ActivityCard.css';
 // blockTimes: [{ index, seconds }]             newest first
 // targetSeconds: the target block time
 
-function formatAmount(value) {
-  if (typeof value !== 'number' || !Number.isFinite(value)) return String(value ?? '');
-  const fixed = value.toFixed(8).replace(/0+$/, '');
-  const [whole, fraction = ''] = fixed.split('.');
-  return `${whole}.${fraction.padEnd(2, '0')}`;
-}
 const secondsText = value => `${Number(value).toFixed(1)} s`;
 
 export function ActivityCard({ confirmed = [], blockTimes = [], targetSeconds = 10 }) {
