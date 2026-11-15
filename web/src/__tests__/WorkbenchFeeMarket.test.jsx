@@ -18,7 +18,7 @@ afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 // Each block ten seconds after the previous one: the pace meets the target block time, so
 // the chain's retarget at every tenth block keeps difficulty 1 and the nonce search stays short.
 function mine(chain) {
-  Date.now.mockReturnValue(Date.now() + 10_000);
+  Date.now.mockReturnValue((chain.blockArray.at(-1).time + 10) * 1000);
   const candidate = chain.prepareCandidate(chain.getActiveMiner());
   let nonce = 0;
   while (!meetsTarget(candidateHash(candidate, nonce), candidate.bits)) nonce++;
