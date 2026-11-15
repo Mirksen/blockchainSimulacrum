@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { ROUND_WINDOW } from '../../../shared/pool-proof.mjs';
 import { getRounds, minerProfileHash } from '../lib/poolApi';
 import { hint, term } from '../lib/hints';
 
@@ -13,7 +14,7 @@ export function RoundHistory({ refreshKey = 0 }) {
   }, [refreshKey]);
   return <section className="pool-panel-board" aria-labelledby="finished-rounds-title">
     <h3 id="finished-rounds-title" {...term('pool.finished-rounds')}>Finished rounds</h3>
-    <p className="pool-panel-help">Recent rounds outside the last 144 Bitcoin blocks. Counts and winners cover retained entries.</p>
+    <p className="pool-panel-help">{`Recent rounds outside the last ${ROUND_WINDOW} Bitcoin blocks. Counts and winners cover retained entries.`}</p>
     {loaded.state === 'loading' && <p>Loading finished rounds…</p>}
     {loaded.state === 'unavailable' && <p>Round history is unavailable right now.</p>}
     {loaded.state === 'ready' && loaded.rounds.length === 0 && <p>No finished rounds with retained blocks yet.</p>}

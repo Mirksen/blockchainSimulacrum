@@ -6,7 +6,7 @@ import App from '../App';
 import { getLeaderboard, getMiner, getRounds } from '../lib/poolApi';
 import { le, meetsTarget } from '../../../shared/bitcoin-block.mjs';
 import { hashAtNonce } from '../lib/blockHeader';
-import { GENESIS, hashDifficulty, leadingZeros, poolCandidate, proofPrefix, signatureOf } from '../lib/poolProof';
+import { GENESIS, leadingZeros, poolCandidate, proofPrefix, proofScore, signatureOf } from '../lib/poolProof';
 import { HINTS } from '../lib/hints';
 
 vi.mock('../lib/poolApi', async importOriginal => ({ ...(await importOriginal()),
@@ -47,7 +47,7 @@ function blockOf(name, round, { start = 0, proofs = 1, inWindow = true } = {}) {
   while (!meetsTarget(hashAtNonce(candidate.header, nonce), candidate.bits)) nonce++;
   const hash = hashAtNonce(candidate.header, nonce);
   return { name, round, header: candidate.header + le(nonce, 4), coinbase: candidate.coinbase, branch: [], bestHash: hash,
-    bestZeros: leadingZeros(hash), difficulty: hashDifficulty(hash), proofs, foundAt: FOUND_AT, inWindow };
+    bestZeros: leadingZeros(hash), difficulty: proofScore(hash), proofs, foundAt: FOUND_AT, inWindow };
 }
 
 const NEW = blockOf(NAME, roundOf(900200), { proofs: 3 });

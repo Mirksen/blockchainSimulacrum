@@ -1,8 +1,9 @@
 import { createHash } from 'node:crypto';
 import http from 'node:http';
 import { DatabaseSync } from 'node:sqlite';
-import { createApp, sha256hex, leadingHexZeros, proofPrefix } from '../src/app.js';
-import { blockHash, coinbaseTail } from '../src/blockProof.js';
+import { coinbaseTail, proofPrefix } from '../../shared/pool-proof.mjs';
+import { createApp, sha256hex, leadingHexZeros } from '../src/app.js';
+import { blockHash } from '../src/blockProof.js';
 
 export const T0 = Date.UTC(2026, 0, 15, 12, 0, 0);
 

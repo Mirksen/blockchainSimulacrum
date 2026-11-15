@@ -6,7 +6,7 @@ import { PoolPanel, ROUND_CHECK_MS } from '../components/PoolPanel';
 import { getChallenge, getLeaderboard, getMiner, getRounds, submitProof } from '../lib/poolApi';
 import { bitsOfZeros, displayHash, le, meetsTarget } from '../../../shared/bitcoin-block.mjs';
 import { hashAtNonce, sha256d } from '../lib/blockHeader';
-import { formatDifficulty, GENESIS, hashDifficulty, leadingZeros, poolCandidate, proofPrefix, signatureOf } from '../lib/poolProof';
+import { formatDifficulty, GENESIS, leadingZeros, poolCandidate, proofPrefix, proofScore, signatureOf } from '../lib/poolProof';
 import { runSearch } from '../lib/powSearch';
 import { HINTS } from '../lib/hints';
 
@@ -46,7 +46,7 @@ function proofsFrom(challenge, count, start = START_NONCE) {
   return found;
 }
 const rowOf = (name, round, proof, proofs = 1) => ({ name, round, header: proof.header, coinbase: proof.coinbase, branch: proof.branch,
-  bestHash: proof.hash, bestZeros: leadingZeros(proof.hash), difficulty: hashDifficulty(proof.hash), proofs, foundAt: NOW });
+  bestHash: proof.hash, bestZeros: leadingZeros(proof.hash), difficulty: proofScore(proof.hash), proofs, foundAt: NOW });
 const httpError = status => Object.assign(new Error(`Synthetic HTTP ${status}.`), { status });
 // Holds the loop at "connecting" until the panel aborts the request.
 const parked = (_name, { signal }) => new Promise((_resolve, reject) => {
@@ -54,9 +54,9 @@ const parked = (_name, { signal }) => new Promise((_resolve, reject) => {
 });
 const accept = async (signature, proof) => {
   const hash = hashOf(proof.header);
-  return { accepted: true, hash, zeros: leadingZeros(hash), difficulty: hashDifficulty(hash), round: signature.round };
+  return { accepted: true, hash, zeros: leadingZeros(hash), difficulty: proofScore(hash), round: signature.round };
 };
-const best = hash => `${leadingZeros(hash)} · ${formatDifficulty(hashDifficulty(hash))}`;
+const best = hash => `${leadingZeros(hash)} · ${formatDifficulty(proofScore(hash))}`;
 const stat = label => screen.getByText(label, { selector: 'dt' }).nextElementSibling.textContent;
 const status = () => screen.getAllByRole('status')[0].textContent;
 const settle = ms => act(() => new Promise(resolve => setTimeout(resolve, ms)));

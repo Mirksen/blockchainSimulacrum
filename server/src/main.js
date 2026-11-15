@@ -42,6 +42,8 @@ const handler = createApp({
   shareZeros,
   log: (line) => console.log(line),
   source: gitTreeId(fileURLToPath(new URL('.', import.meta.url))),
+  // The proof rule and genesis the server imports: `git rev-parse <commit>:shared`.
+  shared: gitTreeId(fileURLToPath(new URL('../../shared/', import.meta.url))),
 });
 
 const server = http.createServer(handler);

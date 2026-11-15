@@ -2,13 +2,15 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { readFile, realpath, stat } from 'node:fs/promises';
 import path from 'node:path';
-import { NAME_RE, checkName, createHiddenNames, foldName, loadNameLists, prepareNameLists } from './names.js';
+import { commitmentOf, commitsTo, NAME_RE, POOL_ERRORS, proofPrefix, proofScore } from '../../shared/pool-proof.mjs';
+import { checkName, createHiddenNames, foldName, loadNameLists, prepareNameLists } from './names.js';
 import { isRound } from './bitcoinTip.js';
-import { blockHash, commitsTo, HEADER_HEX_LENGTH, MAX_BRANCH_LENGTH, MAX_COINBASE_HEX_LENGTH } from './blockProof.js';
+import { blockHash, HEADER_HEX_LENGTH, MAX_BRANCH_LENGTH, MAX_COINBASE_HEX_LENGTH, sha256d } from './blockProof.js';
 
-// The fixed genesis block of proofofwork.fyi (a copy of shared/genesis.json, written by
+// The fixed genesis block of proofofwork.fyi (shared/genesis.json, written by
 // shared/mine-genesis.mjs). Every proof names its hash: the work was done for this chain.
-export const GENESIS = JSON.parse(readFileSync(new URL('./genesis.json', import.meta.url), 'utf8'));
+// The image places shared/ beside the server's directory, as in the repository.
+export const GENESIS = JSON.parse(readFileSync(new URL('../../shared/genesis.json', import.meta.url), 'utf8'));
 
 export const PROOF_ZEROS = 1;
 export const MIN_SHARE_ZEROS = 1;
@@ -55,23 +57,12 @@ export function leadingHexZeros(hex) {
   return count;
 }
 
-// What a block's coinbase commits to (see blockProof.js): the chain (genesis hash), the
-// round (a recent Bitcoin block) and whose work it is.
-export function proofPrefix(genesisHash, round, name) {
-  return `proofofwork.fyi|${genesisHash}|${round.height}:${round.hash}|${name}|`;
-}
-
-// Bitcoin-style difficulty relative to one leading hex zero: 2^252 / (hash + 1). A hash
-// with z zeros scores at least 16^(z - 1); among equal zeros the smaller hash scores higher.
-export function hashDifficulty(hex) {
-  const scaled = (2n ** 252n * 100n) / (BigInt(`0x${hex}`) + 1n);
-  return Number(scaled) / 100;
-}
-
+// An answer's `code` (POOL_ERRORS) lets a client decide without reading the `error` text.
 class HttpError extends Error {
-  constructor(status, message) {
+  constructor(status, message, code) {
     super(message);
     this.status = status;
+    if (code) this.code = code;
   }
 }
 
@@ -155,7 +146,7 @@ function parseShare(raw) {
   }
   if (!body || typeof body !== 'object' || Array.isArray(body)) throw new HttpError(400, 'invalid body');
   const { name, round, header, coinbase, branch } = body;
-  if (typeof name !== 'string' || !NAME_RE.test(name)) throw new HttpError(400, 'invalid name');
+  if (typeof name !== 'string' || !NAME_RE.test(name)) throw new HttpError(400, 'invalid name', POOL_ERRORS.invalidName);
   if (!round || typeof round !== 'object' || Array.isArray(round)) throw new HttpError(400, 'invalid round');
   const { height, hash } = round;
   if (!isRound({ height, hash })) throw new HttpError(400, 'invalid round');
@@ -183,8 +174,10 @@ export function createApp({
   genesisHash = GENESIS.hash,
   // Folded blocked/reserved/allowed name lists; defaults to the term files in server/data/.
   nameLists,
-  // The git tree id of the running src/ (gitTreeId in sourceTree.js), reported by /api/health.
+  // The git tree ids of the running src/ and of the shared/ it imports (gitTreeId in
+  // sourceTree.js), reported by /api/health.
   source,
+  shared,
 } = {}) {
   if (!db) throw new Error('createApp: db is required');
   if (!tip || typeof tip.round !== 'function' || typeof tip.accepts !== 'function' || typeof tip.windowStart !== 'function') {
@@ -319,7 +312,7 @@ export function createApp({
     branch: JSON.parse(row.branch),
     bestHash: row.hash,
     bestZeros: row.zeros,
-    difficulty: hashDifficulty(row.hash),
+    difficulty: proofScore(row.hash),
     proofs: row.total,
     foundAt: row.created_at,
   }));
@@ -347,8 +340,8 @@ export function createApp({
 
   function checkPoolName(name) {
     const verdict = checkName(name, names);
-    if (!verdict.ok && verdict.reason === 'format') throw new HttpError(400, 'invalid name');
-    if (!verdict.ok || hiddenNames.isHidden(name)) throw new HttpError(400, 'name unavailable');
+    if (!verdict.ok && verdict.reason === 'format') throw new HttpError(400, 'invalid name', POOL_ERRORS.invalidName);
+    if (!verdict.ok || hiddenNames.isHidden(name)) throw new HttpError(400, 'name unavailable', POOL_ERRORS.nameUnavailable);
   }
 
   function handleChallenge(url, req, res) {
@@ -371,7 +364,7 @@ export function createApp({
     if (!tip.accepts(round)) throw new HttpError(410, 'round over');
 
     // Re-verify the work: never trust a client-supplied hash.
-    if (!commitsTo(proof, sha256hex(proofPrefix(genesisHash, round, name)))) throw new HttpError(422, 'block names another miner or round');
+    if (!commitsTo(sha256d, proof, commitmentOf(sha256hex, genesisHash, round, name))) throw new HttpError(422, 'block names another miner or round');
     const hash = blockHash(proof.header);
     const zeros = leadingHexZeros(hash);
     if (zeros < shareZeros) throw new HttpError(422, 'hash misses target');
@@ -385,7 +378,7 @@ export function createApp({
       trimBlocks();
     } else if (hash < stored.hash) replaceBest.run(...fields, ...place);
     else countBlock.run(...place);
-    send(res, 200, { accepted: true, hash, zeros, difficulty: hashDifficulty(hash), round });
+    send(res, 200, { accepted: true, hash, zeros, difficulty: proofScore(hash), round });
   }
 
   function handleLeaderboard(res) {
@@ -401,10 +394,10 @@ export function createApp({
   // One name's rounds with its ranks. A hidden name answers exactly like an unknown one.
   function handleMiner(url, res) {
     const name = url.searchParams.get('name');
-    if (typeof name !== 'string' || !NAME_RE.test(name)) throw new HttpError(400, 'invalid name');
-    if (hiddenNames.isHidden(name)) throw new HttpError(404, 'unknown name');
+    if (typeof name !== 'string' || !NAME_RE.test(name)) throw new HttpError(400, 'invalid name', POOL_ERRORS.invalidName);
+    if (hiddenNames.isHidden(name)) throw new HttpError(404, 'unknown name', POOL_ERRORS.unknownName);
     const rows = selectMinerBlocks.all(genesisHash, name);
-    if (rows.length === 0) throw new HttpError(404, 'unknown name');
+    if (rows.length === 0) throw new HttpError(404, 'unknown name', POOL_ERRORS.unknownName);
     const from = tip.round() ? tip.windowStart() : null;
     const rankIn = (fromHeight) => selectRank.get(genesisHash, fromHeight, name)?.place ?? null;
     send(res, 200, {
@@ -418,7 +411,7 @@ export function createApp({
         branch: JSON.parse(row.branch),
         bestHash: row.hash,
         bestZeros: row.zeros,
-        difficulty: hashDifficulty(row.hash),
+        difficulty: proofScore(row.hash),
         proofs: row.proofs,
         foundAt: row.created_at,
         rank: row.place,
@@ -492,7 +485,7 @@ export function createApp({
       }
       if (pathname === '/api/health') {
         if (req.method !== 'GET') throw new HttpError(405, 'method not allowed');
-        return send(res, 200, source ? { ok: true, source } : { ok: true });
+        return send(res, 200, { ok: true, ...(source ? { source } : {}), ...(shared ? { shared } : {}) });
       }
       if (pathname === '/api/challenge') {
         if (req.method !== 'GET') throw new HttpError(405, 'method not allowed');
@@ -538,7 +531,7 @@ export function createApp({
         req.resume();
       }
       if (status === 405) headers.allow = req.url?.startsWith('/api/shares') ? 'POST, OPTIONS' : 'GET, OPTIONS';
-      send(res, status, { error: status === 500 ? 'internal error' : err.message }, headers);
+      send(res, status, status === 500 ? { error: 'internal error' } : { error: err.message, ...(err.code ? { code: err.code } : {}) }, headers);
     } finally {
       if (log) {
         // One line per request: time, method, path (no query string), status, duration. Never the client address.
