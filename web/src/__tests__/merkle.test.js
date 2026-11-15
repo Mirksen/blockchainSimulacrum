@@ -122,7 +122,7 @@ describe('block header with a transaction root', () => {
   it('detects tampering with the first transaction amount through the recomputed root', () => {
     const { chain, block } = chainWithThreeTransactionBlock();
     const rootBefore = transactionRoot(block.transactions);
-    expect(chain.tamperTransaction(2, 0, 1.75)).toBe(true);
+    expect(chain.tamperTransaction(2, 0, 1.75)).toEqual({ applied: true, reason: null });
     expect(transactionRoot(block.transactions)).not.toBe(rootBefore);
     expect(block.txRoot).toBe(rootBefore);
     expect(block.isValid()).toBe(false);

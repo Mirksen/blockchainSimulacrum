@@ -23,7 +23,6 @@ import { colorOf } from './components/workbench/minerColors';
 import { TransactionDetailsModal } from './components/TransactionDetailsModal';
 import { HintLayer } from './components/HintLayer';
 import './index.css';
-import { adjustedDifficulty, averagePace, checkWindowStart, isCheckHeight } from './lib/difficulty';
 import { DEFAULT_FEE_RATE } from './lib/blockchain';
 
 // Free play starts on the workbench; other experiments load when opened.
@@ -94,7 +93,6 @@ function App() {
   const autoMiningRef = useRef(false);
   const [autoTransact, setAutoTransact] = useState(false);
   const [coinName, setCoinName] = useState('powfyicoin');
-  const [targetBlockTime, setTargetBlockTime] = useState(10);
   const [showSettings, setShowSettings] = useState(false);
   // A manual lowering waits here until the learner confirms the new chain.
   const [lowerTo, setLowerTo] = useState(null);
@@ -119,8 +117,6 @@ function App() {
   const [chainExperiment, setChainExperiment] = useState(() => ({ 'follow-stronger-chain': 'fork', 'prove-a-payment': 'merkle' })[missions.activeMission(progress)?.id] ?? 'repair');
   const compact = useSyncExternalStore(subscribePhone, isPhone, () => false);
   const sim = useBlockchain(INITIAL_CONFIG, { storage: browserStorage() });
-  // A restored chain already had its adjustments; the next one is due at the next tenth block.
-  const lastAdjustedBlock = useRef(sim.restored ? sim.blocks.length - 1 : 0);
   const [boardKey, setBoardKey] = useState(0);
   const [boardRows, setBoardRows] = useState(null);
   const [record, setRecord] = useState(null);
@@ -144,9 +140,9 @@ function App() {
   }, []);
   const identity = useMinerIdentity({ onAccepted: onBlockAccepted });
   useEffect(() => { signingName.current = identity.signingName; }, [identity.signingName]);
-  const { blocks, participants, balances, memPool, chainValid, isMining, isSettingUp, difficulty, halvingInterval,
+  const { blocks, participants, balances, memPool, chainValid, isMining, isSettingUp, difficulty, halvingInterval, targetSeconds,
     minerProgress, miningProgress, createTransaction, mineBlock, setupInitialDistribution, generateRandomTransactions,
-    setDifficulty, setHalvingInterval, tamperBlock, undoTamper, remineBlock, resetBlockchain, cancelMining,
+    setDifficulty, setHalvingInterval, setTargetBlockTime, tamperBlock, undoTamper, remineBlock, resetBlockchain, cancelMining,
     createWallet, createMiner, renameMiner, backMiner, toggleMiner, setMinerShare, setSlowMotion, slowMotion, minerLuck, raceWinner, describeTx, setSigner } = sim;
   const busy = isMining || isSettingUp;
   const coach = railCollapsed ? null : coachOf(progress);
@@ -236,21 +232,6 @@ function App() {
     rememberRound(index, result);
   }, [isMining, rememberRound]);
 
-  // Difficulty adapts every 10 mined blocks towards the target block time.
-  const adjustDifficulty = useCallback(() => {
-    const chainBlocks = sim.blockchain.blockArray;
-    const height = chainBlocks.length - 1;
-    if (!isCheckHeight(height) || lastAdjustedBlock.current === height) return;
-    lastAdjustedBlock.current = height;
-    const current = sim.blockchain.miningDifficulty;
-    const seconds = averagePace(chainBlocks, checkWindowStart(height), height);
-    const next = adjustedDifficulty(current, seconds, targetBlockTime);
-    if (next === current) return;
-    setDifficulty(next, { source: 'auto' });
-    report({ type: 'difficulty_changed', direction: next > current ? 'up' : 'down' });
-    return { kind: 'difficulty', index: height + 1, from: current, to: next };
-  }, [report, setDifficulty, sim.blockchain, targetBlockTime]);
-
   // A run ends after its block unless Auto-mine is on when the block is found.
   const endRoundUnlessRepeating = useCallback(() => { if (!autoMiningRef.current) setRunning(false); }, []);
   const handleMine = useCallback(async () => {
@@ -261,12 +242,16 @@ function App() {
       pendingRound.current = { index, result };
       report({ type: 'block_mined', backedWon: result.backedWon, epoch: result.epoch });
       report(feeMarketEvidence(sim.blockchain, result.block));
-      const adjustment = adjustDifficulty();
+      // Difficulty adapts every 10 mined blocks towards the target block time: the chain's
+      // retarget on accepting the block, applied from the next block on.
+      const { retarget } = result;
+      if (retarget) report({ type: 'difficulty_changed', direction: retarget.to > retarget.from ? 'up' : 'down' });
       setBlockMoment({ hash: result.block.hash, index,
-        changes: [adjustment, result.block.halved && { kind: 'halving', index }].filter(Boolean) });
+        changes: [retarget && { kind: 'difficulty', index: index + 1, from: retarget.from, to: retarget.to },
+          result.block.halved && { kind: 'halving', index }].filter(Boolean) });
     }
     return result;
-  }, [adjustDifficulty, blocks.length, endRoundUnlessRepeating, finishRound, mineBlock, report, sim.blockchain]);
+  }, [blocks.length, endRoundUnlessRepeating, finishRound, mineBlock, report, sim.blockchain]);
   const handleSetup = useCallback(async () => {
     const result = await setupInitialDistribution();
     endRoundUnlessRepeating();
@@ -333,7 +318,6 @@ function App() {
     changeAutoMine(false);
     setRunning(false);
     resetBlockchain({ miningDifficulty: startAt });
-    lastAdjustedBlock.current = 0;
     setWinner(null);
     setBlockMoment(null);
     setDismissedNotes(new Set());
@@ -351,11 +335,6 @@ function App() {
     setMuted(next);
     if (!next) void unlockMiningAudio(); // Resume while the Sound click is trusted.
     void telemetry.track('settings_changed', { setting: 'sound', value: !next });
-  };
-  const changeTarget = value => {
-    if (value === targetBlockTime) return;
-    setTargetBlockTime(value);
-    void telemetry.track('settings_changed', { setting: 'target_block_time', value });
   };
   const showMe = active => {
     if (!active) return;
@@ -387,14 +366,16 @@ function App() {
     }
     return result;
   };
+  // Only an edit the chain applied pauses the run, opens the repair and counts for missions.
   const onTamper = (blockIndex, txIndex, amount) => {
     const result = tamperBlock(blockIndex, txIndex, Number(amount));
-    if (result?.success === false) return result;
+    if (!result.applied) return result;
     setRunning(false);
     setRepairIndex(blockIndex);
     setHealthOpen(true);
     report({ type: 'block_tampered', blockIndex, signed: txIndex > 0 && sim.blockchain.inspectBlocks()[blockIndex]?.signaturesValid === false,
       newest: blockIndex === sim.blockchain.blockArray.length - 1 });
+    return result;
   };
   const onUndo = blockIndex => {
     const result = undoTamper(blockIndex);
@@ -416,12 +397,12 @@ function App() {
     return result;
   };
   // Raising keeps the chain. Lowering a chain with mined blocks starts a new chain after
-  // a confirmation, so its length keeps meaning work (ADR 0004); the automatic
-  // adjustment calls setDifficulty directly and may lower without one.
+  // a confirmation, so its length keeps meaning work (ADR 0004): the chain answers
+  // `needs-reset` and the dialog asks first.
   const onDifficulty = value => {
-    if (value < difficulty && blocks.length > 1) { setLowerTo(value); return; }
-    setDifficulty(value, { source: 'manual' });
-    report({ type: 'difficulty_changed', direction: value > difficulty ? 'up' : 'down', manual: true });
+    const { outcome } = setDifficulty(value, { source: 'manual' });
+    if (outcome === 'needs-reset') { setLowerTo(value); return; }
+    if (outcome === 'applied') report({ type: 'difficulty_changed', direction: value > difficulty ? 'up' : 'down', manual: true });
   };
   const confirmLower = () => {
     const value = lowerTo;
@@ -463,7 +444,7 @@ function App() {
           <div className="wb-mbar"><MissionRail progress={progress} variant="bar" collapsed={railCollapsed}
             onToggle={toggleRail} onShowMe={showMe} highlight={showIntro} /></div>
           {showIntro && <MissionIntro onStart={startMissions} onDismiss={dismissIntro} />}
-          {view === 'workbench' && <Workbench sim={sim} coinName={coinName} targetSeconds={targetBlockTime}
+          {view === 'workbench' && <Workbench sim={sim} coinName={coinName} targetSeconds={targetSeconds}
             autoMine={autoMining} onAutoMine={changeAutoMine} repeating={repeating} autoTransact={autoTransact} onAutoTransact={setAutoTransact}
             selectedIndex={shownIndex} held={shownIndex !== null && shownIndex === selectedIndex} onSelect={toggleSelected} healthOpen={healthOpen} onToggleHealth={() => setHealthOpen(open => !open)}
             lastRound={lastRound} blockMoment={blockMoment} onClearBlockMoment={clearBlockMoment}
@@ -494,7 +475,7 @@ function App() {
         onOpenLeaderboard={() => openProfile(record.name)} />
       <SettingsDialog open={showSettings} onClose={() => setShowSettings(false)} coinName={coinName} onCoinName={setCoinName}
         difficulty={difficulty} onDifficulty={onDifficulty} halvingInterval={halvingInterval} onHalvingInterval={setHalvingInterval}
-        targetBlockTime={targetBlockTime} onTargetBlockTime={changeTarget} busy={busy} />
+        targetBlockTime={targetSeconds} onTargetBlockTime={setTargetBlockTime} busy={busy} />
       {lowerTo !== null && <LowerDifficultyDialog from={difficulty} to={lowerTo} blockCount={blocks.length - 1}
         onConfirm={confirmLower} onCancel={() => setLowerTo(null)} />}
       {details !== null && blocks[details] && <BlockDetailsModal block={blocks[details]} blockIndex={details} blocks={blocks}

@@ -15,7 +15,10 @@ vi.mock('../components/workbench/MinerName', () => ({ MinerName: () => null }));
 beforeEach(() => { fixture.wallet = 0; vi.spyOn(Date, 'now').mockReturnValue(1767355200000); });
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 
+// Each block ten seconds after the previous one: the pace meets the target block time, so
+// the chain's retarget at every tenth block keeps difficulty 1 and the nonce search stays short.
 function mine(chain) {
+  Date.now.mockReturnValue(Date.now() + 10_000);
   const candidate = chain.prepareCandidate(chain.getActiveMiner());
   let nonce = 0;
   while (!meetsTarget(candidateHash(candidate, nonce), candidate.bits)) nonce++;
@@ -37,7 +40,8 @@ function view(chain, isMining = false) {
   return { blocks: [...chain.blockArray], memPool: [...chain.memPool], participants: chain.participants,
     balances: chain.getAllBalances(), blockStatus: chain.inspectBlocks(), tamperedEdits: chain.getTamperedEdits(),
     describeTx: chain.describer(), blockTemplate: chain.blockTemplate(), difficulty: chain.miningDifficulty,
-    blockReward: chain.blockReward, halvingInterval: chain.halvingEvent, isMining, minerProgress: {}, miningProgress: null };
+    blockReward: chain.blockReward, halvingInterval: chain.halvingEvent, nextBlock: chain.nextBlock(),
+    loweringStartsNewChain: chain.loweringStartsNewChain(), canAddMiner: chain.canAddMiner(), isMining, minerProgress: {}, miningProgress: null };
 }
 const props = { coinName: 'FixtureCoin', targetSeconds: 10, selectedIndex: null, remining: null };
 

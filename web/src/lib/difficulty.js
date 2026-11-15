@@ -4,7 +4,8 @@ export const MAX_DIFFICULTY = 10;
 // The difficulty adjustment (web/DESIGN.md, "Key figures"): after every tenth mined
 // block the pace of the last ten is checked against the target block time. Faster
 // than 70 % of the target adds a leading zero, slower than 150 % removes one; inside
-// that band the difficulty stays. App applies it, the key figures forecast it.
+// that band the difficulty stays. The chain applies it when it accepts a block at a check
+// height (lib/blockchain.js, acceptBlock); the key figures forecast it.
 export const CHECK_EVERY = 10;
 export const FASTER_THAN = 0.7;
 export const SLOWER_THAN = 1.5;
