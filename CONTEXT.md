@@ -142,7 +142,10 @@ Terms used in code, tests and docs of proofofwork.fyi. Decisions that shape them
 
 - **Text hashing** — the first Hash lab experiment hashes exactly the visible UTF-8 text once with SHA-256. A manual edit finding a leading zero earns a first proof; Continue completes the first mission. Automatic tries reuse the text search, with a visible space and number appended. It is separate from Bitcoin block-header hashing.
 
-- **Mission evidence** — `web/src/lib/missions.js` advances only the active step. The fee
+- **Mission evidence** — `web/src/lib/missions.js` advances only the active step. Workbench
+  evidence is derived from the events of the *Workbench session* (`missionEvidence.js`,
+  `evidenceOf`); App only reports it, and a lab builds its evidence there too (`merkleEvidence`).
+  `experimentOf` (`missions.js`) names the Chain lab experiment of a mission. The fee
   mission observes a low-fee payment waiting for space, a selected higher-fee child that spends
   it, and both transaction IDs in an accepted block (`missionEvidence.js`). The Merkle mission
   requires a valid proof followed by one well-formed changed sibling for the same payment/root.

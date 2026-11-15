@@ -1,15 +1,17 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import App from '../App';
 import { initialProgress, MISSIONS, STORAGE_KEY } from '../lib/missions';
 
 // Keep real App, rail, invitation, progress storage and Workbench with a test session. Lab
 // internals are covered separately; their evidence callbacks exercise the real App wiring here.
-vi.mock('../hooks/useMinerIdentity', () => ({ useMinerIdentity: () => ({ name: 'Not-Satoshi-4', setName: () => {}, signer: {} }) }));
+// No signer: the simulator's blocks are signed for nobody's leaderboard entry.
+vi.mock('../hooks/useMinerIdentity', () => ({ useMinerIdentity: () => ({ name: 'Not-Satoshi-4', setName: () => {}, signer: null }) }));
 // A test session: an in-memory store and a clock only the test moves (lib/workbenchSession.js),
 // over synthetic fixture keys instead of BIP39 derivation (covered in wallet.test.js).
-const fixtureKeys = vi.hoisted(() => ({ wallet: 0 }));
+// The clock of the mounted session is the test's, so a test can let a race finish.
+const fixtureKeys = vi.hoisted(() => ({ wallet: 0, clock: null }));
 vi.mock('../lib/wallet', async importOriginal => ({ ...await importOriginal(), deriveWallet: () => {
   const privateKey = new Uint8Array(32);
   privateKey[31] = ++fixtureKeys.wallet % 250 + 1;
@@ -17,10 +19,12 @@ vi.mock('../lib/wallet', async importOriginal => ({ ...await importOriginal(), d
 } }));
 vi.mock('../hooks/useWorkbenchSession', async importOriginal => {
   const actual = await importOriginal();
+  const { useState } = await import('react');
   const { createTestClock, inlineSearch, memoryStore } = await import('../lib/workbenchSession');
   return { ...actual, useWorkbenchSession: config => {
-    const clock = createTestClock();
-    return actual.useWorkbenchSession(config, { store: memoryStore(), clock, search: inlineSearch(clock) });
+    const [clock] = useState(createTestClock);
+    fixtureKeys.clock = clock;
+    return actual.useWorkbenchSession({ ...config, miningDifficulty: 1 }, { store: memoryStore(), clock, search: inlineSearch(clock) });
   } };
 });
 // The real Workbench; beside it the coach App hands it, for the assertions on free play.
@@ -148,6 +152,30 @@ describe('optional missions in App', () => {
     expect(collapsed()).toBe(false);
     expect(intro()).toBeNull();
     expect(screen.getByTestId('workbench-coach').textContent).toBe('hash-lab.message');
+  });
+
+  it('completes a workbench mission end to end: the real Workbench, session and evidence', async () => {
+    const before = MISSIONS.findIndex(mission => mission.id === 'send-first-coin');
+    localStorage.setItem(RAIL, '0');
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...initialProgress(), completed: MISSIONS.slice(0, before).map(mission => mission.id) }));
+    render(<App />);
+    expect(screen.getByTestId('workbench-coach').textContent).toBe('workbench.new-transaction');
+    const race = async name => {
+      fireEvent.click(screen.getByRole('button', { name, exact: true }));
+      await act(() => fixtureKeys.clock.advance(0));
+    };
+    // The demo's block and its distribution are no transaction of the learner's.
+    await race('Start demo');
+    await race('Mining');
+    expect(JSON.parse(localStorage.getItem(STORAGE_KEY)).completed).toHaveLength(before);
+    fireEvent.click(screen.getByRole('button', { name: 'New transaction' }));
+    const form = screen.getByRole('form', { name: 'New transaction' });
+    fireEvent.change(within(form).getByLabelText('From'), { target: { value: 'Alice' } });
+    fireEvent.change(within(form).getByLabelText('To'), { target: { value: 'Bob' } });
+    fireEvent.change(within(form).getByLabelText(/^Amount/), { target: { value: '0.1' } });
+    fireEvent.click(within(form).getByRole('button', { name: 'Add to mempool' }));
+    expect(screen.queryByRole('form', { name: 'New transaction' })).toBeNull();
+    expect(JSON.parse(localStorage.getItem(STORAGE_KEY)).completed).toEqual(MISSIONS.slice(0, before + 1).map(mission => mission.id));
   });
 
   it('keeps controls usable for this visit when storage is blocked', () => {
