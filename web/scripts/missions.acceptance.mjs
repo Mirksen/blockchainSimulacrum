@@ -1,39 +1,134 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { join } from 'node:path';
-import { menu, openTab, settle, workbench } from './workbench.helpers.mjs';
+import { asReturningVisitor, menu, openTab, progressBefore, settle, workbench } from './workbench.helpers.mjs';
 import { MISSIONS, earnedBadges, totalXp } from '../src/lib/missions.js';
 
-// The mission track with the rail open: the first three missions, coach marks,
-// lab lessons and progress that survives a reload. Starts on the workbench after a demo.
+// The mission track with the rail open, from the guided start on the first Basics scene (the
+// caller opened the missions with fresh progress): the six scenes with their coach marks and
+// the closing table, then the proof-of-work search in the Hash lab, the repair in the Chain lab
+// and the first coin on the workbench. Rail counts, stored progress and visible results are
+// checked after every mission.
 export async function verifyMissions(page, output) {
   const rail = page.getByRole('complementary', { name: 'Missions' });
-  const done = count => rail.locator('.mission-rail-xp').filter({ hasText: `${count} of ${MISSIONS.length} done` });
+  // The counter's own span, matched whole: "1 of 17 done" must not also match "11 of 17 done".
+  const done = count => rail.locator('.mission-rail-xp span').filter({ hasText: new RegExp(`^${count} of ${MISSIONS.length} done$`) });
   const showMe = () => rail.getByRole('button', { name: 'Show me' });
   const activeCoach = target => page.locator(`[data-coach-target="${target}"].is-active`);
+  const button = name => page.getByRole('button', { name, exact: true });
+  const scene = title => page.getByRole('heading', { level: 2, name: title, exact: true });
+  const learned = page.getByRole('heading', { name: 'What you learned', exact: true });
+  const status = page.locator('.basics-scene-body > .basics-status');
+  const completed = () => page.evaluate(() => JSON.parse(localStorage.getItem('proofofwork-missions')).completed);
+  const firstIds = count => MISSIONS.slice(0, count).map(mission => mission.id);
+  // A done scene shows what it taught and waits for Continue; the course never moves on by itself.
+  const finishScene = async (count, title) => {
+    await done(count).waitFor();
+    await learned.waitFor();
+    assert.equal(await scene(title).count(), 1, `${title} stays open until Continue`);
+    assert.deepEqual(await completed(), firstIds(count), `Stored progress after ${title}`);
+    await button('Continue').click();
+  };
+  await page.waitForURL(/#\/basics$/);
   await done(0).waitFor();
   await page.screenshot({ path: join(output, 'missions-rail-1440.png') });
 
-  // Mission 1: Show me switches to the hash lab lesson and marks the message.
-  await showMe().click();
-  await page.waitForURL(/#\/hash-lab$/);
-  await page.getByRole('heading', { name: 'Mine by hand', exact: true }).waitFor();
-  await activeCoach('hash-lab.message').waitFor();
-  let trial = 'Learner A';
-  for (let number = 1; !createHash('sha256').update(trial).digest('hex').startsWith('0'); number++) trial = `Learner A ${number}`;
-  await page.getByLabel('Your text', { exact: true }).fill(trial);
-  await page.getByRole('heading', { name: 'You mined by hand' }).waitFor();
-  assert.equal(await done(0).count(), 1, 'The manual result stays visible until Continue');
-  await page.getByRole('button', { name: 'Continue to block mining', exact: true }).click();
-  await done(1).waitFor();
+  // Scene 1: a photo and a coin are copied alike until the shared list rejects the second payment.
+  await scene('The copy problem').waitFor();
+  await activeCoach('basics.copy-photo').waitFor();
+  await button('Send photo to Bob').click();
+  await activeCoach('basics.copy-coin').waitFor();
+  await button('Send coin to Bob').click();
+  await button('Send same coin to Carol').click();
+  await status.filter({ hasText: 'One coin became three.' }).waitFor();
+  await activeCoach('basics.copy-list').waitFor();
+  await page.getByRole('switch', { name: 'Shared list' }).click();
+  await button('Send coin to Bob').click();
+  await button('Send same coin to Carol').click();
+  await status.filter({ hasText: 'Rejected: the list says Alice already paid this coin to Bob.' }).waitFor();
+  await finishScene(1, 'The copy problem');
 
-  // Mission 2 runs in the same tab: a fixed message and two searches from nonce 0.
+  // Scene 2: the same text gives the same fingerprint again.
+  await scene('Take a fingerprint').waitFor();
+  await activeCoach('basics.text').waitFor();
+  const text = page.getByLabel('Your text', { exact: true });
+  await text.fill('Synthetic note');
+  await text.fill('Synthetic note!');
+  assert.equal(await done(1).count(), 1, 'A different text alone does not finish the scene');
+  await text.fill('Synthetic note');
+  await status.filter({ hasText: 'Same text, same fingerprint.' }).waitFor();
+  await finishScene(2, 'Take a fingerprint');
+
+  // Scene 3: four different small changes, each with a different fingerprint.
+  await scene('One letter, everything changes').waitFor();
+  await activeCoach('basics.compare').waitFor();
+  const copy = page.getByRole('textbox', { name: 'Your copy' });
+  for (const value of ['Alice pays Bob 100', 'Alice pays Bob 11', 'Alice pays Bob 10 ', 'alice pays Bob 10']) {
+    await copy.fill(value);
+    const differ = Number(await page.locator('.basics-compare-count .basics-count strong').innerText());
+    assert.ok(differ > 0 && differ <= 64, `${JSON.stringify(value)} changes the fingerprint: ${differ}`);
+  }
+  await finishScene(3, 'One letter, everything changes');
+
+  // Scene 4: "Learner" is a lucky first roll that does not count; "Learner 8" is the find on roll 9.
+  await scene('Guess a fingerprint').waitFor();
+  await activeCoach('basics.guess').waitFor();
+  await page.getByLabel('Your text', { exact: true }).fill('Learner');
+  await status.filter({ hasText: 'Lucky roll: 1 in 16 texts starts with 0.' }).waitFor();
+  assert.equal(await done(3).count(), 1, 'A lucky first roll does not count');
+  for (let roll = 1; roll <= 8; roll++) await button('Roll').click();
+  await status.filter({ hasText: 'Found after 9 rolls. Checking takes one look.' }).waitFor();
+  assert.equal(await page.getByLabel('Your text', { exact: true }).inputValue(), 'Learner 8');
+  assert.equal(await page.locator('.basics-proof pre').textContent(), 'Learner 8');
+  assert.equal(await page.locator('.basics-proof code').textContent(), createHash('sha256').update('Learner 8').digest('hex'));
+  await finishScene(4, 'Guess a fingerprint');
+
+  // Scene 5: three draws, each won by the first fingerprint that starts with 00.
+  await scene('Why would anyone guess?').waitFor();
+  await activeCoach('basics.draw').waitFor();
+  for (let draw = 1; draw <= 3; draw++) {
+    await button('Run the draw').click();
+    await page.locator('.basics-page-line').filter({ hasText: `Page ${draw + 1}: ` }).waitFor();
+    assert.match(await status.innerText(), /^(Hal|Dorian|Laszlo) wins page \d+ after \d+ rolls in total and writes it\. Reward: 1 coin\.$/);
+  }
+  const wins = await page.locator('.basics-writer-wins').allInnerTexts();
+  assert.equal(wins.reduce((sum, line) => sum + Number(line.replace('Wins: ', '')), 0), 3, `Three pages written: ${wins}`);
+  await finishScene(5, 'Why would anyone guess?');
+
+  // Scene 6: a change breaks every later seal; repair is cheap without guessing and costly with it.
+  await scene('Sealed pages').waitFor();
+  await activeCoach('basics.page-1').waitFor();
+  const page1 = page.getByLabel('Page 1 text', { exact: true });
+  await page1.fill('Alice pays Bob 1000');
+  await status.filter({ hasText: 'Page 1 no longer fits its seal' }).waitFor();
+  await activeCoach('basics.repair').waitFor();
+  await button('Repair').click();
+  await status.filter({ hasText: /^Repaired: .* All seals fit\.$/ }).waitFor();
+  await page.getByLabel('Guessing', { exact: true }).selectOption({ label: '3 zeros' });
+  await page1.fill('Alice pays Bob 2000');
+  await button('Repair').click();
+  // Shown once both repairs ran: without guessing and with 3 zeros.
+  const costLine = page.locator('.basics-sealed > .basics-count');
+  await costLine.waitFor();
+  const costs = await costLine.innerText();
+  const [, free, work] = costs.match(/^Chain alone: repaired in ([\d,]+) hash(?:es)?\. With work: ([\d,]+) tr(?:y|ies)\.$/) ?? [];
+  assert.ok(free && Number(work.replace(/,/g, '')) > Number(free.replace(/,/g, '')), `Work costs more than the chain alone: ${costs}`);
+  await finishScene(6, 'Sealed pages');
+
+  // The closing table; its Continue leaves the course for the next mission.
+  await scene("Your words, Bitcoin's words").waitFor();
+  assert.equal(await page.getByRole('row', { name: 'Lucky number Nonce' }).count(), 1);
+  await page.screenshot({ path: join(output, 'missions-basics-bridge-1440.png') });
+  await button('Continue').click();
+
+  // Earn a proof of work: Continue opens the Hash lab lesson, a fixed message and two searches from nonce 0.
+  await page.waitForURL(/#\/hash-lab$/);
   await page.getByRole('heading', { name: 'Same message. A stricter target.' }).waitFor();
   await activeCoach('hash-lab.search').waitFor();
   const lab = page.locator('section.hash-lab');
   await lab.getByRole('button', { name: 'Find a nonce', exact: true }).click();
   await lab.getByRole('status').filter({ hasText: 'Target found' }).waitFor({ timeout: 30000 });
-  assert.equal(await done(1).count(), 1, 'One zero alone does not finish mission 2');
+  assert.equal(await done(6).count(), 1, 'One zero alone does not finish the proof-of-work mission');
   const comparison = page.getByRole('region', { name: 'Proof-of-work search comparison' });
   const row = target => comparison.getByRole('row', { name: new RegExp(`^${target} `) });
   const first = await row('One zero').innerText();
@@ -41,7 +136,8 @@ export async function verifyMissions(page, output) {
   await lab.getByLabel('Find a hash starting with').selectOption('2');
   assert.equal(await row('One zero').innerText(), first, 'Changing target retains the real first result');
   await lab.getByRole('button', { name: 'Find a nonce', exact: true }).click();
-  await done(2).waitFor({ timeout: 30000 });
+  await done(7).waitFor({ timeout: 30000 });
+  assert.deepEqual(await completed(), firstIds(7));
   await lab.getByRole('button', { name: 'Back to simulator' }).waitFor();
   assert.equal(await row('One zero').innerText(), first, 'Mission completion retains the first result');
   assert.equal(await row('Two zeros').getByRole('cell').first().innerText(), '188');
@@ -74,14 +170,33 @@ export async function verifyMissions(page, output) {
   await openTab(page, 'Workbench');
   const tilesBefore = await wb.tiles().count();
   await page.reload();
-  await done(2).waitFor();
+  await done(7).waitFor();
   await openTab(page, 'Workbench');
   await wb.tile(tilesBefore - 1).waitFor();
   assert.equal(await wb.tiles().count(), tilesBefore, 'A reload restores the saved chain');
   assert.equal(await page.getByRole('button', { name: 'Start demo', exact: true }).count(), 0, 'A restored demo needs no new start');
   await menu(page, 'Reset');
 
-  // Mission 3 needs funded wallets: set up the demo, then Show me marks New transaction.
+  // Change the past: Show me opens the Chain lab repair; an edit of Block 1 and re-mining
+  // Blocks 1, 2 and 3 in order complete it.
+  await showMe().click();
+  await page.waitForURL(/#\/chain-lab$/);
+  const chain = page.locator('section.chain-lab');
+  await activeCoach('chain-lab.block-1').waitFor();
+  await chain.getByLabel('Block 1 data', { exact: true }).fill('A synthetic edited record.');
+  await chain.getByText('Toy chain inconsistent', { exact: true }).waitFor();
+  await activeCoach('chain-lab.remine').waitFor();
+  assert.equal(await done(7).count(), 1, 'An edit alone does not repair the past');
+  for (const number of [1, 2, 3]) {
+    await chain.getByRole('button', { name: `Re-mine Block ${number}`, exact: true }).click();
+    await chain.getByRole('status').filter({ hasText: `Block ${number} re-mined in` }).waitFor({ timeout: 30000 });
+  }
+  await chain.getByText('Toy chain consistent', { exact: true }).waitFor();
+  await done(8).waitFor();
+  assert.deepEqual(await completed(), firstIds(8));
+  await openTab(page, 'Workbench');
+
+  // Send your first coin needs funded wallets: set up the demo, then Show me marks New transaction.
   // Start demo mines #1; one Mining click confirms the transfers that fund the wallets.
   await page.getByRole('button', { name: 'Start demo', exact: true }).click();
   await wb.mine(2).click({ timeout: 30000 });
@@ -96,7 +211,8 @@ export async function verifyMissions(page, output) {
   await form.getByRole('combobox',{name:'To'}).selectOption('Bob');
   await form.getByLabel(/^Amount/).fill('0.05');
   await form.getByRole('button', { name: 'Add to mempool' }).click();
-  await done(3).waitFor();
+  await done(9).waitFor();
+  assert.deepEqual(await completed(), firstIds(9));
   await activeCoach('workbench.back-miner').waitFor();
 
   // Phone: the rail becomes a mission bar on top of the timeline.
@@ -105,9 +221,10 @@ export async function verifyMissions(page, output) {
   await page.evaluate(() => scrollTo(0, 0));
   await page.screenshot({ path: join(output, 'missions-bar-390.png') });
   await page.setViewportSize({ width: 1440, height: 1000 });
-  return ['Missions: Show me switches tabs and marks the step; lab lessons complete missions 1 and 2',
+  return ['Missions: from the guided start the six Basics scenes complete with coach marks, visible results and Continue; the closing table opens the Hash lab lesson',
+    'Missions: the Hash lab lesson completes Earn a proof of work; Show me opens the Chain lab repair, which completes Change the past',
     'Work comparison: actual one/two-zero counts survive target and mission changes, fit both themes/four widths, and Reset clears the recap',
-    'Missions: progress and the chain survive a reload, Reset starts over; sending a coin completes mission 3 and coaches the next step'];
+    `Missions: progress and the chain survive a reload, Reset starts over; sending a coin completes Send your first coin (9 of ${MISSIONS.length}) and coaches the next step`];
 }
 
 // A real App and hook, with persisted snapshots from before a page reload.
@@ -125,16 +242,16 @@ export async function verifyMissionReload(browser, baseURL, output) {
       try {
         await context.route('https://api.proofofwork.fyi/**', route => route.abort('connectionrefused'));
         await context.route('https://eu.i.posthog.com/**', route => route.abort('connectionrefused'));
+        await asReturningVisitor(context);
         const page = await context.newPage();
         page.setDefaultTimeout(10000);
         page.on('pageerror', error => errors.push(error.message));
         await page.goto(baseURL);
-        const completed = MISSIONS.slice(0, MISSIONS.findIndex(mission => mission.id === id)).map(mission => mission.id);
-        const stored = { version: 1, completed, step, data };
+        const stored = progressBefore(id, { step, data });
+        const { completed } = stored;
         await page.evaluate(progress => {
           localStorage.setItem('proofofwork-missions', JSON.stringify(progress));
           localStorage.setItem('proofofwork-rail-collapsed', '0');
-          localStorage.setItem('proofofwork-missions-intro-seen', '1');
         }, stored);
         await page.reload();
         const wb = workbench(page);
@@ -142,7 +259,7 @@ export async function verifyMissionReload(browser, baseURL, output) {
         assert.equal(await wb.tiles().count(), 1, 'Reload has a fresh genesis-only simulator');
         await page.locator('.app-shell.is-rail-expanded').waitFor();
         const readProgress = () => page.evaluate(() => JSON.parse(localStorage.getItem('proofofwork-missions')));
-        assert.deepEqual(await readProgress(), { version: 1, completed, step: 0, data: {} }, `${id} clears discarded runtime prerequisites`);
+        assert.deepEqual(await readProgress(), progressBefore(id), `${id} clears discarded runtime prerequisites`);
         if (width < 1024) await page.getByRole('button', { name: /steps\. Open missions$/ }).click();
         const tasks = width < 1024 ? page.getByRole('dialog', { name: 'Missions' }) : page.getByRole('complementary', { name: 'Missions' });
         assert.ok((await tasks.locator('.mission-rail-step.is-current').innerText()).includes(MISSIONS[completed.length].steps[0].text));
@@ -183,7 +300,7 @@ export async function verifyMissionReload(browser, baseURL, output) {
         // The chain is restored, but evidence for the active mission must come from this visit.
         await wb.tile(tilesBefore - 1).waitFor();
         assert.equal(await page.getByRole('button', { name: 'Start demo', exact: true }).count(), 0, 'The saved chain is restored');
-        assert.deepEqual(await readProgress(), { version: 1, completed, step: 0, data: {} }, 'A second reload clears newly discarded prerequisites too');
+        assert.deepEqual(await readProgress(), progressBefore(id), 'A second reload clears newly discarded prerequisites too');
       } finally { await context.close(); }
     }
   }
@@ -199,16 +316,15 @@ export async function verifyForgeMission(browser, baseURL, output) {
   try {
     await context.route('https://api.proofofwork.fyi/**', route => route.abort('connectionrefused'));
     await context.route('https://eu.i.posthog.com/**', route => route.abort('connectionrefused'));
+    await asReturningVisitor(context);
     const page = await context.newPage();
     page.setDefaultTimeout(30000);
     page.on('pageerror', error => errors.push(error.message));
     await page.goto(baseURL);
-    const completed = MISSIONS.slice(0, MISSIONS.findIndex(mission => mission.id === 'forge-a-block')).map(mission => mission.id);
     await page.evaluate(progress => {
       localStorage.setItem('proofofwork-missions', JSON.stringify(progress));
       localStorage.setItem('proofofwork-rail-collapsed', '0');
-      localStorage.setItem('proofofwork-missions-intro-seen', '1');
-    }, { version: 1, completed, step: 0, data: {} });
+    }, progressBefore('forge-a-block'));
     await page.reload();
     const wb = workbench(page);
     const progress = () => page.evaluate(() => JSON.parse(localStorage.getItem('proofofwork-missions')));

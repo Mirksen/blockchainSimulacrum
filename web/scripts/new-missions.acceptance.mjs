@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict';
 import { join } from 'node:path';
-import { MISSIONS } from '../src/lib/missions.js';
-import { menu, settle, workbench } from './workbench.helpers.mjs';
+import { asReturningVisitor, menu, progressBefore, settle, workbench } from './workbench.helpers.mjs';
 
 async function missionPage(browser, baseURL, id) {
   const context = await browser.newContext({ viewport: { width: 1512, height: 860 }, reducedMotion: 'reduce' });
   await context.route(/^https:\/\/(eu\.i\.posthog\.com|api\.proofofwork\.fyi)\//, route => route.abort('connectionrefused'));
+  await asReturningVisitor(context);
   const page = await context.newPage();
   page.setDefaultTimeout(60000);
   const errors = [];
@@ -16,11 +16,10 @@ async function missionPage(browser, baseURL, id) {
   // through the real control before it can cover a lower mission action.
   const notice = page.locator('.usage-consent');
   if (await notice.isVisible()) await notice.getByRole('button', { name: 'Opt out', exact: true }).click();
-  await page.evaluate(completed => {
-    localStorage.setItem('proofofwork-missions', JSON.stringify({ version: 1, completed, step: 0, data: {} }));
+  await page.evaluate(progress => {
+    localStorage.setItem('proofofwork-missions', JSON.stringify(progress));
     localStorage.setItem('proofofwork-rail-collapsed', '0');
-    localStorage.setItem('proofofwork-missions-intro-seen', '1');
-  }, MISSIONS.slice(0, MISSIONS.findIndex(m => m.id === id)).map(m => m.id));
+  }, progressBefore(id));
   await page.reload();
   return { context, page, errors };
 }

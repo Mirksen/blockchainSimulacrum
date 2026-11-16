@@ -3,8 +3,9 @@ import { act, cleanup, fireEvent, render, screen, within } from '@testing-librar
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import App from '../App';
 import { initialProgress, MISSIONS, STORAGE_KEY } from '../lib/missions';
+import { START_KEY } from '../lib/startChoice';
 
-// Keep real App, rail, invitation, progress storage and Workbench with a test session. Lab
+// Keep real App, rail, start question, progress storage and Workbench with a test session. Lab
 // internals are covered separately; their evidence callbacks exercise the real App wiring here.
 // No signer: the simulator's blocks are signed for nobody's leaderboard entry.
 vi.mock('../hooks/useMinerIdentity', () => ({ useMinerIdentity: () => ({ name: 'Not-Satoshi-4', setName: () => {}, signer: null }) }));
@@ -41,17 +42,30 @@ vi.mock('../components/HashLab', () => ({ HashLab: ({ lesson, coach, onLessonEve
     <span>{lesson ?? 'Free hash lab'}</span><span>{coach?.target ?? 'No coach'}</span>
     <button onClick={() => onLessonEvent?.({ type: 'manual_hash_found', hash: '0' + 'a'.repeat(63) })}>Complete manual proof</button>
   </section> }));
+// The course host has its own tests; here it shows what App hands it and replays the
+// evidence of the first scene.
+vi.mock('../components/basics/BasicsCourse', () => ({ BasicsCourse: ({ coach, onLessonEvent }) =>
+  <section aria-label="Basics course">
+    <span>{coach?.target ?? 'No coach'}</span><span>{onLessonEvent ? 'Guided basics' : 'Free basics'}</span>
+    <button onClick={() => ['photo', 'double-spend', 'rejected'].forEach(kind => onLessonEvent?.({ type: 'copy_tried', kind }))}>
+      Complete the copy problem</button>
+  </section> }));
 
 const RAIL = 'proofofwork-rail-collapsed';
-const SEEN = 'proofofwork-missions-intro-seen';
-const intro = () => screen.queryByRole('region', { name: 'Curious? Try a mission.' });
+const BASICS = MISSIONS.filter(mission => mission.chapter === 'basics').map(mission => mission.id);
+const LOAD = { timeout: 30000 };
+const startQuestion = () => screen.queryByRole('region', { name: 'Where do you want to start?' });
 const rail = () => within(document.querySelector('.wb-rail'));
 const mobile = () => within(document.querySelector('.wb-mbar'));
 const collapsed = () => document.querySelector('.app-shell').classList.contains('is-rail-collapsed');
 const reload = () => { cleanup(); render(<App />); };
+const course = () => screen.findByRole('region', { name: 'Basics course' }, LOAD);
 
 beforeEach(() => {
   localStorage.clear();
+  // A returning visitor who answered the start question with "Just let me play"
+  // (the first visit itself: AppStart.test.jsx).
+  localStorage.setItem(START_KEY, 'play');
   history.replaceState(null, '', '/');
   vi.stubGlobal('requestAnimationFrame', callback => callback());
   Object.defineProperty(HTMLDialogElement.prototype, 'showModal', { configurable: true, value() { this.open = true; } });
@@ -60,48 +74,46 @@ beforeEach(() => {
 afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 
 describe('optional missions in App', () => {
-  it('starts in free play everywhere and never repeats an ignored invitation after reload', () => {
+  it('starts in free play everywhere and stays there after reload', () => {
     render(<App />);
     expect(collapsed()).toBe(true);
-    expect(intro()).toBeTruthy();
-    expect(localStorage.getItem(SEEN)).toBe('1');
+    expect(startQuestion()).toBeNull();
     expect(screen.getByTestId('workbench-coach').textContent).toBe('Free play');
     expect(mobile().getByRole('button', { name: 'Open missions' }).textContent).toBe('Missions');
     expect(document.activeElement).toBe(document.body);
     reload();
-    expect(intro()).toBeNull();
+    expect(startQuestion()).toBeNull();
     expect(collapsed()).toBe(true);
   });
 
-  it('remembers dismissal, while the page and free labs stay usable', async () => {
+  it('keeps the free labs usable without touching progress', async () => {
     render(<App />);
-    fireEvent.click(screen.getByRole('button', { name: "Don't show again" }));
-    expect(intro()).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Hash lab', exact: true }));
-    expect(await screen.findByText('Free hash lab')).toBeTruthy();
+    expect(await screen.findByText('Free hash lab', {}, LOAD)).toBeTruthy();
     expect(screen.getByText('No coach')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Complete manual proof' }));
     expect(JSON.parse(localStorage.getItem(STORAGE_KEY)).completed).toEqual([]);
     reload();
-    expect(intro()).toBeNull();
+    expect(startQuestion()).toBeNull();
     expect(collapsed()).toBe(true);
   });
 
-  it('remembers explicit expansion and collapse without losing completed missions', () => {
-    const progress = { ...initialProgress(), completed: [MISSIONS[0].id] };
+  it('remembers explicit expansion and collapse without losing completed missions', async () => {
+    const progress = { ...initialProgress(), completed: BASICS };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(progress));
     render(<App />);
-    expect(intro()).toBeNull();
     fireEvent.click(rail().getByRole('button', { name: 'Expand mission rail' }));
     expect(localStorage.getItem(RAIL)).toBe('0');
+    // The active mission is a lab experiment: expanding alone leaves the workbench open.
+    expect(screen.getByTestId('workbench-coach').textContent).toBe('hash-lab.search');
     reload();
     expect(collapsed()).toBe(false);
-    expect(document.querySelector('.wb-rail .mission-rail-xp').textContent).toBe('20 XP0 badges1 of 12 done');
+    expect(document.querySelector('.wb-rail .mission-rail-xp').textContent).toBe('100 XP1 badge6 of 17 done');
     fireEvent.click(rail().getByRole('button', { name: 'Show me' }));
-    expect(screen.getByText('work')).toBeTruthy();
+    expect(await screen.findByText('work', {}, LOAD)).toBeTruthy();
     expect(screen.getByText('hash-lab.search')).toBeTruthy();
     fireEvent.click(rail().getByRole('button', { name: 'Collapse mission rail' }));
-    expect(screen.getByText('Free hash lab')).toBeTruthy();
+    expect(await screen.findByText('Free hash lab', {}, LOAD)).toBeTruthy();
     expect(screen.getByText('No coach')).toBeTruthy();
     expect(JSON.parse(localStorage.getItem(STORAGE_KEY))).toEqual(progress);
     reload();
@@ -109,32 +121,36 @@ describe('optional missions in App', () => {
     expect(localStorage.getItem(RAIL)).toBe('1');
   });
 
-  it('starts missions voluntarily and preserves newly earned progress when hidden', () => {
+  it('starts missions voluntarily in the course and preserves newly earned progress when hidden', async () => {
     render(<App />);
-    fireEvent.click(screen.getByRole('button', { name: 'Start missions' }));
-    expect(intro()).toBeNull();
+    fireEvent.click(rail().getByRole('button', { name: 'Expand mission rail' }));
     expect(collapsed()).toBe(false);
-    fireEvent.click(rail().getByRole('button', { name: 'Show me' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Complete manual proof' }));
-    expect(document.querySelector('.wb-rail .mission-rail-xp').textContent).toBe('20 XP0 badges1 of 12 done');
+    // The first mission is a Basics scene, so opening the missions opens the course.
+    await course();
+    expect(location.hash).toBe('#/basics');
+    expect(screen.getByText('basics.copy-photo')).toBeTruthy();
+    expect(screen.getByText('Guided basics')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Complete the copy problem' }));
+    expect(document.querySelector('.wb-rail .mission-rail-xp').textContent).toBe('10 XP0 badges1 of 17 done');
     fireEvent.click(rail().getByRole('button', { name: 'Collapse mission rail' }));
     reload();
     expect(collapsed()).toBe(true);
-    expect(intro()).toBeNull();
-    expect(JSON.parse(localStorage.getItem(STORAGE_KEY)).completed).toEqual([MISSIONS[0].id]);
+    expect(startQuestion()).toBeNull();
+    expect(JSON.parse(localStorage.getItem(STORAGE_KEY)).completed).toEqual(['copy-problem']);
   });
 
-  it('enables lessons from mobile access, then hides tasks and coaches using Hide missions', () => {
+  it('enables lessons from mobile access, then hides tasks and coaches using Hide missions', async () => {
     render(<App />);
     fireEvent.click(mobile().getByRole('button', { name: 'Open missions' }));
     expect(collapsed()).toBe(false);
     const sheet = screen.getByRole('dialog', { name: 'Missions' });
     fireEvent.click(within(sheet).getByRole('button', { name: 'Show me' }));
     expect(screen.queryByRole('dialog')).toBeNull();
-    expect(screen.getByText('hash-lab.message')).toBeTruthy();
+    await course();
+    expect(screen.getByText('basics.copy-photo')).toBeTruthy();
     fireEvent.click(mobile().getByRole('button', { name: 'Hide missions' }));
     expect(collapsed()).toBe(true);
-    expect(screen.getByText('Free hash lab')).toBeTruthy();
+    expect(screen.getByText('Free basics')).toBeTruthy();
     expect(screen.getByText('No coach')).toBeTruthy();
     reload();
     expect(mobile().getByRole('button', { name: 'Open missions' }).textContent).toBe('Missions');
@@ -150,8 +166,8 @@ describe('optional missions in App', () => {
     localStorage.setItem(RAIL, '0');
     render(<App />);
     expect(collapsed()).toBe(false);
-    expect(intro()).toBeNull();
-    expect(screen.getByTestId('workbench-coach').textContent).toBe('hash-lab.message');
+    expect(startQuestion()).toBeNull();
+    expect(screen.getByTestId('workbench-coach').textContent).toBe('basics.copy-photo');
   });
 
   it('completes a workbench mission end to end: the real Workbench, session and evidence', async () => {
@@ -178,16 +194,20 @@ describe('optional missions in App', () => {
     expect(JSON.parse(localStorage.getItem(STORAGE_KEY)).completed).toEqual(MISSIONS.slice(0, before + 1).map(mission => mission.id));
   });
 
-  it('keeps controls usable for this visit when storage is blocked', () => {
+  it('keeps controls usable for this visit when storage is blocked', async () => {
     vi.spyOn(window, 'localStorage', 'get').mockImplementation(() => { throw new DOMException('Blocked', 'SecurityError'); });
     render(<App />);
+    // Nothing remembers an answer, so the visit counts as a first one.
+    expect(startQuestion()).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /^Just let me play/ }));
+    expect(startQuestion()).toBeNull();
     expect(collapsed()).toBe(true);
-    fireEvent.click(screen.getByRole('button', { name: "Don't show again" }));
     fireEvent.click(rail().getByRole('button', { name: 'Expand mission rail' }));
     expect(collapsed()).toBe(false);
+    await course();
     fireEvent.click(rail().getByRole('button', { name: 'Collapse mission rail' }));
     fireEvent.click(screen.getByRole('button', { name: 'Hash lab', exact: true }));
-    expect(screen.getByText('Free hash lab')).toBeTruthy();
-    expect(intro()).toBeNull();
+    expect(await screen.findByText('Free hash lab', {}, LOAD)).toBeTruthy();
+    expect(startQuestion()).toBeNull();
   });
 });

@@ -13,8 +13,11 @@ export async function verifyTextHashLab(page, output) {
   const input = lab.getByLabel('Your text', { exact: true });
   const readHash = async () => (await lab.getByRole('img', { name: /^SHA-256 hash:/ }).getAttribute('aria-label')).slice(14);
   assert.equal(await readHash(), sha(''));
+  // Every distinct non-empty text typed by hand is one try; the proof names the try that found it.
+  const tried = new Set();
   for (const text of ['abc', 'abc ', 'abc\n', 'Lerntext 🚀', 'abc']) {
     await input.fill(text);
+    tried.add(text);
     assert.equal(await readHash(), sha(text), `Exact visible UTF-8 input ${JSON.stringify(text)}`);
   }
   assert.equal(await lab.getByRole('button', { name: 'Try automatically' }).count(), 0, 'Try by hand first');
@@ -22,13 +25,20 @@ export async function verifyTextHashLab(page, output) {
   let number = 0;
   while (!sha(text).startsWith('0')) {
     await input.fill(text);
+    tried.add(text);
     assert.equal(await readHash(), sha(text));
     assert.equal(await lab.getByRole('heading', { name: 'You mined by hand' }).count(), 0);
     text = `Learner A ${++number}`;
   }
   await input.fill(text);
+  tried.add(text);
   await lab.getByRole('heading', { name: 'You mined by hand' }).waitFor();
   assert.equal(await readHash(), sha(text));
+  const proofPanel = lab.getByRole('region', { name: 'Your first proof of work' });
+  await proofPanel.getByText(`Found on try ${tried.size.toLocaleString('en-US')}.`, { exact: true }).waitFor();
+  assert.ok(tried.size > 3, `More than three tries: ${tried.size}`);
+  assert.equal(await proofPanel.getByText(/lucky roll/).count(), 0, 'Only a find within three tries is called lucky');
+  assert.equal(await lab.getByRole('button', { name: 'Continue to block mining', exact: true }).count(), 1, 'The free experiment leads on to block mining');
   const firstHash = await readHash();
   await lab.getByRole('button', { name: 'Try two zeros', exact: true }).click();
   assert.equal(await readHash(), firstHash, 'Target change does not change the hash');

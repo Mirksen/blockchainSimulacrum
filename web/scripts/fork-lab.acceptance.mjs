@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { join } from 'node:path';
-import { headerHash, labHeader, menu, openTab, settle, snapshot } from './workbench.helpers.mjs';
+import { asReturningVisitor, headerHash, labHeader, menu, openTab, progressBefore, settle, snapshot } from './workbench.helpers.mjs';
+import { MISSIONS } from '../src/lib/missions.js';
 
 // Real browser proofs, local state only. No challenge or proof is sent to the pool.
 export async function verifyForkLab(page, output, before) {
@@ -100,19 +101,20 @@ export async function verifyForkMission(browser, baseURL, output) {
   await page.clock.install();
   await page.route('https://eu.i.posthog.com/**', route => route.abort('connectionrefused'));
   await page.route('https://api.proofofwork.fyi/**', route => route.abort('connectionrefused'));
+  await asReturningVisitor(page);
+  // Fixture: a browser record with every mission before Follow the stronger chain completed.
+  const fixture = progressBefore('follow-stronger-chain');
+  const earlier = fixture.completed.length;
+  const counted = count => `${count} of ${MISSIONS.length} done`;
   try {
     await page.goto(baseURL);
-    // Fixture: an old browser record with the original eight missions completed.
-    await page.evaluate(() => {
+    await page.evaluate(progress => {
       localStorage.setItem('proofofwork-rail-collapsed', '0');
-      localStorage.setItem('proofofwork-missions-intro-seen', '1');
-      localStorage.setItem('proofofwork-missions', JSON.stringify({ version: 1, step: 0, data: {}, completed: [
-        'change-fingerprint', 'earn-proof-of-work', 'send-first-coin', 'win-mining-race', 'change-the-past',
-        'forge-a-block', 'survive-halving', 'beat-difficulty-adjustment' ] }));
-    });
+      localStorage.setItem('proofofwork-missions', JSON.stringify(progress));
+    }, fixture);
     await page.reload();
     const rail = page.locator('.wb-rail');
-    await rail.getByText('8 of 12 done', { exact: false }).waitFor();
+    await rail.getByText(counted(earlier), { exact: false }).waitFor();
     await rail.getByRole('button', { name: 'Show me', exact: true }).click();
     const lab = page.locator('.fork-experiment');
     await lab.getByRole('radio', { name: 'Rewrite history' }).check();
@@ -139,15 +141,15 @@ export async function verifyForkMission(browser, baseURL, output) {
       await lab.getByRole('button', { name: 'Mine one block' }).click();
       await lab.getByText(`${i} / 12 new blocks`, { exact: true }).waitFor();
     }
-    await rail.getByText('9 of 12 done', { exact: false }).waitFor();
+    await rail.getByText(counted(earlier + 1), { exact: false }).waitFor();
     await lab.getByText(/Rewrite observed:/).waitFor();
     assert.equal(await page.locator('.coach-mark.is-active').count(), 0);
     const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('proofofwork-missions')));
     assert.equal(stored.completed.at(-1), 'follow-stronger-chain');
     await page.screenshot({ path: join(output, 'fork-mission-complete.png'), fullPage: true });
     await page.reload();
-    await rail.getByText('9 of 12 done', { exact: false }).waitFor();
+    await rail.getByText(counted(earlier + 1), { exact: false }).waitFor();
     assert.deepEqual(errors, []);
-    return ['Fork mission: old eight-complete progress unlocks mission nine; hiding guidance cancels pending work; actual rewrite proof switches complete and persist it'];
+    return [`Fork mission: progress through mission ${earlier} unlocks mission ${earlier + 1}; hiding guidance cancels pending work; actual rewrite proof switches complete and persist it`];
   } finally { await page.close(); }
 }

@@ -8,9 +8,10 @@ import { verifyHashLab } from './hash-lab.acceptance.mjs';
 import { verifyChainLab } from './chain-lab.acceptance.mjs';
 import { verifyForgeMission, verifyMissions, verifyMissionReload } from './missions.acceptance.mjs';
 import { verifyMissionVisibility } from './missions-visibility.acceptance.mjs';
+import { verifyBasics } from './basics.acceptance.mjs';
 import { verifyPool } from './pool.acceptance.mjs';
 import { verifyMinerName } from './miner-name.acceptance.mjs';
-import { headerHash, menu, openTab, settle, snapshot, workbench } from './workbench.helpers.mjs';
+import { asReturningVisitor, headerHash, menu, openTab, settle, snapshot, workbench } from './workbench.helpers.mjs';
 import { chromium } from 'playwright';
 import { spawn } from 'node:child_process';
 import { mkdir } from 'node:fs/promises';
@@ -96,6 +97,7 @@ try {
  results.push(...await verifyNoticeLifetime(browser, baseURL, output));
  results.push(...await verifyFeeMarketCounts(browser, baseURL, output));
  results.push(...await verifyMissionVisibility(browser, baseURL, output));
+ results.push(...await verifyBasics(browser, baseURL, output));
  results.push(...await verifyMissionReload(browser, baseURL, output));
  results.push(...await verifyForgeMission(browser, baseURL, output));
  page=await browser.newPage({viewport:{width:1440,height:1000},reducedMotion:'reduce'});
@@ -126,18 +128,31 @@ try {
   assert.equal(await usageNotice.count(), 0, 'No notice without a token: nothing is shared');
  }
 
- // First visit: the rail is collapsed and one card invites to the missions; dismissing it is remembered.
- const intro = page.getByRole('region',{name:'Curious? Try a mission.'});
- await intro.waitFor();
+ // First visit: the main content asks where to start, with the rail collapsed and no ticker;
+ // "Just let me play" opens the workbench, and that answer is remembered.
+ const question = page.getByRole('region',{name:'Where do you want to start?'});
+ await question.waitFor();
+ assert.equal(await question.getByRole('heading',{name:'Where do you want to start?',exact:true}).count(), 1);
+ const choices = ['Hashes are new to me','I know what a hash is','Just let me play'];
+ assert.deepEqual(await question.locator('.start-choice-title').allInnerTexts(), choices, 'Three choices in this order');
+ for (const choice of choices) assert.equal(await question.getByRole('button',{name:new RegExp(`^${choice}`)}).count(), 1, choice);
+ const filled = page.getByRole('main').locator('.is-primary, .btn-primary, .btn-emphasized');
+ assert.equal(await filled.count(), 1, 'Exactly one filled button');
+ assert.match(await filled.innerText(), /^Hashes are new to me/, 'The beginner path is the filled one');
+ assert.equal(await page.getByTestId('leaderboard-ticker').count(), 0, 'No leaderboard ticker on the start question');
  assert.equal(await page.locator('.mission-rail.is-collapsed').count(), 1);
- await page.screenshot({path:join(output,'view-intro-dark-1440.png')});
- await intro.getByRole('button',{name:"Don't show again"}).click();
- await intro.waitFor({state:'detached'});
+ assert.equal(await wb.tiles().count(), 0, 'The question replaces the simulator');
+ await page.screenshot({path:join(output,'view-start-dark-1440.png')});
+ await question.getByRole('button',{name:/^Just let me play/}).click();
+ await wb.tile(0).waitFor();
+ assert.match(page.url(), /#\/$/);
+ assert.equal(await question.count(), 0);
+ assert.equal(await page.evaluate(() => localStorage.getItem('proofofwork-start')), 'play');
  await page.reload();
  await wb.tile(0).waitFor();
- assert.equal(await intro.count(), 0, 'The dismissed intro stays away after a reload');
+ assert.equal(await question.count(), 0, 'The answered question stays away after a reload');
  assert.equal(await page.locator('.mission-rail.is-collapsed').count(), 1);
- results.push('First visit: collapsed rail with a mission intro that stays away once dismissed');
+ results.push('First visit: the start question with three choices, one filled, no ticker and a collapsed rail; "Just let me play" opens the workbench, also after a reload');
 
  // Fresh start: only Genesis and the candidate; the single primary is Start demo.
  await wb.tile(0).waitFor();
@@ -301,8 +316,10 @@ try {
  await form.getByRole('button',{name:'Add to mempool'}).click();
  const pendingList = page.getByRole('list',{name:'Pending transactions'});
  await pendingList.getByText('Synthetic acceptance transfer').waitFor();
- assert.match(await pendingList.innerText(), /1 coin · 0\.4999867 change · 0\.0000133 fee · 26[56] B · 5 sat\/B/);
- assert.match(await page.getByRole('region',{name:'Mempool'}).innerText(), /Block space #3\s+26[56] B of 1,300 B/);
+ // The real size follows the signature: 266 B with the longest one (the estimate above), a byte less for
+ // each shorter DER integer. 265 and 266 are the usual cases; about one run in a hundred sees 264.
+ assert.match(await pendingList.innerText(), /1 coin · 0\.4999867 change · 0\.0000133 fee · 26[3-6] B · 5 sat\/B/);
+ assert.match(await page.getByRole('region',{name:'Mempool'}).innerText(), /Block space #3\s+26[3-6] B of 1,300 B/);
  await pendingList.getByRole('button',{name:/^Details of Alice to Bob/}).click();
  const pendingDialog = page.getByRole('dialog',{name:'Transaction details',exact:true});
  await pendingDialog.getByRole('list',{name:'Outputs'}).waitFor();
@@ -717,6 +734,7 @@ try {
  results.push(...await verifyChainLab(page, output, before));
  results.push(...await verifyForkLab(page, output, before));
  results.push(...await verifyPool(page, output, before));
+ // Opening the missions with fresh progress starts the guided track on the first Basics scene.
  await page.getByRole('button',{name:'Expand mission rail'}).click();
  const beforeMissionTelemetry=telemetryRequests.length;
  results.push(...await verifyMissions(page, output));
@@ -733,6 +751,7 @@ try {
  results.push('No page errors or horizontal overflow at five widths');
  await page.close();
  const mobile=await browser.newPage({viewport:{width:390,height:844},reducedMotion:'reduce'});
+ await asReturningVisitor(mobile);
  await mobile.route('https://eu.i.posthog.com/**', telemetryMock);
  await mobile.route(`${POOL_API}/**`, leaderboardMock);
  await mobile.goto(baseURL);

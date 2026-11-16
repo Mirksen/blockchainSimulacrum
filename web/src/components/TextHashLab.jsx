@@ -1,10 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { textHash, textTargetMet, searchText } from '../lib/textHash';
 import { changedPositions } from '../lib/hashLab';
-import { CoachMark } from './workbench/CoachMark';
 import { hint, term } from '../lib/hints';
 
-export function TextHashLab({ lesson, coach, onLessonEvent, onHeaders, onClose }) {
+// The free "Mine by hand" experiment. It counts the distinct non-empty texts hashed by hand,
+// so the first proof can say on which try it was found.
+const AVERAGE_TRIES = 16;
+const LUCKY_TRIES = 3;
+
+export function TextHashLab({ onHeaders, onClose }) {
   const [text, setText] = useState('');
   const [previous, setPrevious] = useState(null);
   const [zeros, setZeros] = useState(1);
@@ -12,6 +16,7 @@ export function TextHashLab({ lesson, coach, onLessonEvent, onHeaders, onClose }
   const [status, setStatus] = useState('idle');
   const [attempts, setAttempts] = useState(0);
   const active = useRef(null);
+  const tried = useRef(new Set());
   const hash = textHash(text);
   const changed = changedPositions(hash, previous);
   const met = textTargetMet(hash, zeros);
@@ -30,12 +35,13 @@ export function TextHashLab({ lesson, coach, onLessonEvent, onHeaders, onClose }
     setText(next);
     setStatus('idle');
     setAttempts(0);
-    if (next.length && textTargetMet(textHash(next), 1) && !proof) setProof({ text: next, hash: textHash(next) });
+    if (next.length) tried.current.add(next);
+    if (next.length && textTargetMet(textHash(next), 1) && !proof) setProof({ text: next, hash: textHash(next), tries: tried.current.size });
   }
   function reset() {
     cancel();
+    tried.current = new Set();
     setText(''); setPrevious(null); setZeros(1); setProof(null); setStatus('idle'); setAttempts(0);
-    onLessonEvent?.({ type: 'lesson_reset' });
   }
   async function automate() {
     cancel();
@@ -79,10 +85,8 @@ export function TextHashLab({ lesson, coach, onLessonEvent, onHeaders, onClose }
     <div className="hash-lab-workbench">
       <div className="hash-lab-inputs">
         <label htmlFor="text-hash-input">Your text</label>
-        <CoachMark target="hash-lab.message" coach={coach}>
-          <textarea id="text-hash-input" value={text} maxLength={1000} rows={3} placeholder="Type your name"
-            aria-describedby="text-hash-help" {...hint('lab.text.input')} onChange={event => edit(event.target.value)} />
-        </CoachMark>
+        <textarea id="text-hash-input" value={text} maxLength={1000} rows={3} placeholder="Type your name"
+          aria-describedby="text-hash-help" {...hint('lab.text.input')} onChange={event => edit(event.target.value)} />
         <p id="text-hash-help" className="hash-lab-help">Change one letter, then change it back. The original hash returns. Even spaces count.</p>
         <p className="text-hash-rule">Your challenge: make the hash start with <strong>{'0'.repeat(zeros)}</strong>.</p>
         <p className="hash-lab-help">Try adding a number: your name 1, your name 2, your name 3… There is no known shortcut to picking a matching input.</p>
@@ -102,23 +106,24 @@ export function TextHashLab({ lesson, coach, onLessonEvent, onHeaders, onClose }
     {proof && <section className="text-hash-proof" aria-label="Your first proof of work">
       <h3>You mined by hand</h3>
       <p>You found text whose hash starts with <strong>0</strong>. Finding it took trying; checking it needs just one hash.</p>
+      <p>Found on try {proof.tries.toLocaleString()}.{proof.tries <= LUCKY_TRIES && ` That was a lucky roll: on average it takes ${AVERAGE_TRIES} tries.`}</p>
       <details><summary {...hint('lab.text.proof')}>Your first proof</summary><pre>{proof.text}</pre><code>{proof.hash}</code></details>
       <p>The changing number is called a <span {...term('lab.text.nonce')}>nonce</span>. A miner automates these attempts.
         The required zeros set the <span {...term('lab.text.difficulty')}>difficulty</span>.</p>
       <div className="text-hash-actions">
-        <button className={'btn ' + (lesson ? 'btn-default' : 'btn-emphasized')} disabled={!text.length}
+        <button className="btn btn-emphasized" disabled={!text.length}
           {...hint(searching ? 'lab.text.stop' : 'lab.text.automate')}
           onClick={searching ? () => { cancel(); setStatus('stopped'); } : automate}>{searching ? 'Stop trying' : 'Try automatically'}</button>
         <button className="btn btn-default" {...hint('lab.text.harder')} disabled={zeros === 2}
           onClick={() => { cancel(); setZeros(2); setStatus('idle'); setAttempts(0); }}>Try two zeros</button>
-        <button className={'btn ' + (lesson ? 'btn-emphasized' : 'btn-default')} {...hint('lab.text.headers')}
-          onClick={() => { cancel(); lesson ? onLessonEvent?.({ type: 'manual_hash_found', hash: proof.hash }) : onHeaders(); }}>Continue to block mining</button>
+        <button className="btn btn-default" {...hint('lab.text.headers')}
+          onClick={() => { cancel(); onHeaders?.(); }}>Continue to block mining</button>
       </div>
       {zeros === 2 && <p className="hash-lab-help">Two zeros are about 16 times rarer per try than one. This is an average, not a promise about this search. Changing the target leaves the text and hash unchanged.</p>}
     </section>}
     <footer className="text-hash-actions text-hash-footer">
       <button className="btn btn-transparent" {...hint('lab.text.reset')} onClick={reset}>Reset text experiment</button>
-      {!lesson && !proof && <button className="btn btn-transparent" {...hint('lab.text.headers')} onClick={onHeaders}>Explore block headers</button>}
+      {!proof && <button className="btn btn-transparent" {...hint('lab.text.headers')} onClick={() => onHeaders?.()}>Explore block headers</button>}
     </footer>
   </section>;
 }

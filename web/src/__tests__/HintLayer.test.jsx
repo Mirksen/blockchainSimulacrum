@@ -3,6 +3,7 @@ import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { HintLayer } from '../components/HintLayer';
 import { HINTS, hint, term } from '../lib/hints';
+import { BASICS_HINTS } from '../lib/hints/basics';
 import { setHelpMode } from '../lib/hints/helpMode';
 
 beforeEach(() => vi.useFakeTimers());
@@ -104,7 +105,7 @@ describe('hints catalog', () => {
   });
 
   it('every static entry has a text of at most 320 characters', () => {
-    for (const [key, entry] of Object.entries(HINTS)) {
+    for (const [key, entry] of Object.entries({ ...HINTS, ...BASICS_HINTS })) {
       if (typeof entry === 'function') continue;
       expect(entry.text, key).toBeTruthy();
       expect(entry.text.length, key).toBeLessThanOrEqual(320);

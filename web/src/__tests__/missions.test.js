@@ -1,11 +1,24 @@
 import { describe, expect, it } from 'vitest';
 import {
-  MISSIONS, PROGRESS_VERSION, STORAGE_KEY, activeMission, activeStep, earnedBadges, initialProgress,
-  load, missionStatus, reduce, save, totalXp
+  CHAPTERS, MISSIONS, PROGRESS_VERSION, STORAGE_KEY, activeMission, activeStep, earnedBadges, initialProgress,
+  load, missionStatus, reduce, save, skip, textOf, totalXp
 } from '../lib/missions';
+
+const hex = char => char.repeat(64);
 
 // Event sequences that complete each mission from its first step.
 const COMPLETE = {
+  'copy-problem': [{ type: 'copy_tried', kind: 'photo' }, { type: 'copy_tried', kind: 'double-spend' },
+    { type: 'copy_tried', kind: 'rejected' }],
+  'see-a-fingerprint': [{ type: 'fingerprint_made', hash: hex('1') }, { type: 'fingerprint_made', hash: hex('2') },
+    { type: 'fingerprint_made', hash: hex('1') }],
+  'change-one-letter': [{ type: 'fingerprints_compared', changed: 31, right: hex('a') },
+    { type: 'fingerprints_compared', changed: 35, right: hex('b') }, { type: 'fingerprints_compared', changed: 28, right: hex('c') },
+    { type: 'fingerprints_compared', changed: 33, right: hex('d') }],
+  'why-guess': [{ type: 'draw_finished', winner: 'Writer A', rolls: 12 }, { type: 'draw_finished', winner: 'Writer B', rolls: 3 },
+    { type: 'draw_finished', winner: 'Writer A', rolls: 40 }],
+  'sealed-pages': [{ type: 'seals_checked', valid: false, edited: true },
+    { type: 'seals_repaired', zeros: 0, hashes: 3, valid: true }, { type: 'seals_repaired', zeros: 3, hashes: 4096, valid: true }],
   'get-payment-in': [
     { type: 'fee_market_checked', chainValid: true, waiting: [{ txid: 'a'.repeat(64), reason: 'full', rate: 1 }] },
     { type: 'fee_market_checked', chainValid: true, packages: [{ parent: 'a'.repeat(64), child: 'b'.repeat(64), higherFee: true, selected: true }] },
@@ -38,62 +51,172 @@ const COMPLETE = {
 };
 const ALL_EVENTS = MISSIONS.flatMap(mission => COMPLETE[mission.id]);
 const NOISE = [null, undefined, 42, 'hash_changed', {}, { type: 7 }, { type: 'unknown' }, { type: 'reset' }, { type: 'lesson_reset' }];
+const BASICS = ['copy-problem', 'see-a-fingerprint', 'change-one-letter', 'change-fingerprint', 'why-guess', 'sealed-pages'];
+// The track order of progress version 1, frozen here independently of the module.
+const V1_ORDER = ['change-fingerprint', 'earn-proof-of-work', 'send-first-coin', 'win-mining-race', 'change-the-past',
+  'forge-a-block', 'survive-halving', 'beat-difficulty-adjustment', 'follow-stronger-chain', 'get-payment-in',
+  'prove-a-payment', 'test-a-signature'];
 
 const apply = (progress, events) => events.reduce(reduce, progress);
+const byId = id => MISSIONS.find(mission => mission.id === id);
 const reach = id => apply(initialProgress(), MISSIONS.slice(0, MISSIONS.findIndex(mission => mission.id === id))
   .flatMap(mission => COMPLETE[mission.id]));
+const variants = value => typeof value === 'string' ? [value] : [value.plain, value.technical];
 const memoryStorage = (initial = {}) => {
   const items = { ...initial };
   return { items, getItem: key => key in items ? items[key] : null, setItem: (key, value) => { items[key] = String(value); } };
 };
+const stored = value => load(memoryStorage({ [STORAGE_KEY]: JSON.stringify(value) }));
+const progressOf = (completed, skipped = []) => ({ version: PROGRESS_VERSION, completed, skipped, step: 0, data: {} });
 
 describe('mission track', () => {
-  it('lists the twelve missions in the design order with steps, targets and rewards', () => {
-    expect(MISSIONS.map(mission => mission.title)).toEqual([
-      'Mine by hand', 'Earn a proof of work', 'Send your first coin', 'Win a mining race', 'Change the past',
-      'Forge a block without getting caught', 'Survive a halving', 'Beat the difficulty adjustment', 'Follow the stronger chain', 'Get your payment in', 'Prove a payment', 'Try to steal a coin'
+  it('lists the seventeen missions in four chapters with steps, targets and rewards', () => {
+    expect(MISSIONS.map(mission => mission.id)).toEqual([...BASICS, 'earn-proof-of-work', 'change-the-past',
+      'send-first-coin', 'win-mining-race', 'forge-a-block', 'survive-halving', 'beat-difficulty-adjustment',
+      'follow-stronger-chain', 'get-payment-in', 'prove-a-payment', 'test-a-signature']);
+    expect(MISSIONS.map(mission => textOf(mission.title))).toEqual([
+      'The copy problem', 'Take a fingerprint', 'One letter, everything changes', 'Guess a fingerprint',
+      'Why would anyone guess?', 'Sealed pages', 'Earn a proof of work', 'Change the past', 'Send your first coin',
+      'Win a mining race', 'Forge a block without getting caught', 'Survive a halving', 'Beat the difficulty adjustment',
+      'Follow the stronger chain', 'Get your payment in', 'Prove a payment', 'Try to steal a coin'
     ]);
-    expect(MISSIONS.map(mission => mission.view)).toEqual(['hash-lab', 'hash-lab', 'workbench', 'workbench', 'chain-lab',
-      'workbench', 'workbench', 'workbench', 'chain-lab', 'workbench', 'chain-lab', 'workbench']);
+    expect(MISSIONS.map(mission => mission.view)).toEqual([...Array(6).fill('basics'), 'hash-lab', 'chain-lab', 'workbench',
+      'workbench', 'workbench', 'workbench', 'workbench', 'chain-lab', 'workbench', 'chain-lab', 'workbench']);
+    expect(MISSIONS.map(mission => mission.chapter)).toEqual([...Array(6).fill('basics'), 'proof-of-work', 'proof-of-work',
+      ...Array(5).fill('simulator'), ...Array(4).fill('deeper')]);
+    expect(CHAPTERS).toEqual([{ id: 'basics', title: 'Basics' }, { id: 'proof-of-work', title: 'Proof of work' },
+      { id: 'simulator', title: 'The simulator' }, { id: 'deeper', title: 'Going deeper' }]);
+    expect(Object.isFrozen(CHAPTERS) && Object.isFrozen(CHAPTERS[0])).toBe(true);
     for (const mission of MISSIONS) {
+      expect(CHAPTERS.map(chapter => chapter.id)).toContain(mission.chapter);
       expect(mission.steps.length).toBeGreaterThan(0);
-      expect(mission.hint).toMatch(/\S/);
-      expect(mission.reward.xp).toBeGreaterThan(0);
-      for (const step of mission.steps) {
-        expect(step.text).toMatch(/\S/);
-        expect(step.target.startsWith(`${mission.view}.`)).toBe(true);
+      for (const text of [mission.title, mission.hint, mission.result, ...mission.steps.map(step => step.text)]) {
+        for (const variant of variants(text)) expect(variant).toMatch(/\S/);
       }
+      expect(mission.reward.xp).toBeGreaterThan(0);
+      for (const step of mission.steps) expect(step.target.startsWith(`${mission.view}.`)).toBe(true);
     }
+    expect(BASICS.map(id => byId(id).reward)).toEqual([{ xp: 10 }, { xp: 10 }, { xp: 10 }, { xp: 20 }, { xp: 20 },
+      { xp: 30, badge: 'Basics' }]);
     expect(Object.isFrozen(MISSIONS[0].steps[0])).toBe(true);
+    expect(Object.isFrozen(byId('change-fingerprint').steps[0].text)).toBe(true);
+  });
+
+  it('gives Basics texts in a plain and a technical tone', () => {
+    const guess = byId('change-fingerprint');
+    expect(guess.steps.map(step => step.id)).toEqual(['change-message']);
+    expect(textOf(guess.steps[0].text, 'plain')).toBe('Roll until the fingerprint starts with 0: add a number to your text and keep changing it.');
+    expect(textOf(guess.steps[0].text, 'technical')).toBe('Find a text whose SHA-256 hash starts with 0: append a number and increment it.');
+    expect(textOf(guess.steps[0].text)).toBe(textOf(guess.steps[0].text, 'technical'));
+    expect(textOf(guess.hint, 'plain')).toBe(textOf(guess.hint, 'technical'));
+    expect(textOf(byId('copy-problem').hint, 'plain')).toBe('A file never leaves your device when you send it. You send a copy.');
+    expect(textOf(byId('sealed-pages').result, 'technical')).toMatch(/^A hash chain alone is tamper-evident/);
+  });
+
+  it('resolves a text for a tone and falls back to the other variant', () => {
+    expect(textOf('Same text', 'plain')).toBe('Same text');
+    expect(textOf('Same text', 'technical')).toBe('Same text');
+    expect(textOf('Same text')).toBe('Same text');
+    const both = { plain: 'Simple words', technical: 'Precise words' };
+    expect(textOf(both, 'plain')).toBe('Simple words');
+    expect(textOf(both, 'technical')).toBe('Precise words');
+    expect(textOf(both)).toBe('Precise words');
+    expect(textOf({ plain: 'Only plain' }, 'technical')).toBe('Only plain');
+    expect(textOf({ technical: 'Only technical' }, 'plain')).toBe('Only technical');
   });
 
   it('stays honest about the simulation', () => {
-    const copy = MISSIONS.flatMap(mission => [mission.title, mission.hint, mission.result, ...mission.steps.map(step => step.text)]).join(' ');
+    const copy = MISSIONS.flatMap(mission => [mission.title, mission.hint, mission.result, ...mission.steps.map(step => step.text)])
+      .flatMap(variants).join(' ');
     expect(copy).not.toMatch(/real money(?! moves)|bitcoin|\$|earn money/i);
-    expect(MISSIONS.find(mission => mission.id === 'change-the-past').result)
-      .toContain('This toy chain shows links and work, not signatures or network consensus.');
-    expect(MISSIONS.find(mission => mission.id === 'forge-a-block').result).toMatch(/redid the work.*real network.*no network/);
-    expect(MISSIONS.find(mission => mission.id === 'send-first-coin').result).toContain('powfyicoin is virtual');
+    expect(byId('change-the-past').result).toContain('This toy chain shows links and work, not signatures or network consensus.');
+    expect(byId('forge-a-block').result).toMatch(/redid the work.*real network.*no network/);
+    expect(byId('send-first-coin').result).toContain('powfyicoin is virtual');
   });
 
-  it('starts at mission 1 and unlocks missions only in order', () => {
+  it('starts at mission 1 and unlocks untouched missions only in order', () => {
     const progress = initialProgress();
-    expect(activeMission(progress).id).toBe('change-fingerprint');
+    expect(progress).toEqual({ version: 2, completed: [], skipped: [], step: 0, data: {} });
+    expect(activeMission(progress).id).toBe('copy-problem');
     expect(MISSIONS.map(mission => missionStatus(progress, mission.id))).toEqual(['active', ...Array(MISSIONS.length - 1).fill('locked')]);
     // Events for later missions do nothing while mission 1 is active.
-    expect(apply(progress, ALL_EVENTS.filter(event => event.type !== 'manual_hash_found'))).toBe(progress);
-    const second = reduce(progress, { type: 'manual_hash_found', hash: '0' + 'a'.repeat(63) });
+    expect(apply(progress, ALL_EVENTS.filter(event => event.type !== 'copy_tried'))).toBe(progress);
+    const second = apply(progress, COMPLETE['copy-problem']);
     expect(MISSIONS.slice(0, 3).map(mission => missionStatus(second, mission.id))).toEqual(['done', 'active', 'locked']);
     expect(missionStatus(second, 'no-such-mission')).toBe('locked');
   });
 
+  it('treats completion as a set kept in track order', () => {
+    // A later mission done, an earlier one still open: the earliest open one is active.
+    const gap = progressOf(['see-a-fingerprint', 'send-first-coin'], ['copy-problem']);
+    expect(activeMission(gap).id).toBe('change-one-letter');
+    expect(['copy-problem', 'see-a-fingerprint', 'change-one-letter', 'change-fingerprint', 'send-first-coin']
+      .map(id => missionStatus(gap, id))).toEqual(['skipped', 'done', 'active', 'locked', 'done']);
+    expect(totalXp(gap)).toBe(10 + 40);
+    expect(earnedBadges(gap)).toEqual([]);
+    const later = progressOf(['send-first-coin', 'win-mining-race']);
+    const done = apply(later, COMPLETE['copy-problem']);
+    expect(done.completed).toEqual(['copy-problem', 'send-first-coin', 'win-mining-race']);
+    expect(done.skipped).toEqual([]);
+    expect(activeMission(done).id).toBe('see-a-fingerprint');
+    expect(earnedBadges(progressOf(['win-mining-race', 'earn-proof-of-work']))).toEqual(['First proof', 'Backer']);
+    // Completing keeps the skipped missions.
+    const skipped = skip(initialProgress(), ['copy-problem', 'why-guess']);
+    const completed = apply(skipped, COMPLETE['see-a-fingerprint']);
+    expect(completed).toMatchObject({ completed: ['see-a-fingerprint'], skipped: ['copy-problem', 'why-guess'], step: 0, data: {} });
+    expect(activeMission(apply(completed, [...COMPLETE['change-one-letter'], ...COMPLETE['change-fingerprint']])).id).toBe('sealed-pages');
+  });
+
+  it('skips known, open missions and restarts only a changed active mission', () => {
+    const fresh = initialProgress();
+    expect(skip(fresh, [])).toBe(fresh);
+    expect(skip(fresh, ['no-such-mission', 7, null])).toBe(fresh);
+    expect(skip(fresh, 'copy-problem')).toBe(fresh);
+    expect(skip(fresh, ['why-guess', 'copy-problem', 'copy-problem']).skipped).toEqual(['copy-problem', 'why-guess']);
+
+    const midway = apply(fresh, COMPLETE['copy-problem'].slice(0, 1));
+    expect(midway.step).toBe(1);
+    // Skipping a later mission keeps the active one where it is.
+    const later = skip(midway, ['sealed-pages']);
+    expect(later).toMatchObject({ completed: [], skipped: ['sealed-pages'], step: 1, data: {} });
+    expect(missionStatus(later, 'sealed-pages')).toBe('skipped');
+    expect(skip(later, ['sealed-pages'])).toBe(later);
+    // Skipping the active mission restarts the step of the next one.
+    const seeing = apply(skip(fresh, ['copy-problem']), COMPLETE['see-a-fingerprint'].slice(0, 1));
+    expect(seeing).toMatchObject({ step: 1, data: { first: hex('1') } });
+    const next = skip(seeing, ['see-a-fingerprint']);
+    expect(next).toEqual({ version: 2, completed: [], skipped: ['copy-problem', 'see-a-fingerprint'], step: 0, data: {} });
+    expect(activeStep(next)).toMatchObject({ view: 'basics', target: 'basics.compare' });
+
+    // Completed missions cannot be skipped.
+    const done = apply(fresh, COMPLETE['copy-problem']);
+    expect(skip(done, ['copy-problem'])).toBe(done);
+    expect(skip(done, ['copy-problem', 'see-a-fingerprint']).skipped).toEqual(['see-a-fingerprint']);
+
+    // Skipping the whole course lands on the first proof-of-work mission and earns nothing.
+    const course = skip(fresh, BASICS);
+    expect(activeMission(course).id).toBe('earn-proof-of-work');
+    expect(BASICS.map(id => missionStatus(course, id))).toEqual(Array(6).fill('skipped'));
+    expect(totalXp(course)).toBe(0);
+    expect(earnedBadges(course)).toEqual([]);
+    expect(apply(course, ALL_EVENTS.filter(event => event.type !== 'work_found'))).toBe(course);
+
+    // Nothing left to do once every open mission is skipped.
+    const all = skip(fresh, MISSIONS.map(mission => mission.id));
+    expect(activeMission(all)).toBeNull();
+    expect(activeStep(all)).toBeNull();
+    expect(apply(all, [...ALL_EVENTS, ...NOISE])).toBe(all);
+  });
+
   it('requires a valid manual proof and never completes on a text edit alone', () => {
-    const progress = initialProgress();
+    const progress = reach('change-fingerprint');
+    expect(activeStep(progress)).toMatchObject({ view: 'basics', target: 'basics.guess' });
     for (const event of [{ type: 'hash_changed' }, { type: 'manual_hash_found' },
       { type: 'manual_hash_found', hash: 'a'.repeat(64) }, { type: 'manual_hash_found', hash: '0' },
       { type: 'manual_hash_found', hash: '0' + 'g'.repeat(63) }, { type: 'work_found', difficulty: 1, attempts: 2 }]) {
       expect(reduce(progress, event)).toBe(progress);
     }
+    expect(missionStatus(apply(progress, COMPLETE['change-fingerprint']), 'change-fingerprint')).toBe('done');
   });
 
   it('completes every mission through its event sequence and derives XP and badges', () => {
@@ -103,21 +226,24 @@ describe('mission track', () => {
       progress = apply(progress, COMPLETE[mission.id]);
       expect(missionStatus(progress, mission.id)).toBe('done');
     }
+    expect(progress.completed).toEqual(MISSIONS.map(mission => mission.id));
     expect(activeMission(progress)).toBeNull();
     expect(activeStep(progress)).toBeNull();
     expect(totalXp(progress)).toBe(MISSIONS.reduce((sum, mission) => sum + mission.reward.xp, 0));
     expect(earnedBadges(progress)).toEqual(MISSIONS.map(mission => mission.reward.badge).filter(Boolean));
+    expect(earnedBadges(progress)[0]).toBe('Basics');
     // A finished track ignores everything, including resets.
     expect(apply(progress, [...ALL_EVENTS, ...NOISE])).toBe(progress);
   });
 
   it('points the coach ring at the current step', () => {
     let progress = reach('win-mining-race');
-    expect(activeStep(progress)).toEqual({ mission: MISSIONS[3], step: MISSIONS[3].steps[0], view: 'workbench', target: 'workbench.back-miner' });
+    const race = byId('win-mining-race');
+    expect(activeStep(progress)).toEqual({ mission: race, step: race.steps[0], view: 'workbench', target: 'workbench.back-miner' });
     progress = reduce(progress, { type: 'miner_backed', name: 'Minas' });
     expect(activeStep(progress).step.id).toBe('watch-race');
     expect(activeStep(progress).target).toBe('workbench.mine');
-    expect(activeStep(initialProgress())).toMatchObject({ view: 'hash-lab', target: 'hash-lab.message' });
+    expect(activeStep(initialProgress())).toMatchObject({ view: 'basics', target: 'basics.copy-photo' });
   });
 
   it('ignores irrelevant and malformed events without changing progress', () => {
@@ -155,11 +281,10 @@ describe('mission track', () => {
     expect(missionStatus(reduce(race, { type: 'block_mined', backedWon: false, epoch: 0 }), 'win-mining-race')).toBe('active');
   });
 
-  it('restarts a lab mission on lesson_reset but not on a simulator reset', () => {
-    for (const [id, events] of [['earn-proof-of-work', COMPLETE['earn-proof-of-work'].slice(0, 1)],
-      ['change-the-past', COMPLETE['change-the-past'].slice(0, 1)]]) {
+  it('restarts a lab or Basics mission on lesson_reset but not on a simulator reset', () => {
+    for (const id of ['copy-problem', 'see-a-fingerprint', 'sealed-pages', 'earn-proof-of-work', 'change-the-past']) {
       const started = reach(id);
-      const midway = apply(started, events);
+      const midway = apply(started, COMPLETE[id].slice(0, 1));
       expect(midway.step).toBe(1);
       expect(reduce(midway, { type: 'reset' })).toBe(midway);
       expect(reduce(midway, { type: 'lesson_reset' })).toEqual(started);
@@ -177,7 +302,7 @@ describe('mission track', () => {
     const reset = reduce(halving, { type: 'reset' });
     expect(reset).toEqual(reach('survive-halving'));
     expect(totalXp(reset)).toBe(totalXp(halving));
-    expect(earnedBadges(reset)).toEqual(['First proof', 'Backer', 'Chain mender', 'Forger']);
+    expect(earnedBadges(reset)).toEqual(['Basics', 'First proof', 'Chain mender', 'Backer', 'Forger']);
   });
 
   it('requires a halving after the first observed block', () => {
@@ -212,19 +337,116 @@ describe('mission track', () => {
   });
 });
 
+describe('Basics missions', () => {
+  it('walks the copy problem from photo to double spend to the shared list', () => {
+    const start = reach('copy-problem');
+    expect(activeStep(start).target).toBe('basics.copy-photo');
+    // Out of order, unknown or missing kinds: ignored.
+    expect(apply(start, [{ type: 'copy_tried', kind: 'double-spend' }, { type: 'copy_tried', kind: 'rejected' },
+      { type: 'copy_tried', kind: 'other' }, { type: 'copy_tried' }])).toBe(start);
+    const photo = reduce(start, COMPLETE['copy-problem'][0]);
+    expect(activeStep(photo).target).toBe('basics.copy-coin');
+    expect(apply(photo, [{ type: 'copy_tried', kind: 'photo' }, { type: 'copy_tried', kind: 'rejected' }])).toBe(photo);
+    const coin = reduce(photo, COMPLETE['copy-problem'][1]);
+    expect(activeStep(coin).target).toBe('basics.copy-list');
+    expect(apply(coin, [{ type: 'copy_tried', kind: 'photo' }, { type: 'copy_tried', kind: 'double-spend' }])).toBe(coin);
+    expect(missionStatus(reduce(coin, COMPLETE['copy-problem'][2]), 'copy-problem')).toBe('done');
+  });
+
+  it('needs a changed text before the first fingerprint returns', () => {
+    const start = reach('see-a-fingerprint');
+    expect(apply(start, [{ type: 'fingerprint_made' }, { type: 'fingerprint_made', hash: 'xyz' },
+      { type: 'fingerprint_made', hash: 'A'.repeat(64) }])).toBe(start);
+    const first = reduce(start, { type: 'fingerprint_made', hash: hex('1') });
+    expect(first).toMatchObject({ step: 1, data: { first: hex('1') } });
+    // The same fingerprint before any change proves nothing.
+    expect(reduce(first, { type: 'fingerprint_made', hash: hex('1') })).toBe(first);
+    const changed = reduce(first, { type: 'fingerprint_made', hash: hex('2') });
+    expect(changed).toMatchObject({ step: 1, data: { first: hex('1'), changed: true } });
+    expect(reduce(changed, { type: 'fingerprint_made', hash: hex('3') })).toBe(changed);
+    expect(missionStatus(reduce(changed, { type: 'fingerprint_made', hash: hex('1') }), 'see-a-fingerprint')).toBe('done');
+  });
+
+  it('counts four distinct changed fingerprints', () => {
+    const start = reach('change-one-letter');
+    expect(apply(start, [{ type: 'fingerprints_compared', changed: 0, right: hex('a') },
+      { type: 'fingerprints_compared', changed: 65, right: hex('a') }, { type: 'fingerprints_compared', changed: -1, right: hex('a') },
+      { type: 'fingerprints_compared', changed: 1.5, right: hex('a') }, { type: 'fingerprints_compared', changed: 30, right: 'abc' },
+      { type: 'fingerprints_compared', changed: '30', right: hex('a') }])).toBe(start);
+    const one = reduce(start, COMPLETE['change-one-letter'][0]);
+    expect(one).toMatchObject({ step: 1, data: { seen: [hex('a')] } });
+    // Repeated fingerprints and unchanged comparisons do not count.
+    expect(apply(one, [{ type: 'fingerprints_compared', changed: 12, right: hex('a') },
+      { type: 'fingerprints_compared', changed: 0, right: hex('e') }])).toBe(one);
+    const three = apply(one, COMPLETE['change-one-letter'].slice(1, 3));
+    expect(three).toMatchObject({ step: 1, data: { seen: [hex('a'), hex('b'), hex('c')] } });
+    expect(reduce(three, { type: 'fingerprints_compared', changed: 64, right: hex('b') })).toBe(three);
+    expect(missionStatus(reduce(three, COMPLETE['change-one-letter'][3]), 'change-one-letter')).toBe('done');
+  });
+
+  it('completes the draw after three finished draws', () => {
+    const start = reach('why-guess');
+    expect(apply(start, [{ type: 'draw_finished', winner: '', rolls: 3 }, { type: 'draw_finished', rolls: 3 },
+      { type: 'draw_finished', winner: 'Writer A', rolls: 0 }, { type: 'draw_finished', winner: 'Writer A', rolls: 1.5 },
+      { type: 'draw_finished', winner: 7, rolls: 3 }])).toBe(start);
+    const one = reduce(start, COMPLETE['why-guess'][0]);
+    expect(one).toMatchObject({ step: 1, data: { draws: 1 } });
+    expect(reduce(one, { type: 'draw_finished', winner: 'Writer A', rolls: -2 })).toBe(one);
+    const two = reduce(one, COMPLETE['why-guess'][1]);
+    expect(two).toMatchObject({ step: 1, data: { draws: 2 } });
+    expect(missionStatus(reduce(two, COMPLETE['why-guess'][2]), 'why-guess')).toBe('done');
+  });
+
+  it('breaks the seals, repairs them for free and then with work', () => {
+    const start = reach('sealed-pages');
+    expect(activeStep(start).target).toBe('basics.page-1');
+    expect(apply(start, [{ type: 'seals_checked', valid: false, edited: false }, { type: 'seals_checked', valid: true, edited: true },
+      { type: 'seals_checked', valid: 'no', edited: true }, COMPLETE['sealed-pages'][1], COMPLETE['sealed-pages'][2]])).toBe(start);
+    const broken = reduce(start, COMPLETE['sealed-pages'][0]);
+    expect(activeStep(broken)).toMatchObject({ step: { id: 'repair-free' }, target: 'basics.repair' });
+    expect(apply(broken, [{ type: 'seals_repaired', zeros: 2, hashes: 300, valid: true },
+      { type: 'seals_repaired', zeros: 0, hashes: 3, valid: false }, { type: 'seals_repaired', zeros: 0, hashes: 0, valid: true },
+      COMPLETE['sealed-pages'][0]])).toBe(broken);
+    const free = reduce(broken, COMPLETE['sealed-pages'][1]);
+    expect(activeStep(free).step.id).toBe('repair-work');
+    expect(apply(free, [{ type: 'seals_repaired', zeros: 0, hashes: 3, valid: true },
+      { type: 'seals_repaired', zeros: 1, hashes: 50, valid: true }, { type: 'seals_repaired', zeros: 2, hashes: 3, valid: true },
+      { type: 'seals_repaired', zeros: 4, hashes: 90000, valid: true }, { type: 'seals_repaired', zeros: 3, hashes: 4096, valid: false }]))
+      .toBe(free);
+    const done = reduce(free, { type: 'seals_repaired', zeros: 2, hashes: 4, valid: true });
+    expect(missionStatus(done, 'sealed-pages')).toBe('done');
+    expect(earnedBadges(done)).toEqual(['Basics']);
+    expect(totalXp(done)).toBe(100);
+    expect(activeMission(done).id).toBe('earn-proof-of-work');
+  });
+});
+
 describe('mission storage', () => {
   it('saves versioned progress and restores completed rewards with a fresh active mission', () => {
     const storage = memoryStorage();
     const progress = apply(reach('forge-a-block'), COMPLETE['forge-a-block'].slice(0, 2));
     expect(save(storage, progress)).toBe(true);
-    expect(JSON.parse(storage.items[STORAGE_KEY])).toEqual({ version: PROGRESS_VERSION, completed: progress.completed, step: 2,
-      data: { tampered: 2, next: 3 } });
+    expect(JSON.parse(storage.items[STORAGE_KEY])).toEqual({ version: PROGRESS_VERSION, completed: progress.completed,
+      skipped: [], step: 2, data: { tampered: 2, next: 3 } });
+    expect(PROGRESS_VERSION).toBe(2);
     expect(load(storage)).toEqual(reach('forge-a-block'));
     expect(totalXp(load(storage))).toBe(totalXp(progress));
     expect(earnedBadges(load(storage))).toEqual(earnedBadges(progress));
     const done = apply(initialProgress(), ALL_EVENTS);
     save(storage, done);
     expect(load(storage)).toEqual(done);
+  });
+
+  it('round-trips skipped missions', () => {
+    const storage = memoryStorage();
+    const progress = apply(skip(initialProgress(), ['copy-problem', 'see-a-fingerprint', 'change-one-letter', 'sealed-pages']),
+      [...COMPLETE['change-fingerprint'], ...COMPLETE['why-guess'], COMPLETE['earn-proof-of-work'][0]]);
+    expect(progress).toMatchObject({ completed: ['change-fingerprint', 'why-guess'], step: 1 });
+    expect(save(storage, progress)).toBe(true);
+    expect(JSON.parse(storage.items[STORAGE_KEY])).toEqual({ version: 2, completed: ['change-fingerprint', 'why-guess'],
+      skipped: ['copy-problem', 'see-a-fingerprint', 'change-one-letter', 'sealed-pages'], step: 1, data: { attempts: { 1: 7 } } });
+    expect(load(storage)).toEqual({ ...progress, step: 0, data: {} });
+    expect(missionStatus(load(storage), 'sealed-pages')).toBe('skipped');
   });
 
   it.each(MISSIONS.map(mission => [mission.id]))('restarts unfinished %s steps after reload without losing rewards', id => {
@@ -248,32 +470,73 @@ describe('mission storage', () => {
     expect(load(memoryStorage())).toEqual(fresh);
     expect(load({ getItem() { throw new Error('SecurityError'); } })).toEqual(fresh);
     for (const raw of ['{not json', 'null', '[]', '"text"', JSON.stringify({ version: 99, completed: [], step: 0, data: {} }),
-      JSON.stringify({ version: PROGRESS_VERSION, completed: 'all', step: 0, data: {} })]) {
+      JSON.stringify({ version: 0, completed: ['change-fingerprint'], step: 0, data: {} }),
+      JSON.stringify({ version: '2', completed: ['copy-problem'], skipped: [], step: 0, data: {} }),
+      JSON.stringify({ version: 3, completed: ['copy-problem'], skipped: [], step: 0, data: {} }),
+      JSON.stringify({ version: 1, completed: 'all', step: 0, data: {} }),
+      JSON.stringify({ version: PROGRESS_VERSION, completed: 'all', skipped: [], step: 0, data: {} })]) {
       expect(load(memoryStorage({ [STORAGE_KEY]: raw }))).toEqual(fresh);
     }
     expect(save(undefined, fresh)).toBe(false);
     expect(save({ setItem() { throw new Error('QuotaExceededError'); } }, fresh)).toBe(false);
   });
 
-  it('keeps only a valid in-order prefix and discards saved active steps', () => {
-    const stored = value => load(memoryStorage({ [STORAGE_KEY]: JSON.stringify({ version: PROGRESS_VERSION, ...value }) }));
-    // Skipped missions do not count.
-    expect(stored({ completed: ['change-fingerprint', 'send-first-coin'], step: 0, data: {} }).completed).toEqual(['change-fingerprint']);
+  it('migrates version 1: keeps the valid in-order prefix of the old order and discards saved active steps', () => {
+    const v1 = (completed, step = 0, data = {}) => stored({ version: 1, completed, step, data });
     const twoDone = ['change-fingerprint', 'earn-proof-of-work'];
-    expect(stored({ completed: twoDone, step: 5, data: {} })).toEqual(reach('send-first-coin'));
-    expect(stored({ completed: [...twoDone, 'send-first-coin'], step: 1, data: {} })).toEqual(reach('win-mining-race'));
-    expect(stored({ completed: [...twoDone, 'send-first-coin'], step: 1, data: { backed: 'fixture-miner' } })).toEqual(reach('win-mining-race'));
-    const fiveDone = MISSIONS.slice(0, 5).map(mission => mission.id);
-    expect(stored({ completed: fiveDone, step: 2, data: { tampered: 2, next: 1 } })).toEqual(reach('forge-a-block'));
-    expect(stored({ completed: fiveDone, step: 1, data: 'x' })).toEqual(reach('forge-a-block'));
+    const course = ['copy-problem', 'see-a-fingerprint', 'change-one-letter', 'why-guess', 'sealed-pages'];
+    // Missions after a gap in the old order do not count.
+    expect(v1(['change-fingerprint', 'send-first-coin'])).toEqual(progressOf(['change-fingerprint'],
+      ['copy-problem', 'see-a-fingerprint', 'change-one-letter']));
+    expect(activeMission(v1(['change-fingerprint', 'send-first-coin'])).id).toBe('why-guess');
+    expect(v1(['earn-proof-of-work'])).toEqual(initialProgress());
+    expect(v1([])).toEqual(initialProgress());
+    expect(v1(twoDone, 5)).toEqual(progressOf(twoDone, course));
+    expect(activeMission(v1(twoDone, 5)).id).toBe('change-the-past');
+    expect(v1([...twoDone, 'send-first-coin'], 1, { backed: 'fixture-miner' }))
+      .toEqual(progressOf(['change-fingerprint', 'earn-proof-of-work', 'send-first-coin'], course));
+    // The old fifth mission now comes before the simulator; the set stays in track order.
+    const fiveDone = V1_ORDER.slice(0, 5);
+    const migrated = v1(fiveDone, 2, { tampered: 2, next: 1 });
+    expect(migrated).toEqual(progressOf(['change-fingerprint', 'earn-proof-of-work', 'change-the-past', 'send-first-coin',
+      'win-mining-race'], course));
+    expect(v1(fiveDone, 1, 'x')).toEqual(migrated);
+    expect(activeMission(migrated).id).toBe('forge-a-block');
+    expect(totalXp(migrated)).toBe(20 + 40 + 60 + 40 + 60);
+    expect(earnedBadges(migrated)).toEqual(['First proof', 'Chain mender', 'Backer']);
+    const all = v1(V1_ORDER);
+    expect(all.skipped).toEqual(course);
+    expect(activeMission(all)).toBeNull();
+  });
+
+  it('loads version 2 sets, drops unknown ids and skips the Basics a returning learner passed', () => {
+    const v2 = value => stored({ version: 2, step: 0, data: {}, ...value });
+    expect(v2({ completed: ['sealed-pages', 'no-such-mission', 7, null, 'copy-problem', 'sealed-pages'], skipped: [] }))
+      .toEqual(progressOf(['copy-problem', 'sealed-pages'], ['see-a-fingerprint', 'change-one-letter', 'change-fingerprint', 'why-guess']));
+    // Stored skips: known and not completed only; a broken list counts as none.
+    expect(v2({ completed: ['copy-problem'], skipped: ['test-a-signature', 'copy-problem', 'no-such-mission', 'test-a-signature'] }))
+      .toEqual(progressOf(['copy-problem'], ['test-a-signature']));
+    expect(v2({ completed: ['copy-problem'], skipped: 'all' })).toEqual(progressOf(['copy-problem']));
+    expect(v2({ completed: ['copy-problem'] })).toEqual(progressOf(['copy-problem']));
+    // A completed mission after the course skips all open Basics, but no later mission.
+    const returning = v2({ completed: ['send-first-coin'], skipped: [], step: 3, data: { backed: 'fixture-miner' } });
+    expect(returning).toEqual(progressOf(['send-first-coin'], BASICS));
+    expect(activeMission(returning).id).toBe('earn-proof-of-work');
+    expect(missionStatus(returning, 'change-the-past')).toBe('locked');
+    expect(v2({ completed: ['why-guess'], skipped: ['test-a-signature'] })).toEqual(progressOf(['why-guess'],
+      ['copy-problem', 'see-a-fingerprint', 'change-one-letter', 'change-fingerprint', 'test-a-signature']));
+    expect(v2({ completed: [], skipped: [] })).toEqual(initialProgress());
   });
 });
 
 describe('fork mission evidence and compatibility', () => {
-  it('preserves eight completed missions and unlocks the new one without a storage migration', () => {
-    const old = { version: 1, completed: MISSIONS.slice(0, 8).map(mission => mission.id), step: 0, data: {} };
+  it('preserves eight completed version 1 missions and unlocks the fork mission', () => {
+    const old = { version: 1, completed: V1_ORDER.slice(0, 8), step: 0, data: {} };
     const restored = load(memoryStorage({ [STORAGE_KEY]: JSON.stringify(old) }));
-    expect(restored.completed).toEqual(old.completed);
+    expect(restored.completed).toEqual(['change-fingerprint', 'earn-proof-of-work', 'change-the-past', 'send-first-coin',
+      'win-mining-race', 'forge-a-block', 'survive-halving', 'beat-difficulty-adjustment']);
+    expect([...restored.completed].sort()).toEqual([...old.completed].sort());
+    expect(restored.skipped).toEqual(['copy-problem', 'see-a-fingerprint', 'change-one-letter', 'why-guess', 'sealed-pages']);
     expect(activeMission(restored).id).toBe('follow-stronger-chain');
   });
 

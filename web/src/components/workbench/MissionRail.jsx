@@ -1,5 +1,5 @@
 import { useId, useLayoutEffect, useRef, useState } from 'react';
-import { MISSIONS, activeStep, earnedBadges, missionStatus, totalXp } from '../../lib/missions';
+import { CHAPTERS, MISSIONS, activeStep, earnedBadges, missionStatus, textOf, totalXp } from '../../lib/missions';
 import { hint } from '../../lib/hints';
 import './MissionRail.css';
 
@@ -8,11 +8,14 @@ import './MissionRail.css';
 // variant="bar": the slim mission bar for < 1024 px that opens the full list as a sheet.
 // onShowMe receives activeStep(progress) ({ mission, step, view, target }); the parent switches
 // to that view and scrolls to the coach target.
+// The list is grouped by chapter (CHAPTERS); mission numbers run on across chapters. `tone`
+// ('plain' | 'technical') picks the variant of every mission text (textOf).
 
 const TOTAL = MISSIONS.length;
 
 const Icon = {
   check: size => <svg width={size} height={size} viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 6.3l2.3 2.3 4.7-5" stroke="currentColor" strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round" /></svg>,
+  skip: <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 3l3 3-3 3M6.5 3l3 3-3 3" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" /></svg>,
   lock: <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><rect x="2.5" y="5.5" width="7" height="5" rx="1.2" fill="currentColor" /><path d="M4 5.5V4a2 2 0 014 0v1.5" stroke="currentColor" strokeWidth="1.4" fill="none" /></svg>,
   flag: <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 1.5v13" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /><path d="M4.5 2.5h8l-2 3 2 3h-8z" fill="currentColor" /></svg>,
   collapse: <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M8.5 3L4.5 7l4 4M12 2v10" stroke="currentColor" strokeWidth="1.6" fill="none" strokeLinecap="round" strokeLinejoin="round" /></svg>,
@@ -22,7 +25,7 @@ const Icon = {
   close: <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M3.5 3.5l7 7M10.5 3.5l-7 7" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg>,
 };
 
-const STATUS_WORD = { done: 'done', active: 'in progress', locked: 'locked' };
+const STATUS_WORD = { done: 'done', skipped: 'skipped', active: 'in progress', locked: 'locked' };
 
 function rewardText(reward) {
   return `Reward: +${reward.xp} XP${reward.badge ? ` · ${reward.badge} badge` : ''}`;
@@ -37,9 +40,14 @@ function summarize(progress) {
   const badges = earnedBadges(progress).length;
   return {
     current, index, stepsDone, stepCount, badges,
-    xp: totalXp(progress), done: progress.completed.length,
+    xp: totalXp(progress), done: progress.completed.length, skipped: (progress.skipped ?? []).length,
     fraction: stepCount ? stepsDone / stepCount : 0,
   };
+}
+
+// The end of the track: every mission done, or the rest skipped.
+function finishedText(info) {
+  return info.skipped ? `${info.done} of ${TOTAL} missions done, ${info.skipped} skipped` : `All ${TOTAL} missions done`;
 }
 
 function Stats({ info }) {
@@ -52,7 +60,7 @@ function Stats({ info }) {
   );
 }
 
-function ActiveBody({ info, onShowMe }) {
+function ActiveBody({ info, tone, onShowMe }) {
   const { current, stepsDone, stepCount } = info;
   const mission = current.mission;
   const stepTextId = useId();
@@ -70,7 +78,7 @@ function ActiveBody({ info, onShowMe }) {
             <li key={step.id} className={`mission-rail-step is-${state}`} aria-current={state === 'current' ? 'step' : undefined}>
               <span className="mission-rail-step-ck">{state === 'done' && Icon.check(10)}</span>
               <span className="mission-rail-step-txt">
-                <span id={state === 'current' ? stepTextId : undefined}>{step.text}</span>
+                <span id={state === 'current' ? stepTextId : undefined}>{textOf(step.text, tone)}</span>
                 {state === 'done' && <span className="mission-rail-sr"> (done)</span>}
                 {state === 'current' && (
                   <button type="button" className="mission-rail-show" aria-describedby={stepTextId} {...hint('mission.show-me')} onClick={() => onShowMe?.(current)}>
@@ -82,53 +90,69 @@ function ActiveBody({ info, onShowMe }) {
           );
         })}
       </ol>
-      <div className="mission-rail-hint">{mission.hint}</div>
+      <div className="mission-rail-hint">{textOf(mission.hint, tone)}</div>
       <div className="mission-rail-reward">{rewardText(mission.reward)}</div>
     </>
   );
 }
 
-function MissionList({ progress, info, onShowMe, onSelectMission }) {
+function MissionItem({ mission, index, progress, info, tone, onShowMe, onSelectMission }) {
+  const status = missionStatus(progress, mission.id);
+  const label = textOf(mission.title, tone);
+  const title = onSelectMission && status !== 'locked'
+    ? <button type="button" className="mission-rail-title is-button" onClick={() => onSelectMission(mission.id)}>{label}</button>
+    : <div className="mission-rail-title" {...(mission.hintKey ? hint(mission.hintKey) : {})}>{label}</div>;
   return (
-    <ol className="mission-rail-list">
-      {MISSIONS.map((mission, index) => {
-        const status = missionStatus(progress, mission.id);
-        const title = onSelectMission && status !== 'locked'
-          ? <button type="button" className="mission-rail-title is-button" onClick={() => onSelectMission(mission.id)}>{mission.title}</button>
-          : <div className="mission-rail-title" {...(mission.hintKey ? hint(mission.hintKey) : {})}>{mission.title}</div>;
-        return (
-          <li key={mission.id} className={`mission-rail-mission is-${status}`} aria-current={status === 'active' ? 'step' : undefined}>
-            <span className="mission-rail-ic">
-              {status === 'done' ? Icon.check(12) : status === 'locked' ? Icon.lock : index + 1}
-            </span>
-            <div className="mission-rail-body">
-              <div className="mission-rail-n">Mission {index + 1} · {STATUS_WORD[status]}</div>
-              {title}
-              {status === 'active' && <ActiveBody info={info} onShowMe={onShowMe} />}
-              {status === 'done' && mission.hintKey && <details>
-                <summary {...hint('mission.recap')}>What you learned</summary>
-                <p>{mission.result}</p>
-              </details>}
-            </div>
-          </li>
-        );
-      })}
-    </ol>
+    <li className={`mission-rail-mission is-${status}`} aria-current={status === 'active' ? 'step' : undefined}>
+      <span className="mission-rail-ic">
+        {status === 'done' ? Icon.check(12) : status === 'skipped' ? Icon.skip : status === 'locked' ? Icon.lock : index + 1}
+      </span>
+      <div className="mission-rail-body">
+        <div className="mission-rail-n">Mission {index + 1} · {STATUS_WORD[status]}</div>
+        {title}
+        {status === 'active' && <ActiveBody info={info} tone={tone} onShowMe={onShowMe} />}
+        {status === 'done' && mission.hintKey && <details>
+          <summary {...hint('mission.recap')}>What you learned</summary>
+          <p>{textOf(mission.result, tone)}</p>
+        </details>}
+      </div>
+    </li>
   );
 }
 
-function Complete() {
+// One small heading and list per chapter; the numbers continue across chapters.
+function MissionList({ progress, info, tone, onShowMe, onSelectMission }) {
   return (
-    <div className="mission-rail-complete" role="status">
-      {Icon.check(12)}<span>All {TOTAL} missions done. Free play is open.</span>
+    <div className="mission-rail-chapters">
+      {CHAPTERS.map(chapter => {
+        const missions = MISSIONS.filter(mission => mission.chapter === chapter.id);
+        if (!missions.length) return null;
+        return (
+          <div key={chapter.id} className="mission-rail-chapter">
+            <h3 className="mission-rail-chapter-title">{chapter.title}</h3>
+            <ol className="mission-rail-list">
+              {missions.map(mission => <MissionItem key={mission.id} mission={mission} index={MISSIONS.indexOf(mission)}
+                progress={progress} info={info} tone={tone} onShowMe={onShowMe} onSelectMission={onSelectMission} />)}
+            </ol>
+          </div>
+        );
+      })}
     </div>
   );
 }
 
-function CollapsedAccess({ onToggle, highlight }) {
+function Complete({ info }) {
+  return (
+    <div className="mission-rail-complete" role="status">
+      {Icon.check(12)}<span>{finishedText(info)}. Free play is open.</span>
+    </div>
+  );
+}
+
+function CollapsedAccess({ onToggle }) {
   return (
     <div className="mission-rail-mini">
-      <button type="button" className={`mission-rail-icon-btn mission-rail-access${highlight ? ' mission-rail-invitation' : ''}`}
+      <button type="button" className="mission-rail-icon-btn mission-rail-access"
         aria-label="Expand mission rail" aria-expanded="false" {...hint('mission.open')} onClick={() => onToggle?.()}>
         {Icon.flag}<span>Missions</span>
       </button>
@@ -136,7 +160,7 @@ function CollapsedAccess({ onToggle, highlight }) {
   );
 }
 
-function MissionSheet({ progress, info, onClose, onShowMe, onSelectMission }) {
+function MissionSheet({ progress, info, tone, onClose, onShowMe, onSelectMission }) {
   const ref = useRef(null);
   const titleId = useId();
   useLayoutEffect(() => {
@@ -156,9 +180,9 @@ function MissionSheet({ progress, info, onClose, onShowMe, onSelectMission }) {
         </div>
         <Stats info={info} />
         <div className="mission-rail-scroll">
-          <MissionList progress={progress} info={info} onSelectMission={onSelectMission}
+          <MissionList progress={progress} info={info} tone={tone} onSelectMission={onSelectMission}
             onShowMe={step => { onClose(); onShowMe?.(step); }} />
-          {!info.current && <Complete />}
+          {!info.current && <Complete info={info} />}
         </div>
         <div className="mission-rail-foot">Free play never needs a mission. Your progress stays in this browser.</div>
       </div>
@@ -166,44 +190,45 @@ function MissionSheet({ progress, info, onClose, onShowMe, onSelectMission }) {
   );
 }
 
-function Bar({ progress, info, onShowMe, onSelectMission, collapsed, onToggle, highlight }) {
+function Bar({ progress, info, tone, onShowMe, onSelectMission, collapsed, onToggle }) {
   const [open, setOpen] = useState(false);
   const { current, index, stepsDone, stepCount } = info;
+  const title = current ? textOf(current.mission.title, tone) : '';
   const label = collapsed ? 'Open missions' : current
-    ? `Mission ${index + 1}, ${current.mission.title}, ${stepsDone} of ${stepCount} steps. Open missions`
-    : `All ${TOTAL} missions done. Open missions`;
+    ? `Mission ${index + 1}, ${title}, ${stepsDone} of ${stepCount} steps. Open missions`
+    : `${finishedText(info)}. Open missions`;
   return (
     <div className={`mission-rail is-bar${collapsed ? ' is-free-play' : ''}`}>
-      <button type="button" className={`mission-rail-bar${highlight ? ' mission-rail-invitation' : ''}`} aria-haspopup="dialog" aria-expanded={open} aria-label={label}
+      <button type="button" className="mission-rail-bar" aria-haspopup="dialog" aria-expanded={open} aria-label={label}
         onClick={() => { if (collapsed) onToggle?.(); setOpen(true); }}>
         <span className={`mission-rail-bar-n${!collapsed && !current ? ' is-done' : ''}`}>{collapsed ? Icon.flag : current ? index + 1 : Icon.check(12)}</span>
         {collapsed ? <span className="mission-rail-bar-txt"><b>Missions</b></span> : current ? (
           <span className="mission-rail-bar-txt">
             <b>Mission {index + 1}</b>
-            <span className="mission-rail-bar-title"> · {current.mission.title}</span>
+            <span className="mission-rail-bar-title"> · {title}</span>
             {' · '}{stepsDone} of {stepCount} steps
           </span>
         ) : (
-          <span className="mission-rail-bar-txt"><b>All {TOTAL} missions done</b> · {info.xp} XP</span>
+          <span className="mission-rail-bar-txt"><b>{finishedText(info)}</b> · {info.xp} XP</span>
         )}
         {!collapsed && current && <span className="mission-rail-bar-prog" aria-hidden="true"><i style={{ width: `${info.fraction * 100}%` }} /></span>}
         <span className="mission-rail-bar-chev">{Icon.chevron}</span>
       </button>
       {!collapsed && <button type="button" className="mission-rail-hide" {...hint('mission.collapse')} onClick={() => { setOpen(false); onToggle?.(); }}>Hide missions</button>}
-      {open && <MissionSheet progress={progress} info={info} onClose={() => setOpen(false)}
+      {open && <MissionSheet progress={progress} info={info} tone={tone} onClose={() => setOpen(false)}
         onShowMe={onShowMe} onSelectMission={onSelectMission} />}
     </div>
   );
 }
 
-export function MissionRail({ progress, collapsed = false, onToggle, onShowMe, onSelectMission, variant = 'rail', highlight = false }) {
+export function MissionRail({ progress, tone = 'technical', collapsed = false, onToggle, onShowMe, onSelectMission, variant = 'rail' }) {
   const info = summarize(progress);
-  if (variant === 'bar') return <Bar progress={progress} info={info} onShowMe={onShowMe} onSelectMission={onSelectMission}
-    collapsed={collapsed} onToggle={onToggle} highlight={highlight} />;
+  if (variant === 'bar') return <Bar progress={progress} info={info} tone={tone} onShowMe={onShowMe} onSelectMission={onSelectMission}
+    collapsed={collapsed} onToggle={onToggle} />;
   return (
     <aside className={`mission-rail${collapsed ? ' is-collapsed' : ''}`} aria-label="Missions">
       {collapsed ? (
-        <CollapsedAccess onToggle={onToggle} highlight={highlight} />
+        <CollapsedAccess onToggle={onToggle} />
       ) : (
         <div className="mission-rail-full">
           <div className="mission-rail-head">
@@ -214,8 +239,8 @@ export function MissionRail({ progress, collapsed = false, onToggle, onShowMe, o
           </div>
           <Stats info={info} />
           <div className="mission-rail-scroll">
-            <MissionList progress={progress} info={info} onShowMe={onShowMe} onSelectMission={onSelectMission} />
-            {!info.current && <Complete />}
+            <MissionList progress={progress} info={info} tone={tone} onShowMe={onShowMe} onSelectMission={onSelectMission} />
+            {!info.current && <Complete info={info} />}
           </div>
           <div className="mission-rail-foot">Collapse the rail for free play. Your progress stays in this browser.</div>
         </div>

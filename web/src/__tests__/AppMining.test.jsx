@@ -39,6 +39,7 @@ beforeEach(() => {
   vi.useFakeTimers();
   vi.setSystemTime(new Date('2026-01-02T12:00:00Z'));
   localStorage.clear();
+  localStorage.setItem('proofofwork-start', 'play'); // a returning visitor: the workbench, not the start question
   history.replaceState(null, '', '/');
   controlled.runs.length = 0;
   controlled.walletSequence = 0;

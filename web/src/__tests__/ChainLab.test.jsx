@@ -18,7 +18,8 @@ const mine = async number => {
 
 describe('ChainLab interaction', () => {
   it('keeps another mission intact while freely exploring the Merkle experiment', () => {
-    let progress = { ...initialProgress(), completed: MISSIONS.slice(0, 4).map(m => m.id) };
+    // Change the past is the active mission: everything before it in the track is done.
+    let progress = { ...initialProgress(), completed: MISSIONS.slice(0, MISSIONS.findIndex(m => m.id === 'change-the-past')).map(m => m.id) };
     render(<ChainLab onClose={() => {}} coach={{ target: 'chain-lab.remine' }}
       onLessonEvent={event => { progress = reduce(progress, event); }} />);
     fireEvent.change(screen.getByLabelText('Block 1 data'), { target: { value: 'Edited fixture record' } });

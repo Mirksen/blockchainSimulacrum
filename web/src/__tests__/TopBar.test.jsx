@@ -7,7 +7,7 @@ afterEach(cleanup);
 
 const renderBar = (props = {}) => {
   const handlers = {
-    onNavigate: vi.fn(), onTheme: vi.fn(), onMuted: vi.fn(), onReset: vi.fn(), onOpenSettings: vi.fn(),
+    onNavigate: vi.fn(), onTheme: vi.fn(), onMuted: vi.fn(), onReset: vi.fn(), onOpenSettings: vi.fn(), onOpenStart: vi.fn(),
   };
   const utils = render(<TopBar view="workbench" coinName="testCoin" theme="dark" muted={false} {...handlers} {...props} />);
   return { ...utils, ...handlers };
@@ -19,7 +19,7 @@ describe('navigation', () => {
     const { onNavigate } = renderBar({ view: 'chain-lab' });
     const nav = screen.getByRole('navigation', { name: 'Main' });
     const links = within(nav).getAllByRole('link');
-    expect(links.map(link => link.textContent)).toEqual(['Workbench', 'Hash lab', 'Chain lab', 'Leaderboard']);
+    expect(links.map(link => link.textContent)).toEqual(['Basics', 'Workbench', 'Hash lab', 'Chain lab', 'Leaderboard']);
     expect(within(nav).getByRole('link', { name: 'Chain lab' }).getAttribute('aria-current')).toBe('page');
     expect(links.filter(link => link.hasAttribute('aria-current'))).toHaveLength(1);
     expect(within(nav).getByRole('link', { name: 'Leaderboard' }).getAttribute('href')).toBe('#/pool');
@@ -28,6 +28,27 @@ describe('navigation', () => {
     expect(onNavigate).toHaveBeenCalledWith('hash-lab');
     fireEvent.click(within(nav).getByRole('link', { name: 'Leaderboard' }));
     expect(onNavigate).toHaveBeenLastCalledWith('pool');
+  });
+
+  it('leads with the Basics course', () => {
+    const { onNavigate } = renderBar({ view: 'basics' });
+    const nav = screen.getByRole('navigation', { name: 'Main' });
+    const basics = within(nav).getAllByRole('link')[0];
+    expect(basics.textContent).toBe('Basics');
+    expect(basics.getAttribute('href')).toBe('#/basics');
+    expect(basics.getAttribute('aria-current')).toBe('page');
+    expect(basics.getAttribute('data-hint-title')).toBe('Basics');
+    expect(basics.getAttribute('data-hint')).toContain('No knowledge needed.');
+    fireEvent.click(within(nav).getByRole('link', { name: 'Workbench' }));
+    expect(onNavigate).toHaveBeenLastCalledWith('workbench');
+    fireEvent.click(basics);
+    expect(onNavigate).toHaveBeenLastCalledWith('basics');
+  });
+
+  it('marks no tab on the start question', () => {
+    renderBar({ view: 'start' });
+    const nav = screen.getByRole('navigation', { name: 'Main' });
+    expect(within(nav).getAllByRole('link').filter(link => link.hasAttribute('aria-current'))).toHaveLength(0);
   });
 
   it('leaves modified clicks (new tab) to the browser', () => {
@@ -101,6 +122,26 @@ describe('overflow menu', () => {
     expect(document.activeElement).toBe(more());
   });
 
+  it('opens the start question from Starting point, closing the menu and returning focus', () => {
+    const { onOpenStart, onOpenSettings } = renderBar();
+    fireEvent.click(more());
+    const item = screen.getByRole('button', { name: 'Starting point' });
+    expect(item.getAttribute('data-hint-title')).toBe('Starting point');
+    fireEvent.click(item);
+    expect(onOpenStart).toHaveBeenCalledTimes(1);
+    expect(onOpenSettings).not.toHaveBeenCalled();
+    expect(screen.queryByRole('group', { name: 'More' })).toBeNull();
+    expect(document.activeElement).toBe(more());
+  });
+
+  it('reaches Starting point with the arrow keys after Settings', () => {
+    renderBar();
+    fireEvent.click(more());
+    fireEvent.keyDown(document.activeElement, { key: 'ArrowDown' });
+    fireEvent.keyDown(document.activeElement, { key: 'ArrowDown' });
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Starting point' }));
+  });
+
   it('toggles sound and theme and holds the usage-sharing control', () => {
     const { onMuted, onTheme, rerender } = renderBar();
     fireEvent.click(more());
@@ -137,8 +178,9 @@ describe('compact (below 768 px)', () => {
     const menuButton = screen.getByRole('button', { name: 'Menu' });
     fireEvent.click(menuButton);
     const nav = screen.getByRole('navigation', { name: 'Main' });
+    expect(within(nav).getAllByRole('link').map(link => link.textContent)).toEqual(['Basics', 'Workbench', 'Hash lab', 'Chain lab', 'Leaderboard']);
     expect(within(nav).getByRole('link', { name: 'Leaderboard' }).getAttribute('aria-current')).toBe('page');
-    expect(document.activeElement).toBe(within(nav).getByRole('link', { name: 'Workbench' }));
+    expect(document.activeElement).toBe(within(nav).getByRole('link', { name: 'Basics' }));
     fireEvent.click(within(nav).getByRole('link', { name: 'Hash lab' }));
     expect(onNavigate).toHaveBeenCalledWith('hash-lab');
     expect(screen.queryByRole('navigation')).toBeNull();
