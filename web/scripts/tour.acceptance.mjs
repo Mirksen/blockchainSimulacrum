@@ -30,6 +30,9 @@ export async function verifyTour(browser, baseURL, output) {
     await context.addInitScript(seed => {
       if (localStorage.getItem(seed.START) !== null) return;
       localStorage.setItem(seed.START, seed.choice);
+      // The usage notice was answered on the first page of the visit, long before the workbench:
+      // answering it here would take the focus the tour card needs.
+      localStorage.setItem('pow.analytics.enabled', 'false');
       localStorage.setItem(seed.RAIL, '0');
       localStorage.setItem(seed.PROGRESS, JSON.stringify(seed.progress));
     }, { START: START_KEY, RAIL, PROGRESS: STORAGE_KEY, choice, progress: progressBefore('send-first-coin') });
@@ -38,8 +41,6 @@ export async function verifyTour(browser, baseURL, output) {
     page.on('pageerror', error => errors.push(error.message));
     await page.goto(baseURL);
     await page.getByRole('main').waitFor();
-    const notice = page.locator('.usage-consent');
-    if (await notice.count()) await notice.getByRole('button', { name: 'Opt out', exact: true }).click();
     return page;
   };
   const card = page => page.getByRole('dialog').filter({ has: page.locator('.workbench-tour-count') });
