@@ -316,8 +316,10 @@ try {
  await form.getByRole('button',{name:'Add to mempool'}).click();
  const pendingList = page.getByRole('list',{name:'Pending transactions'});
  await pendingList.getByText('Synthetic acceptance transfer').waitFor();
- assert.match(await pendingList.innerText(), /1 coin · 0\.4999867 change · 0\.0000133 fee · 26[56] B · 5 sat\/B/);
- assert.match(await page.getByRole('region',{name:'Mempool'}).innerText(), /Block space #3\s+26[56] B of 1,300 B/);
+ // The real size follows the signature: 266 B with the longest one (the estimate above), a byte less for
+ // each shorter DER integer. 265 and 266 are the usual cases; about one run in a hundred sees 264.
+ assert.match(await pendingList.innerText(), /1 coin · 0\.4999867 change · 0\.0000133 fee · 26[3-6] B · 5 sat\/B/);
+ assert.match(await page.getByRole('region',{name:'Mempool'}).innerText(), /Block space #3\s+26[3-6] B of 1,300 B/);
  await pendingList.getByRole('button',{name:/^Details of Alice to Bob/}).click();
  const pendingDialog = page.getByRole('dialog',{name:'Transaction details',exact:true});
  await pendingDialog.getByRole('list',{name:'Outputs'}).waitFor();
