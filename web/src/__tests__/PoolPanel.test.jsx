@@ -8,7 +8,7 @@ import { bitsOfZeros, displayHash, le, meetsTarget } from '../../../shared/bitco
 import { hashAtNonce, sha256d } from '../lib/blockHeader';
 import { formatDifficulty, GENESIS, leadingZeros, poolCandidate, proofPrefix, proofScore, signatureOf } from '../lib/poolProof';
 import { runSearch } from '../lib/powSearch';
-import { HINTS } from '../lib/hints';
+import { POOL_HINTS } from '../lib/hints/pool';
 
 vi.mock('../lib/poolApi', async importOriginal => ({ ...(await importOriginal()),
   getChallenge: vi.fn(), submitProof: vi.fn(), getLeaderboard: vi.fn(), getMiner: vi.fn(), getRounds: vi.fn().mockResolvedValue([]) }));
@@ -436,8 +436,8 @@ describe('PoolPanel', () => {
 
   it('explains Join and the round through hints', () => {
     render(<Panel onClose={() => {}} />);
-    expect(screen.getByRole('button', { name: 'Join' }).getAttribute('data-hint')).toBe(HINTS['pool.join'].text);
-    expect(screen.getByText('Round').getAttribute('data-hint')).toBe(HINTS['pool.round'].text);
+    expect(screen.getByRole('button', { name: 'Join' }).getAttribute('data-hint')).toBe(POOL_HINTS['pool.join'].text);
+    expect(screen.getByText('Round').getAttribute('data-hint')).toBe(POOL_HINTS['pool.round'].text);
     expect(screen.getByText('Round').hasAttribute('data-hint-term')).toBe(true);
   });
 

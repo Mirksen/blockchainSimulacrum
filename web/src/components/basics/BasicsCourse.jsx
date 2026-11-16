@@ -120,11 +120,11 @@ export function BasicsCourse({ progress, tone = 'plain', coach = null, onLessonE
             return (
               <li key={scene.id}>
                 <button type="button" className={`basics-step is-${word}`} aria-current={scene.id === shown ? 'step' : undefined}
-                  aria-label={`Scene ${at + 1}: ${scene.title}, ${word}`}
-                  {...hint('basics.scene', at + 1, scene.title, word)} onClick={() => open(scene.id)}>
+                  aria-label={`Scene ${at + 1}: ${textOf(scene.title, tone)}, ${word}`}
+                  {...hint('basics.scene', at + 1, textOf(scene.title, tone), word)} onClick={() => open(scene.id)}>
                   <span className="basics-step-number" aria-hidden="true">{at + 1}<StepIcon word={word} /></span>
                   <span className="basics-visually-hidden">Scene {at + 1}: </span>
-                  <span className="basics-step-title">{scene.title}</span>
+                  <span className="basics-step-title">{textOf(scene.title, tone)}</span>
                   <span className="basics-step-status">{word}</span>
                 </button>
               </li>
@@ -136,7 +136,7 @@ export function BasicsCourse({ progress, tone = 'plain', coach = null, onLessonE
       <header className="basics-header">
         <div>
           <p className="basics-kicker">{mission ? `Basics · Scene ${index + 1} of ${SCENES.length}` : 'Basics · The end'}</p>
-          <h2 id={headingId} ref={heading} tabIndex={-1}>{mission ? mission.title : "Your words, Bitcoin's words"}</h2>
+          <h2 id={headingId} ref={heading} tabIndex={-1}>{mission ? textOf(mission.title, tone) : "Your words, Bitcoin's words"}</h2>
           {mission && <p className="basics-lede">{textOf(LEDES[mission.id], tone)}</p>}
         </div>
         <div className="basics-header-actions">

@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { BLOCK_WORK, ROUND_LIMIT, createForkExperiment, inspectFork, mineForkRound } from '../lib/forkLab';
 import { CoachMark } from './workbench/CoachMark';
-import { hint, term } from '../lib/hints';
+import { hint, term } from '../lib/hints/labs';
 import './ForkExperiment.css';
 
 const nameOf = branch => branch === 'alternative' ? 'Alternative' : 'Original';

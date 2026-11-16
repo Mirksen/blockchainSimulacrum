@@ -6,7 +6,7 @@ import { getChallenge, getLeaderboard, isValidPoolName, minerProfileHash, NAME_H
   submitProof } from '../lib/poolApi';
 import { formatDifficulty, GENESIS, leadingZeros, poolCandidate, proofScore, signatureOf, verifyRow } from '../lib/poolProof';
 import { runSearch } from '../lib/powSearch';
-import { hint, term } from '../lib/hints';
+import { hint, term } from '../lib/hints/pool';
 import { MinerProfile } from './MinerProfile';
 import { RoundHistory } from './RoundHistory';
 import './PoolPanel.css';

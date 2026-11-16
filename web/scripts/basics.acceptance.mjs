@@ -1,13 +1,15 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { join } from 'node:path';
-import { MISSIONS } from '../src/lib/missions.js';
+import { MISSIONS, textOf } from '../src/lib/missions.js';
 import { asReturningVisitor, menu, settle } from './workbench.helpers.mjs';
 
 // The Basics course (#/basics) in free play: every scene at 1440 px dark and 390 px light with
 // one screenshot each, no horizontal overflow at 320 px, the lucky first roll of scene 4, and
 // the skipped scenes 2 and 3 after "I know what a hash is". No mining; remote endpoints refused.
-const SCENES = MISSIONS.filter(mission => mission.view === 'basics');
+// Titles in the tone of this returning visitor (stored start choice play, later hash): technical.
+const SCENES = MISSIONS.filter(mission => mission.view === 'basics')
+  .map(mission => ({ id: mission.id, title: textOf(mission.title, 'technical') }));
 const HASH_SKIPS = ['see-a-fingerprint', 'change-one-letter'];
 const sha = text => createHash('sha256').update(text).digest('hex');
 

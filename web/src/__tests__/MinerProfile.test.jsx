@@ -7,7 +7,7 @@ import { getLeaderboard, getMiner, getRounds } from '../lib/poolApi';
 import { le, meetsTarget } from '../../../shared/bitcoin-block.mjs';
 import { hashAtNonce } from '../lib/blockHeader';
 import { GENESIS, leadingZeros, poolCandidate, proofPrefix, proofScore, signatureOf } from '../lib/poolProof';
-import { HINTS } from '../lib/hints';
+import { POOL_HINTS } from '../lib/hints/pool';
 
 vi.mock('../lib/poolApi', async importOriginal => ({ ...(await importOriginal()),
   getChallenge: vi.fn(), submitProof: vi.fn(), getLeaderboard: vi.fn(), getMiner: vi.fn(), getRounds: vi.fn().mockResolvedValue([]) }));
@@ -131,7 +131,7 @@ describe('MinerProfile', () => {
     render(<MinerProfile name={NAME} />);
     await screen.findByRole('region', { name: 'Rounds' });
     const verify = screen.getAllByRole('button', { name: /^Verify the block of round / })[0];
-    expect(verify.getAttribute('data-hint')).toBe(HINTS['pool.verify'].text);
+    expect(verify.getAttribute('data-hint')).toBe(POOL_HINTS['pool.verify'].text);
   });
 
   it('copies the shareable link', async () => {

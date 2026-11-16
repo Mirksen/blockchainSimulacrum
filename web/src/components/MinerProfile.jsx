@@ -2,7 +2,7 @@ import { Fragment, useEffect, useState } from 'react';
 import { ROUND_WINDOW } from '../../../shared/pool-proof.mjs';
 import { getMiner, isValidPoolName, minerProfileHash, POOL_HASH, POOL_UNAVAILABLE_MESSAGE, UNKNOWN_MINER_MESSAGE } from '../lib/poolApi';
 import { formatDifficulty, leadingZeros, verifyRow } from '../lib/poolProof';
-import { hint, term } from '../lib/hints';
+import { hint, term } from '../lib/hints/pool';
 import { shareFind } from '../lib/shareFind';
 import './MinerProfile.css';
 

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { textHash, textTargetMet, searchText } from '../lib/textHash';
 import { changedPositions } from '../lib/hashLab';
-import { hint, term } from '../lib/hints';
+import { hint, term } from '../lib/hints/labs';
 
 // The free "Mine by hand" experiment. It counts the distinct non-empty texts hashed by hand,
 // so the first proof can say on which try it was found.
