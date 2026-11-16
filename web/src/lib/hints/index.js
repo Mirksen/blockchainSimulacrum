@@ -1,6 +1,7 @@
 import { WORKBENCH_HINTS } from './workbench';
 import { LAB_HINTS } from './labs';
 import { POOL_HINTS } from './pool';
+import { BASICS_HINTS } from './basics';
 
 // The explaining texts behind every hover and focus bubble (components/HintLayer.jsx).
 // Written for someone who has never mined a block (web/DESIGN.md, "Hints"): say what the
@@ -11,7 +12,7 @@ import { POOL_HINTS } from './pool';
 // `term(key, ...args)` returns them for a word or label and adds the dotted underline
 // that tells a learner "hover me". An unknown key throws, so a typo fails its test.
 
-export const HINTS = { ...WORKBENCH_HINTS, ...LAB_HINTS, ...POOL_HINTS };
+export const HINTS = { ...WORKBENCH_HINTS, ...LAB_HINTS, ...POOL_HINTS, ...BASICS_HINTS };
 
 function resolve(key, args) {
   const entry = HINTS[key];
