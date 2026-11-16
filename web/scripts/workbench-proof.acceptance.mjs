@@ -68,6 +68,7 @@ export async function verifyWorkbenchProof(browser, baseURL, output) {
       return route.abort('connectionrefused');
     });
     await context.addInitScript(() => {
+      localStorage.setItem('pow.analytics.enabled', 'false');
       if (localStorage.getItem('proofofwork-missions') === null) {
         localStorage.setItem('proofofwork-missions', JSON.stringify({ version: 1, completed: [], step: 0, data: {} }));
         localStorage.setItem('proofofwork-rail-collapsed', '1');
@@ -174,6 +175,8 @@ export async function verifyWorkbenchProof(browser, baseURL, output) {
         assert.ok(fits.page <= fits.viewport && fits.contents <= fits.width, JSON.stringify({ theme, ...fits }));
         await page.evaluate(() => { scrollTo(0, 0); document.querySelector('.chain-lab').scrollTop = 0; });
         await page.screenshot({ path: join(output, `workbench-proof-${theme}-${width}.png`), fullPage: true });
+        await lab.locator('.merkle-proof-verdict').scrollIntoViewIfNeeded();
+        await page.screenshot({ path: join(output, `workbench-proof-path-${theme}-${width}.png`), fullPage: true });
       }
     }
     assert.deepEqual(await savedState(page), before, 'Proof editing, reset and theme changes preserve serialized chain and missions');

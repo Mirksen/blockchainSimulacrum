@@ -83,6 +83,8 @@ export function MerkleProof({ onLessonEvent, coach = null, source = null, onUseE
   else if (result.malformed) {
     verdict = result.malformed.what === 'txid' ? 'The payment has no valid txid.'
       : `The sibling at level ${result.malformed.level} is not a 64-character hash, so level ${result.failedAt} cannot be computed.`;
+  } else if (source && result.computedRoot === source.treeRoot && source.treeRoot !== source.root) {
+    verdict = 'The copied transactions produce a different root from the mined header. Reset proof cannot undo an edit made in the workbench.';
   } else verdict = `The proof fails at level ${result.failedAt}. From there the computed hashes differ from the block’s tree, and the computed root does not match the header’s merkle root.`;
 
   return <section className="merkle-proof" aria-labelledby={`${id}-title`}>

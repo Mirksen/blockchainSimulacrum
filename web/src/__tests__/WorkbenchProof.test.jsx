@@ -124,6 +124,7 @@ describe('workbench inclusion experiment', () => {
     render(<MerkleProof source={source} />);
     expect(screen.getByText(/transactions no longer match the mined header/)).toBeTruthy();
     expect(screen.getByText('Does not match the mined header’s root')).toBeTruthy();
+    expect(screen.getByRole('status').textContent).toContain('copied transactions produce a different root from the mined header');
     expect(screen.getByRole('status').textContent).toMatch(/^Payment not proven/);
     fireEvent.click(screen.getByRole('button', { name: 'Reset proof' }));
     expect(screen.getByRole('status').textContent).toMatch(/^Payment not proven/);
