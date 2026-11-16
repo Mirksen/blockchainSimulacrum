@@ -19,6 +19,7 @@ export const WORKBENCH_HINTS = {
   'menu.more': { title: 'More', text: 'Reset the simulation, open the settings, choose your starting point again, switch the sound and the light or dark theme.' },
   'menu.reset': { title: 'Reset', text: 'Start over: a new chain with only the genesis block and an empty mempool; added wallets and miners go. Difficulty, coin name, halving interval and block time stay as set; a workbench mission in progress starts its steps again.' },
   'menu.start': { title: 'Starting point', text: 'Answer the first question again: start with the Basics course, skip its fingerprint scenes, or just play with the simulator. Completed missions stay completed.' },
+  'menu.tour': { title: 'Tour of the simulator', text: 'A short walk over the workbench in five stops: the chain, the selected block, the next block, the mempool and the wallets. Nothing is changed or paused.' },
   'menu.settings': { title: 'Settings', text: 'Coin name, mining difficulty, halving interval and target block time.' },
   'menu.sound': muted => ({ title: 'Sound', text: muted ? 'Sound is off. Turn it on to hear a short chime whenever a block is found.' : 'Plays a short chime whenever a block is found. Click to mute it.' }),
   'menu.theme': next => ({ title: next === 'light' ? 'Light theme' : 'Dark theme', text: `Switch to ${next === 'light' ? 'light' : 'dark'} colors. Nothing else changes.` }),

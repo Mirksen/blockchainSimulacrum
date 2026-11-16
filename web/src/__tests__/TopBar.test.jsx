@@ -134,6 +134,27 @@ describe('overflow menu', () => {
     expect(document.activeElement).toBe(more());
   });
 
+  it('starts the workbench tour from Tour of the simulator, closing the menu and returning focus', () => {
+    const onOpenTour = vi.fn();
+    const { onOpenStart } = renderBar({ onOpenTour });
+    fireEvent.click(more());
+    const item = screen.getByRole('button', { name: 'Tour of the simulator' });
+    expect(item.getAttribute('data-hint-title')).toBe('Tour of the simulator');
+    expect(item.getAttribute('data-hint')).toContain('five stops');
+    fireEvent.click(item);
+    expect(onOpenTour).toHaveBeenCalledTimes(1);
+    expect(onOpenStart).not.toHaveBeenCalled();
+    expect(screen.queryByRole('group', { name: 'More' })).toBeNull();
+    expect(document.activeElement).toBe(more());
+  });
+
+  it('reaches Tour of the simulator with the arrow keys right after Starting point', () => {
+    renderBar();
+    fireEvent.click(more());
+    for (let step = 0; step < 3; step++) fireEvent.keyDown(document.activeElement, { key: 'ArrowDown' });
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Tour of the simulator' }));
+  });
+
   it('reaches Starting point with the arrow keys after Settings', () => {
     renderBar();
     fireEvent.click(more());

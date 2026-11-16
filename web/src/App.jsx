@@ -7,6 +7,7 @@ import { ownRow, recordOf } from './lib/records';
 import { telemetry } from './lib/telemetry';
 import * as missions from './lib/missions';
 import * as startChoice from './lib/startChoice';
+import * as tour from './lib/tour';
 import { evidenceOf } from './lib/missionEvidence';
 import { TopBar } from './components/workbench/TopBar';
 import { LeaderboardTicker } from './components/workbench/LeaderboardTicker';
@@ -15,6 +16,7 @@ import { RecordCelebration } from './components/workbench/RecordCelebration';
 import { SettingsDialog } from './components/workbench/SettingsDialog';
 import { LowerDifficultyDialog } from './components/workbench/LowerDifficultyDialog';
 import { Workbench } from './components/workbench/Workbench';
+import { WorkbenchTour } from './components/workbench/WorkbenchTour';
 import { MissionRail } from './components/workbench/MissionRail';
 import { StartChoice } from './components/StartChoice';
 import { minerProfileHash, POOL_HASH } from './lib/poolApi';
@@ -70,6 +72,9 @@ const subscribePhone = notify => {
 };
 const isPhone = () => Boolean(globalThis.matchMedia?.(PHONE).matches);
 
+// What a mission step's coach mark (or the end of the tour) focuses inside its element.
+const STEP_CONTROL = 'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), a[href]';
+
 // Lab missions run the existing lessons of the hash and chain labs.
 const HASH_LESSONS = { 'earn-proof-of-work': 'work' };
 
@@ -113,6 +118,10 @@ function App() {
   const [railCollapsed, setRailCollapsed] = useState(() => readFlag(RAIL_KEY, true));
   const [proofSource, setProofSource] = useState(null);
   const [chainExperiment, setChainExperiment] = useState(() => missions.experimentOf(missions.activeMission(progress)?.id));
+  const [tourSeen, setTourSeen] = useState(() => tour.seen(browserStorage()));
+  // 0 while the tour is closed, else the number of its current run.
+  const [tourRun, setTourRun] = useState(0);
+  const [tourView, setTourView] = useState(view);
   const compact = useSyncExternalStore(subscribePhone, isPhone, () => false);
   const { session, snapshot } = useWorkbenchSession(INITIAL_CONFIG, { storage: browserStorage() });
   const { actions } = session;
@@ -145,6 +154,16 @@ function App() {
   const coach = railCollapsed ? null : coachOf(progress);
   const activeMission = missions.activeMission(progress);
   const tone = startChoice.toneOf(choice);
+  // The arrival tour opens by itself once, for a guided learner on the workbench with the
+  // missions open and no dialog in the way; the menu starts it any time. It belongs to the
+  // workbench: leaving the view ends it. Each run has its own number, so the menu restarts it.
+  const dialogOpen = showSettings || lowerTo !== null || details !== null || Boolean(pendingTx) || Boolean(blockTx) || Boolean(walletDetails);
+  if (tourView !== view) {
+    setTourView(view);
+    if (tourRun && view !== 'workbench') { setTourRun(0); setTourSeen(true); }
+  }
+  if (!tourRun && !tourSeen && view === 'workbench' && !railCollapsed && ['new', 'hash'].includes(choice) && !dialogOpen) setTourRun(1);
+  const touring = tourRun > 0 && view === 'workbench';
 
   useEffect(() => { document.documentElement.setAttribute('data-theme', theme); }, [theme]);
   useEffect(() => { actions.setSigner(identity.signer); }, [identity.signer, actions]);
@@ -161,6 +180,7 @@ function App() {
     };
   }, []);
   useEffect(() => { missions.save(browserStorage(), progress); }, [progress]);
+  useEffect(() => { if (tourSeen) tour.markSeen(browserStorage()); }, [tourSeen]);
   useEffect(() => {
     if (!winner) return;
     const timer = setTimeout(() => setWinner(null), 2400);
@@ -215,9 +235,28 @@ function App() {
     if (active.view === 'chain-lab') { setProofSource(null); setChainExperiment(missions.experimentOf(active.mission.id)); }
     navigate(active.view);
     requestAnimationFrame(() => {
+      // An arrival tour that just opened keeps the focus; its end leads to this step.
+      if (document.querySelector('[data-tour-stop]')) return;
       const element = document.querySelector(`[data-coach-target="${active.target}"]`);
       element?.scrollIntoView({ block: 'center', behavior: 'smooth' });
       element?.querySelector('button, input, select, textarea, a[href]')?.focus({ preventScroll: true });
+    });
+  };
+  const openTour = () => {
+    navigate('workbench');
+    setTourRun(run => run + 1);
+  };
+  // Done, Skip tour or Escape: seen for good, and focus goes where the active step needs the
+  // learner, or to the workbench.
+  const endTour = reason => {
+    setTourRun(0);
+    setTourSeen(true);
+    if (reason === 'empty') return;
+    const target = coach?.view === 'workbench' ? coach.target : null;
+    requestAnimationFrame(() => {
+      const control = target ? document.querySelector(`[data-coach-target="${target}"]`)?.querySelector(STEP_CONTROL) : null;
+      control?.focus();
+      if (!control || document.activeElement !== control) document.getElementById('workbench')?.focus();
     });
   };
   const expandRail = () => {
@@ -297,9 +336,10 @@ function App() {
       <HintLayer />
       <TopBar view={view} onNavigate={navigate} coinName={coinName} theme={theme} onTheme={changeTheme}
         muted={muted} onMuted={changeMuted} onReset={() => actions.reset()} onOpenSettings={() => setShowSettings(true)}
-        onOpenStart={() => navigate('start')} compact={compact} saveState={saveState} />
+        onOpenStart={() => navigate('start')} onOpenTour={openTour} compact={compact} saveState={saveState} />
       <UsageConsent />
       {!QUIET_VIEWS.includes(view) && <LeaderboardTicker onOpenPool={() => navigate('pool')} onBoard={onBoard} refreshKey={boardKey} ownName={identity.signingName} />}
+      {touring && <WorkbenchTour key={tourRun} tone={tone} onEnd={endTour} />}
       <div className="wb-shell">
         <div className="wb-rail">
           <MissionRail progress={progress} tone={tone} collapsed={railCollapsed} onToggle={toggleRail} onShowMe={showMe} />
@@ -308,7 +348,8 @@ function App() {
           <div className="wb-mbar"><MissionRail progress={progress} tone={tone} variant="bar" collapsed={railCollapsed}
             onToggle={toggleRail} onShowMe={showMe} /></div>
           {view === 'start' && <div className="wb-view"><StartChoice current={choice} onChoose={chooseStart} /></div>}
-          {view === 'workbench' && <Workbench session={session} coinName={coinName} identity={identity} boardRows={boardRows} coach={coach}
+          {view === 'workbench' && <Workbench session={session} coinName={coinName} identity={identity} boardRows={boardRows}
+            coach={touring ? null : coach}
             onOpen={open} onNavigate={navigate} />}
           <Suspense fallback={<p role="status">Loading {VIEW_LABELS[view]}…</p>}>
           {view === 'basics' && <div className="wb-view">

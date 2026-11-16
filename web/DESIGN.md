@@ -74,6 +74,9 @@ for fun: nothing is at stake", not "Back this miner".
 
 - The texts live in `src/lib/hints/` (one catalog per area); components take
   them with `hint(key)` for controls and `term(key)` for words and labels.
+  A view that loads on demand ships its catalog with it (the labs, the
+  leaderboard page, the Basics course) and takes `hint` and `term` from that
+  catalog; the first page carries only its own.
   `term()` adds a quiet dotted underline, so a learner sees what explains
   itself. An unknown key throws.
 - One bubble (`HintLayer`, mounted once in `App.jsx`) shows them, in the top
@@ -92,7 +95,8 @@ for fun: nothing is at stake", not "Back this miner".
 ## Information architecture
 
 - **Top bar:** brand, navigation **Basics · Workbench · Hash lab · Chain lab ·
-  Leaderboard**, and an overflow menu (Starting point, Reset, Settings, sound,
+  Leaderboard**, and an overflow menu (Starting point, Tour of the simulator,
+  Reset, Settings, sound,
   theme, usage sharing) whose last line names the coin "powfyicoin · virtual";
   the leaderboard ticker runs directly below it, except on the start question
   and in Basics, where nothing competes with the one idea on screen. The chain
@@ -536,6 +540,25 @@ action.
   they know hashes; a scene about pages and seals never opens with "each
   block commits to the hash of its predecessor" for someone who just came
   to look.
+
+### Arrival tour
+
+The first time a guided learner reaches the workbench, five stops name its
+regions once in the words of the course (Mirko, 2026-11-16): the chain is the
+notebook, the block card one page opened, the next-block card the draw, the
+mempool the waiting room, the wallets who owns what. A learner who said they
+know hashes gets the same stops in the product's terms.
+
+- The tour explains and gets out of the way. It hides and disables nothing:
+  "Everything at once" holds, and every control works while it runs.
+- One stop at a time: a ring around the region and a small card with one
+  filled action (Next, on the last stop Done) and a quiet Skip tour. Below
+  768 px the card docks to the bottom edge.
+- It opens by itself once, only with the missions open and no dialog in the
+  way; Done, Skip, Escape or leaving the workbench end it for good. The menu
+  item Tour of the simulator starts it again for anyone.
+- Two pointers never compete: the mission's coach mark waits until the tour
+  has ended, then takes the focus.
 
 ### Text hashing before block headers
 

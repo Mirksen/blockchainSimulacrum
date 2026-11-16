@@ -6,7 +6,7 @@ import './TopBar.css';
 
 // Top bar of the rebuilt shell (web/DESIGN.md, "Information architecture"):
 // brand, the Basics course and the four views, and the overflow menu (Starting point reopens
-// the first-visit question; its last lines name the virtual coin and whether this browser
+// the first-visit question, Tour of the simulator starts the workbench tour; its last lines name the virtual coin and whether this browser
 // keeps the chain: `saveState` of the workbench session).
 // The chain status lives once, on the chain itself.
 // Presentational: the parent owns the view (and the URL hash), theme, sound and
@@ -39,6 +39,7 @@ const Icon = {
   menu: <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 4h11M2.5 8h11M2.5 12h11" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg>,
   reset: <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8a5 5 0 1 0 1.5-3.6M3 2.5v2.5h2.5" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" /></svg>,
   start: <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.5v13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /><path d="M8 3h4.5l1.5 1.75-1.5 1.75H8zM8 8H3.5L2 9.75 3.5 11.5H8z" stroke="currentColor" strokeWidth="1.3" fill="none" strokeLinejoin="round" /></svg>,
+  tour: <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.3" stroke="currentColor" strokeWidth="1.4" fill="none" /><path d="M10.6 5.4 9 9 5.4 10.6 7 7z" fill="currentColor" /></svg>,
   settings: <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 4.5h7M12.5 4.5h1M2.5 11.5h1M6.5 11.5h7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /><circle cx="11" cy="4.5" r="1.6" stroke="currentColor" strokeWidth="1.4" fill="none" /><circle cx="5" cy="11.5" r="1.6" stroke="currentColor" strokeWidth="1.4" fill="none" /></svg>,
   soundOn: <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 6v4h2.5l3.5 3V3L5 6z" fill="currentColor" /><path d="M10.8 5.5a3.5 3.5 0 0 1 0 5M12.6 3.8a6 6 0 0 1 0 8.4" stroke="currentColor" strokeWidth="1.4" fill="none" strokeLinecap="round" /></svg>,
   soundOff: <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 6v4h2.5l3.5 3V3L5 6z" fill="currentColor" /><path d="M10.5 6l3.5 4M14 6l-3.5 4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" /></svg>,
@@ -68,7 +69,7 @@ function NavLinks({ view, onSelect, className }) {
 
 export function TopBar({
   view = 'workbench', onNavigate, coinName = 'powfyicoin', saveState = null,
-  theme = 'dark', onTheme, muted = false, onMuted, onReset, onOpenSettings, onOpenStart, compact = false,
+  theme = 'dark', onTheme, muted = false, onMuted, onReset, onOpenSettings, onOpenStart, onOpenTour, compact = false,
 }) {
   const [open, setOpen] = useState(false);
   const explaining = useHelpMode();
@@ -155,6 +156,9 @@ export function TopBar({
               </button>
               <button type="button" className="top-bar-item" {...hint('menu.start')} onClick={() => { close(); onOpenStart?.(); }}>
                 {Icon.start}<span>Starting point</span>
+              </button>
+              <button type="button" className="top-bar-item" {...hint('menu.tour')} onClick={() => { close(); onOpenTour?.(); }}>
+                {Icon.tour}<span>Tour of the simulator</span>
               </button>
               <button type="button" className="top-bar-item" aria-pressed={!muted} {...hint('menu.sound', muted)} onClick={() => onMuted?.(!muted)}>
                 {muted ? Icon.soundOff : Icon.soundOn}<span>Sound</span>
