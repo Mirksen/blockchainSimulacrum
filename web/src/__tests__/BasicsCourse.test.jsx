@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { BasicsCourse } from '../components/basics/BasicsCourse';
-import { MISSIONS, initialProgress, missionStatus, reduce } from '../lib/missions';
+import { MISSIONS, initialProgress, missionStatus, reduce, textOf } from '../lib/missions';
 
 const digest = text => createHash('sha256').update(text).digest('hex');
 const BASICS = MISSIONS.filter(mission => mission.view === 'basics').map(mission => mission.id);
@@ -90,7 +90,7 @@ describe('BasicsCourse host', () => {
   it('walks Continue from scene to scene, then the Bridge, then leaves with onContinue', () => {
     const onContinue = vi.fn();
     renderCourse({ progress: allBasicsDone(), onContinue });
-    const titles = MISSIONS.filter(mission => mission.view === 'basics').map(mission => mission.title);
+    const titles = MISSIONS.filter(mission => mission.view === 'basics').map(mission => textOf(mission.title, 'plain'));
     for (const title of titles) {
       expect(heading()).toBe(title);
       expect(screen.getByRole('heading', { name: 'What you learned' })).toBeTruthy();

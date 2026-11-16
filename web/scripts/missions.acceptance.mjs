@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { join } from 'node:path';
 import { asReturningVisitor, menu, openTab, progressBefore, settle, workbench } from './workbench.helpers.mjs';
-import { MISSIONS, earnedBadges, totalXp } from '../src/lib/missions.js';
+import { MISSIONS, earnedBadges, textOf, totalXp } from '../src/lib/missions.js';
 
 // The mission track with the rail open, from the guided start on the first Basics scene (the
 // caller opened the missions with fresh progress): the six scenes with their coach marks and
@@ -262,7 +262,7 @@ export async function verifyMissionReload(browser, baseURL, output) {
         assert.deepEqual(await readProgress(), progressBefore(id), `${id} clears discarded runtime prerequisites`);
         if (width < 1024) await page.getByRole('button', { name: /steps\. Open missions$/ }).click();
         const tasks = width < 1024 ? page.getByRole('dialog', { name: 'Missions' }) : page.getByRole('complementary', { name: 'Missions' });
-        assert.ok((await tasks.locator('.mission-rail-step.is-current').innerText()).includes(MISSIONS[completed.length].steps[0].text));
+        assert.ok((await tasks.locator('.mission-rail-step.is-current').innerText()).includes(textOf(MISSIONS[completed.length].steps[0].text, 'technical')));
         const rewards = await tasks.locator('.mission-rail-xp').innerText();
         assert.ok(rewards.includes(`${totalXp(stored)} XP`));
         const badges = earnedBadges(stored).length;

@@ -3,8 +3,15 @@ import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { HintLayer } from '../components/HintLayer';
 import { HINTS, hint, term } from '../lib/hints';
-import { BASICS_HINTS } from '../lib/hints/basics';
+import { BASICS_HINTS, hint as basicsHint } from '../lib/hints/basics';
 import { setHelpMode } from '../lib/hints/helpMode';
+import { DETAILS_HINTS } from '../lib/hints/details';
+import { LAB_HINTS, hint as labHint } from '../lib/hints/labs';
+import { POOL_HINTS, hint as poolHint } from '../lib/hints/pool';
+import { WORKBENCH_HINTS } from '../lib/hints/workbench';
+
+// Every catalog: the first page's (HINTS) and those that ship with a lazily loaded view.
+const CATALOGS = { WORKBENCH_HINTS, DETAILS_HINTS, BASICS_HINTS, LAB_HINTS, POOL_HINTS };
 
 beforeEach(() => vi.useFakeTimers());
 afterEach(() => { vi.useRealTimers(); cleanup(); });
@@ -101,14 +108,26 @@ describe('hints catalog', () => {
     expect(screen.queryByRole('tooltip')).toBeNull();
   });
   it('throws on an unknown key, so a typo fails its component test', () => {
-    expect(() => hint('no.such-hint')).toThrow(/Unknown hint/);
+    for (const lookup of [hint, basicsHint, labHint, poolHint]) expect(() => lookup('no.such-hint')).toThrow(/Unknown hint/);
+    // A lazily loaded catalog knows only its own keys.
+    expect(() => labHint('next.mine')).toThrow(/Unknown hint/);
+    expect(() => poolHint('details.close')).toThrow(/Unknown hint/);
+    expect(() => hint('pool.join')).toThrow(/Unknown hint/);
+  });
+
+  it('keeps every key in exactly one catalog', () => {
+    const keys = Object.values(CATALOGS).flatMap(catalog => Object.keys(catalog));
+    expect(new Set(keys).size).toBe(keys.length);
+    expect(Object.keys(HINTS).sort()).toEqual([...Object.keys(WORKBENCH_HINTS), ...Object.keys(DETAILS_HINTS)].sort());
   });
 
   it('every static entry has a text of at most 320 characters', () => {
-    for (const [key, entry] of Object.entries({ ...HINTS, ...BASICS_HINTS })) {
-      if (typeof entry === 'function') continue;
-      expect(entry.text, key).toBeTruthy();
-      expect(entry.text.length, key).toBeLessThanOrEqual(320);
+    for (const [name, catalog] of Object.entries(CATALOGS)) {
+      for (const [key, entry] of Object.entries(catalog)) {
+        if (typeof entry === 'function') continue;
+        expect(entry.text, `${name} ${key}`).toBeTruthy();
+        expect(entry.text.length, `${name} ${key}`).toBeLessThanOrEqual(320);
+      }
     }
   });
 });

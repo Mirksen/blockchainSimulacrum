@@ -144,6 +144,9 @@ Terms used in code, tests and docs of proofofwork.fyi. Decisions that shape them
   to start?": `new` (hashes are new), `hash` (knows hashes) or `play`. It decides which Basics scenes
   count as skipped (`skipsOf`) and the **tone** of mission texts (`toneOf`: `plain` or `technical`).
   Kept in `localStorage` (`proofofwork-start`); it is a preference, not progress.
+- **Arrival tour** — `web/src/lib/tour.js` and `components/workbench/WorkbenchTour.jsx`: five stops over
+  the workbench regions marked `data-tour`, shown once to a guided learner (`proofofwork-tour-seen`).
+  It reads the same **tone** as the mission texts.
 - **Basics course** — the six scenes before the simulator (`web/src/components/basics/`), each a
   mission of the chapter `basics` shown in the Basics view. A scene builds its own evidence and
   reports it like a lab. Its words are everyday pictures, handed over to the simulator's terms once,

@@ -5,7 +5,7 @@ import { CoachMark } from './workbench/CoachMark';
 import { ForkExperiment } from './ForkExperiment';
 import { HeaderBytes } from './HeaderBytes';
 import { MerkleProof } from './MerkleProof';
-import { hint, term } from '../lib/hints';
+import { hint, term } from '../lib/hints/labs';
 import { experimentOf } from '../lib/missions';
 import './ChainLab.css';
 

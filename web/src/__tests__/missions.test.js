@@ -129,9 +129,101 @@ describe('mission track', () => {
     const copy = MISSIONS.flatMap(mission => [mission.title, mission.hint, mission.result, ...mission.steps.map(step => step.text)])
       .flatMap(variants).join(' ');
     expect(copy).not.toMatch(/real money(?! moves)|bitcoin|\$|earn money/i);
-    expect(byId('change-the-past').result).toContain('This toy chain shows links and work, not signatures or network consensus.');
-    expect(byId('forge-a-block').result).toMatch(/redid the work.*real network.*no network/);
-    expect(byId('send-first-coin').result).toContain('powfyicoin is virtual');
+    expect(textOf(byId('change-the-past').result, 'technical')).toContain('This toy chain shows links and work, not signatures or network consensus.');
+    expect(textOf(byId('change-the-past').result, 'plain')).toContain('This toy chain shows links and work, not signatures or a network.');
+    expect(textOf(byId('forge-a-block').result, 'technical')).toMatch(/redid the work.*real network.*no network/);
+    for (const tone of ['plain', 'technical']) {
+      expect(textOf(byId('send-first-coin').result, tone)).toContain('powfyicoin is virtual');
+    }
+  });
+
+  // The plain words of the missions after the Basics course, in the course's pictures.
+  // Fields not listed here stay one string for both tones.
+  const LATER_PLAIN = {
+    'earn-proof-of-work': {
+      steps: {
+        'one-zero': 'Let the computer roll for you: find a lucky number (nonce) for one leading zero.',
+        'two-zeros': 'Ask for two zeros and roll again.'
+      },
+      hint: 'Both searches use the same message and start at lucky number 0, so only the difficulty differs.',
+      result: 'The computer did in a blink what took you many rolls by hand. One more zero made a hit about 16 times rarer: that is how difficulty is set.'
+    },
+    'change-the-past': {
+      steps: {
+        'edit-block': 'Change the data of Block 1 (a block is a page).',
+        'repair-chain': 'Keep the change, then re-mine Blocks 1, 2 and 3 in order: each needs a new lucky number.'
+      },
+      hint: 'This is Sealed pages with real blocks: re-mining a block changes its hash (its seal), so the next block’s link breaks until you re-mine that one too.',
+      result: 'The same lesson as Sealed pages, now with real block headers: a change breaks the chain, and the repair has to be paid block by block. This toy chain shows links and work, not signatures or a network.'
+    },
+    'send-first-coin': {
+      steps: { 'new-transaction': 'Send coins from one wallet to another with New transaction. If nobody has coins yet, press Start demo first.' },
+      hint: 'A wallet holds coins. The form shows which coins the payment spends; what it does not use comes back as change, and a small fee goes to the miner (the writer of the page).',
+      result: 'Your payment now waits in the mempool, the waiting room for the next block. It becomes part of the chain when a miner wins the draw for that block. powfyicoin is virtual: no real money moves.'
+    },
+    'win-mining-race': {
+      steps: {
+        'back-miner': 'Pick a miner to cheer for with Back.',
+        'watch-race': 'Press Mine and watch one full draw.',
+        'win-block': 'Keep mining until your miner wins a block.'
+      },
+      hint: 'This is the draw from the course, with real blocks. A stronger miner rolls more often, but every roll is a fresh chance.',
+      result: 'Your miner hit first and wrote the block. More hash power means more rolls per second, not a sure win. All miners run in your browser; there is no network.'
+    },
+    'forge-a-block': {
+      steps: { tamper: 'Open a mined block and lower the reward its miner received (the coinbase), in a block whose coin nobody has spent.' },
+      hint: 'Like Sealed pages, in the real simulator. A signed payment cannot be forged, a spent coin drags its spender down with it, and a miner may never claim more than reward plus fees. Undo starts over.'
+    },
+    'survive-halving': {
+      hint: 'Every block creates new coins as the miner’s reward. After a fixed number of blocks that reward halves, so new coins become scarcer. A shorter halving interval in Settings gets you there sooner.',
+      result: 'The reward halved. A block still costs the same work but creates fewer new coins. That is why the total number of coins has a limit.'
+    },
+    'beat-difficulty-adjustment': {
+      steps: { 'change-pace': 'Mine 10 blocks clearly faster or slower than the target block time.' },
+      hint: 'The chain wants a steady pace. If blocks come too fast, it asks for one more zero; too slow, one less. Lower difficulty mines faster. The target block time is in Settings.',
+      result: 'The chain changed its own difficulty to get back to its pace. Nobody decided that: the rule is part of the chain. Real networks adjust the same way, over many more blocks.'
+    },
+    'follow-stronger-chain': {
+      hint: 'Two versions of the notebook compete, and everyone follows the one with more work in it. Give the alternative branch more hash power; equal work keeps the current branch.'
+    },
+    'get-payment-in': {
+      hint: 'A block has limited room, so miners take the payments that pay the most per byte. Send a low-fee payment to a new wallet, add high-fee transfers until it waits, then spend it from that wallet at 20 sat/B: the new payment pulls the waiting one along.'
+    },
+    'prove-a-payment': {
+      hint: 'A block’s fingerprint covers all its payments through a small tree of hashes, so a few of them prove one payment. Choose a transaction, then change one hex character (0–9 or a–f) in a sibling, keeping all 64 characters. Reset example starts over.'
+    },
+    'test-a-signature': {
+      hint: 'Work protects the order of the pages; a signature protects each payment. Use the newest block and a transfer, not the coinbase. Re-mining repairs the hash, but only the sender’s key can sign the changed payment. Undo starts over.'
+    }
+  };
+
+  it('gives every mission after the Basics course its texts in both tones', () => {
+    const later = MISSIONS.filter(mission => mission.chapter !== 'basics');
+    expect(later.map(mission => mission.id)).toEqual(Object.keys(LATER_PLAIN));
+    for (const mission of later) {
+      const plain = LATER_PLAIN[mission.id];
+      const fields = [
+        ['title', mission.title, undefined],
+        ['hint', mission.hint, plain.hint],
+        ['result', mission.result, plain.result],
+        ...mission.steps.map(step => [`step ${step.id}`, step.text, plain.steps?.[step.id]])
+      ];
+      for (const [field, value, expected] of fields) {
+        const label = `${mission.id} ${field}`;
+        for (const tone of ['plain', 'technical']) {
+          expect(typeof textOf(value, tone), `${label} ${tone}`).toBe('string');
+          expect(textOf(value, tone), `${label} ${tone}`).toMatch(/\S/);
+        }
+        if (expected === undefined) {
+          expect(typeof value, `${label} stays one string`).toBe('string');
+        } else {
+          expect(textOf(value, 'plain'), label).toBe(expected);
+          expect(textOf(value, 'technical'), label).not.toBe(expected);
+          expect(textOf(value), label).toBe(textOf(value, 'technical'));
+        }
+      }
+      for (const id of Object.keys(plain.steps ?? {})) expect(mission.steps.map(step => step.id), mission.id).toContain(id);
+    }
   });
 
   it('starts at mission 1 and unlocks untouched missions only in order', () => {

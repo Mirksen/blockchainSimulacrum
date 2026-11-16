@@ -3,7 +3,7 @@ import { TextHashLab } from './TextHashLab';
 import { changedPositions, createTrial, findNonce, INITIAL_MESSAGE, meetsTarget, parseNonce, SEARCH_LIMIT } from '../lib/hashLab';
 import { CoachMark } from './workbench/CoachMark';
 import { HeaderBytes } from './HeaderBytes';
-import { hint, term } from '../lib/hints';
+import { hint, term } from '../lib/hints/labs';
 import './HashLab.css';
 
 const initialState = ({ difficulty = 2, comparison = null } = {}) => ({ message: INITIAL_MESSAGE, nonce: '0', difficulty,

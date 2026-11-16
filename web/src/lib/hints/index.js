@@ -1,6 +1,5 @@
 import { WORKBENCH_HINTS } from './workbench';
-import { LAB_HINTS } from './labs';
-import { POOL_HINTS } from './pool';
+import { DETAILS_HINTS } from './details';
 
 // The explaining texts behind every hover and focus bubble (components/HintLayer.jsx).
 // Written for someone who has never mined a block (web/DESIGN.md, "Hints"): say what the
@@ -11,10 +10,11 @@ import { POOL_HINTS } from './pool';
 // `term(key, ...args)` returns them for a word or label and adds the dotted underline
 // that tells a learner "hover me". An unknown key throws, so a typo fails its test.
 //
-// A view that loads on demand may keep its catalog in its own chunk: it takes its
-// `hint` and `term` from `createHints(catalog)` (the Basics course, ./basics.js).
+// A view that loads on demand keeps its catalog in its own chunk: it takes its `hint` and
+// `term` from `createHints(catalog)` (the Basics course ./basics.js, the labs ./labs.js,
+// the leaderboard page ./pool.js). HINTS holds only the catalogs of the first page.
 
-export const HINTS = { ...WORKBENCH_HINTS, ...LAB_HINTS, ...POOL_HINTS };
+export const HINTS = { ...WORKBENCH_HINTS, ...DETAILS_HINTS };
 
 /** `hint` and `term` over one catalog of entries. */
 export function createHints(catalog) {

@@ -1,0 +1,32 @@
+/* The arrival tour (WorkbenchTour.jsx): a ring in the coach colors around one region and a
+   small card beside it. Neither blocks the page: the ring lets every pointer through and the
+   card is non-modal. Above the cards, toasts (40) and the usage notice (50), below the top bar
+   menu (60) and dialogs. */
+.workbench-tour-ring {
+  position: fixed; z-index: 45; box-sizing: border-box; pointer-events: none;
+  border-radius: var(--r-lg);
+  box-shadow: 0 0 0 2px var(--coach), 0 0 0 6px var(--coach-ring), 0 0 18px var(--coach-glow);
+}
+.workbench-tour {
+  position: fixed; z-index: 55; top: var(--s-2); left: var(--s-2); box-sizing: border-box;
+  width: min(320px, calc(100vw - 2 * var(--s-2))); max-height: calc(100dvh - 2 * var(--s-2)); overflow-y: auto;
+  display: grid; gap: var(--s-2); padding: var(--s-3) var(--s-4);
+  border: 1px solid var(--coach); border-radius: var(--r-lg); background: var(--overlay); color: var(--text-2);
+  box-shadow: 0 18px 40px -10px var(--shadow);
+  font: 13px/19px var(--ui); text-align: left;
+}
+.workbench-tour:focus { outline: none; }
+.workbench-tour:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+/* Phone: docked to the bottom edge instead of floating beside the region. */
+.workbench-tour.is-docked {
+  top: auto; left: var(--s-2); right: var(--s-2); bottom: max(var(--s-2), env(safe-area-inset-bottom));
+  width: auto; max-height: 50dvh;
+}
+.workbench-tour-count { margin: 0; color: var(--text-3); font-size: 12px; font-variant-numeric: tabular-nums; }
+.workbench-tour-title { margin: 0; color: var(--text); font-size: 14px; font-weight: 600; line-height: 1.4; }
+.workbench-tour-text { margin: 0; }
+.workbench-tour-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--s-2); margin-top: var(--s-1); }
+@media (prefers-reduced-motion: no-preference) {
+  .workbench-tour, .workbench-tour-ring { animation: workbench-tour-in 160ms ease-out; }
+}
+@keyframes workbench-tour-in { from { opacity: 0; } to { opacity: 1; } }

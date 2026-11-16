@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ROUND_WINDOW } from '../../../shared/pool-proof.mjs';
 import { getRounds, minerProfileHash } from '../lib/poolApi';
-import { hint, term } from '../lib/hints';
+import { hint, term } from '../lib/hints/pool';
 
 export function RoundHistory({ refreshKey = 0 }) {
   const [loaded, setLoaded] = useState({ state: 'loading', rounds: [] });

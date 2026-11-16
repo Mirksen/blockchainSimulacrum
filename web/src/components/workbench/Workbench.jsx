@@ -231,7 +231,7 @@ export function Workbench({ session, coinName, identity, boardRows, coach, onOpe
     <>
     {error && <div role="alert" className="wb-error">{error}</div>}
     <KeyFigureBar keyFigures={keyFigures} height={height} />
-    <div className={`wb-band${showList ? ' is-list' : ''}`}>
+    <div className={`wb-band${showList ? ' is-list' : ''}`} data-tour="chain">
       {showList ? (
         <ChainTimeline views={fresh ? views.slice(0, 1) : views} candidate={candidate} selectedIndex={selected} pinned={pinned} onSelect={onSelect}
           onOpenChainLab={openChainLab} keyFigures={keyFigures} foundHash={blockMoment?.hash} healthOpen={healthOpen} onToggleHealth={onToggleHealth}
@@ -244,7 +244,7 @@ export function Workbench({ session, coinName, identity, boardRows, coach, onOpe
       )}
     </div>
     <div className="wb-grid">
-      <div className="wb-selected">
+      <div className="wb-selected" data-tour="block">
         <SelectedBlockCard block={selectedBlock} status={blockStatus[selected]} prevHash={blocks[selected - 1]?.hash ?? null}
           edit={edits.length ? edits : null} onOpenDetails={index => onOpen?.({ kind: 'block', index })} onOpenChainLab={openChainLab}
           onTamper={actions.tamper} onUndo={actions.undo} coach={workbenchCoach}>
@@ -253,7 +253,7 @@ export function Workbench({ session, coinName, identity, boardRows, coach, onOpe
             onOpenDetails={view => onOpen?.({ kind: 'transaction', view, blockIndex: selected })} />
         </SelectedBlockCard>
       </div>
-      <div className="wb-next">
+      <div className="wb-next" data-tour="next">
         <NextBlockCard mode={mode} index={repairIndex ?? nextIndex} txCount={nextCardCount}
           reward={nextBlock.subsidy / 1e8} difficulty={difficulty} onDifficulty={actions.setDifficulty} loweringStartsNewChain={loweringStartsNewChain} autoMine={settings.autoMine} onAutoMine={actions.setAutoMine} repeating={repeating}
           onStartDemo={actions.startDemo} onMine={actions.mine} onPause={actions.pause} onRemine={actions.remine}
@@ -262,10 +262,10 @@ export function Workbench({ session, coinName, identity, boardRows, coach, onOpe
           onCreateMiner={actions.createMiner} onRenameMiner={actions.renameMiner} onShare={actions.setMinerShare} onOpenMiner={openMiner} perMiner={progress.perMiner} slowMotion={busy && settings.slowMotion} onSlowMotion={actions.setSlowMotion} minersFull={!canAddMiner}
           signature={<MinerName identity={identity} rows={boardRows} locked={busy} />} />
       </div>
-      <div className="wb-wallets">
+      <div className="wb-wallets" data-tour="wallets">
         <WalletsCard wallets={wallets} coinName={coinName} onOpenWallet={name => onOpen?.({ kind: 'wallet', name })} onCreateWallet={actions.createWallet} />
       </div>
-      <div className="wb-mempool">
+      <div className="wb-mempool" data-tour="mempool">
         <MempoolCard transactions={pending} space={space} nextIndex={nextIndex} mining={minesNew} remining={remining} participants={participants.map(p => p.name)}
           coinName={coinName} reward={nextBlock.subsidy / 1e8 + pendingFees} onCreateTransaction={actions.createTransaction}
           onPreviewTransaction={previewTransaction} onOpenTransaction={tx => onOpen?.({ kind: 'transaction', tx, blockIndex: null })}

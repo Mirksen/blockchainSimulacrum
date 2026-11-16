@@ -1,8 +1,10 @@
 import { BLOCK_WORK, ROUND_LIMIT } from '../forkLab';
 import { SEARCH_LIMIT } from '../hashLab';
+import { createHints } from './index';
 
-// Hints for the Hash lab and the Chain lab (HashLab, ChainLab, ForkExperiment, MerkleProof).
-// Format and tone: see ./index.js.
+// Hints for the Hash lab and the Chain lab (HashLab, TextHashLab, ChainLab, ForkExperiment,
+// MerkleProof). Format and tone: see ./index.js. The catalog ships with the labs, not with
+// the first page: the labs take `hint` and `term` from here.
 
 const LIMIT = SEARCH_LIMIT.toLocaleString('en-US');
 const zerosText = n => (n === 1 ? 'one zero' : `${['', 'one', 'two', 'three'][n] ?? n} zeros`);
@@ -123,3 +125,5 @@ export const LAB_HINTS = {
   'lab.merkle.sibling': side => ({ title: 'Sibling hash', text: `The neighbor hash at this tree level, part of the proof. It sits on the ${side === 'left' ? 'left, so it goes before' : 'right, so it goes after'} the current hash when the two are hashed together. Edit it to see the proof fail above.` }),
   'lab.merkle.computed': { title: 'Computed root', text: 'The root calculated from the payment and the proof path. The payment is proven only if it equals the header’s Merkle root.' }
 };
+
+export const { hint, term } = createHints(LAB_HINTS);

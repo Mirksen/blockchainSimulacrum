@@ -1,7 +1,7 @@
 import { useEffect, useId, useState } from 'react';
 import { BLOCK_SIZES, LISTED_LIMIT, sampleBlock, txidOf, verifyProof } from '../lib/merkleLab';
 import { HeaderBytes } from './HeaderBytes';
-import { hint, term } from '../lib/hints';
+import { hint, term } from '../lib/hints/labs';
 import { CoachMark } from './workbench/CoachMark';
 import { merkleEvidence } from '../lib/missionEvidence';
 import './MerkleProof.css';
