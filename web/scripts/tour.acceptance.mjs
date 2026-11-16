@@ -55,7 +55,15 @@ export async function verifyTour(browser, baseURL, output) {
     await dialog.waitFor();
     assert.equal(await dialog.locator('.workbench-tour-count').innerText(), `Stop ${number} of 5`, `${label}: count`);
     assert.equal(await dialog.getAttribute('aria-modal'), 'false', `${label}: non-modal`);
-    if (focused) assert.equal(await dialog.evaluate(node => document.activeElement === node), true, `${label}: focus on the card`);
+    // Focus follows the stop within a frame; wait for it instead of reading it in the same tick.
+    if (focused) {
+      await dialog.evaluate(node => new Promise((resolve, reject) => {
+        const started = performance.now();
+        const check = () => (document.activeElement === node ? resolve()
+          : performance.now() - started > 3000 ? reject(new Error('focus never reached the tour card')) : requestAnimationFrame(check));
+        check();
+      })).catch(error => assert.fail(`${label}: focus on the card (${error.message})`));
+    }
     await page.waitForFunction(id => {
       const ring = document.querySelector('.workbench-tour-ring');
       const region = document.querySelector(`[data-tour="${id}"]`);
@@ -97,8 +105,9 @@ export async function verifyTour(browser, baseURL, output) {
       }
       await card(page).waitFor({ state: 'detached' });
       await page.locator(COACH).waitFor();
-      assert.equal(await page.locator(COACH).evaluate(node => node.contains(document.activeElement)), true,
-        'After the tour focus goes to the control the active step needs');
+      // The app moves the focus in the frame after the tour closes.
+      await page.waitForFunction(selector => document.querySelector(selector)?.contains(document.activeElement), COACH, { timeout: 5000 })
+        .catch(() => assert.fail('After the tour focus goes to the control the active step needs'));
       assert.equal(await seen(page), '1');
       await page.reload();
       await page.locator(COACH).waitFor();
