@@ -49,13 +49,13 @@ export async function verifyTour(browser, baseURL, output) {
 
   // One stop: its title and count, focus on the card, the ring around its region, the card
   // inside the viewport and nothing scrolling sideways.
-  const expectStop = async (page, stops, number, label) => {
+  const expectStop = async (page, stops, number, label, { focused = true } = {}) => {
     const stop = stops[number - 1];
     const dialog = page.getByRole('dialog', { name: stop.title, exact: true });
     await dialog.waitFor();
     assert.equal(await dialog.locator('.workbench-tour-count').innerText(), `Stop ${number} of 5`, `${label}: count`);
     assert.equal(await dialog.getAttribute('aria-modal'), 'false', `${label}: non-modal`);
-    assert.equal(await dialog.evaluate(node => document.activeElement === node), true, `${label}: focus on the card`);
+    if (focused) assert.equal(await dialog.evaluate(node => document.activeElement === node), true, `${label}: focus on the card`);
     await page.waitForFunction(id => {
       const ring = document.querySelector('.workbench-tour-ring');
       const region = document.querySelector(`[data-tour="${id}"]`);
@@ -113,7 +113,9 @@ export async function verifyTour(browser, baseURL, output) {
       await page.getByRole('dialog', { name: TECHNICAL[0].title, exact: true }).waitFor();
       if (width === 390) await menu(page, 'Light theme');
       for (let number = 1; number <= 5; number++) {
-        const { box } = await expectStop(page, TECHNICAL, number, `Stop ${number} at ${width} px`);
+        // At 390 px the theme switch above went through the menu, which hands the focus back to its
+        // button: the first stop's focus is checked at 320 px, where nothing was clicked before it.
+        const { box } = await expectStop(page, TECHNICAL, number, `Stop ${number} at ${width} px`, { focused: !(width === 390 && number === 1) });
         assert.ok(Math.abs(page.viewportSize().height - (box.y + box.height) - 8) <= 2 && Math.abs(box.x - 8) <= 2,
           `Stop ${number} at ${width} px docks to the bottom edge: ${JSON.stringify(box)}`);
         if (width === 390 && (number === 1 || number === 3)) {
