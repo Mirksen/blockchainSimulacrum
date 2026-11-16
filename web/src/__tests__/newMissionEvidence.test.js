@@ -152,11 +152,18 @@ describe('new missions use real results', () => {
     expect(ofType(take(), 'difficulty_changed')).toEqual([{ type: 'difficulty_changed', direction: 'up' }]);
   });
 
-  it('keeps all nine old completions at version 1 and restarts new runtime evidence on reload', () => {
-    const old = MISSIONS.slice(0, 9).map(m => m.id);
+  it('keeps all nine old completions of a version 1 save and restarts new runtime evidence on reload', () => {
+    // The track as version 1 stored it, before the Basics course and the move of Change the past.
+    const old = ['change-fingerprint', 'earn-proof-of-work', 'send-first-coin', 'win-mining-race', 'change-the-past',
+      'forge-a-block', 'survive-halving', 'beat-difficulty-adjustment', 'follow-stronger-chain'];
     const read = value => load({ getItem: key => key === STORAGE_KEY ? JSON.stringify(value) : null });
     const restored = read({ version: 1, completed: old, step: 2, data: { parent: 'a'.repeat(64) } });
-    expect(restored).toEqual(start('get-payment-in'));
+    expect([...restored.completed].sort()).toEqual([...old].sort());
+    // The Basics scenes that came later count as skipped: nobody is sent back into the course.
+    const basics = MISSIONS.filter(m => m.chapter === 'basics' && !old.includes(m.id)).map(m => m.id);
+    expect(restored.skipped).toEqual(basics);
+    expect(restored.step).toBe(0);
+    expect(restored.data).toEqual({});
     expect(activeMission(restored).id).toBe('get-payment-in');
   });
 });
