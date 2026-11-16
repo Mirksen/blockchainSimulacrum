@@ -6,6 +6,7 @@ import { playMiningSuccessSound, playRecordSound, unlockMiningAudio } from './li
 import { ownRow, recordOf } from './lib/records';
 import { telemetry } from './lib/telemetry';
 import * as missions from './lib/missions';
+import * as startChoice from './lib/startChoice';
 import { evidenceOf } from './lib/missionEvidence';
 import { TopBar } from './components/workbench/TopBar';
 import { LeaderboardTicker } from './components/workbench/LeaderboardTicker';
@@ -15,7 +16,7 @@ import { SettingsDialog } from './components/workbench/SettingsDialog';
 import { LowerDifficultyDialog } from './components/workbench/LowerDifficultyDialog';
 import { Workbench } from './components/workbench/Workbench';
 import { MissionRail } from './components/workbench/MissionRail';
-import { MissionIntro } from './components/workbench/MissionIntro';
+import { StartChoice } from './components/StartChoice';
 import { minerProfileHash, POOL_HASH } from './lib/poolApi';
 import { BlockDetailsModal } from './components/BlockDetailsModal';
 import { ParticipantDetailsModal } from './components/ParticipantDetailsModal';
@@ -29,15 +30,20 @@ import './index.css';
 const HashLab = lazy(() => import('./components/HashLab').then(module => ({ default: module.HashLab })));
 const ChainLab = lazy(() => import('./components/ChainLab').then(module => ({ default: module.ChainLab })));
 const PoolPanel = lazy(() => import('./components/PoolPanel').then(module => ({ default: module.PoolPanel })));
+const BasicsCourse = lazy(() => import('./components/basics/BasicsCourse').then(module => ({ default: module.BasicsCourse })));
 
 const INITIAL_CONFIG = {
   name: 'powfyicoin', miningDifficulty: 4, blockReward: 3.125, halvingEvent: 21,
   participants: ['Alice', 'Bob', 'Chris', 'Hal', 'Dorian', 'Laszlo'], miners: ['Hal', 'Dorian', 'Laszlo']
 };
-const VIEWS = { '': 'workbench', 'hash-lab': 'hash-lab', 'chain-lab': 'chain-lab', pool: 'pool' };
+const VIEWS = { '': 'workbench', start: 'start', basics: 'basics', 'hash-lab': 'hash-lab', 'chain-lab': 'chain-lab', pool: 'pool' };
 const RAIL_KEY = 'proofofwork-rail-collapsed';
+// Set by the first-visit invitation before the start question replaced it; read only to
+// keep earlier visitors away from the start question.
 const INTRO_KEY = 'proofofwork-missions-intro-seen';
-const VIEW_LABELS = { workbench: 'Workbench', 'hash-lab': 'Hash lab', 'chain-lab': 'Chain lab', pool: 'Leaderboard' };
+const VIEW_LABELS = { start: 'Start', basics: 'Basics', workbench: 'Workbench', 'hash-lab': 'Hash lab', 'chain-lab': 'Chain lab', pool: 'Leaderboard' };
+// Views without the leaderboard ticker: the start question and the beginner course.
+const QUIET_VIEWS = ['start', 'basics'];
 
 const pathOfHash = () => (globalThis.location?.hash ?? '').replace(/^#\/?/, '');
 // `#/pool/<name>` is the Leaderboard tab showing that miner's profile.
@@ -65,7 +71,14 @@ const subscribePhone = notify => {
 const isPhone = () => Boolean(globalThis.matchMedia?.(PHONE).matches);
 
 // Lab missions run the existing lessons of the hash and chain labs.
-const HASH_LESSONS = { 'change-fingerprint': 'hash', 'earn-proof-of-work': 'work' };
+const HASH_LESSONS = { 'earn-proof-of-work': 'work' };
+
+// A first visit asks where to start: nothing chosen, no earlier invitation seen, fresh
+// progress and no deep link in the address.
+function isFirstVisit(choice, progress) {
+  const fresh = progress.completed.length === 0 && (progress.skipped ?? []).length === 0 && progress.step === 0;
+  return choice === null && !readFlag(INTRO_KEY) && fresh && pathOfHash() === '';
+}
 
 function coachOf(progress) {
   const active = missions.activeStep(progress);
@@ -78,7 +91,10 @@ function App() {
   const [theme, setTheme] = useState('dark');
   const [muted, setMuted] = useState(false);
   const soundEnabled = useRef(true);
-  const [view, setView] = useState(viewFromHash);
+  const [progress, setProgress] = useState(() => missions.load(browserStorage()));
+  const [choice, setChoice] = useState(() => startChoice.load(browserStorage()));
+  // The first visit shows the start question without rewriting the address.
+  const [view, setView] = useState(() => (isFirstVisit(choice, progress) ? 'start' : viewFromHash()));
   const [profile, setProfile] = useState(profileFromHash);
   const [winner, setWinner] = useState(null);
   const [coinName, setCoinName] = useState('powfyicoin');
@@ -93,10 +109,8 @@ function App() {
   // workbench (web/DESIGN.md, "Miner details").
   const [minerKey, setMinerKey] = useState(null);
   const [workComparison, setWorkComparison] = useState(null);
-  // The rail starts collapsed (free play); a first-visit card invites to the missions once.
+  // The rail starts collapsed (free play); the start question or the Missions entry opens it.
   const [railCollapsed, setRailCollapsed] = useState(() => readFlag(RAIL_KEY, true));
-  const [introSeen, setIntroSeen] = useState(() => readFlag(INTRO_KEY));
-  const [progress, setProgress] = useState(() => missions.load(browserStorage()));
   const [proofSource, setProofSource] = useState(null);
   const [chainExperiment, setChainExperiment] = useState(() => missions.experimentOf(missions.activeMission(progress)?.id));
   const compact = useSyncExternalStore(subscribePhone, isPhone, () => false);
@@ -130,13 +144,10 @@ function App() {
   const busy = run.kind !== 'idle';
   const coach = railCollapsed ? null : coachOf(progress);
   const activeMission = missions.activeMission(progress);
-  const showIntro = !introSeen && railCollapsed && progress.step === 0 && progress.completed.length === 0;
+  const tone = startChoice.toneOf(choice);
 
   useEffect(() => { document.documentElement.setAttribute('data-theme', theme); }, [theme]);
   useEffect(() => { actions.setSigner(identity.signer); }, [identity.signer, actions]);
-  // Remember the first display, even when the visitor simply ignores the invitation.
-  // Keep it visible for this visit until dismissed, opened or navigated away from.
-  useEffect(() => { if (showIntro) writeFlag(INTRO_KEY, true); }, [showIntro]);
   useEffect(() => {
     const onHash = () => {
       setView(viewFromHash());
@@ -172,8 +183,9 @@ function App() {
     }
   }), [session, report]);
   const navigate = useCallback(next => {
-    writeFlag(INTRO_KEY, true);
-    setIntroSeen(true);
+    // Moving on inside the app, with or without an answer, ends the first visit: the start
+    // question returns only for someone who left the page on it.
+    if (next !== 'start') writeFlag(INTRO_KEY, true);
     const hash = next === 'workbench' ? '#/' : `#/${next}`;
     if (globalThis.location.hash !== hash) globalThis.history.pushState(null, '', hash);
     setView(next);
@@ -208,16 +220,38 @@ function App() {
       element?.querySelector('button, input, select, textarea, a[href]')?.focus({ preventScroll: true });
     });
   };
-  const dismissIntro = () => { writeFlag(INTRO_KEY, true); setIntroSeen(true); };
-  const toggleRail = () => {
-    dismissIntro();
-    writeFlag(RAIL_KEY, !railCollapsed);
-    setRailCollapsed(!railCollapsed);
-  };
-  const startMissions = () => {
-    dismissIntro();
+  const expandRail = () => {
     writeFlag(RAIL_KEY, false);
     setRailCollapsed(false);
+  };
+  const toggleRail = () => {
+    if (!railCollapsed) {
+      writeFlag(RAIL_KEY, true);
+      setRailCollapsed(true);
+      return;
+    }
+    expandRail();
+    // A Basics scene lives only in the course: opening the missions goes there.
+    const active = missions.activeStep(progress);
+    if (active?.view === 'basics') showMe(active);
+  };
+  // The answer to the start question: remembered, its skips applied, and the learner lands
+  // on the first scene of the course or on the workbench.
+  const chooseStart = next => {
+    startChoice.save(browserStorage(), next);
+    setChoice(next);
+    const skipped = missions.skip(progress, startChoice.skipsOf(next));
+    setProgress(skipped);
+    if (next === 'play') { navigate('workbench'); return; }
+    expandRail();
+    // The course opens its active scene, or its first one for a learner who is past it.
+    navigate('basics');
+  };
+  // Continue in the course: on to the step that is active now, or back to free play.
+  const continueFromBasics = () => {
+    const active = missions.activeStep(progress);
+    if (active) showMe(active);
+    else navigate('workbench');
   };
 
   const confirmLower = () => {
@@ -262,20 +296,25 @@ function App() {
       <a className="skip-link" href="#workbench" onClick={event => { event.preventDefault(); document.getElementById('workbench')?.focus(); }}>Skip to content</a>
       <HintLayer />
       <TopBar view={view} onNavigate={navigate} coinName={coinName} theme={theme} onTheme={changeTheme}
-        muted={muted} onMuted={changeMuted} onReset={() => actions.reset()} onOpenSettings={() => setShowSettings(true)} compact={compact} saveState={saveState} />
+        muted={muted} onMuted={changeMuted} onReset={() => actions.reset()} onOpenSettings={() => setShowSettings(true)}
+        onOpenStart={() => navigate('start')} compact={compact} saveState={saveState} />
       <UsageConsent />
-      <LeaderboardTicker onOpenPool={() => navigate('pool')} onBoard={onBoard} refreshKey={boardKey} ownName={identity.signingName} />
+      {!QUIET_VIEWS.includes(view) && <LeaderboardTicker onOpenPool={() => navigate('pool')} onBoard={onBoard} refreshKey={boardKey} ownName={identity.signingName} />}
       <div className="wb-shell">
         <div className="wb-rail">
-          <MissionRail progress={progress} collapsed={railCollapsed} onToggle={toggleRail} onShowMe={showMe} highlight={showIntro} />
+          <MissionRail progress={progress} tone={tone} collapsed={railCollapsed} onToggle={toggleRail} onShowMe={showMe} />
         </div>
         <main id="workbench" tabIndex={-1} className="wb-main" aria-label={VIEW_LABELS[view]}>
-          <div className="wb-mbar"><MissionRail progress={progress} variant="bar" collapsed={railCollapsed}
-            onToggle={toggleRail} onShowMe={showMe} highlight={showIntro} /></div>
-          {showIntro && <MissionIntro onStart={startMissions} onDismiss={dismissIntro} />}
+          <div className="wb-mbar"><MissionRail progress={progress} tone={tone} variant="bar" collapsed={railCollapsed}
+            onToggle={toggleRail} onShowMe={showMe} /></div>
+          {view === 'start' && <div className="wb-view"><StartChoice current={choice} onChoose={chooseStart} /></div>}
           {view === 'workbench' && <Workbench session={session} coinName={coinName} identity={identity} boardRows={boardRows} coach={coach}
             onOpen={open} onNavigate={navigate} />}
           <Suspense fallback={<p role="status">Loading {VIEW_LABELS[view]}…</p>}>
+          {view === 'basics' && <div className="wb-view">
+            <BasicsCourse progress={progress} tone={tone} coach={coach} onLessonEvent={railCollapsed ? undefined : report}
+              onContinue={continueFromBasics} onClose={() => navigate('workbench')} />
+          </div>}
           {view === 'hash-lab' && <div className="wb-view">
             <HashLab key={hashLesson ?? 'free'} lesson={hashLesson} onLessonEvent={hashLesson ? report : undefined}
               coach={hashLesson ? coach : null} onClose={() => navigate('workbench')}

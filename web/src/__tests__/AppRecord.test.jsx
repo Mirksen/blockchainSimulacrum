@@ -37,6 +37,7 @@ const celebration = () => document.querySelector('.record-celebration');
 
 beforeEach(() => {
   localStorage.clear();
+  localStorage.setItem('proofofwork-start', 'play'); // a returning visitor: the workbench, not the start question
   history.replaceState(null, '', '/');
   vi.mocked(playRecordSound).mockClear();
   render(<App />);

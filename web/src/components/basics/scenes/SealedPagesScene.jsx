@@ -1,6 +1,6 @@
 import { useId, useState } from 'react';
 import { CoachMark } from '../../workbench/CoachMark';
-import { hint, term } from '../../../lib/hints';
+import { hint, term } from '../../../lib/hints/basics';
 import { createPages, GUESSING, inspectPages, repairPages } from '../../../lib/sealedPages';
 
 // Scene 6, mission "sealed-pages": each page is sealed together with the seal before it.

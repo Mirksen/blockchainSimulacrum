@@ -1,4 +1,7 @@
 // Hints for the Basics course (components/basics/). Format and tone: see ./index.js.
+// The catalog ships with the course, not with the first page: the scenes take `hint` and
+// `term` from here.
+import { createHints } from './index';
 
 export const BASICS_HINTS = {
   // ---------- course host ----------
@@ -44,3 +47,5 @@ export const BASICS_HINTS = {
   'basics.seal.guessing': { title: 'Guessing', text: 'How many zeros a seal must start with. Off: any seal fits. Each zero makes a fitting seal about 16 times rarer. Changing it starts a fresh, valid notebook.' },
   'basics.seal.repair': { title: 'Repair', text: 'Re-seal every page in order, each on top of the new seal before it, and count the hashes it takes.' }
 };
+
+export const { hint, term } = createHints(BASICS_HINTS);

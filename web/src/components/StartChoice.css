@@ -1,0 +1,40 @@
+/* First-visit question (components/StartChoice.jsx). Tokens only; both themes come from
+   styles/tokens.css. One column from 320 px up, capped for reading on wide screens. */
+.start-choice {
+  box-sizing: border-box; width: 100%; max-width: 560px; margin: var(--s-6) auto 0;
+  color: var(--text); font: 13px/18px var(--ui);
+}
+.start-choice *, .start-choice *::before, .start-choice *::after { box-sizing: border-box; }
+.start-choice-heading { margin: 0 0 var(--s-5); font-size: 16px; line-height: 22px; font-weight: 600; }
+.start-choice-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--s-3); }
+
+.start-choice-option {
+  width: 100%; display: flex; flex-direction: column; align-items: flex-start; gap: var(--s-1);
+  padding: var(--s-4); border: 1px solid var(--line); border-radius: var(--r-lg);
+  background: var(--panel); color: var(--text); font: inherit; text-align: left; cursor: pointer;
+}
+.start-choice-option:hover { border-color: var(--line-3); background: var(--panel-2); }
+.start-choice-option:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.start-choice-title { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); font-size: 14px; line-height: 20px; font-weight: 600; }
+.start-choice-text { font-size: 13px; line-height: 18px; color: var(--text-2); }
+
+/* The one filled primary action of this view (web/DESIGN.md, "Core feeling"). */
+.start-choice-option.is-primary {
+  border-color: var(--blue); background: var(--blue); color: var(--on-accent); box-shadow: var(--glow-action);
+}
+.start-choice-option.is-primary:hover { border-color: var(--blue-2); background: var(--blue-2); }
+.start-choice-option.is-primary .start-choice-text { color: var(--on-accent); }
+
+/* Marked with a word, not color alone. */
+.start-choice-current {
+  padding: 0 var(--s-2); border: 1px solid currentColor; border-radius: var(--r-sm);
+  font-size: 11px; line-height: 16px; font-weight: 500;
+}
+
+.start-choice-foot { margin: var(--s-5) 0 0; font-size: 12px; line-height: 17px; color: var(--text-3); }
+
+@media (max-width: 479.98px) {
+  .start-choice { margin-top: var(--s-2); }
+  .start-choice-heading { margin-bottom: var(--s-4); }
+  .start-choice-option { padding: var(--s-3); }
+}

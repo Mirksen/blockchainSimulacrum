@@ -76,3 +76,9 @@
 .top-bar-usage .analytics-control p { margin: var(--s-2) 0 0; }
 .top-bar-usage .analytics-control label { display: flex; align-items: flex-start; gap: var(--s-2); margin-top: var(--s-2); color: var(--text); }
 
+
+/* Five tabs between 768 and 1023 px: tighter spacing keeps them on one line. */
+@media (max-width: 1023.98px) {
+  .top-bar:not(.is-compact) { gap: var(--s-4); padding: 0 var(--s-4); }
+  .top-bar-tabs a { padding: 6px var(--s-2); }
+}

@@ -32,20 +32,71 @@ describe('plain text hashing and manual mining', () => {
   });
 
   it('reveals the explanation only after a manual match and continues explicitly', () => {
-    const report = vi.fn();
-    render(<HashLab lesson="hash" onLessonEvent={report} />);
+    render(<HashLab />);
     edit('abc');
     expect(screen.queryByRole('heading', { name: 'You mined by hand' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Explore block headers' })).toBeTruthy();
     const text = manualMatch();
     expect(screen.getByRole('heading', { name: 'You mined by hand' })).toBeTruthy();
     expect(fingerprint()).toBe(digest(text));
-    expect(report).not.toHaveBeenCalled();
+    // The free experiment: no mission lesson, no coach ring, one way on.
+    expect(document.querySelector('[data-coach-target]')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Explore block headers' })).toBeNull();
     // Restoring or editing text preserves the actual first proof, without faking a new match.
     edit('abc');
     expect(screen.getByText(text)).toBeTruthy();
     expect(screen.getByText(digest(text))).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Continue to block mining' }));
-    expect(report).toHaveBeenCalledExactlyOnceWith({ type: 'manual_hash_found', hash: digest(text) });
+    expect(screen.getByText('Double SHA-256 fingerprint')).toBeTruthy();
+    expect(screen.queryByRole('heading', { name: 'You mined by hand' })).toBeNull();
+  });
+
+  it('counts the distinct texts hashed by hand and names the try that found the proof', () => {
+    render(<HashLab />);
+    const misses = ['Learner B', 'Learner B 1', 'Learner B 2', 'Learner B 3'].filter(text => !digest(text).startsWith('0'));
+    expect(misses).toHaveLength(4);
+    for (const text of misses) edit(text);
+    // Repeats and an empty field are no new tries.
+    edit(misses[0]);
+    edit('');
+    edit(misses[1]);
+    let text = 'Learner B 4';
+    for (let number = 5; !digest(text).startsWith('0'); number++) text = `Learner B ${number}`;
+    edit(text);
+    const proof = screen.getByRole('region', { name: 'Your first proof of work' });
+    expect(proof.textContent).toContain('Found on try 5.');
+    expect(proof.textContent).not.toContain('lucky');
+  });
+
+  it.each([1, 2, 3])('calls a find on try %i a lucky roll', tries => {
+    render(<HashLab />);
+    let text = 'Learner A';
+    for (let number = 1; !digest(text).startsWith('0'); number++) text = `Learner A ${number}`;
+    const misses = ['abc', 'abcd'].slice(0, tries - 1);
+    for (const miss of misses) {
+      expect(digest(miss).startsWith('0')).toBe(false);
+      edit(miss);
+    }
+    edit(text);
+    const proof = screen.getByRole('region', { name: 'Your first proof of work' });
+    expect(proof.textContent).toContain(`Found on try ${tries}. That was a lucky roll: on average it takes 16 tries.`);
+  });
+
+  it('keeps the try of the first proof and counts again after Reset', () => {
+    render(<HashLab />);
+    const first = manualMatch();
+    edit('abc');
+    edit(first);
+    expect(screen.getByRole('region', { name: 'Your first proof of work' }).textContent).toContain('Found on try 1.');
+    fireEvent.click(screen.getByRole('button', { name: 'Reset text experiment' }));
+    edit('abc');
+    edit('abcd');
+    edit('abcde');
+    expect(digest('abcde').startsWith('0')).toBe(false);
+    manualMatch();
+    const proof = screen.getByRole('region', { name: 'Your first proof of work' });
+    expect(proof.textContent).toContain('Found on try 4.');
+    expect(proof.textContent).not.toContain('lucky');
   });
 
   it('changes only the target for two zeros, then finds an independently verifiable match', async () => {

@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { MISSIONS, activeMission, initialProgress, missionStatus, textOf } from '../../lib/missions';
-import { hint } from '../../lib/hints';
+import { hint } from '../../lib/hints/basics';
 import { CopyProblemScene } from './scenes/CopyProblemScene';
 import { FingerprintScene } from './scenes/FingerprintScene';
 import { OneLetterScene } from './scenes/OneLetterScene';

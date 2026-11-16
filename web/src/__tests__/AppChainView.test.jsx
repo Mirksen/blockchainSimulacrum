@@ -17,6 +17,7 @@ const band = () => document.querySelector('.wb-band');
 
 beforeEach(() => {
   localStorage.clear();
+  localStorage.setItem('proofofwork-start', 'play'); // a returning visitor: the workbench, not the start question
   history.replaceState(null, '', '/');
 });
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });

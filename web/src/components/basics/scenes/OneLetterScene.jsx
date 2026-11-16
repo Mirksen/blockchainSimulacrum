@@ -2,7 +2,7 @@ import { useId, useState } from 'react';
 import { CoachMark } from '../../workbench/CoachMark';
 import { Fingerprint } from '../Fingerprint';
 import { HashGrid } from '../HashGrid';
-import { hint } from '../../../lib/hints';
+import { hint } from '../../../lib/hints/basics';
 import { textHash } from '../../../lib/textHash';
 import { changedPositions } from '../../../lib/hashLab';
 

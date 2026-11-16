@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { CoachMark } from '../../workbench/CoachMark';
-import { hint } from '../../../lib/hints';
+import { hint } from '../../../lib/hints/basics';
 
 // Scene 1, mission "copy-problem": sending copies data. Photo, double spend, shared list.
 // Events: copy_tried { kind: 'photo' | 'double-spend' | 'rejected' }.

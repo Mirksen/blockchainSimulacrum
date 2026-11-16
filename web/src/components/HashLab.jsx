@@ -193,9 +193,9 @@ export function BlockHeaderLab({ onClose, lesson, onLessonEvent, coach = null, w
 // Text comes first; Bitcoin's header is a separate, explicit next experiment.
 export function HashLab(props) {
   const [headers, setHeaders] = useState(Boolean(props.workComparison));
-  if (props.lesson === 'hash' || (!props.lesson && !headers)) {
-    return <TextHashLab {...props} onHeaders={() => setHeaders(true)} />;
-  }
+  // Only the work lesson guides this lab; text hashing is free play (the Basics course
+  // teaches fingerprints).
+  if (!props.lesson && !headers) return <TextHashLab onClose={props.onClose} onHeaders={() => setHeaders(true)} />;
   return <>
     {!props.lesson && <button className="btn btn-transparent hash-lab-text-back" {...hint('lab.text.back')}
       onClick={() => setHeaders(false)}>Back to text hashing</button>}

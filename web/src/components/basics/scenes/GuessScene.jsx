@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { CoachMark } from '../../workbench/CoachMark';
-import { hint, term } from '../../../lib/hints';
+import { hint, term } from '../../../lib/hints/basics';
 import { searchText, textHash } from '../../../lib/textHash';
 
 // Scene 4, mission "change-fingerprint": roll texts until a fingerprint starts with 0.

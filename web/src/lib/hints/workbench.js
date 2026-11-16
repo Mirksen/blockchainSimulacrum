@@ -8,6 +8,7 @@ export const WORKBENCH_HINTS = {
   'mission.recap': { title: 'What you learned', text: 'Open the explanation of the result you observed. Completed missions and rewards stay in this browser after reload.' },
   'next.signature-test': { title: 'Work cannot repair a signature', text: 'Re-mine this newest block to repair its hash. Its edited payment still has the old signature, so the chain stays invalid. No later blocks need repair; Undo restores the payment.' },
   // ---------- top bar ----------
+  'nav.basics': { title: 'Basics', text: 'A short course in six scenes for anyone new to this: why digital money needs one shared list, what a hash is and why anyone would guess hashes. No knowledge needed.' },
   'nav.workbench': { title: 'Workbench', text: 'The main simulator: a small blockchain that runs entirely in your browser. Mine blocks, send coins and try to cheat, and watch the chain catch it.' },
   'nav.hash-lab': { title: 'Hash lab', text: 'The hash function on its own. Type any text and see its fingerprint change completely, then search for a number (nonce) that makes the fingerprint start with zeros.' },
   'nav.chain-lab': { title: 'Chain lab', text: 'Three toy blocks you edit by hand. Change old data, watch the links break and repair them by re-mining. Also: competing branches and payment proofs.' },
@@ -15,15 +16,14 @@ export const WORKBENCH_HINTS = {
   'menu.explain': on => ({ title: 'Explain mode', text: on
     ? 'Explain mode is on: tap any button, number or word to see what it means. Tap here or Done to use the simulator again.'
     : 'For touch screens. Turn it on, then tap any button, number or word to see what it means. Nothing you tap acts until you tap Done.' }),
-  'menu.more': { title: 'More', text: 'Reset the simulation, open the settings, switch the sound and the light or dark theme.' },
+  'menu.more': { title: 'More', text: 'Reset the simulation, open the settings, choose your starting point again, switch the sound and the light or dark theme.' },
   'menu.reset': { title: 'Reset', text: 'Start over: a new chain with only the genesis block and an empty mempool; added wallets and miners go. Difficulty, coin name, halving interval and block time stay as set; a workbench mission in progress starts its steps again.' },
+  'menu.start': { title: 'Starting point', text: 'Answer the first question again: start with the Basics course, skip its fingerprint scenes, or just play with the simulator. Completed missions stay completed.' },
   'menu.settings': { title: 'Settings', text: 'Coin name, mining difficulty, halving interval and target block time.' },
   'menu.sound': muted => ({ title: 'Sound', text: muted ? 'Sound is off. Turn it on to hear a short chime whenever a block is found.' : 'Plays a short chime whenever a block is found. Click to mute it.' }),
   'menu.theme': next => ({ title: next === 'light' ? 'Light theme' : 'Dark theme', text: `Switch to ${next === 'light' ? 'light' : 'dark'} colors. Nothing else changes.` }),
 
   // ---------- missions ----------
-  'mission.start': { title: 'Start missions', text: 'A guided path of short experiments. Each mission tells you the next step and points at the button you need. You can leave it any time.' },
-  'mission.dismiss': { title: 'Don’t show again', text: 'Hides this invitation in this browser. The Missions button on the left stays, so you can start later.' },
   'mission.open': { title: 'Missions', text: 'Short guided experiments, one step at a time: mine a block, send coins, cheat and get caught.' },
   'mission.collapse': { title: 'Hide missions', text: 'Fold the missions away and play freely. Your progress is kept.' },
   'mission.show-me': { title: 'Show me', text: 'Jumps to the place where this step happens and marks the button you need.' },

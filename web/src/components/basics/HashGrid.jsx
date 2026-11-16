@@ -1,4 +1,4 @@
-import { term } from '../../lib/hints';
+import { term } from '../../lib/hints/basics';
 
 // All 64 characters of a hash in a 4 x 16 grid. `marked[i]` underlines and tints the
 // character at position i (e.g. a character that differs from another hash); the

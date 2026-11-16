@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { CoachMark } from '../../workbench/CoachMark';
-import { hint, term } from '../../../lib/hints';
+import { hint, term } from '../../../lib/hints/basics';
 import { textHash } from '../../../lib/textHash';
 
 // Scene 5, mission "why-guess": three writers roll in turn for the next page; the first

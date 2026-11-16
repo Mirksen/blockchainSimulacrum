@@ -2,7 +2,7 @@ import { useId, useState } from 'react';
 import { CoachMark } from '../../workbench/CoachMark';
 import { Fingerprint } from '../Fingerprint';
 import { HashGrid } from '../HashGrid';
-import { hint, term } from '../../../lib/hints';
+import { hint, term } from '../../../lib/hints/basics';
 import { textHash } from '../../../lib/textHash';
 
 // Scene 2, mission "see-a-fingerprint": type, watch the fingerprint, type the first text again.
