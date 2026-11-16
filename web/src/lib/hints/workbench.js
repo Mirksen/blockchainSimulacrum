@@ -80,6 +80,7 @@ export const WORKBENCH_HINTS = {
   'block.tx-in': { title: 'In (inputs)', text: 'The earlier coins this payment spends, each used up completely, with their owner and the block they came from.' },
   'block.tx-out': { title: 'Out (outputs)', text: 'The new coins this payment creates: one for the recipient, usually one “change” back to the sender. Whatever inputs and outputs differ by is the fee for the miner.' },
   'block.txid': { title: 'TXID', text: 'Transaction ID: the double SHA-256 hash of the transaction’s bytes. Later payments refer to a coin by this ID plus its output number.' },
+  'block.tx-proof': { title: 'Prove inclusion', text: 'Open a copy of this transaction and its mined block in Chain lab. Follow its Merkle path to the header, then edit a hash to see why the proof fails. Your workbench stays unchanged.' },
   'block.tx-raw': { title: 'Scripts, signature and raw bytes', text: 'The technical view: the scripts that lock and unlock the coins, the digital signature that proves the owner agreed, and the transaction as raw bytes.' },
 
   // ---------- next block card ----------

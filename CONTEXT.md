@@ -168,6 +168,13 @@ Terms used in code, tests and docs of proofofwork.fyi. Decisions that shape them
   not measured hardware throughput. A rewrite changes a toy payment text record;
   it does not forge signatures or move coins. Runs are capped at twelve new blocks.
 
+- **Workbench inclusion copy** — `web/src/lib/workbenchProof.js`, captured when the learner
+  opens a transaction's proof. Serialized transaction strings and the original header fields
+  detach the experiment from the session's mutable transaction objects. Its tree derives from
+  those bytes, but verification always targets the stored header root, so a preexisting edit
+  stays visible. Lab edits change only a TXID or proof sibling. The copy is temporary and
+  never advances missions; inclusion does not establish transaction or chain validity.
+
 - **Merkle proof** — what a light client (SPV) needs to know that one transaction is in a block
   without the block's other transactions: the txid, and per tree level the sibling hash and the side
   it sits on (`web/src/lib/merkleLab.js`, `proofFor(index)`). Hashing up the path must give the

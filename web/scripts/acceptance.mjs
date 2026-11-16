@@ -1,3 +1,4 @@
+import { verifyWorkbenchProof } from './workbench-proof.acceptance.mjs';
 import { verifyFeeMission, verifyMerkleMission, verifySignatureMission } from './new-missions.acceptance.mjs';
 import { verifyMiningFeedback } from './mining-feedback.acceptance.mjs';
 import { verifyFeeMarketCounts, verifyNoticeLifetime } from './notices.acceptance.mjs';
@@ -89,6 +90,7 @@ try {
   assert.ok(ready, `Preview did not start: ${serverLog}`);
  }
  browser = await chromium.launch({channel:'chrome',headless:true});
+ results.push(...await verifyWorkbenchProof(browser, baseURL, output));
  results.push(...await verifyMiningControlsAndSound(browser, baseURL, output));
  results.push(...await verifyMiningFeedback(browser, baseURL, output));
  results.push(...await verifyNoticeLifetime(browser, baseURL, output));

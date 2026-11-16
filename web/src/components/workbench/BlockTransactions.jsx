@@ -48,7 +48,7 @@ function Flow({ tx }) {
   );
 }
 
-export function BlockTransactions({ transactions = [], onOpenDetails, editedTx = [] }) {
+export function BlockTransactions({ transactions = [], onOpenDetails, onProve, editedTx = [] }) {
   const [openId, setOpenId] = useState(null);
   return (
     <section className="block-tx" aria-label="Transactions">
@@ -71,6 +71,7 @@ export function BlockTransactions({ transactions = [], onOpenDetails, editedTx =
                 <div className="block-tx-detail">
                   <Flow tx={tx} />
                   <div className="block-tx-id"><span className="block-tx-label" {...term('block.txid')}>TXID</span><code>{tx.txid}</code></div>
+                  {onProve && <button type="button" className="block-tx-more" {...hint('block.tx-proof')} onClick={() => onProve(i)}>Prove inclusion in Chain lab</button>}
                   <button type="button" className="block-tx-more" {...hint('block.tx-raw')} onClick={() => onOpenDetails?.(tx)}>Scripts, signature and raw bytes</button>
                 </div>
               )}

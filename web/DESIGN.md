@@ -496,6 +496,24 @@ Reset clears them, and leaving stops a search. Block-header mining remains a
 separate experiment, with the Bitcoin-format double hash explicitly explained.
 Free play may open it directly. Previously completed missions remain completed.
 
+### Prove a workbench transaction
+
+An expanded transaction in the selected block offers **Prove inclusion in Chain lab**.
+It opens Prove a payment with that transaction selected and a detached copy of the
+block's serialized transactions and original 80-byte header. The source card names
+the workbench block and explains that the copy stays fixed while mining continues.
+The header's stored Merkle root is the comparison target, including when an earlier
+workbench edit means the current transactions no longer match it.
+
+The learner can edit the TXID or sibling hashes, follow the recomputed levels and
+see the first divergence. A one-transaction block needs no siblings; its TXID is the
+root. **Reset proof** restores the selected copied transaction and path, preserving
+the copied header and any preexisting mismatch. **Back to workbench** returns to the
+held block. **Use example block** returns to the independent text experiment.
+Imported exploration has no mission coaching or progress effects. A matching path
+proves inclusion only, not signatures, balances, block validity or network consensus.
+No transaction bytes or proof inputs are stored or sent by this experiment.
+
 ## Interaction patterns
 
 Every flow covers its states, not only the success path.

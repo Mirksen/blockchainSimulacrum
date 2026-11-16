@@ -1,3 +1,4 @@
+import { captureBlockProof } from './lib/workbenchProof';
 import { lazy, Suspense, useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { useWorkbenchSession } from './hooks/useWorkbenchSession';
 import { useMinerIdentity } from './hooks/useMinerIdentity';
@@ -96,6 +97,7 @@ function App() {
   const [railCollapsed, setRailCollapsed] = useState(() => readFlag(RAIL_KEY, true));
   const [introSeen, setIntroSeen] = useState(() => readFlag(INTRO_KEY));
   const [progress, setProgress] = useState(() => missions.load(browserStorage()));
+  const [proofSource, setProofSource] = useState(null);
   const [chainExperiment, setChainExperiment] = useState(() => missions.experimentOf(missions.activeMission(progress)?.id));
   const compact = useSyncExternalStore(subscribePhone, isPhone, () => false);
   const { session, snapshot } = useWorkbenchSession(INITIAL_CONFIG, { storage: browserStorage() });
@@ -198,7 +200,7 @@ function App() {
   };
   const showMe = active => {
     if (!active) return;
-    if (active.view === 'chain-lab') setChainExperiment(missions.experimentOf(active.mission.id));
+    if (active.view === 'chain-lab') { setProofSource(null); setChainExperiment(missions.experimentOf(active.mission.id)); }
     navigate(active.view);
     requestAnimationFrame(() => {
       const element = document.querySelector(`[data-coach-target="${active.target}"]`);
@@ -228,7 +230,13 @@ function App() {
   const openMiner = name => setMinerKey(participants.find(p => p.name === name && p.isMiner)?.publicKey ?? null);
   // What the workbench opens: a block's details, a transaction, a wallet or a miner's drawer.
   const open = target => {
-    if (target.kind === 'block') setDetails(target.index);
+    if (target.kind === 'proof') {
+      const block = blocks[target.blockIndex];
+      if (!block?.transactions[target.transactionIndex]) return;
+      setProofSource(captureBlockProof(block, target.blockIndex, describeTx, target.transactionIndex));
+      setChainExperiment('merkle');
+      navigate('chain-lab');
+    } else if (target.kind === 'block') setDetails(target.index);
     else if (target.kind === 'transaction') {
       if (target.blockIndex === null) setPendingTx(target.tx);
       else setBlockTx({ transaction: target.view, blockIndex: target.blockIndex });
@@ -242,7 +250,7 @@ function App() {
   const drawerMiner = found ? { ...found, color: colorOf(found.colorKey) ?? undefined } : null;
   // A collapsed rail means free play: the labs open without the mission lesson.
   const hashLesson = !railCollapsed && activeMission ? HASH_LESSONS[activeMission.id] : undefined;
-  const chainLesson = !railCollapsed && ['change-the-past', 'follow-stronger-chain', 'prove-a-payment'].includes(activeMission?.id);
+  const chainLesson = !railCollapsed && !proofSource && ['change-the-past', 'follow-stronger-chain', 'prove-a-payment'].includes(activeMission?.id);
   // Slow motion is a look at one miner in its drawer: leaving the workbench, closing the drawer
   // or opening another miner ends it.
   const lookingAt = view === 'workbench' ? drawerMiner?.publicKey ?? null : null;
@@ -275,7 +283,8 @@ function App() {
           </div>}
           {view === 'chain-lab' && <div className="wb-view">
             <ChainLab key={railCollapsed ? 'free' : 'guided'} experiment={chainExperiment} onExperimentChange={setChainExperiment} onLessonEvent={chainLesson ? report : undefined}
-              coach={chainLesson ? coach : null} onClose={() => navigate('workbench')} />
+              coach={chainLesson ? coach : null} proofSource={proofSource} onUseExample={() => setProofSource(null)}
+              onClose={() => navigate('workbench')} />
           </div>}
           {view === 'pool' && <div className="wb-view"><PoolPanel name={identity.name} onNameChange={identity.setName} refreshKey={boardKey}
             onAccepted={onBlockAccepted} onClose={() => navigate('workbench')}
