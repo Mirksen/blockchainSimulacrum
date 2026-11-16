@@ -532,6 +532,10 @@ action.
   simulate: the network.
 - Every scene can be opened at any time and reset on its own. Only the
   active mission earns progress.
+- The course itself speaks plainly to everyone except a visitor who said
+  they know hashes; a scene about pages and seals never opens with "each
+  block commits to the hash of its predecessor" for someone who just came
+  to look.
 
 ### Text hashing before block headers
 

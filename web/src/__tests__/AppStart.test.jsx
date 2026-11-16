@@ -211,7 +211,8 @@ describe('the Basics view', () => {
     expect(screen.queryByTestId('ticker')).toBeNull();
     expect(course.props.coach).toBeNull();
     expect(course.props.onLessonEvent).toBeUndefined();
-    expect(course.props.tone).toBe('technical');
+    // The course speaks in pictures to everyone but a visitor who said they know hashes.
+    expect(course.props.tone).toBe('plain');
     expect(screen.getByText('No coach')).toBeTruthy();
   });
 

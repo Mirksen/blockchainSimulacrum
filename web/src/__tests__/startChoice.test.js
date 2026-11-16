@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { START_KEY, load, save, skipsOf, toneOf } from '../lib/startChoice';
+import { START_KEY, courseToneOf, load, save, skipsOf, toneOf } from '../lib/startChoice';
 import { MISSIONS } from '../lib/missions';
 
 // A Storage-like object over a Map, as missions.test.js uses.
@@ -56,6 +56,8 @@ describe('what a choice means', () => {
     expect(toneOf('hash')).toBe('technical');
     expect(toneOf('play')).toBe('technical');
     expect(toneOf(null)).toBe('technical');
+    // The course itself is plain for everyone who did not say they know hashes.
+    expect(['new', 'hash', 'play', null].map(courseToneOf)).toEqual(['plain', 'technical', 'plain', 'plain']);
   });
 
   it('skips the two fingerprint scenes for someone who knows hashes, nothing otherwise', () => {

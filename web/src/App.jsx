@@ -312,7 +312,7 @@ function App() {
             onOpen={open} onNavigate={navigate} />}
           <Suspense fallback={<p role="status">Loading {VIEW_LABELS[view]}…</p>}>
           {view === 'basics' && <div className="wb-view">
-            <BasicsCourse progress={progress} tone={tone} coach={coach} onLessonEvent={railCollapsed ? undefined : report}
+            <BasicsCourse progress={progress} tone={startChoice.courseToneOf(choice)} coach={coach} onLessonEvent={railCollapsed ? undefined : report}
               onContinue={continueFromBasics} onClose={() => navigate('workbench')} />
           </div>}
           {view === 'hash-lab' && <div className="wb-view">

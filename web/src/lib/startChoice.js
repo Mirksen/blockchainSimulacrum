@@ -39,6 +39,14 @@ export function toneOf(choice) {
   return choice === 'new' ? 'plain' : 'technical';
 }
 
+/**
+ * The tone of the Basics course itself. Its scenes speak in pictures (page, seal, roll), so
+ * everyone gets the plain course except a visitor who said they know hashes.
+ */
+export function courseToneOf(choice) {
+  return choice === 'hash' ? 'technical' : 'plain';
+}
+
 /** The mission ids a choice skips (lib/missions.js, skip). */
 export function skipsOf(choice) {
   return choice === 'hash' ? [...HASH_SKIPS] : [];
