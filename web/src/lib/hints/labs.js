@@ -107,6 +107,8 @@ export const LAB_HINTS = {
   'lab.fork.inspect': number => ({ title: `Inspect block ${number}`, text: `Show Block ${number}’s nonce, its stored hash and the hash of the block before it, which links the two.` }),
 
   // ---------- chain lab: prove a payment ----------
+  'lab.merkle.reset-proof': { title: 'Reset proof', text: 'Restore the transaction you opened and its original sibling hashes from this copy. The copied header stays fixed; this does not undo an edit made in the workbench.' },
+  'lab.merkle.txid': { title: 'Transaction ID', text: 'This hash comes from the copied raw transaction bytes. Edit one hexadecimal character to try a different transaction ID against the same header and sibling hashes. Reset proof restores it.' },
   'lab.merkle.reset': { title: 'Reset example', text: 'Back to the 16-payment block with transaction 5 chosen. Undoes every edit to the payment text and the sibling hashes.' },
   'lab.merkle.size': size => ({ title: `${size.toLocaleString('en-US')} transactions`, text: `A block with ${size.toLocaleString('en-US')} payments. The proof needs one sibling hash per tree level: ${Math.ceil(Math.log2(size))} here. Doubling the payments adds only one hash.` }),
   'lab.merkle.saving': { title: 'Proof size', text: 'What a light client needs to check this one payment: the payment, a few sibling hashes and the 80-byte header, instead of every payment in the block.' },
@@ -114,7 +116,7 @@ export const LAB_HINTS = {
   'lab.merkle.pick': { title: 'Transaction number', text: 'Which payment to prove, counted from 0. The other payments stay hidden: the proof does not need them. A new number undoes your edits.' },
   'lab.merkle.header': { title: 'Block header', text: 'A light client, such as a phone wallet, keeps only the 80-byte block headers, not the full blocks. The Merkle root in the header is all it needs to check a proof.' },
   'lab.merkle.root': { title: 'Merkle root', text: 'One hash that sums up every payment in the block: hash the payments in pairs, then those results in pairs, up to a single hash. Change any payment and the root changes.' },
-  'lab.merkle.block-hash': { title: 'Block hash', text: 'The double SHA-256 of the 80 header bytes; it starts with a zero (proof of work). The Merkle root is in the header, so the block hash depends on every payment too.' },
+  'lab.merkle.block-hash': { title: 'Block hash', text: 'The double SHA-256 of the 80 header bytes. A mined header must meet its proof-of-work target. The Merkle root is in the header, so the block hash depends on every payment too.' },
   'lab.merkle.inspect': { title: 'Inspect the 80 header bytes', text: 'Show the header field by field as raw bytes. The Merkle root above is one of the fields.' },
   'lab.merkle.text': { title: 'Payment text', text: 'The payment to prove. Its txid (transaction ID) is the double SHA-256 of this text. Change one character and the proof no longer reaches the header’s Merkle root.' },
   'lab.merkle.path': { title: 'Proof path', text: 'The way from the payment up to the root. At each level the current hash is paired with one sibling hash from the proof and hashed again; the last result must equal the Merkle root.' },

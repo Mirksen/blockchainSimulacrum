@@ -61,3 +61,9 @@
 }
 
 .merkle-proof .merkle-proof-coach.is-active { min-width: 0; }
+
+.merkle-proof-source { margin: var(--s-4) 0; padding: var(--s-3); border: 1px solid var(--blue-line); border-radius: var(--r-md); background: var(--blue-bg); }
+.merkle-proof-source p { margin: var(--s-2) 0; }
+.merkle-proof-source-actions { display: flex; flex-wrap: wrap; gap: var(--s-2); }
+
+.merkle-proof-controls.is-workbench { grid-template-columns: minmax(0, 1fr); }

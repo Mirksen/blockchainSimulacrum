@@ -13,36 +13,40 @@ const hashes = n => count(n, 'hash', 'hashes');
 
 // Prove a payment: an isolated Chain lab experiment. A light client holds the block header
 // only; the proof is the chosen payment plus one sibling hash per tree level.
-export function MerkleProof({ onLessonEvent, coach = null }) {
+export function MerkleProof({ onLessonEvent, coach = null, source = null, onUseExample, onBack }) {
+  const report = source ? undefined : onLessonEvent;
   // An unfinished proof belongs to this mounted experiment. Leaving or hiding
   // guidance discards its evidence along with the local inputs.
-  useEffect(() => () => onLessonEvent?.({ type: 'lesson_reset' }), [onLessonEvent]);
+  useEffect(() => () => report?.({ type: 'lesson_reset' }), [report]);
   const id = useId();
-  const [size, setSize] = useState(DEFAULT_SIZE);
-  const [index, setIndex] = useState(defaultIndex(DEFAULT_SIZE));
+  const [exampleSize, setSize] = useState(DEFAULT_SIZE);
+  const size = source?.size ?? exampleSize;
+  const [index, setIndex] = useState(source?.initialIndex ?? defaultIndex(DEFAULT_SIZE));
   const [text, setText] = useState(null); // null: the block's own payment text.
+  const [changedTxid, setChangedTxid] = useState(null);
   const [siblings, setSiblings] = useState({}); // level -> edited sibling hash.
-  const [indexInput, setIndexInput] = useState(String(defaultIndex(DEFAULT_SIZE)));
+  const [indexInput, setIndexInput] = useState(String(source?.initialIndex ?? defaultIndex(DEFAULT_SIZE)));
 
-  const block = sampleBlock(size);
+  const block = source ?? sampleBlock(size);
   const proof = block.proofFor(index);
   const paymentText = text ?? block.texts[index];
-  const txid = txidOf(paymentText);
+  const txid = source ? changedTxid ?? block.txids[index] : txidOf(paymentText);
   const path = proof.path.map(step => ({ ...step, hash: siblings[step.level] ?? step.hash }));
   const result = verifyProof(txid, path, block.root, proof.levels);
   const top = proof.path.length;
-  const edited = text !== null || Object.keys(siblings).length > 0;
+  const edited = text !== null || changedTxid !== null || Object.keys(siblings).length > 0;
 
-  function choose(nextIndex, nextSize = size, report = true) {
+  function choose(nextIndex, nextSize = size, shouldReport = true) {
     setIndex(nextIndex);
     setIndexInput(String(nextIndex));
     setText(null);
+    setChangedTxid(null);
     setSiblings({});
-    onLessonEvent?.({ type: 'lesson_reset' });
-    if (report) {
-      const nextBlock = sampleBlock(nextSize);
+    report?.({ type: 'lesson_reset' });
+    if (shouldReport) {
+      const nextBlock = source ?? sampleBlock(nextSize);
       const nextProof = nextBlock.proofFor(nextIndex);
-      onLessonEvent?.(merkleEvidence(nextBlock.txids[nextIndex], nextProof.path, nextBlock.root, nextProof.levels));
+      report?.(merkleEvidence(nextBlock.txids[nextIndex], nextProof.path, nextBlock.root, nextProof.levels));
     }
   }
   function changeSize(nextSize) {
@@ -50,8 +54,8 @@ export function MerkleProof({ onLessonEvent, coach = null }) {
     choose(defaultIndex(nextSize), nextSize, false);
   }
   function reset() {
-    setSize(DEFAULT_SIZE);
-    choose(defaultIndex(DEFAULT_SIZE), DEFAULT_SIZE, false);
+    if (source) choose(source.initialIndex, source.size, false);
+    else { setSize(DEFAULT_SIZE); choose(defaultIndex(DEFAULT_SIZE), DEFAULT_SIZE, false); }
   }
   function typeIndex(value) {
     setIndexInput(value);
@@ -67,7 +71,7 @@ export function MerkleProof({ onLessonEvent, coach = null }) {
     setSiblings(next);
     const nextPath = proof.path.map(step => ({ ...step, hash: next[step.level] ?? step.hash }));
     // Only a sibling edit of the block's own payment can count as one.
-    onLessonEvent?.(merkleEvidence(txid, nextPath, block.root, proof.levels, text === null ? proof.path : null));
+    report?.(merkleEvidence(txid, nextPath, block.root, proof.levels, text === null ? proof.path : null));
   }
 
   function levelName(level) {
@@ -84,18 +88,28 @@ export function MerkleProof({ onLessonEvent, coach = null }) {
   return <section className="merkle-proof" aria-labelledby={`${id}-title`}>
     <header className="merkle-proof-header">
       <h2 id={`${id}-title`}>Is this payment in the block?</h2>
-      <button type="button" className="btn btn-default" {...hint('lab.merkle.reset')} onClick={reset}>Reset example</button>
+      <button type="button" className="btn btn-default" {...hint(source ? 'lab.merkle.reset-proof' : 'lab.merkle.reset')} onClick={reset}>{source ? 'Reset proof' : 'Reset example'}</button>
     </header>
 
-    <div className="merkle-proof-controls">
-      <fieldset className="merkle-proof-sizes"><legend>Block size</legend>
+    {source && <section className="merkle-proof-source" aria-label="Workbench block copy">
+      <h3>Your block #{source.blockIndex} · {count(size, 'transaction')}</h3>
+      <p>This copy keeps the header and transactions as they were when you opened it. Edits here leave your workbench unchanged.</p>
+      <div className="merkle-proof-source-actions">
+        {onBack && <button type="button" className="btn btn-default" onClick={onBack}>Back to workbench</button>}
+        {onUseExample && <button type="button" className="btn btn-transparent" onClick={onUseExample}>Use example block</button>}
+      </div>
+      {source.treeRoot !== source.root && <p className="merkle-proof-negative">These transactions no longer match the mined header’s Merkle root. An edit in the workbench changed the block after mining. Reset proof restores this copy, not the original block.</p>}
+      {(!source.headerHashValid || !source.workValid) && <p className="merkle-proof-negative">The copied header does not match its stored block hash or proof-of-work target. Inclusion alone does not make this block valid.</p>}
+    </section>}
+    <div className={`merkle-proof-controls${source ? ' is-workbench' : ''}`}>
+      {!source && <fieldset className="merkle-proof-sizes"><legend>Block size</legend>
         {BLOCK_SIZES.map(option => <label key={option} {...hint('lab.merkle.size', option)}>
           <input type="radio" name={`${id}-size`} value={option} checked={size === option} onChange={() => changeSize(option)} />
           {count(option, 'transaction')}
         </label>)}
-      </fieldset>
+      </fieldset>}
       <p className="merkle-proof-saving"><strong {...term('lab.merkle.saving')}>{hashes(top)} instead of {count(size, 'transaction')}</strong>
-        <span>plus the 80-byte header: the light client never downloads the other payments.</span></p>
+        <span>plus the 80-byte header: a light client can check inclusion without the other transactions.</span></p>
     </div>
 
     <CoachMark target="chain-lab.merkle-payment" coach={coach} className="merkle-proof-coach">
@@ -121,13 +135,20 @@ export function MerkleProof({ onLessonEvent, coach = null }) {
         <dt {...term('lab.merkle.root')}>Merkle root</dt><dd><code>{block.root}</code></dd>
         <dt {...term('lab.merkle.block-hash')}>Block hash</dt><dd><code>{block.hash}</code></dd>
       </dl>
-      <details><summary {...hint('lab.merkle.inspect')}>Inspect the 80 header bytes</summary><HeaderBytes header={block.header} hash={block.hash} /></details>
+      <details><summary {...hint('lab.merkle.inspect')}>Inspect the 80 header bytes</summary><HeaderBytes header={block.header} hash={source?.headerHash ?? block.hash} /></details>
     </div>
 
-    <div className="merkle-proof-payment">
+    {source ? <div className="merkle-proof-payment">
+      <label htmlFor={`${id}-txid`}>Transaction ID of transaction {index}</label>
+      <input id={`${id}-txid`} className="merkle-proof-hash-input" spellCheck={false} value={txid} {...hint('lab.merkle.txid')}
+        aria-invalid={!/^[0-9a-f]{64}$/.test(txid)} onChange={event => setChangedTxid(event.target.value.trim().toLowerCase())} />
+      <p className="merkle-proof-hint">Double SHA-256 of the copied raw transaction bytes, displayed byte-reversed. Change one hex character here or in a sibling to test the proof.</p>
+      <details><summary>Copied raw transaction bytes</summary><code className="merkle-proof-hash">{source.transactions[index].hex}</code></details>
+      {size === 1 && <p className="merkle-proof-hint">A one-transaction block needs no siblings: its TXID is the Merkle root. Change the TXID to break this proof.</p>}
+    </div> : <div className="merkle-proof-payment">
       <label htmlFor={`${id}-text`}>Payment text of transaction {index}</label>
-      <textarea id={`${id}-text`} rows={2} maxLength={300} value={paymentText} {...hint('lab.merkle.text')} onChange={event => { setText(event.target.value); onLessonEvent?.({ type: 'lesson_reset' }); }} />
-    </div>
+      <textarea id={`${id}-text`} rows={2} maxLength={300} value={paymentText} {...hint('lab.merkle.text')} onChange={event => { setText(event.target.value); report?.({ type: 'lesson_reset' }); }} />
+    </div>}
 
     <h3 className="merkle-proof-path-title" {...term('lab.merkle.path')}>Proof path for transaction {index}</h3>
     <ol className="merkle-proof-path" aria-label="Proof path">
@@ -138,9 +159,9 @@ export function MerkleProof({ onLessonEvent, coach = null }) {
         return <li key={step.level} className={`merkle-proof-level${failed ? ' is-failed' : ''}`} aria-label={levelName(step.level)}>
           <div className="merkle-proof-level-head">
             <strong>{levelName(step.level)}</strong>
-            {failed && <span className="merkle-proof-negative">{step.hash ? 'Differs from the block’s tree here' : 'Cannot be computed here'}</span>}
+            {failed && <span className="merkle-proof-negative">{!step.hash ? 'Cannot be computed here' : source && step.level === top && step.hash === source.treeRoot && source.treeRoot !== source.root ? 'Does not match the mined header’s root' : 'Differs from the block’s tree here'}</span>}
           </div>
-          <p className="merkle-proof-formula">{step.level === 0 ? 'txid = SHA-256d(payment text)'
+          <p className="merkle-proof-formula">{step.level === 0 ? (source ? 'txid = SHA-256d(raw transaction bytes)' : 'txid = SHA-256d(payment text)')
             : `= SHA-256d(${path[step.level - 1].side === 'left' ? `sibling ‖ level ${step.level - 1}` : `level ${step.level - 1} ‖ sibling`})`}</p>
           <code className="merkle-proof-hash">{step.hash ?? 'Cannot compute: an input below is not a hash.'}</code>
           {sibling && <CoachMark target={step.level === 0 ? 'chain-lab.merkle-sibling' : undefined} coach={coach} className="merkle-proof-coach"><div className="merkle-proof-sibling">
@@ -160,8 +181,8 @@ export function MerkleProof({ onLessonEvent, coach = null }) {
     </dl>
     <p className={`merkle-proof-verdict ${result.valid ? 'merkle-proof-positive' : 'merkle-proof-negative'}`} role="status">
       <strong>{result.valid ? 'Payment proven' : 'Payment not proven'}</strong> · {verdict}</p>
-    {edited && <p className="merkle-proof-hint">An edit changes one hash; every level above it changes too. Reset example restores the block’s own proof.</p>}
+    {edited && <p className="merkle-proof-hint">An edit changes one hash; every level above it changes too. {source ? 'Reset proof restores the copied transaction and siblings.' : 'Reset example restores the block’s own proof.'}</p>}
 
-    <p className="merkle-proof-note">Hashes are shown byte-reversed, like block explorers; each level is the double SHA-256 of its two children in internal byte order. An odd level pairs its last hash with itself. The payment texts are toy records, not signed transactions; this experiment never changes your simulator, wallets or mining pool.</p>
+    <p className="merkle-proof-note">Hashes are shown byte-reversed, like block explorers; each level is the double SHA-256 of its two children in internal byte order. An odd level pairs its last hash with itself. {source ? 'These are your simulated transactions. A matching proof demonstrates inclusion only; it does not check signatures, balances or network consensus. Nothing here changes your workbench, wallets or mining pool.' : 'The payment texts are toy records, not signed transactions; this experiment never changes your simulator, wallets or mining pool.'}</p>
   </section>;
 }

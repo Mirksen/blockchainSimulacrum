@@ -16,7 +16,7 @@ const INTROS = {
   merkle: 'A light client holds only the block header. A few sibling hashes, one per tree level, prove that one payment is in the block.'
 };
 
-export function ChainLab({ onClose, embedded = false, onLessonEvent, coach = null, experiment, onExperimentChange }) {
+export function ChainLab({ onClose, embedded = false, onLessonEvent, coach = null, experiment, onExperimentChange, proofSource = null, onUseExample }) {
   const [localExperiment, setLocalExperiment] = useState(() => experimentOf(coach?.mission));
   const shownExperiment = experiment ?? localExperiment;
   const [blocks, setBlocks] = useState(sampleChain);
@@ -82,7 +82,7 @@ export function ChainLab({ onClose, embedded = false, onLessonEvent, coach = nul
   return <section className="chain-lab" aria-labelledby="chain-lab-title">
     <header className="chain-lab-header">
       <div><h2 id="chain-lab-title">{TITLES[shownExperiment] ?? TITLES.repair}</h2>
-        <p>{INTROS[shownExperiment] ?? INTROS.repair}</p></div>
+        <p>{shownExperiment === 'merkle' && proofSource ? `Trace a transaction from your workbench’s block #${proofSource.blockIndex} to its mined header.` : INTROS[shownExperiment] ?? INTROS.repair}</p></div>
       {!embedded && <button className="btn btn-transparent" {...hint('lab.back')} onClick={() => { cancel(); onClose(); }}>Back to simulator</button>}
     </header>
     <nav className="chain-lab-experiments" aria-label="Chain lab experiment">
@@ -94,8 +94,9 @@ export function ChainLab({ onClose, embedded = false, onLessonEvent, coach = nul
         onClick={() => switchExperiment('merkle')}>Prove a payment</button>
     </nav>
     {shownExperiment === 'fork' ? <ForkExperiment onLessonEvent={onLessonEvent} coach={coach} />
-      : shownExperiment === 'merkle' ? <MerkleProof
-        onLessonEvent={coach?.target?.startsWith('chain-lab.merkle-') ? onLessonEvent : undefined} coach={coach} /> : <>
+      : shownExperiment === 'merkle' ? <MerkleProof key={proofSource ? `${proofSource.hash}:${proofSource.initialIndex}:${proofSource.txids.join(':')}` : 'example'}
+        source={proofSource} onUseExample={onUseExample} onBack={onClose}
+        onLessonEvent={!proofSource && coach?.target?.startsWith('chain-lab.merkle-') ? onLessonEvent : undefined} coach={proofSource ? null : coach} /> : <>
     <div className="chain-lab-summary">
       <p className={consistent ? 'chain-lab-positive' : 'chain-lab-negative'}><strong {...term('lab.chain.status', consistent)}>{consistent ? 'Toy chain consistent' : 'Toy chain inconsistent'}</strong></p>
       <button className="btn btn-default" {...hint('lab.chain.reset')} onClick={reset}>Reset chain lab</button>

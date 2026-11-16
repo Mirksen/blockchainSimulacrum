@@ -249,6 +249,7 @@ export function Workbench({ session, coinName, identity, boardRows, coach, onOpe
           edit={edits.length ? edits : null} onOpenDetails={index => onOpen?.({ kind: 'block', index })} onOpenChainLab={openChainLab}
           onTamper={actions.tamper} onUndo={actions.undo} coach={workbenchCoach}>
           <BlockTransactions key={`transactions-${selected}`} transactions={selectedTransactions} editedTx={edits.map(edit => edit.txIndex)}
+            onProve={transactionIndex => onOpen?.({ kind: 'proof', blockIndex: selected, transactionIndex })}
             onOpenDetails={view => onOpen?.({ kind: 'transaction', view, blockIndex: selected })} />
         </SelectedBlockCard>
       </div>
