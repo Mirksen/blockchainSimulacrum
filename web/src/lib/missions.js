@@ -1,20 +1,34 @@
-// One mission track: the three guided lab experiments plus the workbench missions
+// One mission track in four chapters (CHAPTERS): the six-scene Basics course
+// (view 'basics'), the guided lab experiments and the workbench missions
 // (web/DESIGN.md, "Existing features in the workbench" and "Mission rail").
 // Pure module: no React, no DOM. Storage is only touched through the object passed
 // to load() and save().
 //
+// Completion is a set of mission ids, not an in-order prefix. A learner may skip
+// missions (skip()); the active mission is the first one in track order that is
+// neither completed nor skipped. Text fields may be a string or { plain, technical }
+// (textOf()).
+//
 // Events (all plain objects with a `type`):
-//   Labs:      manual_hash_found {hash}, work_found {difficulty, attempts},
-//              chain_checked {consistent, changedFirstBlock}, lesson_reset
+//   Basics:    copy_tried {kind: 'photo'|'double-spend'|'rejected'}, fingerprint_made {hash},
+//              fingerprints_compared {changed, right}, manual_hash_found {hash},
+//              draw_finished {winner, rolls}, seals_checked {valid, edited},
+//              seals_repaired {zeros, hashes, valid}, lesson_reset
+//   Labs:      work_found {difficulty, attempts}, chain_checked {consistent, changedFirstBlock},
+//              fork_round {scenario, rounds, originalWork, alternativeWork, selected, reorganized},
+//              fork_reset, merkle_checked {root, txid, valid, malformed, editedSibling, failedAt},
+//              lesson_reset
 //   Workbench: transaction_created, miner_backed {name}, block_mined {backedWon, epoch},
-//              block_tampered {blockIndex}, block_remined {blockIndex, chainValid}, edit_undone,
+//              block_tampered {blockIndex, signed, newest},
+//              block_remined {blockIndex, chainValid, hashesAndLinksValid, signatureInvalid, editPresent},
+//              edit_undone, fee_market_checked {chainValid, waiting, packages, acceptedBlock, confirmed},
 //              difficulty_changed {direction: 'up'|'down'} (automatic adjustment only;
 //              events with manual: true are ignored), reset (simulator reset)
 // Only the active mission's current step can advance. Everything else is free play
 // and leaves progress untouched.
 
 export const STORAGE_KEY = 'proofofwork-missions';
-export const PROGRESS_VERSION = 1;
+export const PROGRESS_VERSION = 2;
 
 const freeze = value => {
   if (value && typeof value === 'object') {
@@ -24,18 +38,102 @@ const freeze = value => {
   return value;
 };
 
+export const CHAPTERS = freeze([
+  { id: 'basics', title: 'Basics' },
+  { id: 'proof-of-work', title: 'Proof of work' },
+  { id: 'simulator', title: 'The simulator' },
+  { id: 'deeper', title: 'Going deeper' }
+]);
+
 export const MISSIONS = freeze([
   {
-    id: 'change-fingerprint', title: 'Mine by hand', view: 'hash-lab',
+    id: 'copy-problem', title: 'The copy problem', chapter: 'basics', view: 'basics',
     steps: [
-      { id: 'change-message', text: 'Type your name. Change or add a number until its hash starts with 0, then continue.', target: 'hash-lab.message' }
+      { id: 'send-photo', text: 'Send the photo to Bob.', target: 'basics.copy-photo' },
+      { id: 'double-spend', text: 'Send the coin to Bob, then the same coin to Carol.', target: 'basics.copy-coin' },
+      { id: 'use-list', text: 'Turn on the shared list and try again.', target: 'basics.copy-list' }
     ],
-    hint: 'Try your name, your name 1, your name 2… The hash is calculated from exactly your text.',
-    result: 'You found text whose hash starts with 0: proof of work by hand. The same text always gives the same hash. Finding a match takes trying; checking it needs just one hash.',
+    hint: {
+      plain: 'A file never leaves your device when you send it. You send a copy.',
+      technical: 'Sending data copies it. That is the double-spending problem.'
+    },
+    result: {
+      plain: 'Digital things copy for free. Money must not. So everyone has to agree on one list of who paid whom. The rest of this course is about who may write that list.',
+      technical: 'Without a shared, ordered ledger the same coin can be spent twice. The remaining question is who may append to that ledger when nobody is in charge.'
+    },
+    reward: { xp: 10 }
+  },
+  {
+    id: 'see-a-fingerprint', title: 'Take a fingerprint', chapter: 'basics', view: 'basics',
+    steps: [
+      { id: 'type-text', text: 'Type anything. Its fingerprint appears as you type.', target: 'basics.text' },
+      { id: 'repeat-text', text: 'Change it, then type your first text again. The same fingerprint returns.', target: 'basics.text' }
+    ],
+    hint: 'A hash is a fingerprint of data: a short code calculated from every character.',
+    result: 'The same text always gives the same fingerprint, on every computer. A fingerprint is always 64 characters, however long the text.',
+    reward: { xp: 10 }
+  },
+  {
+    id: 'change-one-letter', title: 'One letter, everything changes', chapter: 'basics', view: 'basics',
+    steps: [
+      { id: 'change-one', text: 'Change one character on the right.', target: 'basics.compare' },
+      { id: 'keep-small', text: 'Try three more small changes. Can you keep the fingerprint almost the same?', target: 'basics.compare' }
+    ],
+    hint: 'Add a zero, swap a letter, add a space. Watch the counter.',
+    result: 'Every change, however small, gives a completely different fingerprint: about half of its bits flip. Nobody can sneak in a small change, and nobody can work back from a fingerprint to the text.',
+    reward: { xp: 10 }
+  },
+  {
+    id: 'change-fingerprint', title: 'Guess a fingerprint', chapter: 'basics', view: 'basics',
+    steps: [
+      {
+        id: 'change-message',
+        text: {
+          plain: 'Roll until the fingerprint starts with 0: add a number to your text and keep changing it.',
+          technical: 'Find a text whose SHA-256 hash starts with 0: append a number and increment it.'
+        },
+        target: 'basics.guess'
+      }
+    ],
+    hint: 'Each new text is a fresh roll of a 16-sided die. The same text always lands the same way.',
+    result: {
+      plain: 'Finding it took many rolls. Checking it takes one look. So the fingerprint itself proves that somebody rolled.',
+      technical: 'No shortcut is known: the only way is trying inputs. Verifying costs one hash. The hash itself is the proof of the work.'
+    },
     reward: { xp: 20 }
   },
   {
-    id: 'earn-proof-of-work', title: 'Earn a proof of work', view: 'hash-lab',
+    id: 'why-guess', title: 'Why would anyone guess?', chapter: 'basics', view: 'basics',
+    steps: [
+      { id: 'run-draw', text: 'Run the draw for the next page.', target: 'basics.draw' },
+      { id: 'run-again', text: 'Run two more draws. Does the same writer always win?', target: 'basics.draw' }
+    ],
+    hint: {
+      plain: 'Three writers want to add the next page. Nobody is in charge, so the dice decide.',
+      technical: 'Leader election without a leader: every hash is a lottery ticket, so influence follows work, not the number of identities.'
+    },
+    result: {
+      plain: 'The roll is the postage for writing a page: whoever hits first writes it and earns the reward. Nobody can fake a win, and everyone can check it at a glance.',
+      technical: 'Proof of work picks the next writer by lottery and prices every page: writing costs work, verifying costs one hash. The same idea was first proposed as postage against e-mail spam.'
+    },
+    reward: { xp: 20 }
+  },
+  {
+    id: 'sealed-pages', title: 'Sealed pages', chapter: 'basics', view: 'basics',
+    steps: [
+      { id: 'break-seal', text: 'Change the text on page 1. Watch the seals break.', target: 'basics.page-1' },
+      { id: 'repair-free', text: 'Set Guessing to off and repair. Count the hashes.', target: 'basics.repair' },
+      { id: 'repair-work', text: 'Break page 1 again, set Guessing to 3 zeros and repair.', target: 'basics.repair' }
+    ],
+    hint: 'Every seal includes the seal of the page before it, so a change travels forward.',
+    result: {
+      plain: 'The chain makes tampering visible. The work makes it expensive. Only both together protect the past.',
+      technical: 'A hash chain alone is tamper-evident but cheap to recompute. Proof of work makes rewriting cost the work of every later block again.'
+    },
+    reward: { xp: 30, badge: 'Basics' }
+  },
+  {
+    id: 'earn-proof-of-work', title: 'Earn a proof of work', chapter: 'proof-of-work', view: 'hash-lab',
     steps: [
       { id: 'one-zero', text: 'Find a nonce for one leading zero.', target: 'hash-lab.search' },
       { id: 'two-zeros', text: 'Choose two zeros and search again.', target: 'hash-lab.search' }
@@ -45,7 +143,17 @@ export const MISSIONS = freeze([
     reward: { xp: 40, badge: 'First proof' }
   },
   {
-    id: 'send-first-coin', title: 'Send your first coin', view: 'workbench',
+    id: 'change-the-past', title: 'Change the past', chapter: 'proof-of-work', view: 'chain-lab',
+    steps: [
+      { id: 'edit-block', text: 'Edit Block 1’s data.', target: 'chain-lab.block-1' },
+      { id: 'repair-chain', text: 'Keep that edit, then re-mine Blocks 1, 2 and 3 in order.', target: 'chain-lab.remine' }
+    ],
+    hint: 'Each re-mine changes a hash, so the next block’s link breaks until you re-mine that block too.',
+    result: 'Changing an earlier block invalidates the chain. Repairing its hash changes what the next block must link to, so the repair travels forward. This toy chain shows links and work, not signatures or network consensus.',
+    reward: { xp: 60, badge: 'Chain mender' }
+  },
+  {
+    id: 'send-first-coin', title: 'Send your first coin', chapter: 'simulator', view: 'workbench',
     steps: [
       { id: 'new-transaction', text: 'Create a transaction from one wallet to another.', target: 'workbench.new-transaction' }
     ],
@@ -54,7 +162,7 @@ export const MISSIONS = freeze([
     reward: { xp: 40 }
   },
   {
-    id: 'win-mining-race', title: 'Win a mining race', view: 'workbench',
+    id: 'win-mining-race', title: 'Win a mining race', chapter: 'simulator', view: 'workbench',
     steps: [
       { id: 'back-miner', text: 'Back a miner.', target: 'workbench.back-miner' },
       { id: 'watch-race', text: 'Watch one full race.', target: 'workbench.mine' },
@@ -65,17 +173,7 @@ export const MISSIONS = freeze([
     reward: { xp: 60, badge: 'Backer' }
   },
   {
-    id: 'change-the-past', title: 'Change the past', view: 'chain-lab',
-    steps: [
-      { id: 'edit-block', text: 'Edit Block 1’s data.', target: 'chain-lab.block-1' },
-      { id: 'repair-chain', text: 'Keep that edit, then re-mine Blocks 1, 2 and 3 in order.', target: 'chain-lab.remine' }
-    ],
-    hint: 'Each re-mine changes a hash, so the next block’s link breaks until you re-mine that block too.',
-    result: 'Changing an earlier block invalidates the chain. Repairing its hash changes what the next block must link to, so the repair travels forward. This toy chain shows links and work, not signatures or network consensus.',
-    reward: { xp: 60, badge: 'Chain mender' }
-  },
-  {
-    id: 'forge-a-block', title: 'Forge a block without getting caught', view: 'workbench',
+    id: 'forge-a-block', title: 'Forge a block without getting caught', chapter: 'simulator', view: 'workbench',
     steps: [
       { id: 'tamper', text: 'Lower a coinbase amount in a mined block whose coin nobody spent.', target: 'workbench.selected-block.tamper' },
       { id: 'remine-changed', text: 'Re-mine the changed block.', target: 'workbench.remine' },
@@ -86,7 +184,7 @@ export const MISSIONS = freeze([
     reward: { xp: 80, badge: 'Forger' }
   },
   {
-    id: 'survive-halving', title: 'Survive a halving', view: 'workbench',
+    id: 'survive-halving', title: 'Survive a halving', chapter: 'simulator', view: 'workbench',
     steps: [
       { id: 'mine-block', text: 'Mine a block and note its reward.', target: 'workbench.mine' },
       { id: 'reach-halving', text: 'Keep mining until the block reward halves.', target: 'workbench.mine' }
@@ -96,7 +194,7 @@ export const MISSIONS = freeze([
     reward: { xp: 60, badge: 'Halving survivor' }
   },
   {
-    id: 'beat-difficulty-adjustment', title: 'Beat the difficulty adjustment', view: 'workbench',
+    id: 'beat-difficulty-adjustment', title: 'Beat the difficulty adjustment', chapter: 'simulator', view: 'workbench',
     steps: [
       { id: 'change-pace', text: 'Mine 10 blocks faster or slower than the target block time.', target: 'workbench.mine' }
     ],
@@ -105,7 +203,7 @@ export const MISSIONS = freeze([
     reward: { xp: 100, badge: 'Pace setter' }
   },
   {
-    id: 'follow-stronger-chain', title: 'Follow the stronger chain', view: 'chain-lab',
+    id: 'follow-stronger-chain', title: 'Follow the stronger chain', chapter: 'deeper', view: 'chain-lab',
     steps: [
       { id: 'start-rewrite', text: 'Choose Rewrite history and mine a block.', target: 'chain-lab.fork-scenario' },
       { id: 'overtake-history', text: 'Let the rewritten branch overtake the original.', target: 'chain-lab.fork-mine' }
@@ -115,7 +213,7 @@ export const MISSIONS = freeze([
     reward: { xp: 80, badge: 'Fork watcher' }
   },
   {
-    id: 'get-payment-in', title: 'Get your payment in', view: 'workbench', hintKey: 'mission.fee-market',
+    id: 'get-payment-in', title: 'Get your payment in', chapter: 'deeper', view: 'workbench', hintKey: 'mission.fee-market',
     steps: [
       { id: 'wait-for-space', text: 'Fill the mempool until a low-fee payment waits because the block is full.', target: 'workbench.new-transaction' },
       { id: 'pay-for-parent', text: 'Spend that pending payment in a new transfer with a higher fee rate.', target: 'workbench.new-transaction' },
@@ -126,7 +224,7 @@ export const MISSIONS = freeze([
     reward: { xp: 80, badge: 'Fee planner' }
   },
   {
-    id: 'prove-a-payment', title: 'Prove a payment', view: 'chain-lab', hintKey: 'mission.merkle',
+    id: 'prove-a-payment', title: 'Prove a payment', chapter: 'deeper', view: 'chain-lab', hintKey: 'mission.merkle',
     steps: [
       { id: 'check-path', text: 'Choose a payment and follow its proof to the header’s Merkle root.', target: 'chain-lab.merkle-payment' },
       { id: 'change-sibling', text: 'Change one character of one sibling hash. Find the first diverging level.', target: 'chain-lab.merkle-sibling' }
@@ -136,7 +234,7 @@ export const MISSIONS = freeze([
     reward: { xp: 60, badge: 'Proof reader' }
   },
   {
-    id: 'test-a-signature', title: 'Try to steal a coin', view: 'workbench', hintKey: 'mission.signature',
+    id: 'test-a-signature', title: 'Try to steal a coin', chapter: 'deeper', view: 'workbench', hintKey: 'mission.signature',
     steps: [
       { id: 'edit-signed-payment', text: 'Mine a payment, then change a signed transfer’s amount in the newest block.', target: 'workbench.selected-block.tamper' },
       { id: 'redo-work', text: 'Choose Test proof of work anyway. See the signature stay invalid after re-mining.', target: 'workbench.signature-test' }
@@ -156,6 +254,53 @@ const isHash = value => typeof value === 'string' && /^[0-9a-f]{64}$/.test(value
 // Per mission: advance(stepIndex, data, event) returns the next {step, data} or null to
 // ignore the event. step === steps.length completes the mission.
 const RULES = {
+  'copy-problem': {
+    advance(step, data, event) {
+      if (event.type !== 'copy_tried') return null;
+      const expected = ['photo', 'double-spend', 'rejected'][step];
+      return event.kind === expected ? { step: step + 1, data } : null;
+    }
+  },
+  'see-a-fingerprint': {
+    advance(step, data, event) {
+      if (event.type !== 'fingerprint_made' || !isHash(event.hash)) return null;
+      if (step === 0) return { step: 1, data: { first: event.hash } };
+      if (event.hash !== data.first) return data.changed ? null : { step: 1, data: { ...data, changed: true } };
+      return data.changed ? { step: 2, data } : null;
+    }
+  },
+  'change-one-letter': {
+    advance(step, data, event) {
+      if (event.type !== 'fingerprints_compared' || !Number.isInteger(event.changed) || event.changed < 0 ||
+        event.changed > 64 || !isHash(event.right) || event.changed === 0) return null;
+      if (step === 0) return { step: 1, data: { seen: [event.right] } };
+      if (data.seen.includes(event.right)) return null;
+      const seen = [...data.seen, event.right];
+      return { step: seen.length >= 4 ? 2 : 1, data: { seen } };
+    }
+  },
+  'why-guess': {
+    advance(step, data, event) {
+      if (event.type !== 'draw_finished' || typeof event.winner !== 'string' || event.winner.length === 0 ||
+        !isCount(event.rolls)) return null;
+      if (step === 0) return { step: 1, data: { draws: 1 } };
+      const draws = data.draws + 1;
+      return { step: draws >= 3 ? 2 : 1, data: { draws } };
+    }
+  },
+  'sealed-pages': {
+    advance(step, data, event) {
+      if (event.type === 'seals_checked') {
+        if (typeof event.valid !== 'boolean' || typeof event.edited !== 'boolean') return null;
+        return step === 0 && event.edited && !event.valid ? { step: 1, data } : null;
+      }
+      if (event.type !== 'seals_repaired' || !Number.isInteger(event.zeros) || event.zeros < 0 || event.zeros > 3 ||
+        !isCount(event.hashes) || event.valid !== true) return null;
+      if (step === 1 && event.zeros === 0) return { step: 2, data };
+      if (step === 2 && event.zeros >= 2 && event.hashes > 3) return { step: 3, data };
+      return null;
+    }
+  },
   'get-payment-in': {
     advance(step, data, event) {
       if (event.type !== 'fee_market_checked' || event.chainValid !== true) return null;
@@ -268,22 +413,46 @@ const RULES = {
   }
 };
 
-/** Fresh progress: mission 1 active at its first step, nothing completed. */
+// Mission order before the Basics course (progress version 1). Version 1 stored an
+// in-order prefix of exactly this list.
+const V1_ORDER = Object.freeze(['change-fingerprint', 'earn-proof-of-work', 'send-first-coin', 'win-mining-race',
+  'change-the-past', 'forge-a-block', 'survive-halving', 'beat-difficulty-adjustment', 'follow-stronger-chain',
+  'get-payment-in', 'prove-a-payment', 'test-a-signature']);
+
+const skippedOf = progress => progress.skipped ?? [];
+// Known, unique ids in track order.
+const inTrackOrder = ids => MISSIONS.filter(mission => ids.includes(mission.id)).map(mission => mission.id);
+
+/**
+ * A text field (title, step text, hint, result) is a string or { plain, technical }.
+ * Returns the variant for the tone ('plain' | 'technical'); a missing variant falls
+ * back to the other one, a string is returned as is.
+ */
+export function textOf(value, tone = 'technical') {
+  if (!isObject(value)) return value;
+  return tone === 'plain' ? value.plain ?? value.technical : value.technical ?? value.plain;
+}
+
+/** Fresh progress: mission 1 active at its first step, nothing completed or skipped. */
 export function initialProgress() {
-  return { version: PROGRESS_VERSION, completed: [], step: 0, data: {} };
+  return { version: PROGRESS_VERSION, completed: [], skipped: [], step: 0, data: {} };
 }
 
-/** The mission that events can advance, or null when the whole track is done. */
+/**
+ * The mission that events can advance: the first in track order that is neither
+ * completed nor skipped, or null when none is left.
+ */
 export function activeMission(progress) {
-  return MISSIONS[progress.completed.length] ?? null;
+  const skipped = skippedOf(progress);
+  return MISSIONS.find(mission => !progress.completed.includes(mission.id) && !skipped.includes(mission.id)) ?? null;
 }
 
-/** 'done' | 'active' | 'locked' for a mission id. Missions unlock in order. */
+/** 'done' | 'skipped' | 'active' | 'locked' for a mission id. */
 export function missionStatus(progress, id) {
-  const index = BY_ID.get(id);
-  if (index === undefined) return 'locked';
-  if (index < progress.completed.length) return 'done';
-  return index === progress.completed.length ? 'active' : 'locked';
+  if (!BY_ID.has(id)) return 'locked';
+  if (progress.completed.includes(id)) return 'done';
+  if (skippedOf(progress).includes(id)) return 'skipped';
+  return activeMission(progress)?.id === id ? 'active' : 'locked';
 }
 
 /** Coach ring position: the active mission's current step, or null when all are done. */
@@ -302,12 +471,27 @@ export function experimentOf(missionId) {
   return Object.hasOwn(EXPERIMENTS, missionId ?? '') ? EXPERIMENTS[missionId] : 'repair';
 }
 
+const completedMissions = progress => MISSIONS.filter(mission => progress.completed.includes(mission.id));
+
 export function totalXp(progress) {
-  return progress.completed.reduce((sum, id) => sum + MISSIONS[BY_ID.get(id)].reward.xp, 0);
+  return completedMissions(progress).reduce((sum, mission) => sum + mission.reward.xp, 0);
 }
 
 export function earnedBadges(progress) {
-  return progress.completed.map(id => MISSIONS[BY_ID.get(id)].reward.badge).filter(Boolean);
+  return completedMissions(progress).map(mission => mission.reward.badge).filter(Boolean);
+}
+
+/**
+ * Marks the known, not completed mission ids as skipped. When that changes the active
+ * mission, its step and data restart. Returns the same object when nothing changes.
+ */
+export function skip(progress, ids) {
+  if (!Array.isArray(ids)) return progress;
+  const before = skippedOf(progress);
+  const added = ids.filter(id => BY_ID.has(id) && !progress.completed.includes(id) && !before.includes(id));
+  if (!added.length) return progress;
+  const next = { ...progress, skipped: inTrackOrder([...before, ...added]) };
+  return activeMission(next) === activeMission(progress) ? next : { ...next, step: 0, data: {} };
 }
 
 /**
@@ -320,13 +504,13 @@ export function reduce(progress, event) {
   const lab = mission.view !== 'workbench';
   const restart = { ...progress, step: 0, data: {} };
   if (event.type === 'fork_reset' && mission.id === 'follow-stronger-chain') return progress.step > 0 ? restart : progress;
-  // A lab reset only restarts a lab mission; a simulator reset only a workbench mission.
+  // A lab reset restarts any non-workbench mission (labs and Basics); a simulator reset only a workbench mission.
   if (event.type === 'lesson_reset') return lab && (progress.step !== 0 || Object.keys(progress.data).length) ? restart : progress;
   if (event.type === 'reset') return !lab && (progress.step !== 0 || Object.keys(progress.data).length) ? restart : progress;
   const next = RULES[mission.id].advance(progress.step, progress.data, event);
   if (!next) return progress;
   if (next.step >= mission.steps.length) {
-    return { ...progress, completed: [...progress.completed, mission.id], step: 0, data: {} };
+    return { ...progress, completed: inTrackOrder([...progress.completed, mission.id]), step: 0, data: {} };
   }
   if (next.step === progress.step && next.data === progress.data) return progress;
   return { ...progress, step: next.step, data: next.data };
@@ -334,14 +518,26 @@ export function reduce(progress, event) {
 
 function normalize(stored) {
   const fresh = initialProgress();
-  if (!isObject(stored) || stored.version !== PROGRESS_VERSION || !Array.isArray(stored.completed)) return fresh;
-  // Only an in-order prefix of the track counts as completed.
-  let count = 0;
-  while (count < MISSIONS.length && stored.completed[count] === MISSIONS[count].id) count += 1;
-  const completed = MISSIONS.slice(0, count).map(mission => mission.id);
+  if (!isObject(stored) || (stored.version !== 1 && stored.version !== 2) || !Array.isArray(stored.completed)) return fresh;
+  let completed;
+  let skipped = [];
+  if (stored.version === 1) {
+    // Version 1 counted only an in-order prefix of the old track as completed.
+    let count = 0;
+    while (count < V1_ORDER.length && stored.completed[count] === V1_ORDER[count]) count += 1;
+    completed = inTrackOrder(V1_ORDER.slice(0, count));
+  } else {
+    completed = inTrackOrder(stored.completed);
+    skipped = Array.isArray(stored.skipped) ? inTrackOrder(stored.skipped.filter(id => !completed.includes(id))) : [];
+  }
+  // A returning learner is never thrown back into the course: every Basics mission
+  // before a completed mission that is not completed itself counts as skipped.
+  const last = Math.max(-1, ...completed.map(id => BY_ID.get(id)));
+  const passed = MISSIONS.filter((mission, index) => mission.chapter === 'basics' && index < last &&
+    !completed.includes(mission.id)).map(mission => mission.id);
   // Reload creates fresh labs and a fresh simulator. Backing, edited blocks and
-  // observed halving epochs no longer exist, so only completed missions survive.
-  return { ...fresh, completed };
+  // observed halving epochs no longer exist, so only completed and skipped missions survive.
+  return { ...fresh, completed, skipped: inTrackOrder([...skipped, ...passed]) };
 }
 
 /** Reads progress from a Storage-like object; missing, blocked or corrupt storage starts fresh. */
@@ -359,7 +555,8 @@ export function save(storage, progress) {
   try {
     if (!storage) return false;
     const { completed, step, data } = progress;
-    storage.setItem(STORAGE_KEY, JSON.stringify({ version: PROGRESS_VERSION, completed, step, data }));
+    const skipped = skippedOf(progress);
+    storage.setItem(STORAGE_KEY, JSON.stringify({ version: PROGRESS_VERSION, completed, skipped, step, data }));
     return true;
   } catch {
     return false;
