@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { join } from 'node:path';
-import { menu, settle, workbench } from './workbench.helpers.mjs';
+import { asReturningVisitor, menu, settle, workbench } from './workbench.helpers.mjs';
 
 // Real UI, real proofs, isolated browser storage; synthetic names and no pool writes.
 export async function verifyMiningFeedback(browser, baseURL, output) {
@@ -11,8 +11,8 @@ export async function verifyMiningFeedback(browser, baseURL, output) {
   await page.route('https://eu.i.posthog.com/**', route => route.abort('connectionrefused'));
   // Fixed header times make the tenth-block adjustment deterministic. Timers keep running.
   await page.clock.setFixedTime(new Date('2026-01-02T12:00:00Z'));
+  await asReturningVisitor(page);
   await page.addInitScript(() => {
-    localStorage.setItem('proofofwork-missions-intro-seen', '1');
     globalThis.feedbackAnimations = [];
     document.addEventListener('animationstart', event => globalThis.feedbackAnimations.push(event.animationName));
   });

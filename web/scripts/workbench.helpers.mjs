@@ -1,8 +1,30 @@
 import { Buffer } from 'node:buffer';
 import { createHash } from 'node:crypto';
+import { MISSIONS, PROGRESS_VERSION } from '../src/lib/missions.js';
+import { START_KEY } from '../src/lib/startChoice.js';
 // Locators shared by the browser acceptance scripts.
 
 const TILE = /^(Genesis block 0|Block \d+)(,|$)/;
+
+// A returning visitor who answered the start question with "Just let me play": the app
+// opens on the workbench instead of asking "Where do you want to start?". `target` is a
+// Page or a BrowserContext; call it before the first navigation. Only an absent answer is
+// filled in, so a choice made during the test survives its reloads. Blocked storage stays
+// blocked: that visit starts at the question.
+export async function asReturningVisitor(target) {
+  await target.addInitScript(key => {
+    try {
+      if (localStorage.getItem(key) === null) localStorage.setItem(key, 'play');
+    } catch { /* Storage blocked on purpose by the test. */ }
+  }, START_KEY);
+}
+
+// Stored mission progress (version 2) with every mission before `id` completed, in track order.
+export function progressBefore(id, { step = 0, data = {}, skipped = [] } = {}) {
+  const index = MISSIONS.findIndex(mission => mission.id === id);
+  if (index < 0) throw new Error(`Unknown mission ${id}`);
+  return { version: PROGRESS_VERSION, completed: MISSIONS.slice(0, index).map(mission => mission.id), skipped, step, data };
+}
 
 export function workbench(page) {
   return {

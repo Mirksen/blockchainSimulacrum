@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { chromium, webkit } from 'playwright';
-import { settle } from './workbench.helpers.mjs';
+import { asReturningVisitor, settle } from './workbench.helpers.mjs';
 import { readFileSync } from 'node:fs';
 const GENESIS = JSON.parse(readFileSync(new URL('../../shared/genesis.json', import.meta.url), 'utf8'));
 
@@ -67,6 +67,7 @@ if (process.argv[1]?.endsWith('leaderboard-growth.acceptance.mjs')) {
     const browser = await type.launch({ headless: true, ...(engine === 'chrome' ? { channel: 'chrome' } : {}) });
     try {
       const page = await browser.newPage({ reducedMotion: 'reduce' });
+      await asReturningVisitor(page);
       await verifyLeaderboardGrowth(page, `/tmp/leaderboard-growth-shots/${engine}`, process.env.BASE_URL || 'http://127.0.0.1:4193');
       console.log(`${engine}: populated profiles and history pass five widths and both themes`);
     } finally { await browser.close(); }

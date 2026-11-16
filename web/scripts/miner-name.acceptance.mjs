@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { isGeneratedName } from '../../shared/miner-names.mjs';
-import { headerHash, openTab, workbench } from './workbench.helpers.mjs';
+import { asReturningVisitor, headerHash, openTab, workbench } from './workbench.helpers.mjs';
 
 const API = 'https://api.proofofwork.fyi';
 const GENESIS = JSON.parse(readFileSync(new URL('../../shared/genesis.json', import.meta.url), 'utf8'));
@@ -49,6 +49,7 @@ export async function verifyMinerName(browser, baseURL, output) {
   const pool = syntheticPool();
   await page.route(`${API}/**`, pool.route);
   await page.route('https://eu.i.posthog.com/**', route => route.abort('blockedbyclient'));
+  await asReturningVisitor(page);
   try {
     await page.goto(baseURL);
     const input = page.locator('#miner-name-input');

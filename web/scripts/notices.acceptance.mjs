@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { join } from 'node:path';
-import { menu, settle, workbench } from './workbench.helpers.mjs';
+import { asReturningVisitor, menu, settle, workbench } from './workbench.helpers.mjs';
 
 // Real Chrome pointer interaction and signed blocks; virtual time covers the deadline.
 export async function verifyNoticeLifetime(browser, baseURL, output) {
@@ -9,8 +9,8 @@ export async function verifyNoticeLifetime(browser, baseURL, output) {
   page.on('pageerror', error => errors.push(error.message));
   await page.route('https://api.proofofwork.fyi/**', route => route.abort('connectionrefused'));
   await page.route('https://eu.i.posthog.com/**', route => route.abort('connectionrefused'));
+  await asReturningVisitor(page);
   await page.addInitScript(() => {
-    localStorage.setItem('proofofwork-missions-intro-seen', '1');
     localStorage.setItem('pow.analytics.enabled', 'false');
   });
   await page.clock.install();
@@ -62,8 +62,8 @@ export async function verifyFeeMarketCounts(browser, baseURL, output) {
   page.on('pageerror', error => errors.push(error.message));
   await page.route('https://api.proofofwork.fyi/**', route => route.abort('connectionrefused'));
   await page.route('https://eu.i.posthog.com/**', route => route.abort('connectionrefused'));
+  await asReturningVisitor(page);
   await page.addInitScript(() => {
-    localStorage.setItem('proofofwork-missions-intro-seen', '1');
     localStorage.setItem('pow.analytics.enabled', 'false');
   });
   try {

@@ -4,6 +4,7 @@ import { createRequire } from 'node:module';
 import { spawn } from 'node:child_process';
 import { stripVTControlCharacters } from 'node:util';
 import { fileURLToPath } from 'node:url';
+import { asReturningVisitor } from './workbench.helpers.mjs';
 
 const require = createRequire(import.meta.url);
 const base = process.env.BASE_URL || 'http://127.0.0.1:4187';
@@ -24,9 +25,49 @@ try {
     assert.ok(ready, `Preview did not start: ${log}`);
   }
   browser = await chromium.launch({ channel: 'chrome', headless: true });
+  const auditPage = async page => (await page.evaluate(async () => (await globalThis.axe.run(document, {
+    runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa'] }
+  })).violations.map(v => ({ id: v.id, targets: v.nodes.map(node => node.target) }))));
+  // A first visit: the start question, then the first Basics scene with its coach mark after
+  // "I know what a hash is" (the live site is never answered with "Hashes are new to me").
+  for (const [width, height] of [[360, 860], [1512, 860]]) {
+    const context = await browser.newContext({ viewport: { width, height }, reducedMotion: 'reduce' });
+    await context.route(/^https:\/\/(eu\.i\.posthog\.com|api\.proofofwork\.fyi)\//, route => route.abort('connectionrefused'));
+    const page = await context.newPage();
+    await page.addInitScript({ path: require.resolve('axe-core/axe.min.js') });
+    const errors = [];
+    page.on('pageerror', error => errors.push(error.message));
+    await page.goto(`${base}/`);
+    const question = page.getByRole('region', { name: 'Where do you want to start?', exact: true });
+    await question.waitFor();
+    assert.equal(await page.getByRole('main').getAttribute('aria-label'), 'Start');
+    await page.getByRole('link', { name: 'Skip to content', exact: true }).focus();
+    await page.keyboard.press('Enter');
+    assert.equal(await page.evaluate(() => document.activeElement.id), 'workbench');
+    for (const [label, ready] of [['Start question', question],
+      ['Basics scene 1', page.locator('[data-coach-target="basics.copy-photo"].is-active')]]) {
+      if (label !== 'Start question') {
+        // Answer the usage notice (audited above) so it covers no answer.
+        const notice = page.locator('.usage-consent');
+        if (await notice.count()) await notice.getByRole('button', { name: 'Opt out', exact: true }).click();
+        await question.getByRole('button', { name: /^I know what a hash is/ }).click();
+      }
+      await ready.waitFor();
+      for (const theme of ['dark', 'light']) {
+        await page.evaluate(theme => document.documentElement.setAttribute('data-theme', theme), theme);
+        assert.deepEqual(await auditPage(page), [], `${label} ${theme} ${width}px`);
+        assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `${label}: horizontal overflow`);
+      }
+    }
+    assert.match(page.url(), /#\/basics$/);
+    assert.deepEqual(errors, []);
+    await context.close();
+  }
   for (const [width, height] of [[360, 860], [1512, 860], [390, 320]]) {
     const context = await browser.newContext({ viewport: { width, height }, reducedMotion: 'reduce' });
     await context.route(/^https:\/\/(eu\.i\.posthog\.com|api\.proofofwork\.fyi)\//, route => route.abort('connectionrefused'));
+    // The checks below expect the workbench: a returning visitor.
+    await asReturningVisitor(context);
     const page = await context.newPage();
     // Browser instrumentation runs before navigation, including on production's
     // script-src 'self' pages. Keep the application's CSP enforced.
@@ -52,10 +93,7 @@ try {
       }
     };
     const audit = async label => {
-      const violations = await page.evaluate(async () => (await globalThis.axe.run(document, {
-        runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa'] }
-      })).violations.map(v => ({ id: v.id, targets: v.nodes.map(node => node.target) })));
-      assert.deepEqual(violations, [], `${label} ${width}px`);
+      assert.deepEqual(await auditPage(page), [], `${label} ${width}px`);
       assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `${label}: horizontal overflow`);
     };
     if (height === 320) {
@@ -121,5 +159,5 @@ try {
     assert.deepEqual(errors, []);
     await context.close();
   }
-  console.log('Quality: WCAG A/AA axe checks in both themes, 360px/desktop, skip link, dialog focus return and shortcut preference passed');
+  console.log('Quality: WCAG A/AA axe checks in both themes, 360px/desktop, start question and first Basics scene, skip link, dialog focus return and shortcut preference passed');
 } finally { await browser?.close(); server?.kill(); }

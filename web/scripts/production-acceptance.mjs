@@ -4,7 +4,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
-import { menu } from './workbench.helpers.mjs';
+import { asReturningVisitor, menu } from './workbench.helpers.mjs';
 
 const BASE_URL = 'https://proofofwork.fyi';
 const INGEST_URL = 'https://eu.i.posthog.com/i/v0/e/';
@@ -110,6 +110,8 @@ async function main() {
     // Sharing is on by default; the probe starts as a visitor who opted out so that
     // only the synthetic consent window below reaches PostHog.
     await page.addInitScript(() => { try { localStorage.setItem('pow.analytics.enabled', 'false'); } catch { /* Guarded below. */ } });
+    // The probe expects the workbench: a returning visitor who chose "Just let me play".
+    await asReturningVisitor(page);
     const navigation = await page.goto(BASE_URL);
     record.tls = await navigation.securityDetails();
     await menu(page, 'Settings');

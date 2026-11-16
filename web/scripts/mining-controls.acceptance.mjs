@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { join } from 'node:path';
-import { menu, settle, workbench } from './workbench.helpers.mjs';
+import { asReturningVisitor, menu, settle, workbench } from './workbench.helpers.mjs';
 
 // Observe the real output graph, without replacing synthesis or relaxing autoplay.
 async function observeAudio(page) {
@@ -47,6 +47,7 @@ export async function verifyMiningControlsAndSound(browser, baseURL, output) {
   page.on('pageerror', error => errors.push(error.message));
   await page.route('https://api.proofofwork.fyi/**', route => route.abort('connectionrefused'));
   await page.route('https://eu.i.posthog.com/**', route => route.abort('connectionrefused'));
+  await asReturningVisitor(page);
   await observeAudio(page);
   // Hold only the worker's script fetch. Releasing it runs the unchanged real
   // hasher and proof verification; UI actions happen before any lucky result.

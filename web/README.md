@@ -6,15 +6,18 @@ From this directory: `npm ci`, then `npm run dev`. Run `npm run check` before re
 
 ## Optional missions and storage
 
-Missions start hidden behind the Missions entry on every screen size. A first-visit
-invitation points to it once; even ignoring it prevents another invitation on a later
-visit. Start missions opens the tasks. Collapse the desktop rail or use Hide missions
+A first visit opens one question, "Where do you want to start?". "Hashes are new to
+me" and "I know what a hash is" open the Basics course with the missions; "Just let me
+play" opens the simulator with the missions hidden behind the Missions entry. The
+question returns only for a visitor who left the page on it, and stays available in the
+menu under Starting point. Collapse the desktop rail or use Hide missions
 on smaller screens to explore without coach marks. Closing the mobile task sheet
 keeps guidance enabled; Hide missions disables it. Existing explicit visibility
 choices are respected.
 
-The browser stores the visibility choice (`proofofwork-rail-collapsed`), seen invitation
-(`proofofwork-missions-intro-seen`) and mission progress (`proofofwork-missions`) in
+The browser stores the visibility choice (`proofofwork-rail-collapsed`), the starting
+point (`proofofwork-start`; `proofofwork-missions-intro-seen` marks a first visit as
+over) and mission progress (`proofofwork-missions`) in
 localStorage. Opening or hiding missions does not erase progress. Completed missions
 survive a reload; unfinished hash/chain-lab steps restart because the experiments'
 state is temporary. These values are

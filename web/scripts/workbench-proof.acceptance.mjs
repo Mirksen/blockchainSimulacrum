@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { Buffer } from 'node:buffer';
 import { createHash } from 'node:crypto';
 import { join } from 'node:path';
-import { headerHash, menu, settle, snapshot, workbench } from './workbench.helpers.mjs';
+import { asReturningVisitor, headerHash, menu, settle, snapshot, workbench } from './workbench.helpers.mjs';
 
 const reverse = hex => Buffer.from(hex, 'hex').reverse().toString('hex');
 const sha256d = bytes => createHash('sha256').update(createHash('sha256').update(bytes).digest()).digest();
@@ -67,12 +67,12 @@ export async function verifyWorkbenchProof(browser, baseURL, output) {
       }
       return route.abort('connectionrefused');
     });
+    await asReturningVisitor(context);
     await context.addInitScript(() => {
       localStorage.setItem('pow.analytics.enabled', 'false');
       if (localStorage.getItem('proofofwork-missions') === null) {
-        localStorage.setItem('proofofwork-missions', JSON.stringify({ version: 1, completed: [], step: 0, data: {} }));
+        localStorage.setItem('proofofwork-missions', JSON.stringify({ version: 2, completed: [], skipped: [], step: 0, data: {} }));
         localStorage.setItem('proofofwork-rail-collapsed', '1');
-        localStorage.setItem('proofofwork-missions-intro-seen', '1');
         localStorage.setItem('proofofwork-pool-name', 'proof-fixture');
       }
     });

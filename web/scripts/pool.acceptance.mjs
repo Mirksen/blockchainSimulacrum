@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { verifyLeaderboardGrowth } from './leaderboard-growth.acceptance.mjs';
 import { join } from 'node:path';
-import { menu, openTab, settle, snapshot } from './workbench.helpers.mjs';
+import { asReturningVisitor, menu, openTab, settle, snapshot } from './workbench.helpers.mjs';
 
 const API = 'https://api.proofofwork.fyi';
 const UNAVAILABLE = 'The leaderboard server is unavailable right now. The simulator keeps working.';
@@ -76,7 +76,8 @@ export async function verifyPool(page, output, before) {
     await page.unroute(`${API}/**`, refuse);
   }
   const growthPage = await page.context().browser().newPage({ reducedMotion: 'reduce' });
-  try { await verifyLeaderboardGrowth(growthPage, output, new URL(page.url()).origin); }
+  try {
+    await asReturningVisitor(growthPage); await verifyLeaderboardGrowth(growthPage, output, new URL(page.url()).origin); }
   finally { await growthPage.close(); }
   return ['Leaderboard: unreachable server shows the unavailable status and table state without page errors',
     'Leaderboard: invalid name blocked inline; leaving keeps the simulator unchanged',

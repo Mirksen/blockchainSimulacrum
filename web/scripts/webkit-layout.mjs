@@ -3,7 +3,7 @@ import { verifyMerkleMission } from './new-missions.acceptance.mjs';
 // (scripts/acceptance.mjs) does not see engine-specific layout. Today: the blocks of the
 // chain band stand apart, with the link between them, on a phone and on a desktop.
 // Pool and telemetry requests are refused, so no live data changes.
-import { workbench } from './workbench.helpers.mjs';
+import { asReturningVisitor, workbench } from './workbench.helpers.mjs';
 import { webkit, devices } from 'playwright';
 import { spawn } from 'node:child_process';
 import { stripVTControlCharacters } from 'node:util';
@@ -39,6 +39,46 @@ const tileEdges = async (context, band) => {
   return edges;
 };
 
+// A first visit: the three answers of the start question stack inside the screen, and after
+// "I know what a hash is" the first and the widest Basics scene (Sealed pages) fit without
+// horizontal overflow.
+const firstVisit = async (context, label) => {
+  const page = await context.newPage();
+  page.setDefaultTimeout(60000);
+  const errors = [];
+  page.on('pageerror', error => errors.push(error.message));
+  await page.route(/^https:\/\/(eu\.i\.posthog\.com|api\.proofofwork\.fyi)\//, route => route.abort('connectionrefused'));
+  await page.goto(baseURL);
+  const question = page.getByRole('region', { name: 'Where do you want to start?', exact: true });
+  await question.waitFor();
+  // A configured build asks about usage sharing first; answer it so it covers nothing.
+  const notice = page.locator('.usage-consent');
+  if (await notice.count()) await notice.getByRole('button', { name: 'Opt out', exact: true }).click();
+  const fits = async what => {
+    const size = await page.evaluate(() => ({ viewport: innerWidth, page: document.documentElement.scrollWidth }));
+    assert.ok(size.page <= size.viewport, `${label} ${what}: horizontal overflow ${JSON.stringify(size)}`);
+  };
+  await fits('start question');
+  const boxes = await question.locator('.start-choice-option').evaluateAll(options => options.map(option => {
+    const box = option.getBoundingClientRect();
+    return [Math.round(box.left), Math.round(box.right), Math.round(box.top), Math.round(box.bottom)];
+  }));
+  const width = await page.evaluate(() => innerWidth);
+  assert.equal(boxes.length, 3, `${label}: three answers`);
+  for (let i = 0; i < boxes.length; i++) {
+    assert.ok(boxes[i][0] >= 0 && boxes[i][1] <= width, `${label}: answer ${i + 1} inside the screen: ${JSON.stringify(boxes)}`);
+    if (i) assert.ok(boxes[i][2] >= boxes[i - 1][3], `${label}: answer ${i + 1} below answer ${i}: ${JSON.stringify(boxes)}`);
+  }
+  await question.getByRole('button', { name: /^I know what a hash is/ }).click();
+  await page.getByRole('heading', { level: 2, name: 'The copy problem', exact: true }).waitFor();
+  await fits('Basics scene 1');
+  await page.getByRole('button', { name: /^Scene 6: / }).click();
+  await page.getByRole('heading', { level: 2, name: 'Sealed pages', exact: true }).waitFor();
+  await fits('Basics scene 6');
+  assert.deepEqual(errors, []);
+  await context.close();
+};
+
 // Each tile face starts one link width after the previous face ends (the 3D side is
 // drawn into that link, so the visible gap is the link minus --block-depth).
 const assertApart = (label, edges, minGap) => {
@@ -64,14 +104,19 @@ try {
     assert.ok(ready, `Preview did not start: ${log}`);
   }
   browser = await webkit.launch({ headless: true });
+  for (const [label, options] of [['phone', devices['iPhone 13']], ['desktop', { viewport: { width: 1512, height: 860 } }]]) {
+    await firstVisit(await browser.newContext({ ...options, reducedMotion: 'reduce' }), label);
+  }
   const phone = await browser.newContext({ ...devices['iPhone 13'], reducedMotion: 'reduce' });
+  await asReturningVisitor(phone);
   // compact band: 16 px link
   assertApart('phone', await tileEdges(phone, '.chain-band.is-compact'), 16);
   const desktop = await browser.newContext({ viewport: { width: 1512, height: 860 }, reducedMotion: 'reduce' });
+  await asReturningVisitor(desktop);
   // full band: 32 px link
   assertApart('desktop', await tileEdges(desktop, '.chain-band:not(.is-compact)'), 32);
   await verifyMerkleMission(browser, baseURL, process.env.SCREENSHOT_DIR || '/tmp', false);
-  console.log('WebKit layout: chain band blocks stand apart on phone and desktop');
+  console.log('WebKit layout: start question and Basics scenes fit; chain band blocks stand apart on phone and desktop');
 } finally {
   await browser?.close();
   server?.kill();
