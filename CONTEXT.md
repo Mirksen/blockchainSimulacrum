@@ -140,7 +140,21 @@ Terms used in code, tests and docs of proofofwork.fyi. Decisions that shape them
 
 ## Labs
 
-- **Text hashing** — the first Hash lab experiment hashes exactly the visible UTF-8 text once with SHA-256. A manual edit finding a leading zero earns a first proof; Continue completes the first mission. Automatic tries reuse the text search, with a visible space and number appended. It is separate from Bitcoin block-header hashing.
+- **Start choice** — `web/src/lib/startChoice.js`. What a first visitor answers to "Where do you want
+  to start?": `new` (hashes are new), `hash` (knows hashes) or `play`. It decides which Basics scenes
+  count as skipped (`skipsOf`) and the **tone** of mission texts (`toneOf`: `plain` or `technical`).
+  Kept in `localStorage` (`proofofwork-start`); it is a preference, not progress.
+- **Basics course** — the six scenes before the simulator (`web/src/components/basics/`), each a
+  mission of the chapter `basics` shown in the Basics view. A scene builds its own evidence and
+  reports it like a lab. Its words are everyday pictures, handed over to the simulator's terms once,
+  on the last screen: **page** (block), **seal** (hash), **lucky number** (nonce), **notebook**
+  (blockchain), **the draw** (mining), **postage** (proof of work), **writer** (miner).
+- **Fingerprint picture** — `web/src/lib/fingerprintArt.js`: rings drawn from the 32 bytes of a hash,
+  so two hashes look different at a glance. A picture of the hash, never a second identifier.
+- **Sealed pages** — `web/src/lib/sealedPages.js`: the course's three-page chain. A seal is the
+  SHA-256 of the previous seal, the page text and a number; **Guessing** is the number of leading
+  zeros a seal must have (off, 2 or 3). Repairing without guessing takes one hash per page.
+- **Text hashing** — the first Hash lab experiment hashes exactly the visible UTF-8 text once with SHA-256. A manual edit finding a leading zero earns a first proof and says on which try it came. Automatic tries reuse the text search, with a visible space and number appended. It is free play and separate from Bitcoin block-header hashing; its guided form is the Basics scene "Guess a fingerprint".
 
 - **Mission evidence** — `web/src/lib/missions.js` advances only the active step. Workbench
   evidence is derived from the events of the *Workbench session* (`missionEvidence.js`,
@@ -152,7 +166,13 @@ Terms used in code, tests and docs of proofofwork.fyi. Decisions that shape them
   The signature mission edits and re-mines a signed transfer in the newest block: every
   hash/target/link must check out while its signature and the whole chain remain invalid.
   There are no descendants to repair; the existing API refuses re-mining past an invalid
-  ledger block. Undo and reset discard unfinished evidence; completed IDs stay at version 1.
+  ledger block. Undo and reset discard unfinished evidence.
+- **Mission progress** — version 2 in `localStorage` (`proofofwork-missions`): `completed` is a set
+  of mission ids, `skipped` the ones a learner passed over. The **active mission** is the first in
+  track order that is neither. A version 1 save (an in-order prefix of the old track) is read as that
+  set; a Basics scene before a completed mission counts as skipped, so nobody is sent back into the
+  course. The track is grouped into **chapters** (`CHAPTERS`): Basics, Proof of work, The simulator,
+  Going deeper.
 
 - **Hash lab / chain lab / learning path** — isolated experiments with their own temporary state;
   they never change the simulator chain or wallets. The block-header and chain experiments hash real 80-byte headers: the learner's

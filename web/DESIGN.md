@@ -91,12 +91,25 @@ for fun: nothing is at stake", not "Back this miner".
 
 ## Information architecture
 
-- **Top bar:** brand, navigation **Workbench · Hash lab · Chain lab · Mining
-  pool**, and an overflow menu (Reset, Settings, sound, theme, usage sharing)
-  whose last line names the coin "powfyicoin · virtual"; the leaderboard
-  ticker runs directly below it. The chain status is not repeated here
-  (Mirko, 2026-11-03): it lives once, on the chain.
-- **Workbench is the start page.** It shows the whole simulation at once:
+- **Top bar:** brand, navigation **Basics · Workbench · Hash lab · Chain lab ·
+  Leaderboard**, and an overflow menu (Starting point, Reset, Settings, sound,
+  theme, usage sharing) whose last line names the coin "powfyicoin · virtual";
+  the leaderboard ticker runs directly below it, except on the start question
+  and in Basics, where nothing competes with the one idea on screen. The chain
+  status is not repeated here (Mirko, 2026-11-03): it lives once, on the chain.
+- **A first visit starts with one question** (Mirko, 2026-11-16): "Where do
+  you want to start?" with three statements a visitor recognizes themselves
+  in, never level labels: "Hashes are new to me" (the Basics course from its
+  first scene, plain words), "I know what a hash is" (the two fingerprint
+  scenes count as skipped, technical words) and "Just let me play" (the
+  workbench). It is the main content, not a dialog; the top bar stays usable
+  and a deep link is never redirected. The answer sets where the track starts
+  and the tone of its texts, not a separate interface, and can be changed any
+  time under Starting point. A returning visitor lands on the workbench.
+- **Basics is the course before the simulator** (see
+  [Basics course](#basics-course)): six scenes in their own view.
+- **Workbench is the start page for everyone who has been here.** It shows the
+  whole simulation at once:
   1. **Mission rail** on the left (collapsible).
   2. **Chain band** across the full width of the main column.
   3. **Card grid** below: the Block card with its transactions fills the left
@@ -104,7 +117,8 @@ for fun: nothing is at stake", not "Back this miner".
      takes a last row on tall screens.
 - **No separate pages for race or missions.** The race lives in the Next
   block card; missions live in the rail and point at the part of the
-  workbench they need.
+  workbench they need. The Basics scenes are the exception: they come before
+  the workbench and need a screen with nothing else on it.
 - Hash lab and Chain lab stay separate tools.
 - Chain lab offers three experiments within the same view: **Repair a chain**,
   **Competing branches** and **Prove a payment**. The fork experiment has Competition and Rewrite history scenarios, a
@@ -446,23 +460,26 @@ decision, 2026-10-27):
   screens. On smaller screens, Hide missions returns to free play; closing
   the task sheet alone keeps guidance enabled. Opening or closing missions
   preserves progress.
-- **First-visit invitation:** while the rail is collapsed and no mission
-  progress has been made, a non-modal card introduces the track. "Start
-  missions" expands the rail; "Don't show again" dismisses only the card.
-  Showing it marks it seen in this browser, so it stays away on later
-  visits when browser storage is available, even if ignored. Navigating
-  away or toggling missions dismisses it. It points at the Missions entry
-  with one brief highlight unless reduced motion is requested. The card
-  stays in the page flow, never takes focus, adds no filled primary action
-  and never blocks free play.
-- When expanded, the rail lists the missions of the track with progress;
-  the active mission is expanded with its steps, a hint and its reward.
+- **The start question replaces the first-visit invitation.** Choosing a
+  guided start expands the rail and opens the first scene directly; a
+  learner never has to look for where a mission happens.
+- When expanded, the rail lists the missions of the track in its chapters
+  (Basics, Proof of work, The simulator, Going deeper) with progress; the
+  active mission is expanded with its steps, a hint and its reward.
+- **Completion is a set, not a line.** The active mission is the first one in
+  track order that is neither done nor skipped. A skipped mission says
+  "skipped" in words and stays open to anyone who wants it; it earns nothing
+  until done. A learner who returns with progress is never sent back into
+  Basics: scenes before a completed mission count as skipped.
+- **Texts follow the tone of the starting point.** A mission text may have a
+  plain and a technical form; plain says the picture first ("page", "seal",
+  "roll"), technical names the term ("block", "hash", "nonce").
 - When missions are open, the current step **marks the element it needs
   with a coach ring** and a small label ("Step 3 · back Hal").
 
 ### Fee, inclusion and signature missions
 
-New missions append to the track, preserving all earlier completion IDs and rewards.
+A new or moved mission keeps every earlier completion ID and reward: the track may be reordered, a completed mission stays completed.
 Fee coaching first points to a low-fee transfer waiting because the block is full,
 then to spending that pending payment with a higher-fee child. Both must appear in
 an accepted block; a template or a click is not confirmation. The hint explains
@@ -482,15 +499,51 @@ mining remains paused. This teaches the difference without weakening any ledger
 or historical-repair rule. The new missions expose What you learned under their
 completed rail entries; explanations and experiment outcomes remain available.
 
+### Basics course
+
+Six scenes answer, in this order, the questions a newcomer has before any
+block makes sense (Mirko, 2026-11-16). Each scene is one screen with one
+idea, one thing to do and one sentence to keep; the sentence appears as
+"What you learned" once the scene is done, with Continue as the filled
+action.
+
+| Scene | Question | The picture |
+|---|---|---|
+| The copy problem | Why is digital money hard at all? | A sent photo is a copy; a coin must not be |
+| Take a fingerprint | What is a hash? | A drawn fingerprint next to the 64 characters |
+| One letter, everything changes | Can a change hide? | Two fingerprints and a counter of differing characters |
+| Guess a fingerprint | Why does finding one take trying? | A 16-sided die: each new text is a fresh roll |
+| Why would anyone guess? | What is the guessing for? | A draw that picks who writes the next page; the roll is the postage |
+| Sealed pages | Why chain, and why work? | Seals that break forward; repair with and without guessing |
+
+- **A hash is first a picture.** To someone who has never seen one, every
+  hex string looks the same, so the fingerprint is drawn from the hash and
+  the characters stand beside it. The drawing never replaces the value.
+- **The course uses everyday words and hands them over once.** After the
+  last scene a table maps them to the simulator's terms (page → block, seal
+  → hash, lucky number → nonce, notebook → blockchain, the draw → mining,
+  postage → proof of work). From there on the product speaks its usual
+  language.
+- **A lucky first roll is called lucky.** One text in sixteen starts with 0.
+  The guessing scene counts only a find that took at least one roll and says
+  so when the first text already matches.
+- **Honest about the model, here too.** The copy scene is a picture of the
+  idea, not a ledger; the last screen names the pillar this site does not
+  simulate: the network.
+- Every scene can be opened at any time and reset on its own. Only the
+  active mission earns progress.
+
 ### Text hashing before block headers
 
 Hash lab opens with a plain UTF-8 text input and its single SHA-256 hash. The
 visible input is the entire preimage, matching ordinary SHA-256 text tools.
 The first challenge asks for one leading zero: type a name, then append or
-change a number by hand. A successful edit reveals the first proof, explains
-nonce and difficulty, and offers automatic attempts and a two-zero target.
-Changing this target does not change the hash. The original proof stays visible;
-Continue completes the first mission only after a real manual match. Text and
+change a number by hand. A successful edit reveals the first proof, says on
+which try it came and calls an early hit a lucky roll, explains nonce and
+difficulty, and offers automatic attempts and a two-zero target.
+Changing this target does not change the hash. The original proof stays visible.
+The experiment is free play; its guided form is the Basics scene "Guess a
+fingerprint". Text and
 proof remain only in the mounted experiment; neither goes to analytics or the board.
 Reset clears them, and leaving stops a search. Block-header mining remains a
 separate experiment, with the Bitcoin-format double hash explicitly explained.
