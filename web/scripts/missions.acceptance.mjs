@@ -11,7 +11,8 @@ import { MISSIONS, earnedBadges, totalXp } from '../src/lib/missions.js';
 // checked after every mission.
 export async function verifyMissions(page, output) {
   const rail = page.getByRole('complementary', { name: 'Missions' });
-  const done = count => rail.locator('.mission-rail-xp').filter({ hasText: new RegExp(`\\b${count} of ${MISSIONS.length} done`) });
+  // The counter's own span, matched whole: "1 of 17 done" must not also match "11 of 17 done".
+  const done = count => rail.locator('.mission-rail-xp span').filter({ hasText: new RegExp(`^${count} of ${MISSIONS.length} done$`) });
   const showMe = () => rail.getByRole('button', { name: 'Show me' });
   const activeCoach = target => page.locator(`[data-coach-target="${target}"].is-active`);
   const button = name => page.getByRole('button', { name, exact: true });
