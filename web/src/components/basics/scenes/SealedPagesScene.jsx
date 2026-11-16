@@ -12,11 +12,38 @@ const GUESSING_TEXT = { 0: 'off', 2: '2 zeros', 3: '3 zeros' };
 const short = seal => `${seal.slice(0, 6)}…${seal.slice(-2)}`;
 const plural = (count, one, many) => `${count.toLocaleString('en-US')} ${count === 1 ? one : many}`;
 
-function Seal({ label, termKey, value }) {
+function Seal({ label, termKey, value, children = null }) {
   return (
     <div className="basics-seal">
       <dt><span {...term(termKey)}>{label}</span></dt>
       <dd><code title={value}>{short(value)}</code></dd>
+      {children}
+    </div>
+  );
+}
+
+// Whether a page's stored previous seal is the stored seal of the page before it, in words
+// with an icon (never by color alone).
+function Tie({ matches, before }) {
+  return (
+    <dd className={`basics-tie ${matches ? 'is-match' : 'is-mismatch'}`}>
+      <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false">
+        {matches ? <path d="M3.5 8.3l3 3 6-6.6" /> : <path d="M4.5 4.5l7 7m0-7l-7 7" />}
+      </svg>
+      {matches ? `Matches the seal of page ${before}` : `Does not match the seal of page ${before}`}
+    </dd>
+  );
+}
+
+// Between two pages: the seal of one goes into the next. Horizontal from 1024 px up,
+// vertical below (Basics.css).
+function Connector() {
+  return (
+    <div className="basics-connector">
+      <span className="basics-connector-label">seal goes into</span>
+      <svg className="basics-connector-arrow" viewBox="0 0 40 12" width="40" height="12" aria-hidden="true" focusable="false">
+        <path d="M1 6h36m-6-5l6 5-6 5" />
+      </svg>
     </div>
   );
 }
@@ -76,22 +103,27 @@ export function SealedPagesScene({ coach, onEvent, done = false }) {
           const field = <textarea id={id} rows={2} maxLength={200} value={page.text} {...hint('basics.seal.text', index + 1)}
             onChange={event => edit(index, event.target.value)} />;
           return (
-            <li key={index} className={`basics-page is-${pageStatus}`}>
-              <h3>Page {index + 1}</h3>
-              <label htmlFor={id}>Page {index + 1} text</label>
-              {index === 0 ? <CoachMark target="basics.page-1" coach={coach}>{field}</CoachMark> : field}
-              <dl className="basics-seals">
-                <div className="basics-seal">
-                  <dt><span {...term('basics.seal.number')}>Lucky number</span></dt>
-                  <dd><code>{page.number}</code></dd>
-                </div>
-                <Seal label="Previous seal" termKey="basics.seal.previous" value={page.previous} />
-                <Seal label="Seal" termKey="basics.seal" value={page.seal} />
-                {pageStatus === 'broken' && current !== page.seal &&
-                  <Seal label="Seal of the text now" termKey="basics.seal" value={current} />}
-              </dl>
-              <p className="basics-page-status">{STATUS_TEXT[pageStatus]}</p>
-              {repair && <p className="basics-quiet">Re-sealed in {plural(repair.hashes[index], 'hash', 'hashes')}.</p>}
+            <li key={index} className={`basics-page-slot${index ? ' has-connector' : ''}`}>
+              {index > 0 && <Connector />}
+              <div className={`basics-page is-${pageStatus}`}>
+                <h3>Page {index + 1}</h3>
+                <label htmlFor={id}>Page {index + 1} text</label>
+                {index === 0 ? <CoachMark target="basics.page-1" coach={coach}>{field}</CoachMark> : field}
+                <dl className="basics-seals">
+                  <div className="basics-seal">
+                    <dt><span {...term('basics.seal.number')}>Lucky number</span></dt>
+                    <dd><code>{page.number}</code></dd>
+                  </div>
+                  <Seal label="Previous seal" termKey="basics.seal.previous" value={page.previous}>
+                    {index > 0 && <Tie matches={page.previous === pages[index - 1].seal} before={index} />}
+                  </Seal>
+                  <Seal label="Seal" termKey="basics.seal" value={page.seal} />
+                  {pageStatus === 'broken' && current !== page.seal &&
+                    <Seal label="Seal of the text now" termKey="basics.seal" value={current} />}
+                </dl>
+                <p className="basics-page-status">{STATUS_TEXT[pageStatus]}</p>
+                {repair && <p className="basics-quiet">Re-sealed in {plural(repair.hashes[index], 'hash', 'hashes')}.</p>}
+              </div>
             </li>
           );
         })}

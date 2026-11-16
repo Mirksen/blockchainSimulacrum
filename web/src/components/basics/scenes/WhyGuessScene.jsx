@@ -98,7 +98,7 @@ export function WhyGuessScene({ coach, onEvent, done = false }) {
   const current = lanes(shownDraw, running ? state.shown : shownDraw?.sequence.length ?? 0);
   const last = state.last;
   const status = running ? `Drawing page ${running.page}…`
-    : last ? `${WRITERS[last.winner].name} wins after ${last.sequence.length} rolls in total and writes the page. Reward: 1 coin.`
+    : last ? `${WRITERS[last.winner].name} wins page ${last.page} after ${last.sequence.length} rolls in total and writes it. Reward: 1 coin.`
     : 'Nobody has written the next page yet.';
 
   return (

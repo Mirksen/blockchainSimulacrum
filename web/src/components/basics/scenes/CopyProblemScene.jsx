@@ -7,12 +7,44 @@ import { hint } from '../../../lib/hints/basics';
 
 const PAYMENT = 'Alice → Bob · 1 coin';
 
+// Small inline pictures of what a person holds.
+const ICONS = {
+  Photo: (
+    <>
+      <rect x="2" y="3.5" width="16" height="13" rx="2" className="basics-icon-frame" />
+      <path d="M4 14.5l4.2-4.6 2.8 3 2-2 3 3.6z" className="basics-icon-hill" />
+      <circle cx="13.5" cy="7.5" r="1.6" className="basics-icon-sun" />
+    </>
+  ),
+  Coin: (
+    <>
+      <circle cx="10" cy="10" r="7.5" className="basics-icon-coin" />
+      <circle cx="10" cy="10" r="4.6" className="basics-icon-coin-ring" />
+      <path d="M10 7.4v5.2" className="basics-icon-coin-ring" />
+    </>
+  )
+};
+
+// What a person holds, as chips. A chip that was not there when the scene opened enters
+// with a short motion (Basics.css; none with reduced motion), so the eye sees a copy
+// appear. The chips are pictures; the hidden sentence says the same in words.
 function Person({ name, color, items }) {
+  const [opening] = useState(items);
   return (
     <li className="basics-person" style={{ '--person': `var(--${color})` }}>
       <span className="basics-person-avatar" aria-hidden="true">{name[0]}</span>
       <span className="basics-person-name">{name}</span>
-      <span className="basics-person-items">{items.length ? `Holds: ${items.join(', ')}` : 'Holds nothing'}</span>
+      {items.length ? <span className="basics-person-items">
+        <span className="basics-visually-hidden">{`Holds: ${items.join(', ')}`}</span>
+        <span className="basics-chips" aria-hidden="true">
+          {items.map(item => (
+            <span key={item} className={`basics-chip is-${item.toLowerCase()}${opening.includes(item) ? '' : ' is-new'}`}>
+              <svg viewBox="0 0 20 20" width="22" height="22" focusable="false">{ICONS[item]}</svg>
+              {item}
+            </span>
+          ))}
+        </span>
+      </span> : <span className="basics-person-items is-empty">Holds nothing</span>}
     </li>
   );
 }

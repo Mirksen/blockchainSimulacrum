@@ -44,6 +44,12 @@ describe('BasicsCourse host', () => {
       '1Scene 1: The copy problemdone', '2Scene 2: Take a fingerprintnow', '3Scene 3: One letter, everything changeslater',
       '4Scene 4: Guess a fingerprintlater', '5Scene 5: Why would anyone guess?later', '6Scene 6: Sealed pageslater'
     ]);
+    // The accessible names state number, title and status in words, also where the narrow
+    // stepper shows only the numbered circles with a status icon.
+    const names = ['Scene 1: The copy problem, done', 'Scene 2: Take a fingerprint, now', 'Scene 3: One letter, everything changes, later',
+      'Scene 4: Guess a fingerprint, later', 'Scene 5: Why would anyone guess?, later', 'Scene 6: Sealed pages, later'];
+    names.forEach((name, at) => expect(within(nav).getByRole('button', { name })).toBe(steps[at]));
+    expect(steps.map(step => Boolean(step.querySelector('.basics-step-icon[aria-hidden="true"]')))).toEqual([true, true, false, false, false, false]);
     expect(heading()).toBe('Take a fingerprint');
     expect(steps[1].getAttribute('aria-current')).toBe('step');
     expect(screen.getByText('A hash is a fingerprint of data. Type anything and watch.')).toBeTruthy();
@@ -54,6 +60,7 @@ describe('BasicsCourse host', () => {
     expect(heading()).toBe('The copy problem');
     const nav = screen.getByRole('navigation', { name: 'Basics scenes' });
     expect(within(nav).getAllByRole('button').every(step => step.textContent.endsWith('skipped'))).toBe(true);
+    expect(within(nav).getByRole('button', { name: 'Scene 3: One letter, everything changes, skipped' })).toBeTruthy();
   });
 
   it('opens any scene from the stepper and never switches scenes by itself', () => {
@@ -144,11 +151,18 @@ describe('Basics scenes complete their missions', () => {
     click('Send same coin to Carol');
     expect(screen.getByText('Both got the coin, and Alice still has it. One coin became three.')).toBeTruthy();
     expect(screen.getAllByText('Holds: Photo, Coin')).toHaveLength(2);
+    // The holdings are drawn as chips: one coin became three.
+    const chips = kind => document.querySelectorAll(`.basics-person .basics-chip.is-${kind}`);
+    expect(chips('coin')).toHaveLength(3);
+    expect(chips('photo')).toHaveLength(2);
+    expect([...document.querySelectorAll('.basics-person .basics-chips')].every(row => row.getAttribute('aria-hidden') === 'true')).toBe(true);
     fireEvent.click(screen.getByRole('switch', { name: 'Shared list' }));
     expect(screen.getByRole('heading', { name: 'Shared list: who paid whom' })).toBeTruthy();
     expect(screen.getByText('Holds: Photo')).toBeTruthy();
+    expect(chips('coin')).toHaveLength(1);
     click('Send coin to Bob');
     expect(screen.getByText('Alice → Bob · 1 coin')).toBeTruthy();
+    expect(chips('coin')).toHaveLength(1);
     click('Send same coin to Carol');
     expect(screen.getByText('Rejected: the list says Alice already paid this coin to Bob.')).toBeTruthy();
     expect(screen.getByText('A picture of the idea, not a real ledger.')).toBeTruthy();
@@ -261,7 +275,7 @@ describe('Basics scenes complete their missions', () => {
     });
     expected.forEach(({ winner, rolls }, index) => {
       click('Run the draw');
-      expect(screen.getByText(`${winner} wins after ${rolls} rolls in total and writes the page. Reward: 1 coin.`)).toBeTruthy();
+      expect(screen.getByText(`${winner} wins page ${index + 1} after ${rolls} rolls in total and writes it. Reward: 1 coin.`)).toBeTruthy();
       expect(screen.getByText(`Page ${index + 2}: Alice pays Bob 10`)).toBeTruthy();
     });
     expect(events).toEqual(expected.map(draw => ({ type: 'draw_finished', ...draw })));
@@ -282,14 +296,20 @@ describe('Basics scenes complete their missions', () => {
     expect(events).toEqual([]);
     act(() => { vi.advanceTimersByTime(3500); });
     expect(events).toHaveLength(1);
-    expect(screen.getByText(/wins after \d+ rolls in total and writes the page\. Reward: 1 coin\./)).toBeTruthy();
+    expect(screen.getByText(/wins page 1 after \d+ rolls in total and writes it\. Reward: 1 coin\./)).toBeTruthy();
   });
 
   it('6 sealed pages: break, repair without and with guessing', () => {
     const { events, state } = renderCourse({ progress: progressAt('sealed-pages') });
     expect(screen.getAllByText('Seal fits')).toHaveLength(3);
+    // Each seal goes into the next page; the tie is stated in words on pages 2 and 3.
+    expect(screen.getAllByText('seal goes into')).toHaveLength(2);
+    const ties = () => [...document.querySelectorAll('.basics-tie')].map(node => node.textContent);
+    expect(ties()).toEqual(['Matches the seal of page 1', 'Matches the seal of page 2']);
     fireEvent.change(screen.getByLabelText('Page 1 text'), { target: { value: 'Alice pays Bob 100' } });
     expect(screen.getByText('Seal no longer fits')).toBeTruthy();
+    // Page 2 still stores page 1's stored seal; it is page 1's text that no longer fits.
+    expect(ties()).toEqual(['Matches the seal of page 1', 'Matches the seal of page 2']);
     expect(screen.getAllByText('Broken: built on a broken page')).toHaveLength(2);
     expect(events.at(-1)).toEqual({ type: 'seals_checked', valid: false, edited: true });
     click('Repair');

@@ -34,7 +34,7 @@ export function OneLetterScene({ coach, onEvent }) {
       <div className="basics-compare-side">
         <label htmlFor={leftId}>Original text</label>
         <input id={leftId} type="text" value={ORIGINAL} readOnly {...hint('basics.compare.left')} />
-        <Fingerprint hash={LEFT_HASH} size={96} />
+        <Fingerprint hash={LEFT_HASH} size={150} className="basics-fingerprint-pair" />
         <HashGrid hash={LEFT_HASH} label="Fingerprint of the original" marked={marked} small />
       </div>
       <div className="basics-compare-side">
@@ -43,7 +43,7 @@ export function OneLetterScene({ coach, onEvent }) {
           <input id={rightId} type="text" value={right} maxLength={200} {...hint('basics.compare.right')}
             onChange={event => edit(event.target.value)} />
         </CoachMark>
-        <Fingerprint hash={rightHash} size={96} />
+        <Fingerprint hash={rightHash} size={150} className="basics-fingerprint-pair" />
         <HashGrid hash={rightHash} label="Fingerprint of your copy" marked={marked} small />
       </div>
       <div className="basics-compare-count" role="status">

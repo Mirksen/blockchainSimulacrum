@@ -41,7 +41,7 @@ export function FingerprintScene({ coach, onEvent }) {
       </div>
       <div className="basics-output">
         {hash ? <div className="basics-print-row">
-          <Fingerprint hash={hash} />
+          <Fingerprint hash={hash} size={180} className="basics-fingerprint-main" />
           <HashGrid hash={hash} />
         </div> : <p className="basics-empty">Type something to see its fingerprint.</p>}
         <p className="basics-quiet">Always 64 characters, for one letter or a whole book.</p>

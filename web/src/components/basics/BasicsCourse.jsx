@@ -58,6 +58,23 @@ const LEDES = {
 
 const STATUS_WORD = { done: 'done', skipped: 'skipped', active: 'now', locked: 'later' };
 
+// The status as a small icon on the numbered circle, shown only in the compact stepper
+// below 768 px (Basics.css). The button's accessible name states the status in words.
+const STATUS_ICON = {
+  done: <path d="M3.5 8.3l3 3 6-6.6" />,
+  skipped: <path d="M4 8h8" />,
+  now: <circle cx="8" cy="8" r="4" />
+};
+
+function StepIcon({ word }) {
+  if (!STATUS_ICON[word]) return null;
+  return (
+    <svg className="basics-step-icon" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false">
+      {STATUS_ICON[word]}
+    </svg>
+  );
+}
+
 function firstShown(progress) {
   const active = activeMission(progress);
   return active?.view === 'basics' ? active.id : SCENES[0].id;
@@ -105,7 +122,7 @@ export function BasicsCourse({ progress, tone = 'plain', coach = null, onLessonE
                 <button type="button" className={`basics-step is-${word}`} aria-current={scene.id === shown ? 'step' : undefined}
                   aria-label={`Scene ${at + 1}: ${scene.title}, ${word}`}
                   {...hint('basics.scene', at + 1, scene.title, word)} onClick={() => open(scene.id)}>
-                  <span className="basics-step-number" aria-hidden="true">{at + 1}</span>
+                  <span className="basics-step-number" aria-hidden="true">{at + 1}<StepIcon word={word} /></span>
                   <span className="basics-visually-hidden">Scene {at + 1}: </span>
                   <span className="basics-step-title">{scene.title}</span>
                   <span className="basics-step-status">{word}</span>
@@ -135,7 +152,7 @@ export function BasicsCourse({ progress, tone = 'plain', coach = null, onLessonE
         <p>{textOf(mission.result, tone)}</p>
         <button type="button" className="btn btn-emphasized" {...hint('basics.continue')} onClick={next}>Continue</button>
       </section>}
-      {!mission && <div className="basics-result basics-bridge-actions">
+      {!mission && <div className="basics-actions basics-bridge-actions">
         <button type="button" className="btn btn-emphasized" {...hint('basics.bridge.continue')} onClick={() => onContinue?.()}>Continue</button>
       </div>}
     </section>
