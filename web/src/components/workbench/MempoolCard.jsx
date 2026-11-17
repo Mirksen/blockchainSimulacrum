@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useId, useRef, useState } from 'react';
 import { DEFAULT_FEE_RATE, FEE_RATES } from '../../lib/blockchain';
 import { CoachMark } from './CoachMark';
 import { RepeatToggle } from './RepeatToggle';
@@ -140,10 +140,11 @@ function BlockSpace({ space, nextIndex }) {
 
 export function MempoolCard({
   transactions = [], space = null, nextIndex, mining = false, remining = null, participants = [], coinName = 'powfyicoin', reward,
-  onCreateTransaction, onPreviewTransaction, onOpenTransaction, autoTransact = false, onAutoTransact, newTxGlow = false, coach = null
+  onCreateTransaction, onPreviewTransaction, onOpenTransaction, autoTransact = false, onAutoTransact, newTxGlow = false, firstPaymentReady = false, coach = null
 }) {
   const [open, setOpen] = useState(false);
   const trigger = useRef(null);
+  const demoRecapId = useId();
   const closeForm = () => { setOpen(false); trigger.current?.focus(); };
   const names = participants.map(p => (typeof p === 'string' ? p : p.name)).filter(Boolean);
   const pending = transactions.length;
@@ -163,6 +164,7 @@ export function MempoolCard({
           <CoachMark target="workbench.new-transaction" coach={coach} className="mempool-card-coach">
             <button ref={trigger} type="button" className={`btn-tinted${open ? ' is-open' : newTxGlow ? '' : ' is-quiet'}`}
               aria-expanded={open ? 'true' : 'false'} aria-controls={open ? 'mempool-card-form' : undefined}
+              aria-describedby={firstPaymentReady ? demoRecapId : undefined}
               {...hint('mempool.new')} onClick={() => setOpen(value => !value)}>
               <PlusIcon />New transaction
             </button>
@@ -170,6 +172,10 @@ export function MempoolCard({
           <RepeatToggle name="Auto-transact" pressed={autoTransact} onToggle={onAutoTransact} hint={hint('mempool.auto', autoTransact)} />
         </div>
       </div>
+      {firstPaymentReady && <p id={demoRecapId} className="mempool-card-demo-recap">
+        Block #1 is on the chain. The winner earned coins and sent them to the other wallets. Those payments are
+        waiting for the next block. You can queue your own payment now.
+      </p>}
       {open && <NewTransactionForm names={names} coinName={coinName} onCreate={onCreateTransaction} onPreview={onPreviewTransaction} onClose={closeForm} />}
       {space && pending > 0 && <BlockSpace space={space} nextIndex={nextIndex} />}
       <ul className="mempool-card-list" aria-label="Pending transactions">

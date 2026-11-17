@@ -3,6 +3,10 @@
 .mempool-card .card-kit-head { position: relative; z-index: 1; }
 .coach-mark.is-active.mempool-card-coach { display: inline-flex; }
 
+.mempool-card-demo-recap {
+  flex: none; margin: 0; padding: var(--s-2) var(--s-4); border-bottom: 1px solid var(--line-2);
+  color: var(--text-2); font-size: 13px; line-height: 1.45;
+}
 .mempool-card-form { flex: none; }
 .mempool-card-fields { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 150px; gap: var(--s-2); }
 .mempool-card-ref { grid-column: span 2; }

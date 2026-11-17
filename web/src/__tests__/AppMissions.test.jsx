@@ -175,14 +175,15 @@ describe('optional missions in App', () => {
     localStorage.setItem(RAIL, '0');
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...initialProgress(), completed: MISSIONS.slice(0, before).map(mission => mission.id) }));
     render(<App />);
-    expect(screen.getByTestId('workbench-coach').textContent).toBe('workbench.new-transaction');
+    expect(screen.getByTestId('workbench-coach').textContent).toBe('workbench.start-demo');
     const race = async name => {
       fireEvent.click(screen.getByRole('button', { name, exact: true }));
       await act(() => fixtureKeys.clock.advance(0));
     };
     // The demo's block and its distribution are no transaction of the learner's.
     await race('Start demo');
-    await race('Mine block');
+    expect(screen.getByTestId('workbench-coach').textContent).toBe('workbench.new-transaction');
+    expect(screen.getByText(/Block #1 is on the chain/)).toBeTruthy();
     expect(JSON.parse(localStorage.getItem(STORAGE_KEY)).completed).toHaveLength(before);
     fireEvent.click(screen.getByRole('button', { name: 'New transaction' }));
     const form = screen.getByRole('form', { name: 'New transaction' });

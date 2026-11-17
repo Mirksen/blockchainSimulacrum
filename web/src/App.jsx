@@ -1,5 +1,5 @@
 import { captureBlockProof } from './lib/workbenchProof';
-import { lazy, Suspense, useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { useWorkbenchSession } from './hooks/useWorkbenchSession';
 import { useMinerIdentity } from './hooks/useMinerIdentity';
 import { playMiningSuccessSound, playRecordSound, unlockMiningAudio } from './lib/sound';
@@ -85,11 +85,10 @@ function isFirstVisit(choice, progress) {
   return choice === null && !readFlag(INTRO_KEY) && fresh && pathOfHash() === '';
 }
 
-function coachOf(progress) {
-  const active = missions.activeStep(progress);
+function coachOf(active, step) {
   if (!active) return null;
-  const number = progress.step + 1;
-  return { mission: active.mission.id, view: active.view, target: active.target, label: `Step ${number} · ${active.step.id.replace(/-/g, ' ')}` };
+  const label = active.mission.id === 'send-first-coin' ? null : `Step ${step + 1} · ${active.step.id.replace(/-/g, ' ')}`;
+  return { mission: active.mission.id, view: active.view, target: active.target, label };
 }
 
 function App() {
@@ -151,8 +150,16 @@ function App() {
   const { blocks, participants, balances, memPool, difficulty, halvingInterval, targetSeconds, run, progress: raceProgress,
     settings, luck, raceWinner, describeTx, saveState } = snapshot;
   const busy = run.kind !== 'idle';
-  const coach = railCollapsed ? null : coachOf(progress);
-  const activeMission = missions.activeMission(progress);
+  const { nextBlock, chainValid, previewTransaction } = snapshot;
+  const active = missions.activeStep(progress);
+  const activeMission = active?.mission;
+  const firstPayment = activeMission?.id === 'send-first-coin';
+  // Use the same spend plan as the form, including pending outputs and the fee for a one-satoshi payment.
+  const needsFunds = useMemo(() => firstPayment && chainValid &&
+    !participants.some(({ name }) => previewTransaction(name, 1e-8)?.funded),
+  [firstPayment, chainValid, participants, previewTransaction]);
+  const guide = missions.guideFirstPayment(active, needsFunds, nextBlock.height === 1 && memPool.length === 0);
+  const coach = railCollapsed ? null : coachOf(guide, progress.step);
   const tone = startChoice.toneOf(choice);
   // The arrival tour opens by itself once, for a guided learner on the workbench with the
   // missions open and no dialog in the way; the menu starts it any time. It belongs to the
@@ -230,14 +237,14 @@ function App() {
     if (!next) void unlockMiningAudio(); // Resume while the Sound click is trusted.
     void telemetry.track('settings_changed', { setting: 'sound', value: !next });
   };
-  const showMe = active => {
-    if (!active) return;
-    if (active.view === 'chain-lab') { setProofSource(null); setChainExperiment(missions.experimentOf(active.mission.id)); }
-    navigate(active.view);
+  const showMe = () => {
+    if (!guide) return;
+    if (guide.view === 'chain-lab') { setProofSource(null); setChainExperiment(missions.experimentOf(guide.mission.id)); }
+    navigate(guide.view);
     requestAnimationFrame(() => {
       // An arrival tour that just opened keeps the focus; its end leads to this step.
       if (document.querySelector('[data-tour-stop]')) return;
-      const element = document.querySelector(`[data-coach-target="${active.target}"]`);
+      const element = document.querySelector(`[data-coach-target="${guide.target}"]`);
       element?.scrollIntoView({ block: 'center', behavior: 'smooth' });
       element?.querySelector('button, input, select, textarea, a[href]')?.focus({ preventScroll: true });
     });
@@ -271,8 +278,7 @@ function App() {
     }
     expandRail();
     // A Basics scene lives only in the course: opening the missions goes there.
-    const active = missions.activeStep(progress);
-    if (active?.view === 'basics') showMe(active);
+    if (guide?.view === 'basics') showMe();
   };
   // The answer to the start question: remembered, its skips applied, and the learner lands
   // on the first scene of the course or on the workbench.
@@ -288,8 +294,7 @@ function App() {
   };
   // Continue in the course: on to the step that is active now, or back to free play.
   const continueFromBasics = () => {
-    const active = missions.activeStep(progress);
-    if (active) showMe(active);
+    if (guide) showMe();
     else navigate('workbench');
   };
 
@@ -342,10 +347,10 @@ function App() {
       {touring && <WorkbenchTour key={tourRun} tone={tone} onEnd={endTour} />}
       <div className="wb-shell">
         <div className="wb-rail">
-          <MissionRail progress={progress} tone={tone} collapsed={railCollapsed} onToggle={toggleRail} onShowMe={showMe} />
+          <MissionRail progress={progress} guide={guide} tone={tone} collapsed={railCollapsed} onToggle={toggleRail} onShowMe={showMe} />
         </div>
         <main id="workbench" tabIndex={-1} className="wb-main" aria-label={VIEW_LABELS[view]}>
-          <div className="wb-mbar"><MissionRail progress={progress} tone={tone} variant="bar" collapsed={railCollapsed}
+          <div className="wb-mbar"><MissionRail progress={progress} guide={guide} tone={tone} variant="bar" collapsed={railCollapsed}
             onToggle={toggleRail} onShowMe={showMe} /></div>
           {view === 'start' && <div className="wb-view"><StartChoice current={choice} onChoose={chooseStart} /></div>}
           {view === 'workbench' && <Workbench session={session} coinName={coinName} identity={identity} boardRows={boardRows}
