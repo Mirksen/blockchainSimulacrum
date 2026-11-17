@@ -90,7 +90,7 @@ export function GuessScene({ coach, onEvent, done = false }) {
     }
   }
 
-  const status = found ? `Found after ${found.rolls} rolls. Checking takes one look.`
+  const status = found ? `Found after ${found.rolls} rolls. Hash the text once and check the leading zero.`
     : lucky && rolls === 1 ? 'Lucky roll: 1 in 16 texts starts with 0. Roll again and find another one.'
     : !text && rolls ? 'Type a text to roll again.'
     : hash && rolls ? `Starts with ${hash[0]}, not 0. Roll again.`
@@ -102,7 +102,7 @@ export function GuessScene({ coach, onEvent, done = false }) {
     found: `Found 00 after ${attempts} attempts · 256 on average.`,
     stopped: `Stopped after ${attempts} attempts. The last text stays above.`,
     exhausted: 'No match in 50,000 attempts. Change the text and try again.',
-    error: 'Rolling automatically could not finish. Your text is safe. Try again.'
+    error: 'The automatic search could not finish. Try again.'
   }[auto.status];
 
   return (
@@ -136,8 +136,8 @@ export function GuessScene({ coach, onEvent, done = false }) {
           <pre>{found.text}</pre>
           <code>{found.hash}</code>
         </details>
-        <p>The changing number is called a <span {...term('basics.nonce')}>nonce</span>. Machines that roll for
-          a living are called <span {...term('basics.miner')}>miners</span>.</p>
+        <p>The changing number is called a <span {...term('basics.nonce')}>nonce</span>. Computers that search for
+          valid block hashes are called <span {...term('basics.miner')}>miners</span>.</p>
         <div className="basics-actions">
           <span className="hint-wrap" {...hint(searching ? 'basics.guess.stop' : 'basics.guess.auto')}>
             <button type="button" className="btn btn-default" disabled={!text}

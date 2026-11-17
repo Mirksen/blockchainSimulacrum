@@ -8,7 +8,7 @@ export const WORKBENCH_HINTS = {
   'mission.recap': { title: 'What you learned', text: 'Open the explanation of the result you observed. Completed missions and rewards stay in this browser after reload.' },
   'next.signature-test': { title: 'Work cannot repair a signature', text: 'Re-mine this newest block to repair its hash. Its edited payment still has the old signature, so the chain stays invalid. No later blocks need repair; Undo restores the payment.' },
   // ---------- top bar ----------
-  'nav.basics': { title: 'Basics', text: 'A short course in six scenes for anyone new to this: why digital money needs one shared list, what a hash is and why anyone would guess hashes. No knowledge needed.' },
+  'nav.basics': { title: 'Basics', text: 'A short course in six scenes for anyone new to this: why digital money needs one shared list, what a hash is and how mining finds a valid hash. No prior knowledge needed.' },
   'nav.workbench': { title: 'Workbench', text: 'The main simulator: a small blockchain that runs entirely in your browser. Mine blocks, send coins and try to cheat, and watch the chain catch it.' },
   'nav.hash-lab': { title: 'Hash lab', text: 'The hash function on its own. Type any text and see its fingerprint change completely, then search for a number (nonce) that makes the fingerprint start with zeros.' },
   'nav.chain-lab': { title: 'Chain lab', text: 'Three toy blocks you edit by hand. Change old data, watch the links break and repair them by re-mining. Also: competing branches and payment proofs.' },
@@ -16,10 +16,10 @@ export const WORKBENCH_HINTS = {
   'menu.explain': on => ({ title: 'Explain mode', text: on
     ? 'Explain mode is on: tap any button, number or word to see what it means. Tap here or Done to use the simulator again.'
     : 'For touch screens. Turn it on, then tap any button, number or word to see what it means. Nothing you tap acts until you tap Done.' }),
-  'menu.more': { title: 'More', text: 'Reset the simulation, open the settings, choose your starting point again, switch the sound and the light or dark theme.' },
-  'menu.reset': { title: 'Reset', text: 'Start over: a new chain with only the genesis block and an empty mempool; added wallets and miners go. Difficulty, coin name, halving interval and block time stay as set; a workbench mission in progress starts its steps again.' },
+  'menu.more': { title: 'More', text: 'Reset the simulation, open the settings, choose your starting point again, turn sound on or off, and switch between light and dark themes.' },
+  'menu.reset': { title: 'Reset', text: 'Start over: a new chain with only the genesis block and an empty mempool; wallets and miners you added are removed. Difficulty, coin name, halving interval and block time stay as set; any active workbench mission restarts.' },
   'menu.start': { title: 'Starting point', text: 'Answer the first question again: start with the Basics course, skip its fingerprint scenes, or just play with the simulator. Completed missions stay completed.' },
-  'menu.tour': { title: 'Tour of the simulator', text: 'A short walk over the workbench in five stops: the chain, the selected block, the next block, the mempool and the wallets. Nothing is changed or paused.' },
+  'menu.tour': { title: 'Tour of the simulator', text: 'A five-stop tour of the workbench: the chain, the selected block, the next block, the mempool and the wallets. Nothing is changed or paused.' },
   'menu.settings': { title: 'Settings', text: 'Coin name, mining difficulty, halving interval and target block time.' },
   'menu.sound': muted => ({ title: 'Sound', text: muted ? 'Sound is off. Turn it on to hear a short chime whenever a block is found.' : 'Plays a short chime whenever a block is found. Click to mute it.' }),
   'menu.theme': next => ({ title: next === 'light' ? 'Light theme' : 'Dark theme', text: `Switch to ${next === 'light' ? 'light' : 'dark'} colors. Nothing else changes.` }),
@@ -30,41 +30,41 @@ export const WORKBENCH_HINTS = {
   'mission.show-me': { title: 'Show me', text: 'Jumps to the place where this step happens and marks the button you need.' },
 
   // ---------- chain band ----------
-  'chain.title': { title: 'Chain', text: 'The blockchain: a row of blocks, oldest on the left. Each block stores the hash of the block before it, so changing any old block breaks every link after it. Click a block to see its details below.' },
+  'chain.title': { title: 'Chain', text: 'The blockchain: a row of blocks, oldest on the left. Each block stores the previous block’s hash. Changing an old block invalidates it and the chain built on it. Click a block to see its details below.' },
   'chain.health': (valid, open) => (valid
-    ? { title: 'Chain valid', text: `Every block’s hash starts with enough zeros and every block stores the correct hash of the one before. ${open ? 'Click to hide the checks.' : 'Click to see the checks per block.'}` }
+    ? { title: 'Chain valid', text: `Every block passes the hash, link and transaction checks. ${open ? 'Click to hide the checks.' : 'Click to see the checks per block.'}` }
     : { title: 'Chain invalid', text: `At least one block fails a check, usually because its data was changed after mining. ${open ? 'Click to hide the checks.' : 'Click to see which block fails and why.'}` }),
   'chain.view': list => (list
-    ? { title: 'Row', text: 'Show the blocks again as one row that swipes sideways.' }
+    ? { title: 'Row', text: 'Show the blocks in a row you can swipe sideways.' }
     : { title: 'List', text: 'Show the blocks as a list, newest on top. Tap a block for its full hash, Copy and “Open in Chain lab”.' }),
   // The key figures carry their rule and its forecast (web/DESIGN.md, "Key figures").
   'chain.block-time': pace => ({ title: 'Block time', text: pace
-    ? `The average the next difficulty check measures: ${pace.blocks ? `the last ${pace.blocks} blocks took ${pace.seconds} each` : 'no block timed since the last check'}, against the ${pace.target} target. `
+    ? `The average the next difficulty check measures: ${pace.blocks ? `the last ${pace.blocks} blocks took ${pace.seconds} each` : 'no block times measured since the last check'}, against the ${pace.target} target. `
       + `The marker shows where it sits; the shaded band (${pace.low}–${pace.high}) keeps the difficulty as it is. Bitcoin aims at 10 minutes.`
     : 'How long blocks take to be found: the recent average against the target. Every 10 blocks the difficulty adjusts so the average moves toward the target, as in Bitcoin (every 2,016 blocks, aiming at 10 minutes).' }),
   'chain.difficulty': { title: 'Difficulty', text: 'How many zeros a block hash must start with. Each extra zero makes a valid hash about 16 times rarer, so finding one takes about 16 times longer.' },
   'chain.check': check => ({ title: 'Difficulty check', text: `After every 10th block the last ten are averaged: faster than ${check.low} adds a leading zero (about 16 times the work), `
-    + `slower than ${check.high} removes one, in between the difficulty stays. ${check.forecast} Bitcoin checks every 2,016 blocks.` }),
-  'chain.reward': halving => ({ title: 'Block reward', text: 'New coins the winner of the next block creates for itself, on top of the fees of the payments it includes. This is how new coins come into existence.'
+    + `slower than ${check.high} removes one, between those limits, difficulty stays the same. ${check.forecast} Bitcoin checks every 2,016 blocks.` }),
+  'chain.reward': halving => ({ title: 'Block reward', text: 'New coins created for the miner that finds the next block. The miner also receives fees from the payments it includes. This is how new coins come into existence.'
     + (halving ? ` It halves every ${halving.every} blocks: #${halving.at} pays ${halving.reward}, like Bitcoin’s halving every 210,000 blocks.` : '') }),
-  'chain.halving': { title: 'Next halving', text: 'From this block on, the block reward is cut in half. Halvings make the coin supply grow ever slower, like Bitcoin’s every 210,000 blocks (about four years).' },
+  'chain.halving': { title: 'Next halving', text: 'From this block on, the block reward is cut in half. Halvings slow the growth of the coin supply, like Bitcoin’s every 210,000 blocks (about four years).' },
   'chain.change': mark => ({ title: { halving: 'Halving', check: 'Difficulty check' }[mark.kind] ?? 'Difficulty change', text: mark.title }),
   'chain.candidate': { title: 'Next block', text: 'The block being built now. It does not belong to the chain until a miner finds a valid hash for it. Its controls are in the Next block card below.' },
 
   // ---------- block card ----------
   // A block status by its name, explained (components/workbench/blockView.js).
   'block.status': kind => statusSentence(kind),
-  'block.hash': { title: 'Hash', text: 'The block’s fingerprint: a double SHA-256 of its 80-byte header. Change anything in the block and the hash changes completely. The highlighted leading zeros are the proof of work.' },
-  'block.hash-now': { title: 'Hash now', text: 'The hash the block’s contents produce today, after the change. It no longer starts with enough zeros, so the block fails.' },
+  'block.hash': { title: 'Hash', text: 'The block’s fingerprint: a double SHA-256 of its 80-byte header. Changing a transaction or a header field changes the hash. The highlighted leading zeros are the proof of work.' },
+  'block.hash-now': { title: 'Hash now', text: 'The hash of the block’s current contents, after your edit. It no longer starts with enough zeros, so the block fails.' },
   'block.as-mined': { title: 'As mined', text: 'The hash the block had when it was mined. The next block still stores this one as its link.' },
   'block.previous': isGenesis => (isGenesis
     ? { title: 'Previous', text: 'The genesis block has no block before it. Here it stores the hash of a real Bitcoin block instead, which proves this chain was started after that block existed.' }
     : { title: 'Previous', text: 'The hash of the block before this one. Storing it chains the blocks together: change an earlier block and this link no longer fits.' }),
   'block.link-intact': index => ({ title: 'Link intact', text: `This is exactly the hash of block #${index}, so the two blocks are correctly chained.` }),
   'block.tx-count': { title: 'Committed', text: 'The Merkle root covers every transaction of this block. Change one and the root, and with it the block hash, changes.' },
-  'block.nonce': { title: 'Nonce', text: '“Number used once”. Miners try nonce after nonce until the block’s hash starts with enough zeros. Finding it is the work in proof of work; checking it takes one hash.' },
+  'block.nonce': { title: 'Nonce', text: '“Number used once”. Miners try nonce after nonce until the block’s hash starts with enough zeros. Finding it is the work in proof of work; checking it takes one double SHA-256 calculation.' },
   'block.miner': { title: 'Miner', text: 'Who found this block. The miner is paid through the block’s first transaction, the coinbase: the block reward plus all fees.' },
-  'block.merkle-root': { title: 'Merkle root', text: 'One hash that sums up all payments in the block, built by hashing them in pairs (a Merkle tree). It is part of the header, so changing any payment changes the block’s hash.' },
+  'block.merkle-root': { title: 'Merkle root', text: 'One hash that summarizes all transactions in the block, built by hashing them in pairs (a Merkle tree). It is part of the header, so changing any payment changes the block’s hash.' },
   'block.your-edit': { title: 'Your edit', text: 'The amount you changed after the block was mined. Undo edit puts the original back.' },
   'block.copy': { title: 'Copy', text: 'Copy the full 64-character hash to the clipboard.' },
   'block.chain-lab': { title: 'Open in Chain lab', text: 'Opens the Chain lab: a separate toy chain of three blocks where you change data and re-mine by hand, step by step. This chain stays as it is.' },
@@ -76,10 +76,10 @@ export const WORKBENCH_HINTS = {
   'block.change-amount': { title: 'Change amount', text: 'Saves your new amount into the already mined block. Its hash will no longer fit.' },
   'block.transactions': { title: 'Transactions', text: 'The payments this block confirms. The first one is always the coinbase: the new coins for the miner.' },
   'block.tx-row': coinbase => (coinbase
-    ? { title: 'Coinbase', text: 'The first transaction of every block. It spends no earlier coins: it creates new ones, the block reward plus all fees, and pays them to the miner. Click for its inputs and outputs.' }
+    ? { title: 'Coinbase', text: 'The first transaction of every block. It spends no earlier coins. It pays the miner newly created coins plus fees from the block’s other transactions. Click for its inputs and outputs.' }
     : { title: 'Payment', text: 'Click to see which coins it spends, who receives what, the change back to the sender and the fee.' }),
   'block.tx-in': { title: 'In (inputs)', text: 'The earlier coins this payment spends, each used up completely, with their owner and the block they came from.' },
-  'block.tx-out': { title: 'Out (outputs)', text: 'The new coins this payment creates: one for the recipient, usually one “change” back to the sender. Whatever inputs and outputs differ by is the fee for the miner.' },
+  'block.tx-out': { title: 'Out (outputs)', text: 'The new coins this payment creates: one for the recipient, usually one for change back to the sender. The difference between the total input and output values is the fee paid to the miner.' },
   'block.txid': { title: 'TXID', text: 'Transaction ID: the double SHA-256 hash of the transaction’s bytes. Later payments refer to a coin by this ID plus its output number.' },
   'block.tx-proof': { title: 'Prove inclusion', text: 'Open a copy of this transaction and its mined block in Chain lab. Follow its Merkle path to the header, then edit a hash to see why the proof fails. Your workbench stays unchanged.' },
   'block.tx-raw': { title: 'Scripts, signature and raw bytes', text: 'The technical view: the scripts that lock and unlock the coins, the digital signature that proves the owner agreed, and the transaction as raw bytes.' },
@@ -87,17 +87,17 @@ export const WORKBENCH_HINTS = {
   // ---------- next block card ----------
   'next.title': { title: 'Next block', text: 'The block being built right now from the waiting payments. It joins the chain as soon as one miner finds a hash with enough leading zeros.' },
   'next.difficulty': lock => ({ title: 'Difficulty', text: `How many zeros the block hash must start with. Each extra zero makes mining about 16 times slower.${lock === 'mining' ? ' Locked while a block is being mined.' : lock === 'repair' ? ' Locked until the chain is repaired.' : ''}` }),
-  'next.mine-locked': { title: 'Repair first', text: 'New blocks wait while the chain is invalid: a block on a broken chain would be worthless. Re-mine or undo below first.' },
+  'next.mine-locked': { title: 'Repair first', text: 'New blocks wait while the chain is invalid: a block on a broken chain would be worthless. Re-mine the affected blocks or undo the edit below first.' },
   'next.lower': startsNewChain => ({ title: 'Lower difficulty', text: startsNewChain
     ? 'One zero fewer starts a new chain (you are asked first). Otherwise easy blocks could make a chain longer without more work, and in Bitcoin the chain with the most work counts.'
     : 'One zero fewer: blocks are found about 16 times faster.' }),
   'next.raise': { title: 'Raise difficulty', text: 'One zero more: blocks take about 16 times longer. High settings can take longer than you want to wait; Pause stops the search.' },
   'next.start-demo': { title: 'Start demo', text: 'Mines the first block and shares its reward with the other wallets, so everyone has coins to send. A good first click.' },
-  'next.mine': (shortcut = true) => ({ title: 'Mining', text: `Start the race: every miner tries nonce after nonce until one finds a hash with enough leading zeros. The winner adds the block and earns the reward.${shortcut ? ' Shortcut: M.' : ''}` }),
+  'next.mine': (shortcut = true) => ({ title: 'Mine block', text: `Start the race: every miner tries nonce after nonce until one finds a hash with enough leading zeros. The winner adds the block and earns the reward.${shortcut ? ' Shortcut: M.' : ''}` }),
   'next.pause': { title: 'Pause', text: 'Stop the search. The unfinished block is dropped; nothing is added to the chain. You can change the difficulty and start again.' },
   'next.auto-mine': on => (on
-    ? { title: 'Auto-mine is on', text: 'After each found block the next race starts by itself. Click to stop after the current block.' }
-    : { title: 'Auto-mine', text: 'Keep mining block after block once you press Mining, instead of stopping after one. Pairs well with Auto on the Mempool for a running economy.' }),
+    ? { title: 'Auto-mine is on', text: 'After each block is found, the next race starts automatically. Click to stop after the current block.' }
+    : { title: 'Auto-mine', text: 'Keep mining block after block after you select Mine block. Turn on Auto in the Mempool too for a continuous flow of sample payments.' }),
   'next.your-name': locked => ({ title: 'Your name', text: `Your miner name on the shared leaderboard. It is written into every block you mine here, and each block is sent to the leaderboard under it. 3–20 letters, digits or hyphens.${locked ? ' Locked while a block is being mined.' : ''}` }),
   'next.miner': name => ({ title: name, text: `Click for ${name}’s share of the hashpower, which is its chance to win the next block, and its newest guesses. Between races you can also rename it.` }),
   'next.progress': { title: 'Leading zeros', text: 'How many of the required leading zeros this miner’s best hash reached. Full means it found a valid block.' },
@@ -108,12 +108,12 @@ export const WORKBENCH_HINTS = {
   'next.create-miner': full => (full
     ? { title: 'Create miner', text: 'At most 4 miners race in this simulation.' }
     : { title: 'Create miner', text: 'Add another simulated miner to the race, up to 4. It joins with the next block, with an equal share of the hashpower and with no coins.' }),
-  'next.hashpower': { title: 'Hashpower', text: 'This miner’s share of all hashpower: how many hashes it tries compared with the others, and so its chance to find the next block. The other miners give way in proportion. Works during a race too. In the real world that is the share of all mining hardware.' },
+  'next.hashpower': { title: 'Hashpower', text: 'This miner’s share of all hashpower: how many hashes it tries compared with the others, and so its chance to find the next block. The other miners’ shares adjust proportionally. Works during a race too. In Bitcoin, this is the miner’s share of the network’s total hash rate.' },
   'next.normal-speed': { title: 'Normal speed', text: 'End slow motion: the race runs at full speed again. Slow motion also ends when you close the miner details or the block is found.' },
   'next.all-streams': on => (on
     ? { title: 'Hide streams', text: 'Fold the miners’ attempt lists away again.' }
     : { title: 'All streams', text: 'Every miner’s newest guesses side by side. More hashpower makes a list run faster.' }),
-  'next.remine': (index, target, shortcut = true) => ({ title: `Re-mine block #${index}`, text: `Search a new nonce so the edited block’s hash starts with ${target} again. That gives it a new hash, so the block after it must be re-mined too. This is why rewriting history costs so much work.${shortcut ? ' Shortcut: M.' : ''}` }),
+  'next.remine': (index, target, shortcut = true) => ({ title: `Re-mine block #${index}`, text: `Find a new nonce so the edited block’s hash starts with ${target} again. That gives it a new hash, so the block after it must be re-mined too. This is why rewriting history costs so much work.${shortcut ? ' Shortcut: M.' : ''}` }),
   'next.undo-edit': { title: 'Undo edit', text: 'Put the original payment back. A broken signature or rule cannot be repaired by re-mining, only by undoing the change.' },
   'next.repair-order': { title: 'Re-mine order', text: 'The blocks that need a new nonce, in order. Each re-mine changes a hash that the next block stores, so the repair walks forward one block at a time.' },
 
@@ -132,15 +132,15 @@ export const WORKBENCH_HINTS = {
   'mempool.add': { title: 'Add to mempool', text: 'Sign the payment and put it in the mempool. It is confirmed once a mined block includes it.' },
   'mempool.wait': reason => ({ title: { full: 'Block full', parent: 'Waits for its parent', invalid: 'Orphaned by an edit' }[reason], text: {
     full: 'No room left in the next block: payments with a higher fee per byte go first.',
-    parent: 'It spends a coin from a payment that is still waiting; it can follow that one at the earliest.',
-    invalid: 'An edit of history removed a coin it spends. Undo the edit, or it never fits into a block.'
+    parent: 'It spends an output from another pending payment, so that payment must be included first.',
+    invalid: 'An edit changed an output this payment spends. Undo the edit to restore its input.'
   }[reason] }),
   'mempool.tx': { title: 'Pending payment', text: 'Click for its details: which coins it spends, the change back to the sender and the fee.' },
-  'mempool.coinbase': { title: 'Coinbase → winner', text: 'Not a payment yet: when the next block is found, its winner pays itself the block reward plus all fees of the included payments.' },
+  'mempool.coinbase': { title: 'Coinbase → winner', text: 'When the next block is found, its coinbase pays the winning miner the new block reward plus fees from included payments.' },
 
   // ---------- wallets ----------
   'wallets.title': { title: 'Wallets', text: 'Everyone in the simulation. A wallet holds a private key that signs payments; its balance is the sum of the unspent coins it owns. Miners are wallets too.' },
-  'wallets.create': { title: 'Create wallet', text: 'Add a new person with an empty wallet. Send it coins from another wallet.' },
+  'wallets.create': { title: 'Create wallet', text: 'Add an empty wallet, then send it coins from another wallet.' },
   'wallets.row': (name, isMiner) => ({ title: name, text: `Open ${name}’s wallet: its balance, the coins it owns, its address and keys, and every payment it made or received.${isMiner ? ' In the row: the blocks it has won and its H/s, the hashes it tries per second.' : ''}` }),
 
   // ---------- activity ----------
@@ -149,8 +149,8 @@ export const WORKBENCH_HINTS = {
 
   // ---------- settings ----------
   'settings.coin': { title: 'Coin name', text: 'Just a label for the virtual coin. It changes nothing in the rules.' },
-  'settings.difficulty': { title: 'Mining difficulty', text: 'How many zeros a block hash must start with. Each step makes mining about 16 times slower on average. Raising keeps the chain; lowering by hand starts a new one.' },
+  'settings.difficulty': { title: 'Mining difficulty', text: 'How many zeros a block hash must start with. Each step makes mining about 16 times slower on average. Raising difficulty keeps the chain. Lowering it manually starts a new one.' },
   'settings.halving': { title: 'Halving interval', text: 'After this many blocks the block reward is cut in half. Bitcoin halves every 210,000 blocks.' },
-  'settings.block-time': { title: 'Target block time', text: 'How long a block should take on average. Every 10 blocks the difficulty adjusts toward it. Bitcoin aims at 10 minutes.' },
+  'settings.block-time': { title: 'Target block time', text: 'How long a block should take on average. Every 10 blocks, difficulty adjusts to bring the average block time closer to this target. Bitcoin aims at 10 minutes.' },
   'settings.shortcut': { title: 'Mining shortcut', text: 'M starts mining or re-mining between races. Turn this off if single-letter shortcuts interfere with speech input or assistive technology. The mining button always works.' }
 };

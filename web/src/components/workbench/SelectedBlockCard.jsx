@@ -53,7 +53,7 @@ const MAX_MONEY = 21000000;
 function editConsequence(tx) {
   if (tx?.from != null) return 'Signed by its sender: any change breaks the signature, and re-mining cannot fix that.';
   if (tx?.spentIn != null) return `Block #${tx.spentIn} spends this coin. A new txid leaves that spend pointing at nothing.`;
-  return 'No signature and nobody spent it yet. Lowering it can be re-mined; claiming more than reward plus fees cannot.';
+  return 'This mining reward is still unspent. You can reduce it and re-mine the block because the coinbase needs no sender signature. Claiming more than the reward plus fees is invalid.';
 }
 
 function TamperEditor({ block, onSubmit, onCancel }) {
@@ -74,8 +74,8 @@ function TamperEditor({ block, onSubmit, onCancel }) {
     if (!tx) return setError('Choose a transaction to change.');
     if (!trimmed || !Number.isFinite(value)) return setError('Enter an amount, for example 2.00.');
     if (value < 0) return setError('Enter an amount of 0 or more.');
-    if (value > MAX_MONEY) return setError('Enter at most 21000000, every coin there will ever be.');
-    if (Number(value.toFixed(8)) !== value) return setError('Use at most 8 decimal places: one satoshi is the smallest amount.');
+    if (value > MAX_MONEY) return setError('Enter no more than 21,000,000 coins, the maximum supply.');
+    if (Number(value.toFixed(8)) !== value) return setError('Use at most 8 decimal places. One satoshi is the smallest unit.');
     if (value === tx.amount) return setError('That is the current amount. Enter a different one.');
     onSubmit(Number(txIndex), value);
   };

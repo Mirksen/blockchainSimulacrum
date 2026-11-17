@@ -55,7 +55,7 @@ function ScriptRow({ label, kind, asm }) {
 export function TransactionDetailsModal({ transaction, blockIndex, onClose, coinName = 'powfyicoin' }) {
     if (!transaction) return null;
     const { coinbase, inputs, outputs, fee, signed } = transaction;
-    const signature = coinbase ? { text: 'No signature: a coinbase creates coins', short: 'None', tone: '' }
+    const signature = coinbase ? { text: 'No signature required for a coinbase', short: 'None', tone: '' }
         : signed ? { text: 'Every input passes its script', short: 'Valid', tone: 'is-ok' }
             : { text: 'An input fails its script or its coin is gone', short: 'Invalid', tone: 'is-err' };
     const inputTotal = inputs.reduce((sum, input) => sum + (input.value ?? 0), 0);
@@ -81,7 +81,7 @@ export function TransactionDetailsModal({ transaction, blockIndex, onClose, coin
                         <div className="details-modal-flow-side">
                             <div className="details-modal-label" {...term('details.inputs')}>Inputs ({coinbase ? 0 : inputs.length})</div>
                             {coinbase
-                                ? <div className="details-modal-empty is-small">Coinbase: new coins, no input spent</div>
+                                ? <div className="details-modal-empty is-small">Coinbase: subsidy and fees, no earlier output spent</div>
                                 : <ul className="details-modal-coins" aria-label="Inputs">{inputs.map((input, index) => <InputRow key={index} input={input} />)}</ul>}
                         </div>
                         <div className="details-modal-flow-side">
@@ -148,10 +148,10 @@ export function TransactionDetailsModal({ transaction, blockIndex, onClose, coin
                         <div className="details-modal-info-title">How transactions work</div>
                         <ul>
                             <li>An <strong>input</strong> spends one whole earlier output; the wallet picks which coins</li>
-                            <li>What the payment does not use comes back as <strong>change</strong>, a new output to the sender</li>
-                            <li>The <strong>fee</strong> is never written down: it is what inputs leave over, and the miner collects it</li>
+                            <li>Any amount left after the payment and fee returns as <strong>change</strong>, a new output to the sender</li>
+                            <li>The <strong>fee</strong> is the input total minus the output total; the miner collects it</li>
                             <li>The <strong>signature</strong> covers the outputs, so changing an amount breaks it</li>
-                            <li>The <strong>TXID</strong> is a hash of these bytes: a changed transaction has a new id, and spends of its old id point at nothing</li>
+                            <li>The <strong>TXID</strong> is a hash of these bytes. Changing them creates a new ID and breaks references to the old one</li>
                         </ul>
                     </div>
                 </div>

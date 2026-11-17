@@ -119,7 +119,7 @@ export function SealedPagesScene({ coach, onEvent, done = false }) {
                   </Seal>
                   <Seal label="Seal" termKey="basics.seal" value={page.seal} />
                   {pageStatus === 'broken' && current !== page.seal &&
-                    <Seal label="Seal of the text now" termKey="basics.seal" value={current} />}
+                    <Seal label="Seal of the edited page" termKey="basics.seal" value={current} />}
                 </dl>
                 <p className="basics-page-status">{STATUS_TEXT[pageStatus]}</p>
                 {repair && <p className="basics-quiet">Re-sealed in {plural(repair.hashes[index], 'hash', 'hashes')}.</p>}

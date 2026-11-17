@@ -45,7 +45,7 @@ describe('SettingsDialog', () => {
     expect(slider.max).toBe('10');
     expect(slider.value).toBe('10');
     expect(screen.getByText('10 leading zeros')).toBeTruthy();
-    expect(screen.getByText(/Pause stops mining/)).toBeTruthy();
+    expect(screen.getByText(/Select Pause to stop mining/)).toBeTruthy();
     fireEvent.change(slider, { target: { value: '9' } });
     expect(handlers.onDifficulty).toHaveBeenCalledWith(9);
   });
@@ -70,7 +70,7 @@ describe('SettingsDialog', () => {
     expect(screen.getByLabelText('Halving interval').disabled).toBe(true);
     expect(screen.getByLabelText('Target block time').disabled).toBe(true);
     expect(screen.getByLabelText('Coin name').disabled).toBe(false);
-    expect(screen.getByRole('status').textContent).toMatch(/unlock when it stops/);
+    expect(screen.getByRole('status').textContent).toMatch(/when it stops/);
   });
 
   it('closes through Done, the close button and Escape', () => {

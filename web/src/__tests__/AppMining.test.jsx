@@ -63,7 +63,7 @@ async function completeDemo() {
 // One click on Mining mines one block (the next run).
 async function mineOnce() {
   const run = controlled.runs.length;
-  fireEvent.click(screen.getByRole('button', { name: 'Mining', exact: true }));
+  fireEvent.click(screen.getByRole('button', { name: 'Mine block', exact: true }));
   expect(controlled.runs).toHaveLength(run + 1);
   await release(run);
 }
@@ -71,7 +71,7 @@ async function mineOnce() {
 async function startAutomatic() {
   await completeDemo();
   fireEvent.click(repeat());
-  fireEvent.click(screen.getByRole('button', { name: 'Mining', exact: true }));
+  fireEvent.click(screen.getByRole('button', { name: 'Mine block', exact: true }));
   expect(controlled.runs).toHaveLength(2);
 }
 
@@ -102,7 +102,7 @@ describe('mining controls and sound in App', () => {
     fireEvent.click(repeat());
     await wait(6000);
     expect(controlled.runs).toHaveLength(1);
-    expect(screen.getByRole('button', { name: 'Mining', exact: true })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Mine block', exact: true })).toBeTruthy();
   });
 
   it('with Auto-mine on, Play mines block after block and Pause stays available between blocks', async () => {
@@ -136,7 +136,7 @@ describe('mining controls and sound in App', () => {
   it('turning Auto-mine on during a single block continues after it', async () => {
     render(<App />);
     await completeDemo();
-    fireEvent.click(screen.getByRole('button', { name: 'Mining', exact: true }));
+    fireEvent.click(screen.getByRole('button', { name: 'Mine block', exact: true }));
     fireEvent.click(repeat());
     await release(1);
     await wait(1500);
@@ -152,7 +152,7 @@ describe('mining controls and sound in App', () => {
     expect(screen.getByRole('button', { name: 'Pause', exact: true })).toBeTruthy();
     await release(1);
     expect(tiles()).toHaveLength(3);
-    expect(screen.getByRole('button', { name: 'Mining', exact: true })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Mine block', exact: true })).toBeTruthy();
     await wait(6000);
     expect(controlled.runs).toHaveLength(2);
     expect(playMiningSuccessSound).toHaveBeenLastCalledWith(true);
@@ -166,7 +166,7 @@ describe('mining controls and sound in App', () => {
     await wait(6000);
     expect(controlled.runs).toHaveLength(2);
     expect(tiles()).toHaveLength(3);
-    expect(screen.getByRole('button', { name: 'Mining', exact: true })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Mine block', exact: true })).toBeTruthy();
     fireEvent.click(repeat());
     await wait(6000);
     expect(controlled.runs).toHaveLength(2);
@@ -180,7 +180,7 @@ describe('mining controls and sound in App', () => {
     fireEvent.click(within(screen.getByRole('form', { name: 'Create miner' })).getByRole('button', { name: 'Create' }));
     expect(document.querySelector('.next-block-lane[data-miner="Hal"]')).toBeTruthy();
     expect(screen.getByRole('button', { name: /^Open Hal, balance 0\.00000000/ })).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Mining', exact: true }));
+    fireEvent.click(screen.getByRole('button', { name: 'Mine block', exact: true }));
     expect(controlled.runs[1].entrants).toEqual(['Miner One', 'Hal']);
     expect(screen.queryByRole('button', { name: 'Create miner', exact: true })).toBeNull();
   });
@@ -248,7 +248,7 @@ describe('mining controls and sound in App', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Pause', exact: true }));
     await wait(6000);
     expect(controlled.runs).toHaveLength(2);
-    expect(screen.getByRole('button', { name: 'Mining', exact: true })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Mine block', exact: true })).toBeTruthy();
   });
 
   it('uses mute changes made while mining, including enabling sound again before completion', async () => {
@@ -259,7 +259,7 @@ describe('mining controls and sound in App', () => {
     await release(0);
     expect(playMiningSuccessSound).toHaveBeenLastCalledWith(false);
     fireEvent.keyDown(document.activeElement, { key: 'Escape' });
-    fireEvent.click(screen.getByRole('button', { name: 'Mining', exact: true }));
+    fireEvent.click(screen.getByRole('button', { name: 'Mine block', exact: true }));
     more();
     unlockMiningAudio.mockClear();
     fireEvent.click(sound());
@@ -282,7 +282,7 @@ describe('mining controls and sound in App', () => {
     await wait(6000);
     expect(controlled.runs).toHaveLength(1);
     expect(tiles()).toHaveLength(2);
-    expect(screen.getByRole('button', { name: 'Mining', exact: true })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Mine block', exact: true })).toBeTruthy();
   });
 
   it('one click on Mining after the demo mines exactly block #2 with the waiting transfers', async () => {
@@ -402,12 +402,12 @@ describe('mining feedback', () => {
     await mineOnce(); await mineOnce(); await mineOnce();
     const footer = screen.getByRole('complementary', { name: 'What changed' });
     expect(footer.querySelector('.kf-note.is-halving.is-live')).not.toBeNull();
-    expect(footer.textContent).toContain('The reward halved with #4');
+    expect(footer.textContent).toContain('The reward halved at block #4');
     expect(footer.closest('.wb-band')).toBeNull();
     expect(document.querySelector('.wb-grid').compareDocumentPosition(footer) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     await wait(2400);
     expect(footer.querySelector('.is-live')).toBeNull();
-    expect(footer.textContent).toContain('The reward halved with #4');
+    expect(footer.textContent).toContain('The reward halved at block #4');
     fireEvent.click(within(footer).getByRole('button', { name: 'Got it' }));
     expect(screen.queryByRole('complementary', { name: 'What changed' })).toBeNull();
     fireEvent.click(screen.getByRole('link', { name: 'Hash lab', exact: true }));
@@ -429,7 +429,7 @@ describe('mining feedback', () => {
     await mineOnce(); await mineOnce(); await mineOnce();
     await wait(60_000);
     expect(note.isConnected).toBe(true);
-    expect(note.textContent).toContain('The reward halved with #4');
+    expect(note.textContent).toContain('The reward halved at block #4');
     fireEvent.mouseLeave(note);
     await wait(27_999);
     expect(note.isConnected).toBe(true);

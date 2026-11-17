@@ -32,7 +32,7 @@ function Flow({ tx }) {
         {tx.coinbase
           ? <span className="block-tx-coin"><span>Coinbase · new coins</span></span>
           : tx.inputs.map((input, i) => (
-            <span key={i} className="block-tx-coin"><span>{input.owner ?? 'Unknown'}{input.blockIndex != null ? ` · from #${input.blockIndex}` : ''}</span><b>{input.value == null ? 'gone' : coins(input.value)}</b></span>
+            <span key={i} className="block-tx-coin"><span>{input.owner ?? 'Unknown'}{input.blockIndex != null ? ` · from #${input.blockIndex}` : ''}</span><b>{input.value == null ? 'missing' : coins(input.value)}</b></span>
           ))}
       </div>
       <div className="block-tx-side">

@@ -31,7 +31,7 @@ export async function verifyPool(page, output, before) {
 
     const name = pool.getByLabel('Name on the leaderboard', { exact: true });
     await name.fill('ab');
-    await pool.getByRole('button', { name: 'Join', exact: true }).click();
+    await pool.getByRole('button', { name: 'Start mining', exact: true }).click();
     await pool.getByRole('alert').filter({ hasText: NAME_RULE }).waitFor();
     assert.equal(await name.getAttribute('aria-invalid'), 'true');
     assert.deepEqual(poolRequests(), [], 'An invalid name must not reach the pool');
@@ -39,10 +39,10 @@ export async function verifyPool(page, output, before) {
     await name.fill('test-miner');
     assert.equal(await pool.getByRole('alert').count(), 0);
     const challenged = page.waitForRequest(request => request.url().startsWith(`${API}/api/challenge?`));
-    await pool.getByRole('button', { name: 'Join', exact: true }).press('Enter');
+    await pool.getByRole('button', { name: 'Start mining', exact: true }).press('Enter');
     await challenged;
     await status.filter({ hasText: UNAVAILABLE }).waitFor();
-    await pool.getByRole('button', { name: 'Join', exact: true }).waitFor();
+    await pool.getByRole('button', { name: 'Start mining', exact: true }).waitFor();
     // The workbench signer asks about the same valid name.
     assert.ok(poolRequests().every(path => path === '/api/challenge'), JSON.stringify(poolRequests()));
 

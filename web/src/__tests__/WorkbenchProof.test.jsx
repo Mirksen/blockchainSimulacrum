@@ -92,16 +92,16 @@ describe('workbench inclusion experiment', () => {
     expect(screen.queryByRole('group', { name: 'Block size' })).toBeNull();
     expect(screen.getByLabelText('Transaction ID of transaction 1').value).toBe(source.txids[1]);
     const verdict = () => screen.getByRole('status').textContent;
-    expect(verdict()).toMatch(/^Payment proven/);
+    expect(verdict()).toMatch(/^Inclusion proven/);
     const sibling = screen.getByLabelText(/^Sibling at level 0/);
     fireEvent.change(sibling, { target: { value: flip(sibling.value) } });
-    expect(verdict()).toMatch(/Payment not proven.*fails at level 1/);
+    expect(verdict()).toMatch(/Inclusion not proven.*fails at level 1/);
     fireEvent.click(screen.getByRole('button', { name: 'Reset proof' }));
-    expect(verdict()).toMatch(/^Payment proven/);
+    expect(verdict()).toMatch(/^Inclusion proven/);
     fireEvent.change(screen.getByLabelText('Transaction ID of transaction 1'), { target: { value: flip(source.txids[1]) } });
     expect(verdict()).toMatch(/fails at level 0/);
     fireEvent.change(screen.getByLabelText('Transaction ID of transaction 1'), { target: { value: 'abc' } });
-    expect(verdict()).toMatch(/no valid txid/);
+    expect(verdict()).toMatch(/must contain 64 hexadecimal characters/);
     fireEvent.click(screen.getByRole('button', { name: 'Reset proof' }));
     expect(screen.getByLabelText('Transaction ID of transaction 1').value).toBe(source.txids[1]);
     expect(JSON.stringify(chain.toSaved())).toBe(before);
@@ -115,7 +115,7 @@ describe('workbench inclusion experiment', () => {
     expect(screen.queryByLabelText(/^Sibling at/)).toBeNull();
     expect(screen.getByText(/one-transaction block needs no siblings/)).toBeTruthy();
     fireEvent.change(screen.getByLabelText('Transaction ID of transaction 0'), { target: { value: flip(source.txids[0]) } });
-    expect(screen.getByRole('status').textContent).toMatch(/^Payment not proven/);
+    expect(screen.getByRole('status').textContent).toMatch(/^Inclusion not proven/);
   });
   it('shows an existing header mismatch honestly and reset never repairs that block', () => {
     const chain = funded();
@@ -125,9 +125,9 @@ describe('workbench inclusion experiment', () => {
     expect(screen.getByText(/transactions no longer match the mined header/)).toBeTruthy();
     expect(screen.getByText('Does not match the mined header’s root')).toBeTruthy();
     expect(screen.getByRole('status').textContent).toContain('copied transactions produce a different root from the mined header');
-    expect(screen.getByRole('status').textContent).toMatch(/^Payment not proven/);
+    expect(screen.getByRole('status').textContent).toMatch(/^Inclusion not proven/);
     fireEvent.click(screen.getByRole('button', { name: 'Reset proof' }));
-    expect(screen.getByRole('status').textContent).toMatch(/^Payment not proven/);
+    expect(screen.getByRole('status').textContent).toMatch(/^Inclusion not proven/);
     expect(chain.isChainValid()).toBe(false);
   });
   it('isolates mission coaching and replaces a previous copy without retaining its edits', () => {
@@ -143,7 +143,7 @@ describe('workbench inclusion experiment', () => {
     rerender(<ChainLab experiment="merkle" proofSource={next} onClose={onBack} onUseExample={useExample} onLessonEvent={report} />);
     expect(screen.getByLabelText('Transaction ID of transaction 0').value).toBe(next.txids[0]);
     expect(within(screen.getByRole('list', { name: 'Proof path' })).getAllByRole('listitem')).toHaveLength(1);
-    expect(screen.getByRole('status').textContent).toMatch(/^Payment proven/);
+    expect(screen.getByRole('status').textContent).toMatch(/^Inclusion proven/);
     fireEvent.click(screen.getByRole('button', { name: 'Back to workbench' }));
     fireEvent.click(screen.getByRole('button', { name: 'Use example block' }));
     expect(onBack).toHaveBeenCalledOnce();

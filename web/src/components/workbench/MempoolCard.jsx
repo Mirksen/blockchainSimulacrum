@@ -71,7 +71,7 @@ function NewTransactionForm({ names, coinName, onCreate, onPreview, onClose }) {
   const submit = event => {
     event.preventDefault();
     const value = Number(amount.trim());
-    if (!from || !to) return setError('Choose who sends and who receives.');
+    if (!from || !to) return setError('Choose a sender and a recipient.');
     if (from === to) return setError('Sender and recipient must be different wallets.');
     if (!amount.trim() || !Number.isFinite(value) || value <= 0) return setError('Enter an amount greater than 0.');
     const result = onCreate?.(from, to, value, reference.trim(), feeRate) ?? { ok: false, error: 'The transaction could not be added. Try again.' };
@@ -115,7 +115,7 @@ function NewTransactionForm({ names, coinName, onCreate, onPreview, onClose }) {
       <div className="card-kit-form-actions">
         <button type="submit" className="card-kit-btn" {...hint('mempool.add')}>Add to mempool</button>
         <button type="button" className="card-kit-btn is-ghost" onClick={onClose}>Cancel</button>
-        <span className="card-kit-t3 mempool-card-form-hint">Waits here until a block has room; a higher fee per byte goes first.</span>
+        <span className="card-kit-t3 mempool-card-form-hint">The payment waits here until a block has room. Higher fee rates get priority.</span>
       </div>
     </form>
   );

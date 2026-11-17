@@ -184,7 +184,7 @@ function MissionSheet({ progress, info, tone, onClose, onShowMe, onSelectMission
             onShowMe={step => { onClose(); onShowMe?.(step); }} />
           {!info.current && <Complete info={info} />}
         </div>
-        <div className="mission-rail-foot">Free play never needs a mission. Your progress stays in this browser.</div>
+        <div className="mission-rail-foot">You can explore freely at any time. Your mission progress stays in this browser.</div>
       </div>
     </dialog>
   );
@@ -242,7 +242,7 @@ export function MissionRail({ progress, tone = 'technical', collapsed = false, o
             <MissionList progress={progress} info={info} tone={tone} onShowMe={onShowMe} onSelectMission={onSelectMission} />
             {!info.current && <Complete info={info} />}
           </div>
-          <div className="mission-rail-foot">Collapse the rail for free play. Your progress stays in this browser.</div>
+          <div className="mission-rail-foot">Hide missions to make more room. Your progress stays in this browser.</div>
         </div>
       )}
     </aside>

@@ -72,14 +72,14 @@ export function BlockDetailsModal({
                 <div className="details-modal-body">
                     <div className="details-modal-status">
                         {isInvalid ? (
-                            <span className="details-modal-pill is-err" {...term('details.validity', true)}><i aria-hidden="true" />Invalid block</span>
+                            <span className="details-modal-pill is-err" {...term('details.validity', true)}><i aria-hidden="true" />Hash or link mismatch</span>
                         ) : (
-                            <span className="details-modal-pill is-ok" {...term('details.validity', false)}><i aria-hidden="true" />Valid block</span>
+                            <span className="details-modal-pill is-ok" {...term('details.validity', false)}><i aria-hidden="true" />Hash and link match</span>
                         )}
                     </div>
 
                     <div className="details-modal-section">
-                        <div className="details-modal-label" {...term('details.block-hash')}>Block Hash</div>
+                        <div className="details-modal-label" {...term('details.block-hash')}>Block hash</div>
                         <div className="details-modal-hash">
                             <span className="details-modal-zeros">
                                 {block.hash?.match(/^0*/)?.[0]}
@@ -91,7 +91,7 @@ export function BlockDetailsModal({
                     </div>
 
                     <div className="details-modal-section">
-                        <div className="details-modal-label" {...term('details.previous-hash', blockIndex === 0)}>Previous Hash</div>
+                        <div className="details-modal-label" {...term('details.previous-hash', blockIndex === 0)}>Previous hash</div>
                         <div className="details-modal-hash is-small">
                             {block.previousHash}
                         </div>
@@ -153,7 +153,7 @@ export function BlockDetailsModal({
                                         Stored: {block.hash?.substring(0, 20)}...
                                     </div>
                                     <div className="details-modal-tamper-detail">
-                                        Actual: {block.computedHash?.substring(0, 20)}...
+                                        Computed: {block.computedHash?.substring(0, 20)}...
                                     </div>
                                 </div>
                             )}
@@ -162,10 +162,10 @@ export function BlockDetailsModal({
                                 <div className="details-modal-tamper-item">
                                     <strong>Broken link</strong> (previous hash mismatch)
                                     <div className="details-modal-tamper-detail">
-                                        Block prev: {block.previousHash?.substring(0, 20)}...
+                                        Stored link: {block.previousHash?.substring(0, 20)}...
                                     </div>
                                     <div className="details-modal-tamper-detail">
-                                        Real prev: {blocks[blockIndex - 1]?.hash?.substring(0, 20)}...
+                                        Previous block: {blocks[blockIndex - 1]?.hash?.substring(0, 20)}...
                                     </div>
                                 </div>
                             )}

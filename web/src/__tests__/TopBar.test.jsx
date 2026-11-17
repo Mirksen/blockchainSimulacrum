@@ -38,7 +38,7 @@ describe('navigation', () => {
     expect(basics.getAttribute('href')).toBe('#/basics');
     expect(basics.getAttribute('aria-current')).toBe('page');
     expect(basics.getAttribute('data-hint-title')).toBe('Basics');
-    expect(basics.getAttribute('data-hint')).toContain('No knowledge needed.');
+    expect(basics.getAttribute('data-hint')).toContain('No prior knowledge needed.');
     fireEvent.click(within(nav).getByRole('link', { name: 'Workbench' }));
     expect(onNavigate).toHaveBeenLastCalledWith('workbench');
     fireEvent.click(basics);
@@ -140,7 +140,7 @@ describe('overflow menu', () => {
     fireEvent.click(more());
     const item = screen.getByRole('button', { name: 'Tour of the simulator' });
     expect(item.getAttribute('data-hint-title')).toBe('Tour of the simulator');
-    expect(item.getAttribute('data-hint')).toContain('five stops');
+    expect(item.getAttribute('data-hint')).toContain('five-stop tour');
     fireEvent.click(item);
     expect(onOpenTour).toHaveBeenCalledTimes(1);
     expect(onOpenStart).not.toHaveBeenCalled();

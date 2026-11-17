@@ -13,7 +13,7 @@ export const STOPS = Object.freeze([
     id: 'chain',
     title: { plain: 'The notebook', technical: 'The chain' },
     text: {
-      plain: 'Every tile is a page, sealed together with the seal of the page before it. Bitcoin calls them blocks. The first one, Genesis, is already written.',
+      plain: 'Each tile is a page linked to the previous page by its seal. Bitcoin calls these pages blocks. The first, Genesis, is already written.',
       technical: 'Every tile is a block that commits to its predecessor’s hash. Genesis is already mined.'
     }
   },
@@ -21,16 +21,16 @@ export const STOPS = Object.freeze([
     id: 'block',
     title: { plain: 'One page, opened', technical: 'The selected block' },
     text: {
-      plain: 'Hash is this block’s seal, Previous is the seal before it, and Nonce is the lucky number that made the seal start with zeros.',
-      technical: 'The header of the selected block: hash, previous hash, nonce and merkle root.'
+      plain: 'Hash is this block’s seal. Previous is the previous block’s seal. Nonce is the lucky number that made the seal start with zeros.',
+      technical: 'The selected block’s hash and header fields, including the previous hash, nonce and Merkle root.'
     }
   },
   {
     id: 'next',
     title: { plain: 'The draw', technical: 'The next block' },
     text: {
-      plain: 'Here the next block is drawn. The miners roll, the first hit writes the block and earns the reward. Start demo runs your first draw.',
-      technical: 'The candidate block and the miner race for it. Start demo mines block #1.'
+      plain: 'Miners compete to write the next block. The first to find a match earns the reward. Choose Start demo to run your first draw.',
+      technical: 'The candidate block and its mining race. Choose Start demo to mine block #1.'
     }
   },
   {

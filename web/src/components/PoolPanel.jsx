@@ -37,13 +37,13 @@ function ShortHash({ hash }) {
 function Verification({ row }) {
   const check = verifyRow(row);
   return <div className="pool-panel-verify" role="status">
-    <p {...term('pool.header-check')}>Double SHA-256 of the 80-byte block header</p>
+    <p {...term('pool.header-check')}>80-byte block header</p>
     <code className="pool-panel-preimage">{check.header}</code>
-    <p>is <code className="pool-panel-preimage">{check.hash}</code></p>
-    <p {...term('pool.commitment')}>Its coinbase commits to <code className="pool-panel-preimage">{check.commitment}</code></p>
+    <p>Recomputed hash <code className="pool-panel-preimage">{check.hash}</code></p>
+    <p {...term('pool.commitment')}>Commitment in the coinbase transaction <code className="pool-panel-preimage">{check.commitment}</code></p>
     <p className={check.matches ? 'pool-panel-verify-ok' : 'pool-panel-error'}>
-      {check.matches ? `Matches the listed hash: ${zerosLabel(row.bestZeros)}, signed by ${row.name} in round ${row.round.height}.`
-        : 'Does not match the listed hash and name.'}</p>
+      {check.matches ? `Matches the listed hash: ${zerosLabel(row.bestZeros)}, recorded for ${row.name} in round ${row.round.height}.`
+        : 'Verification failed. The hash or miner commitment does not match.'}</p>
   </div>;
 }
 
@@ -240,19 +240,19 @@ export function PoolPanel({ name, onNameChange, onClose, onAccepted, refreshKey 
     setPhase('stopped');
   }
 
-  let status = 'Choose a name, then join to mine for a better hash.';
-  if (phase === 'connecting') status = 'Asking the leaderboard for a round…';
-  if (phase === 'searching') status = `Searching nonces for a hash that beats your best in round ${round?.height}.`;
-  if (phase === 'submitting') status = 'Found a better hash. Sending the block for checking…';
+  let status = 'Choose the public name for your blocks, then start mining.';
+  if (phase === 'connecting') status = 'Loading the current mining round…';
+  if (phase === 'searching') status = `Trying new nonces in round ${round?.height}.`;
+  if (phase === 'submitting') status = 'Hash found. Sending the block for verification…';
   if (phase === 'stopped') status = 'Stopped. Accepted blocks stay on the leaderboard.';
   if (phase === 'unavailable') status = UNAVAILABLE;
-  if (phase === 'error') status = `${errorMessage} Mining stopped; you can join again.`;
+  if (phase === 'error') status = `${errorMessage} Mining stopped. Start mining to try again.`;
 
   const recent = board.recent;
   return <section className="pool-panel" aria-labelledby="pool-panel-title">
     <header className="pool-panel-header">
       <div><h2 id="pool-panel-title">Leaderboard</h2>
-        <p>Every block mined under a name lands here. The best hash wins, and anyone can check it.</p></div>
+        <p>The smallest hash takes first place. Pick a block and select Verify to check the result in your browser.</p></div>
       <button className="btn btn-transparent" {...hint('pool.back')} onClick={() => { if (run.current) stop(); onClose(); }}>Back to simulator</button>
     </header>
 
@@ -268,7 +268,7 @@ export function PoolPanel({ name, onNameChange, onClose, onAccepted, refreshKey 
       {board.state === 'loading' && <p className="pool-panel-help">Loading the leaderboard…</p>}
       {board.state === 'unavailable' && <p className="pool-panel-board-note">{UNAVAILABLE}</p>}
       {board.state === 'ready' && (!recent || recent.rows.length === 0) &&
-        <p className="pool-panel-help">No blocks in the last day. Mine one to lead the board.</p>}
+        <p className="pool-panel-help">No entries in this window yet. Mine a block to take first place.</p>}
       {board.state === 'ready' && recent?.rows.length > 0 &&
         <BoardTable id="pool-panel-round-title" rows={recent.rows} open={openRow} onToggle={setOpenRow} onOpenProfile={onOpenProfile} />}
     </section>
@@ -285,7 +285,7 @@ export function PoolPanel({ name, onNameChange, onClose, onAccepted, refreshKey 
     </>}
 
     <h3 className="pool-panel-mine-title" {...term('pool.mine-title')}>Keep mining for a better hash</h3>
-    <p className="pool-panel-help">The simulator's blocks are easy. Here your browser searches on its own until you stop it, always for one more zero.</p>
+    <p className="pool-panel-help">Your browser keeps mining until you stop. After each accepted block, it looks for a hash with one more leading zero.</p>
 
     <div className="pool-panel-join">
       <div className="pool-panel-name" {...hint('pool.name')}>
@@ -296,10 +296,10 @@ export function PoolPanel({ name, onNameChange, onClose, onAccepted, refreshKey 
           aria-describedby={showNameError || nameRefused ? 'pool-panel-name-error' : 'pool-panel-name-help'} />
         {showNameError || nameRefused
           ? <p id="pool-panel-name-error" className="pool-panel-error" role="alert">{nameRefused ? NAME_UNAVAILABLE_MESSAGE : NAME_HINT}</p>
-          : <p id="pool-panel-name-help" className="pool-panel-help">{NAME_HINT} Shown publicly and part of every block. Names are not unique; others can mine using the same name.</p>}
+          : <p id="pool-panel-name-help" className="pool-panel-help">{NAME_HINT} Your name appears on every block you submit. Anyone using the same name shares your ranking.</p>}
       </div>
       {joined ? <button className="btn btn-negative" {...hint('pool.stop')} onClick={stop}>Stop</button>
-        : <button className="btn btn-emphasized" {...hint('pool.join')} onClick={join}>Join</button>}
+        : <button className="btn btn-emphasized" {...hint('pool.join')} onClick={join}>Start mining</button>}
     </div>
 
     <p className={`pool-panel-status${phase === 'unavailable' || phase === 'error' ? ' pool-panel-status-problem' : ''}`} role="status">{status}</p>

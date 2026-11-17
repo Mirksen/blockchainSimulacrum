@@ -41,7 +41,7 @@ describe('measured work-lesson comparison', () => {
     expect(row('Two zeros').textContent).toContain(createTrial('Hello, block.', two, 2).hash);
     expect(comparison().textContent).toContain('Hello, block.');
     expect(comparison().textContent).toContain('nonce 0');
-    expect(comparison().textContent).toContain('does not guarantee');
+    expect(comparison().textContent).toContain('more or fewer attempts than the average');
   });
 
   it('keeps real prior success on Stop, but clears it on Reset and ignores late work', async () => {

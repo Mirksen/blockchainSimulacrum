@@ -105,7 +105,7 @@ export async function verifyMinerName(browser, baseURL, output) {
     await openTab(page, 'Leaderboard');
     const board = page.locator('section.pool-panel');
     await board.getByRole('button', { name: `Verify the proof of ${NAME}` }).first().click();
-    await board.getByText(`signed by ${NAME} in round ${ROUND.height}.`, { exact: false }).first().waitFor();
+    await board.getByText(`recorded for ${NAME} in round ${ROUND.height}.`, { exact: false }).first().waitFor();
     await page.screenshot({ path: join(output, 'miner-name-verified.png') });
     assert.deepEqual(errors, []);
   } finally {

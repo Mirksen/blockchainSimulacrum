@@ -49,9 +49,9 @@ describe('the stops', () => {
   it('speak in the course’s pictures in the plain tone', () => {
     const plain = stopsFor('plain');
     expect(plain.map(stop => stop.title)).toEqual(['The notebook', 'One page, opened', 'The draw', 'The waiting room', 'Who owns what']);
-    expect(plain[0].text).toBe('Every tile is a page, sealed together with the seal of the page before it. Bitcoin calls them blocks. The first one, Genesis, is already written.');
+    expect(plain[0].text).toBe('Each tile is a page linked to the previous page by its seal. Bitcoin calls these pages blocks. The first, Genesis, is already written.');
     expect(plain[1].text).toContain('Nonce is the lucky number');
-    expect(plain[2].text).toContain('Start demo runs your first draw.');
+    expect(plain[2].text).toContain('Choose Start demo to run your first draw.');
     expect(plain[3].text).toBe('Payments wait here until a miner writes them into a block.');
     expect(plain[4].text).toContain('Miners earn theirs block by block.');
   });
@@ -60,7 +60,7 @@ describe('the stops', () => {
     const technical = stopsFor('technical');
     expect(technical.map(stop => stop.title)).toEqual(['The chain', 'The selected block', 'The next block', 'The mempool', 'Wallets']);
     expect(technical[0].text).toBe('Every tile is a block that commits to its predecessor’s hash. Genesis is already mined.');
-    expect(technical[2].text).toBe('The candidate block and the miner race for it. Start demo mines block #1.');
+    expect(technical[2].text).toBe('The candidate block and its mining race. Choose Start demo to mine block #1.');
     expect(technical[4].text).toBe('Balances derived from the chain’s unspent outputs.');
   });
 

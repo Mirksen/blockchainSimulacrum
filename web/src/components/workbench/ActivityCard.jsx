@@ -28,7 +28,7 @@ export function ActivityCard({ confirmed = [], blockTimes = [], targetSeconds = 
             <span className="card-kit-aside">{blocks.size ? `last ${blocks.size} ${blocks.size === 1 ? 'block' : 'blocks'}` : ''}</span>
           </div>
           <ul className="activity-card-list" aria-label="Recent confirmed transactions">
-            {confirmed.length === 0 && <li className="card-kit-empty">No confirmed transactions yet.<small>Mine a block to confirm what waits in the mempool.</small></li>}
+            {confirmed.length === 0 && <li className="card-kit-empty">No confirmed transactions yet.<small>Mine a block to confirm pending transactions.</small></li>}
             {confirmed.map((item, i) => (
               <li key={`${item.blockIndex}-${i}`} className="activity-card-row">
                 <span className="activity-card-blk">#{item.blockIndex}</span>

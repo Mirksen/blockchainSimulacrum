@@ -36,7 +36,7 @@ export async function verifyLeaderboardGrowth(page, output, baseURL) {
     await page.getByRole('heading', { name }).waitFor();
     assert.match(await page.locator('.miner-profile-stats').innerText(), /9,876/);
     await page.getByRole('button', { name: 'Verify the block of round 900001' }).click();
-    await page.getByText('Does not match the listed hash and name.').waitFor();
+    await page.getByText('Verification failed. The hash or miner commitment does not match.').waitFor();
     for (const theme of ['dark', 'light']) {
       await page.evaluate(theme => document.documentElement.setAttribute('data-theme', theme), theme);
       for (const width of [320, 390, 768, 1200, 1440]) {

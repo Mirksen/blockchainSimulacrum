@@ -146,11 +146,11 @@ describe('mission track', () => {
         'two-zeros': 'Ask for two zeros and roll again.'
       },
       hint: 'Both searches use the same message and start at lucky number 0, so only the difficulty differs.',
-      result: 'The computer did in a blink what took you many rolls by hand. One more zero made a hit about 16 times rarer: that is how difficulty is set.'
+      result: 'The computer tried numbers for you. Each extra leading zero makes a match 16 times less likely, though the attempts needed vary from run to run.'
     },
     'change-the-past': {
       steps: {
-        'edit-block': 'Change the data of Block 1 (a block is a page).',
+        'edit-block': 'Change Block 1’s data. A block is the page from the course.',
         'repair-chain': 'Keep the change, then re-mine Blocks 1, 2 and 3 in order: each needs a new lucky number.'
       },
       hint: 'This is Sealed pages with real blocks: re-mining a block changes its hash (its seal), so the next block’s link breaks until you re-mine that one too.',
@@ -172,25 +172,25 @@ describe('mission track', () => {
     },
     'forge-a-block': {
       steps: { tamper: 'Open a mined block and lower the reward its miner received (the coinbase), in a block whose coin nobody has spent.' },
-      hint: 'Like Sealed pages, in the real simulator. A signed payment cannot be forged, a spent coin drags its spender down with it, and a miner may never claim more than reward plus fees. Undo starts over.'
+      hint: 'Like Sealed pages, in the real simulator. Editing a signed payment invalidates its signature. Editing a spent coin also invalidates the payment that spends it. The miner’s payout cannot exceed the reward plus fees. Undo starts over.'
     },
     'survive-halving': {
       hint: 'Every block creates new coins as the miner’s reward. After a fixed number of blocks that reward halves, so new coins become scarcer. A shorter halving interval in Settings gets you there sooner.',
-      result: 'The reward halved. A block still costs the same work but creates fewer new coins. That is why the total number of coins has a limit.'
+      result: 'The reward halved. Halving reduces the new coins per block without changing the difficulty. That is why the total number of coins has a limit.'
     },
     'beat-difficulty-adjustment': {
       steps: { 'change-pace': 'Mine 10 blocks clearly faster or slower than the target block time.' },
       hint: 'The chain wants a steady pace. If blocks come too fast, it asks for one more zero; too slow, one less. Lower difficulty mines faster. The target block time is in Settings.',
-      result: 'The chain changed its own difficulty to get back to its pace. Nobody decided that: the rule is part of the chain. Real networks adjust the same way, over many more blocks.'
+      result: 'The simulator adjusted difficulty to bring block times toward the target. Real mining networks can use different rules and much longer intervals.'
     },
     'follow-stronger-chain': {
-      hint: 'Two versions of the notebook compete, and everyone follows the one with more work in it. Give the alternative branch more hash power; equal work keeps the current branch.'
+      hint: 'Two versions of the notebook compete, and everyone follows the one with more work in it. Give the alternative branch more hash power. Equal work keeps the current branch.'
     },
     'get-payment-in': {
       hint: 'A block has limited room, so miners take the payments that pay the most per byte. Send a low-fee payment to a new wallet, add high-fee transfers until it waits, then spend it from that wallet at 20 sat/B: the new payment pulls the waiting one along.'
     },
     'prove-a-payment': {
-      hint: 'A block’s fingerprint covers all its payments through a small tree of hashes, so a few of them prove one payment. Choose a transaction, then change one hex character (0–9 or a–f) in a sibling, keeping all 64 characters. Reset example starts over.'
+      hint: 'A block’s fingerprint covers its payments through a tree of hashes. A short path through that tree can prove that one payment is included. Choose a transaction, then change one hex character (0–9 or a–f) in a sibling, keeping all 64 characters. Reset example starts over.'
     },
     'test-a-signature': {
       hint: 'Work protects the order of the pages; a signature protects each payment. Use the newest block and a transfer, not the coinbase. Re-mining repairs the hash, but only the sender’s key can sign the changed payment. Undo starts over.'

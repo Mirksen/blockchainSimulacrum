@@ -28,7 +28,7 @@ function moneyUnits(value, label = "Transaction amount") {
   const units = Math.round(value * COIN);
   if (typeof value !== "number" || !Number.isFinite(value) || value < 0 ||
       !Number.isSafeInteger(units) || units / COIN !== value) {
-    throw new Error(`${label} must be a finite nonnegative number with at most 8 decimals.`);
+    throw new Error(`${label} must be a finite, nonnegative number with up to 8 decimal places.`);
   }
   return units;
 }
@@ -97,7 +97,7 @@ class Transaction {
     if (signingKey.getPublic("hex") !== this.sender) {
       // checks if the signature matches the myPublicKey
       throw new Error(
-        "The signature of this transaction is not correct ==> transaction rejected"
+        "Transaction rejected: the signing key does not match the sender."
       );
     }
     const hashTx = this.createHash();
@@ -176,20 +176,20 @@ class Block {
     config.blockCounter++;
     config.blockHashes.push(this.hash);
     console.log(
-      `\n==> #${config.blockCounter} Block sucessfully mined with \nnonce: ${this.nonce} hash: ${this.hash}`
+      `\n==> #${config.blockCounter} Block mined with \nnonce: ${this.nonce} hash: ${this.hash}`
     );
     if (config.miningLog == true) {
       // count block hashing attempts
       let counter = 1;
-      console.log(`Completing nonce is ${this.nonce} passed in ${timeDiff}\n`);
+      console.log(`Winning nonce: ${this.nonce} · Mining time: ${timeDiff} s\n`);
       console.log(
         `............................................................................`
       );
       console.log(
-        `MINING LOG \ndifficulty of - ${config.miningDifficulty} - leading zeros:`
+        `MINING LOG \ndifficulty: ${config.miningDifficulty} leading zeros:`
       );
       for (const timeDiff of config.miningTimes) {
-        console.log(`#${counter++} block mining time: ${timeDiff}`);
+        console.log(`#${counter++} block mining time: ${timeDiff} s`);
       }
       console.log(`\nproof-of-work hashes: \n${config.blockHashes.join(`\n`)}`);
       console.log(
@@ -266,7 +266,7 @@ class Blockchain {
     this.participants.push(...additions);
     console.log(`\n-=NEW BLOCKCHAIN: ${this.name}-=-`);
     for (const participant of additions) {
-      console.log(`     participant joined: ${participant.name}\n          publickey: ${participant.publicKey}`);
+      console.log(`     participant joined: ${participant.name}\n          public key: ${participant.publicKey}`);
     }
   };
 
@@ -274,7 +274,7 @@ class Blockchain {
     const miners = names.map((name) => this.participant(name));
     for (const miner of miners) {
       miner.activeMiner = true;
-      console.log(`        Miner declared: ${miner.name}`);
+      console.log(`        Miner enabled: ${miner.name}`);
     }
   };
 
@@ -440,7 +440,7 @@ class Blockchain {
     safeSum(balances.get(miningRewardAddress), totalReward);
     const reward = new Transaction(null, miningRewardAddress, totalReward / COIN, 0, "Mining Compensation");
     const block = new Block(new Date().toISOString(), [...pending, reward], this.blockArray.at(-1).hash);
-    console.log(` initializing #${this.blockArray.length} Block:`);
+    console.log(` Preparing block #${this.blockArray.length}:`);
     console.log(`   ...appending all pending transactions: ${pending.map((tx) => tx.referenceNumber)}`);
     console.log(`   ...block subsidy: ${subsidy / COIN}; transaction fees: ${(fees / COIN).toFixed(8)}`);
     console.log(`   ...searching for ${this.miningDifficulty} leading zeros`);
@@ -454,13 +454,13 @@ class Blockchain {
   mineNextBlock = () => {
     const miner = this.participants.find((participant) => participant.activeMiner);
     if (!miner) throw new Error("A declared miner participant is required.");
-    console.log(`MINING\nMiner-${miner.name} is starting a mining process ...`);
+    console.log(`MINING\n${miner.name} is mining a block ...`);
     this.miningProcess(miner.publicKey);
     console.log(
-      `\n***...Broadcasting the newest ${this.name} block to the network***`
+      `\n*** Simulated broadcast: latest ${this.name} block ***`
     );
     console.log(
-      `***...network validation: Chain validity is ${
+      `*** Local validation: chain validity is ${
         !this.areBlocksValid() || !this.areTxValid() ? "broken" : "given"
       }***`
     ); // security checkup

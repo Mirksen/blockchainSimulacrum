@@ -28,7 +28,7 @@ export async function verifyHashLab(page, output, before) {
   assert.ok(await lab.getByRole('button', { name: 'Find a nonce', exact: true }).isDisabled());
   await lab.getByRole('button', { name: 'Reset lab' }).click();
   await lab.getByRole('button', { name: 'Find a nonce', exact: true }).click();
-  await lab.getByRole('status').filter({ hasText: 'Target found after 188 attempts' }).waitFor();
+  await lab.getByRole('status').filter({ hasText: 'Valid hash found after 188 attempts' }).waitFor();
   assert.equal(await lab.getByLabel(nonceLabel, { exact: true }).inputValue(), '187');
   assert.ok((await hashName(lab)).startsWith('Double SHA-256 hash: 00'));
 

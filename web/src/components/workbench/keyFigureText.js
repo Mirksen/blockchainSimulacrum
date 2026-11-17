@@ -25,8 +25,8 @@ export function eventNote(event, { halvingInterval, targetSeconds, coinName = 'p
     if (event.to === null) return null;
     return {
       key: `halving-${event.index}`, kind: 'halving', icon: '½',
-      title: `The reward halved with #${event.index}: ${formatReward(event.from)} → ${formatReward(event.to)} ${coinName}.`,
-      text: `A block still needs the same work; its miner gets half the new coins. Here every ${halvingInterval} blocks, in Bitcoin every 210,000.`
+      title: `The reward halved at block #${event.index}: ${formatReward(event.from)} → ${formatReward(event.to)} ${coinName}.`,
+      text: `The expected mining work stays the same; the miner receives half as many new coins. Here every ${halvingInterval} blocks, in Bitcoin every 210,000.`
     };
   }
   if (event.source !== 'check') return null;
