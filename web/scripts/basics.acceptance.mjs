@@ -121,11 +121,25 @@ export async function verifyBasics(browser, baseURL, output) {
     assert.equal(await page.evaluate(() => localStorage.getItem('proofofwork-start')), 'hash');
     await page.evaluate(() => scrollTo(0, 0));
     await page.screenshot({ path: join(output, 'basics-skipped-light-390.png'), fullPage: true });
+    await button('Send photo to Bob').click();
+    await button('Send coin to Bob').click();
+    await button('Send same coin to Carol').click();
+    await page.getByRole('switch', { name: 'Shared list' }).check();
+    await button('Send coin to Bob').click();
+    await button('Send same coin to Carol').click();
+    await page.getByRole('region', { name: 'What you learned' }).getByRole('button', { name: 'Continue' }).click();
+    const next = page.getByRole('heading', { level: 2, name: SCENES[3].title, exact: true });
+    await next.waitFor();
+    assert.equal(await page.locator('.basics-step[aria-current="step"]').getAttribute('aria-label'),
+      `Scene 4: ${SCENES[3].title}, now`);
+    await page.waitForFunction(() => document.activeElement?.matches('.basics-header h2'));
+    await page.screenshot({ path: join(output, 'basics-continue-after-skip-390.png'), fullPage: true });
+
     // A skipped scene stays open to do later.
     await page.getByRole('button', { name: /^Scene 2: / }).click();
     await page.getByRole('heading', { level: 2, name: SCENES[1].title, exact: true }).waitFor();
     assert.deepEqual(errors, []);
   } finally { await context.close(); }
   return ['Basics: six scenes with their first results at 1440 px dark and 390 px light, one screenshot each; no horizontal overflow at 320 px; free play leaves the missions untouched',
-    'Basics: "Learner" is a lucky first roll that is named and not counted, the next roll is not; "I know what a hash is" marks scenes 2 and 3 as skipped and keeps them open'];
+    'Basics: "Learner" is a lucky first roll that is named and not counted, the next roll is not; "I know what a hash is" skips scenes 2 and 3 when continuing and keeps them open from the stepper'];
 }
