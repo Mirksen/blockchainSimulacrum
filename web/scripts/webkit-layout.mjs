@@ -1,4 +1,5 @@
 import { verifyMerkleMission } from './new-missions.acceptance.mjs';
+import { verifyTour } from './tour.acceptance.mjs';
 // Layout checks in WebKit, the engine of Safari on iPhone: the Chrome acceptance
 // (scripts/acceptance.mjs) does not see engine-specific layout. Today: the blocks of the
 // chain band stand apart, with the link between them, on a phone and on a desktop.
@@ -6,6 +7,9 @@ import { verifyMerkleMission } from './new-missions.acceptance.mjs';
 import { asReturningVisitor, workbench } from './workbench.helpers.mjs';
 import { webkit, devices } from 'playwright';
 import { spawn } from 'node:child_process';
+import { mkdir, mkdtemp } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { stripVTControlCharacters } from 'node:util';
 import { fileURLToPath } from 'node:url';
 import assert from 'node:assert/strict';
@@ -116,6 +120,11 @@ try {
   // full band: 32 px link
   assertApart('desktop', await tileEdges(desktop, '.chain-band:not(.is-compact)'), 32);
   await verifyMerkleMission(browser, baseURL, process.env.SCREENSHOT_DIR || '/tmp', false);
+  const screenshots = process.env.SCREENSHOT_DIR
+    ? join(process.env.SCREENSHOT_DIR, 'webkit')
+    : await mkdtemp(join(tmpdir(), 'proofofwork-webkit-'));
+  await mkdir(screenshots, { recursive: true });
+  for (const result of await verifyTour(browser, baseURL, screenshots)) console.log(`WebKit: ${result}`);
   console.log('WebKit layout: start question and Basics scenes fit; chain band blocks stand apart on phone and desktop');
 } finally {
   await browser?.close();

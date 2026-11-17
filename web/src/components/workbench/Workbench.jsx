@@ -224,6 +224,26 @@ export function Workbench({ session, coinName, identity, boardRows, coach, onOpe
     return recent;
   }, [views]);
   const workbenchCoach = coach?.view === 'workbench' ? coach : null;
+  const firstPaymentReady = Boolean(lastRound?.demo && workbenchCoach?.mission === 'send-first-coin' &&
+    workbenchCoach.target === 'workbench.new-transaction');
+  const startDemo = async button => {
+    const origin = document.activeElement;
+    const result = await actions.startDemo();
+    if (!result.ok || workbenchCoach?.target !== 'workbench.start-demo') return;
+    requestAnimationFrame(() => {
+      // WebKit can focus the workbench instead of a clicked button. Keep any later focus change.
+      const focused = document.activeElement;
+      if (focused !== origin && focused !== button) return;
+      const next = document.querySelector('[data-coach-target="workbench.new-transaction"].is-active > button');
+      if (!next) return;
+      // Focusing alone can put the button at the bottom of a phone, with the explanation below the viewport.
+      const recap = document.getElementById(next.getAttribute('aria-describedby')?.split(' ')[0] ?? '');
+      const top = next.getBoundingClientRect().top;
+      const bottom = (recap ?? next).getBoundingClientRect().bottom;
+      if (top < 0 || bottom > window.innerHeight) next.scrollIntoView?.({ block: 'center' });
+      next.focus({ preventScroll: true });
+    });
+  };
   const selectedTransactions = selectedBlock ? (blocks[selected]?.transactions ?? []).map(describeTx) : [];
   const repairOrder = repair && !repair.undoOnly ? repair.order : [];
 
@@ -256,7 +276,7 @@ export function Workbench({ session, coinName, identity, boardRows, coach, onOpe
       <div className="wb-next" data-tour="next">
         <NextBlockCard mode={mode} index={repairIndex ?? nextIndex} txCount={nextCardCount}
           reward={nextBlock.subsidy / 1e8} difficulty={difficulty} onDifficulty={actions.setDifficulty} loweringStartsNewChain={loweringStartsNewChain} autoMine={settings.autoMine} onAutoMine={actions.setAutoMine} repeating={repeating}
-          onStartDemo={actions.startDemo} onMine={actions.mine} onPause={actions.pause} onRemine={actions.remine}
+          onStartDemo={startDemo} onMine={actions.mine} onPause={actions.pause} onRemine={actions.remine}
           repair={repair ? { ...repair, onUndo: actions.undo, signatureTest } : null} miners={miners} race={race} lastRound={lastRound}
           backedMiner={backedMiner} onBack={actions.backMiner} coach={workbenchCoach}
           onCreateMiner={actions.createMiner} onRenameMiner={actions.renameMiner} onShare={actions.setMinerShare} onOpenMiner={openMiner} perMiner={progress.perMiner} slowMotion={busy && settings.slowMotion} onSlowMotion={actions.setSlowMotion} minersFull={!canAddMiner}
@@ -270,7 +290,7 @@ export function Workbench({ session, coinName, identity, boardRows, coach, onOpe
           coinName={coinName} reward={nextBlock.subsidy / 1e8 + pendingFees} onCreateTransaction={actions.createTransaction}
           onPreviewTransaction={previewTransaction} onOpenTransaction={tx => onOpen?.({ kind: 'transaction', tx, blockIndex: null })}
           autoTransact={settings.autoTransact} onAutoTransact={actions.setAutoTransact}
-          newTxGlow={!busy && !repair && !fresh} coach={workbenchCoach} />
+          newTxGlow={!busy && !repair && !fresh} firstPaymentReady={firstPaymentReady} coach={workbenchCoach} />
       </div>
       <div className="wb-activity">
         <ActivityCard confirmed={confirmed} blockTimes={blockTimes} targetSeconds={targetSeconds} />

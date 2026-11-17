@@ -157,7 +157,7 @@ describe('mission track', () => {
       result: 'The same lesson as Sealed pages, now with real block headers: a change breaks the chain, and the repair has to be paid block by block. This toy chain shows links and work, not signatures or a network.'
     },
     'send-first-coin': {
-      steps: { 'new-transaction': 'Send coins from one wallet to another with New transaction. If nobody has coins yet, press Start demo first.' },
+      steps: { 'new-transaction': 'Use New transaction to send coins from one wallet to another.' },
       hint: 'A wallet holds coins. The form shows which coins the payment spends; what it does not use comes back as change, and a small fee goes to the miner (the writer of the page).',
       result: 'Your payment now waits in the mempool, the waiting room for the next block. It becomes part of the chain when a miner wins the draw for that block. powfyicoin is virtual: no real money moves.'
     },

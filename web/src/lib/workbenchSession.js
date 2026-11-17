@@ -532,7 +532,7 @@ export function createWorkbenchSession({ chain: startChain = null, search = brow
       state.running = true;
       const result = await demo();
       if (result.success) {
-        state.lastRound = roundOf(1, result);
+        state.lastRound = Object.freeze({ ...roundOf(1, result), demo: true });
         chainChanged();
       }
       endRun(result);

@@ -192,8 +192,8 @@ export const MISSIONS = freeze([
       {
         id: 'new-transaction',
         text: {
-          plain: 'Send coins from one wallet to another with New transaction. If nobody has coins yet, press Start demo first.',
-          technical: 'Create a transaction from one wallet to another.'
+          plain: 'Use New transaction to send coins from one wallet to another.',
+          technical: 'Use New transaction to queue a payment.'
         },
         target: 'workbench.new-transaction'
       }
@@ -567,6 +567,14 @@ export function activeStep(progress) {
   if (!mission) return null;
   const step = mission.steps[progress.step];
   return { mission, step, view: mission.view, target: step.target };
+}
+
+// Funding is a prerequisite for the first payment, not a saved mission step.
+export function guideFirstPayment(active, needsFunds, canStartDemo) {
+  if (!needsFunds) return active;
+  return canStartDemo
+    ? { ...active, target: 'workbench.start-demo', instruction: 'Press Start demo to mine the first block and give the wallets coins to spend.' }
+    : { ...active, target: 'workbench.mine', instruction: 'Press Mine block to earn coins that a wallet can spend.' };
 }
 
 // The Chain lab experiment each mission runs in; every other mission opens the repair.

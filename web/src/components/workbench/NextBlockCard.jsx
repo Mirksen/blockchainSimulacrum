@@ -181,12 +181,13 @@ export function NextBlockCard({
     ? (repair && !repair.undoOnly && repairNext !== undefined ? () => onRemine?.(repairNext) : null)
     : (!running && !startsDemo ? () => onMine?.() : null));
   // Keep the same button mounted so keyboard focus follows Play → Pause → Play.
+  const actionTarget = running || isRepair ? undefined : startsDemo ? 'workbench.start-demo' : 'workbench.mine';
   const action = (
-    <CoachMark target={running || isRepair || startsDemo ? undefined : "workbench.mine"} coach={running || isRepair || startsDemo ? null : coach} className="next-block-coach-inline">
+    <CoachMark target={actionTarget} coach={actionTarget ? coach : null} className="next-block-coach-inline">
       <button type="button" className={isRepair ? 'card-kit-btn is-lg' : 'btn-primary'}
         disabled={isRepair} {...hint(isRepair ? 'next.mine-locked' : running ? 'next.pause' : startsDemo ? 'next.start-demo' : 'next.mine', shortcut)}
         aria-keyshortcuts={shortcut && !running && !startsDemo && !isRepair ? 'M' : undefined}
-        onClick={() => running ? onPause?.() : startsDemo ? onStartDemo?.() : onMine?.()}>
+        onClick={event => running ? onPause?.() : startsDemo ? onStartDemo?.(event.currentTarget) : onMine?.()}>
         {running ? <PauseIcon /> : <PlayIcon />}
         {running ? 'Pause' : startsDemo ? 'Start demo' : 'Mine block'}
       </button>

@@ -31,8 +31,8 @@ vi.mock('../components/workbench/Workbench', () => ({ Workbench: ({ coach }) => 
   return (
     <div data-testid="workbench">
       {['chain', 'block', 'next', 'mempool', 'wallets'].map(id => <section key={id} data-tour={id} aria-label={`Region ${id}`} />)}
-      <span data-coach-target="workbench.new-transaction" className={coach?.target === 'workbench.new-transaction' ? 'coach-mark is-active' : 'coach-mark'}>
-        <button type="button">New transaction</button>
+      <span data-coach-target="workbench.start-demo" className={coach?.target === 'workbench.start-demo' ? 'coach-mark is-active' : 'coach-mark'}>
+        <button type="button">Start demo</button>
       </span>
     </div>
   );
@@ -82,13 +82,13 @@ describe('the arrival tour opens by itself', () => {
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(localStorage.getItem(TOUR_KEY)).toBe('1');
     // The coach mark returns and focus goes to the control the active step needs.
-    expect(bench.coach).toMatchObject({ mission: 'send-first-coin', target: 'workbench.new-transaction' });
-    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'New transaction' }));
+    expect(bench.coach).toMatchObject({ mission: 'send-first-coin', target: 'workbench.start-demo' });
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Start demo' }));
     cleanup();
     render(<App />);
     expect(screen.getByTestId('workbench')).toBeTruthy();
     expect(screen.queryByRole('dialog')).toBeNull();
-    expect(bench.coach).toMatchObject({ target: 'workbench.new-transaction' });
+    expect(bench.coach).toMatchObject({ target: 'workbench.start-demo' });
   });
 
   it('for "I know what a hash is", in technical words', () => {
@@ -103,7 +103,7 @@ describe('the arrival tour opens by itself', () => {
     press('Skip tour');
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(localStorage.getItem(TOUR_KEY)).toBe('1');
-    expect(bench.coach).toMatchObject({ target: 'workbench.new-transaction' });
+    expect(bench.coach).toMatchObject({ target: 'workbench.start-demo' });
   });
 
   it('and Escape skips it', () => {
@@ -119,7 +119,7 @@ describe('the arrival tour opens by itself', () => {
     render(<App />);
     expect(screen.getByTestId('workbench')).toBeTruthy();
     expect(tour()).toBeNull();
-    expect(bench.coach).toMatchObject({ target: 'workbench.new-transaction' });
+    expect(bench.coach).toMatchObject({ target: 'workbench.start-demo' });
   });
 
   it('not with the missions collapsed', () => {

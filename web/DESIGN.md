@@ -559,6 +559,12 @@ know hashes gets the same stops in the product's terms.
   item Tour of the simulator starts it again for anyone.
 - Two pointers never compete: the mission's coach mark waits until the tour
   has ended, then takes the focus.
+- **Send your first coin** points to Start demo while the fresh chain has no
+  spendable coins. Once the demo mines block #1, the Mempool explains the mining
+  reward and the pending demo payments. The coach moves to New transaction.
+  A learner with spendable coins goes directly to New transaction. Funding is a
+  prerequisite evaluated against the live ledger, including pending outputs.
+  Only the learner's own payment completes the mission.
 
 ### Text hashing before block headers
 
