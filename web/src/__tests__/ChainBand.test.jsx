@@ -145,10 +145,10 @@ describe('ChainBand tiles and selection', () => {
 
   it('explains a rule change in a note until it is dismissed', () => {
     const onDismissNote = vi.fn();
-    const { container } = render(<ChainEventNotes notes={[{ key: 'halving-4', kind: 'halving', icon: '½', title: 'The reward halved with #4.', text: 'A block still needs the same work.' }]} onDismiss={onDismissNote} />);
+    const { container } = render(<ChainEventNotes notes={[{ key: 'halving-4', kind: 'halving', icon: '½', title: 'The reward halved at block #4.', text: 'A block still needs the same work.' }]} onDismiss={onDismissNote} />);
     const note = container.querySelector('.kf-note');
     expect(note.getAttribute('role')).toBe('status');
-    expect(note.querySelector('.kf-note-body').textContent).toBe('The reward halved with #4.A block still needs the same work.');
+    expect(note.querySelector('.kf-note-body').textContent).toBe('The reward halved at block #4.A block still needs the same work.');
     fireEvent.click(screen.getByRole('button', { name: 'Got it' }));
     expect(onDismissNote).toHaveBeenCalledWith('halving-4');
   });

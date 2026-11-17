@@ -5,7 +5,7 @@ import { hint, term } from '../lib/hints/labs';
 import './ForkExperiment.css';
 
 const nameOf = branch => branch === 'alternative' ? 'Alternative' : 'Original';
-const initialFeedback = 'Both branches need valid proofs. Mine a block to compare their work.';
+const initialFeedback = 'Mine a block and see which valid branch has more work.';
 
 function BlockRecord({ block }) {
   return <li className="fork-experiment-block">
@@ -109,7 +109,7 @@ export function ForkExperiment({ onLessonEvent, coach = null }) {
     } catch {
       if (!owns()) return;
       setError(true);
-      setFeedback('The proof search could not finish. Completed blocks are safe. Retry the experiment to continue.');
+      setFeedback('The search could not finish. Completed blocks remain. Select Retry experiment to continue.');
     } finally {
       if (owns()) { active.current = null; setRunning(false); }
     }
@@ -137,7 +137,7 @@ export function ForkExperiment({ onLessonEvent, coach = null }) {
 
     <p className="fork-experiment-scenario-note">{experiment.scenario === 'competition'
       ? 'The branches share two blocks, then record different histories with equal starting work.'
-      : 'The original has three blocks. The alternative starts at the same root with one altered toy payment. It must catch up, then gain strictly more valid work.'}</p>
+      : 'The original has three blocks. The alternative starts from the same anchor with one changed payment. It must gain more valid work to replace the original.'}</p>
     <CoachMark target="chain-lab.fork-mine" coach={coach}>
       <div className="fork-experiment-actions">
         <span className="hint-wrap" {...hint('lab.fork.run', running ? 'stop' : capped ? 'done' : error ? 'retry' : 'run')}>
@@ -164,13 +164,13 @@ export function ForkExperiment({ onLessonEvent, coach = null }) {
     </div>
 
     <p className="fork-experiment-selection"><strong>{nameOf(check.selected)} is selected.</strong> {check.tied
-      ? 'Work is tied. A tie keeps the current branch; it does not switch history.'
+      ? 'Work is tied. The current branch stays selected.'
       : 'Only a fully valid branch with strictly more accumulated work can replace the selected history.'}</p>
     {experiment.scenario === 'rewrite' && <p className="fork-experiment-rewrite">{experiment.rewriteSucceeded
-      ? 'Rewrite observed: the alternative gained more valid work and became selected. This toy payment text changed history; it did not forge a signature.'
+      ? 'The alternative gained more valid work and replaced the original history. Only the toy payment text changed; no signature was forged.'
       : 'Rewrite not observed yet. Catching up to equal work is not enough to replace the original history.'}</p>}
 
-    <p className="fork-experiment-note">Both branches use the same target: one leading hex zero. Each valid block adds {BLOCK_WORK} expected-work units; observed attempts are luck. A lucky hash with extra zeros adds no extra work.</p>
+    <p className="fork-experiment-note">Both branches use the same target: one leading hex zero. Each valid block adds {BLOCK_WORK} work units, based on the target. Actual attempts vary with luck. Extra zeros add no extra work.</p>
     <p className="fork-experiment-note">This is a local network model with a {ROUND_LIMIT}-new-block limit, not a measured Bitcoin attack probability. Changing payment text is not forging a signature. Your simulator, wallets and mining pool stay untouched.</p>
   </section>;
 }

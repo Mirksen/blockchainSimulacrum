@@ -13,11 +13,11 @@ describe('StartChoice', () => {
     expect(screen.getByRole('region', { name: 'Where do you want to start?' })).toBeTruthy();
     expect(screen.getByRole('heading', { name: 'Where do you want to start?' })).toBeTruthy();
     expect(options().map(button => button.textContent)).toEqual([
-      'Hashes are new to meSix short scenes, no knowledge needed. About five minutes.',
-      'I know what a hash isSkip the two fingerprint scenes and go straight to why anyone would guess hashes.',
-      'Just let me playOpen the simulator. The course and the missions stay one click away.'
+      'Hashes are new to meStart with a coin Alice can copy. In six short scenes, discover how a blockchain keeps track of who spent it. About five minutes.',
+      'I know what a hash isSkip the two fingerprint exercises and try finding a hash that starts with zero.',
+      'Just let me playGo straight to the workbench to mine blocks and send coins.'
     ]);
-    expect(screen.getByText('You can change this any time in the menu under Starting point.')).toBeTruthy();
+    expect(screen.getByText('To choose again, open Starting point in the menu.')).toBeTruthy();
   });
 
   it('fills only the beginner choice and takes no focus', () => {

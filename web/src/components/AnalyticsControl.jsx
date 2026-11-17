@@ -7,8 +7,8 @@ export function AnalyticsControl({ client = telemetry }) {
     return <details className="analytics-control">
         <summary {...hint('usage.toggle')}>Usage sharing: {enabled ? 'on' : 'off'}</summary>
         <div>
-            <p>Usage counts, mining timings and sanitized technical errors go to PostHog EU and help improve this experiment. Sharing is on unless you opt out here.</p>
-            <p>Wallet keys, seed words, transaction text and entered names stay in your browser. No cookies, no session replay. Your choice is saved on this device. <a href="/privacy.html">Privacy policy</a></p>
+            <p>When sharing is on, we send usage counts, mining times and technical error reports to PostHog EU.</p>
+            <p>The reports exclude wallet keys, seed words, names and transaction text. We use no cookies or session replay. This browser remembers your choice. <a href="/privacy.html">Privacy policy</a></p>
             <label {...hint('usage.share')}><input type="checkbox" checked={enabled} disabled={!configured || privacyBlocked} onChange={event => client.setEnabled(event.target.checked)} /> Share usage and technical errors</label>
             {!configured && <p>Usage sharing is unavailable in this build.</p>}
             {privacyBlocked && <p>Your browser privacy signal keeps sharing off.</p>}

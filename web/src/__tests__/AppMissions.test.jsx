@@ -182,7 +182,7 @@ describe('optional missions in App', () => {
     };
     // The demo's block and its distribution are no transaction of the learner's.
     await race('Start demo');
-    await race('Mining');
+    await race('Mine block');
     expect(JSON.parse(localStorage.getItem(STORAGE_KEY)).completed).toHaveLength(before);
     fireEvent.click(screen.getByRole('button', { name: 'New transaction' }));
     const form = screen.getByRole('form', { name: 'New transaction' });

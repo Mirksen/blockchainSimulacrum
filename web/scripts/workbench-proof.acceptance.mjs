@@ -131,7 +131,7 @@ export async function verifyWorkbenchProof(browser, baseURL, output) {
     const verdict = text => lab.getByRole('status').filter({ hasText: new RegExp(`^${text} ·`) });
     const computedRoot = () => lab.locator('.merkle-proof-compare dd code').first().innerText();
     const fixedHeader = () => lab.locator('.merkle-proof-header-card .merkle-proof-kv dd code').allTextContents();
-    await verdict('Payment proven').waitFor();
+    await verdict('Inclusion proven').waitFor();
     assert.equal(await txid().inputValue(), selectedTxid);
     assert.deepEqual(await fixedHeader(), [block.txRoot, block.hash]);
     assert.equal(await computedRoot(), proof.root);
@@ -150,18 +150,18 @@ export async function verifyWorkbenchProof(browser, baseURL, output) {
     const sibling = lab.getByLabel(/^Sibling at level 0 /);
     const originalSibling = await sibling.inputValue();
     await sibling.fill(changeHash(originalSibling));
-    await verdict('Payment not proven').waitFor();
+    await verdict('Inclusion not proven').waitFor();
     assert.notEqual(await computedRoot(), block.txRoot);
     assert.deepEqual(await fixedHeader(), [block.txRoot, block.hash], 'A sibling edit cannot rewrite the held header');
     assert.deepEqual(await savedState(page), before, 'A failed proof cannot change chain or mission progress');
     await lab.getByRole('button', { name: 'Reset proof', exact: true }).click();
-    await verdict('Payment proven').waitFor();
+    await verdict('Inclusion proven').waitFor();
     assert.equal(await sibling.inputValue(), originalSibling);
     await txid().fill(changeHash(selectedTxid));
-    await verdict('Payment not proven').waitFor();
+    await verdict('Inclusion not proven').waitFor();
     assert.notEqual(await computedRoot(), block.txRoot);
     await lab.getByRole('button', { name: 'Reset proof', exact: true }).click();
-    await verdict('Payment proven').waitFor();
+    await verdict('Inclusion proven').waitFor();
     assert.equal(await txid().inputValue(), selectedTxid);
     assert.deepEqual(await fixedHeader(), [block.txRoot, block.hash]);
 
@@ -190,13 +190,13 @@ export async function verifyWorkbenchProof(browser, baseURL, output) {
     const row = selected.locator('.block-tx-item').nth(index);
     if (await row.locator('.block-tx-row').getAttribute('aria-expanded') !== 'true') await row.locator('.block-tx-row').click();
     await row.getByRole('button', { name: 'Prove inclusion in Chain lab', exact: true }).click();
-    await verdict('Payment proven').waitFor();
+    await verdict('Inclusion proven').waitFor();
     assert.equal(await txid().inputValue(), selectedTxid);
     await source.getByRole('button', { name: 'Use example block', exact: true }).click();
     await source.waitFor({ state: 'hidden' });
     await lab.getByRole('group', { name: 'Block size', exact: true }).waitFor();
     await lab.getByLabel('Payment text of transaction 5', { exact: true }).waitFor();
-    await verdict('Payment proven').waitFor();
+    await verdict('Inclusion proven').waitFor();
     assert.deepEqual(await savedState(page), before, 'Switching to an example leaves the saved workbench and progress untouched');
     assert.equal(refusedPosts.length, postsBeforeProof, 'Inspecting and editing a proof submits no new POST requests');
     assert.deepEqual(errors, [], 'Own-payment proof has no uncaught page errors');

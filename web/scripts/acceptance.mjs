@@ -297,7 +297,7 @@ try {
  await page.keyboard.press('End');
  await share.filter({hasText:/^90 %$/}).waitFor();
  assert.equal(await power.getAttribute('aria-valuetext'), '90 %, 90 % chance to find the next block');
- assert.match(await editor.innerText(), /Takes from the others in proportion: \w+ 5 % · \w+ 5 %/);
+ assert.match(await editor.innerText(), /Adjusts the other miners’ shares proportionally: \w+ 5 % · \w+ 5 %/);
  await page.keyboard.press('Home');
  await share.filter({hasText:/^5 %$/}).waitFor();
  for (let i = 0; i < 28; i++) await page.keyboard.press('ArrowRight');
@@ -413,7 +413,7 @@ try {
  results.push('A delayed chain-band copy cannot report the edited hash as copied');
  const undoEdit = page.getByRole('button',{name:'Undo edit in block #1',exact:true});
  await undoEdit.waitFor();
- assert.match(await page.locator('.next-block-repair-row').innerText(), /that output no longer exists/);
+ assert.match(await page.locator('.next-block-repair-row').innerText(), /can no longer be found under the old ID/);
  assert.equal(await page.getByRole('button',{name:'Re-mine block #1',exact:true}).count(), 0);
  await referenceViews('tampered-spent');
  await undoEdit.click();
@@ -639,7 +639,7 @@ try {
  await page.locator('.next-block .btn-primary').click();
  await wb.tile(beforeAuto + 2).waitFor({timeout:30000});
  await page.getByRole('button',{name:'Auto-mine',exact:true}).click();
- await page.locator('.next-block .btn-primary').filter({hasText:'Mining'}).waitFor({timeout:30000});
+ await page.locator('.next-block .btn-primary').filter({hasText:'Mine block'}).waitFor({timeout:30000});
  await page.getByRole('button',{name:'Create miner',exact:true}).click();
  await page.getByLabel('New miner name',{exact:true}).fill('Newminer4');
  await page.getByRole('form',{name:'Create miner'}).getByRole('button',{name:'Create',exact:true}).click();

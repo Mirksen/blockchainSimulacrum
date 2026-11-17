@@ -91,7 +91,7 @@ export function CopyProblemScene({ coach, onEvent, done = false }) {
       onEvent?.({ type: 'copy_tried', kind: 'rejected' });
     } else {
       setCopies(current => ({ ...current, carol: true }));
-      setNote({ text: 'Both got the coin, and Alice still has it. One coin became three.', kind: 'warning' });
+      setNote({ text: 'Bob and Carol both got a copy, and Alice still has hers. The same coin was spent twice.', kind: 'warning' });
       onEvent?.({ type: 'copy_tried', kind: 'double-spend' });
     }
   }
@@ -100,7 +100,7 @@ export function CopyProblemScene({ coach, onEvent, done = false }) {
     setCopies({ bob: false, carol: false });
     setPaid(false);
     setRejected(false);
-    setNote({ text: on ? 'The shared list took the copies back. Alice has her one coin again.' : 'The shared list is off. Coins are copied like photos again.' });
+    setNote({ text: on ? 'The example has reset. Alice has one coin, and the shared list will track who spends it.' : 'The shared list is off. Coins are copied like photos again.' });
   }
 
   return (
@@ -138,7 +138,7 @@ export function CopyProblemScene({ coach, onEvent, done = false }) {
             <span>Shared list</span>
           </label>
         </CoachMark>
-        <span className="basics-quiet">A picture of the idea, not a real ledger.</span>
+        <span className="basics-quiet">A simplified example of how a ledger prevents double spending.</span>
       </div>
       {list && <section className="basics-ledger" aria-labelledby="basics-ledger-title">
         <h3 id="basics-ledger-title">Shared list: who paid whom</h3>

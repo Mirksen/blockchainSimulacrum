@@ -429,7 +429,7 @@ export class Blockchain {
   }
 
   createTransactionAtRate(senderName, recipientName, amount, feeRate = DEFAULT_FEE_RATE, reference) {
-    if (!Number.isFinite(feeRate) || feeRate < 0) throw new Error('Fee rate must be a non-negative number of satoshis per byte');
+    if (!Number.isFinite(feeRate) || feeRate < 0) throw new Error('Fee rate must be zero or more satoshis per byte.');
     const plan = this.planAtRate(senderName, amount, feeRate, reference);
     if (plan && !plan.funded) throw new Error(`Insufficient funds. Balance: ${plan.balance / 1e8}, Required: ${plan.required / 1e8}`);
     // Without a plan (unknown sender or invalid amount) createTransaction names the problem.
@@ -500,17 +500,17 @@ export class Blockchain {
 
   createTransaction(senderName, recipientName, amount, transactionFee, reference) {
     if (!Number.isFinite(amount) || amount <= 0 || Number(amount.toFixed(8)) !== amount) {
-      throw new Error('Amount must be positive with at most 8 decimal places');
+      throw new Error('Amount must be greater than zero with up to 8 decimal places.');
     }
     if (!Number.isFinite(transactionFee) || transactionFee < 0 || Number(transactionFee.toFixed(8)) !== transactionFee) {
-      throw new Error('Fee must be non-negative with at most 8 decimal places');
+      throw new Error('Fee must be zero or more with up to 8 decimal places.');
     }
-    if (senderName === recipientName) throw new Error('Sender and recipient must be different');
+    if (senderName === recipientName) throw new Error('Sender and recipient must be different wallets.');
     const sender = this.getParticipantByName(senderName);
     const recipient = this.getParticipantByName(recipientName);
 
     if (!sender || !recipient) {
-      throw new Error('Sender or recipient not found');
+      throw new Error('Sender or recipient not found. Choose an existing wallet.');
     }
     const memo = reference ? utf8Hex(reference) : '';
     if (memo.length / 2 > MAX_MEMO_BYTES) throw new Error(`Reference must fit in ${MAX_MEMO_BYTES} bytes`);
@@ -671,7 +671,7 @@ export class Blockchain {
   // be valid.
   prepareRemine(index, { difficulty = this.miningDifficulty, timeRoll = 0 } = {}) {
     if (!Number.isInteger(index) || index < 1 || index >= this.blockArray.length) {
-      return { success: false, code: 'invalid_block', error: 'Choose a mined block after Genesis to re-mine.' };
+      return { success: false, code: 'invalid_block', error: 'Choose a mined block after the genesis block to re-mine.' };
     }
     const broken = this.firstBrokenBlock();
     if (broken !== null && broken < index) {

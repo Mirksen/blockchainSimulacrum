@@ -44,8 +44,8 @@ export function UsageConsent({ client = telemetry }) {
     return <section ref={notice} className={`usage-consent${atTop ? ' is-top' : ''}`} aria-labelledby="usage-consent-title">
         <h2 id="usage-consent-title">This site counts usage</h2>
         <div className="usage-consent-copy">
-        <p>To improve this experiment, it sends usage counts, mining timings and sanitized technical errors to PostHog EU. No cookies, no profile, no session replay. Wallet keys, seed words, names and transaction text stay in your browser.</p>
-        <p className="usage-consent-later">Opt out here or any time in the menu under Usage sharing. <a href="/privacy.html">Privacy policy</a></p>
+        <p>We send usage counts, mining times and technical error reports to PostHog EU. These reports exclude wallet keys, seed words, names and transaction text. We use no cookies, profiles or session replay.</p>
+        <p className="usage-consent-later">You can opt out now or turn off Usage sharing in the menu later. <a href="/privacy.html">Privacy policy</a></p>
         </div>
         <div className="usage-consent-actions">
             <button type="button" className="card-kit-btn is-lg" onClick={() => client.setEnabled(false)}>Opt out</button>

@@ -344,7 +344,7 @@ export function createWorkbenchSession({ chain: startChain = null, search = brow
     if (setup?.aborted) return aborted();
     if (!miners.length) return reject('no_miners', 'Enable at least one miner in Participants.');
     // A new block would only extend an invalid chain; repair or undo first.
-    if (!chain.canExtend()) return reject('chain_invalid', 'Paused while the chain is invalid. Re-mine or undo the changed block first.', 'invalid_state');
+    if (!chain.canExtend()) return reject('chain_invalid', 'Mining is paused because the chain is invalid. Re-mine or undo the changed block first.', 'invalid_state');
     const race = lockRace(chain, miners, true);
     const height = chain.blockArray.length;
     const run = setup ? state.run : Object.freeze({ kind: 'mining', index: height });
@@ -421,7 +421,7 @@ export function createWorkbenchSession({ chain: startChain = null, search = brow
     }
     if (chain.blockArray.length !== 1 || chain.memPool.length) {
       void telemetry.track('demo_failed', { reason: 'invalid_state' });
-      return { success: false, error: 'Reset to start a fresh demo.', code: 'invalid_state' };
+      return { success: false, error: 'Reset the chain to start a new demo.', code: 'invalid_state' };
     }
     const setup = { aborted: false };
     const run = Object.freeze({ kind: 'setup', index: 1 });
@@ -442,7 +442,7 @@ export function createWorkbenchSession({ chain: startChain = null, search = brow
       const balance = chain.calculateBalance(chain.getParticipantByName(first.winner).publicKey);
       // Each transfer keeps room for its fee at the lowest rate (a little over 250 bytes).
       const amount = Math.min(0.6, Math.floor((balance / Math.max(1, others.length) - 0.000003) * 1e8) / 1e8);
-      if (amount <= 0) return finish({ success: false, error: 'Reward is too small to distribute. Reset the demo.', code: 'reward_too_small' });
+      if (amount <= 0) return finish({ success: false, error: 'The reward is too small to share. Reset the demo.', code: 'reward_too_small' });
       // One click mines one block: the transfers wait in the mempool for the next one.
       for (const recipient of others) chain.createTransactionAtRate(first.winner, recipient.name, amount, FEE_RATES[0], 'Demo distribution');
       if (others.length) void telemetry.track('transaction_created', { source: 'demo', count: others.length, pending_count: chain.memPool.length });
@@ -659,7 +659,7 @@ export function createWorkbenchSession({ chain: startChain = null, search = brow
     },
     // The backing that counts for a race is the one in place when it starts.
     backMiner(name) {
-      if (name !== null && !state.chain.getParticipantByName(name)?.isMiner) return refused('not-a-miner', 'Only a miner can be backed.');
+      if (name !== null && !state.chain.getParticipantByName(name)?.isMiner) return refused('not-a-miner', 'Choose a miner to back.');
       state.backed = name;
       return done({ error: null }, name === null ? [] : [{ type: 'miner-backed', name }]);
     },

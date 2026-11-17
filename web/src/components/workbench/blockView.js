@@ -138,8 +138,8 @@ export function stateOf(view) {
 // explains it. The band, the list, the block card and the status hint all read here.
 const STATUSES = {
   valid: { title: 'Valid', text: 'This block passes every check: its contents still produce its hash, the hash starts with enough zeros, and it correctly stores the hash of the block before it.' },
-  'hash-mismatch': { title: 'Hash mismatch', text: 'Something in this block changed after it was mined. Its contents now produce a different hash, and that hash no longer starts with the required zeros. Re-mining finds a new nonce that fixes it.' },
-  'link-broken': { title: 'Link broken', text: 'This block still stores the old hash of the block before it. That block was changed and got a new hash, so the link points to something that no longer exists. Re-mining this block fixes the link.' },
+  'hash-mismatch': { title: 'Hash mismatch', text: 'Something in this block changed after it was mined. Its contents now produce a different hash from the one stored. Re-mining finds a new nonce that fixes it.' },
+  'link-broken': { title: 'Link broken', text: 'This block still stores the old hash of the block before it. That block was changed and got a new hash, so the link no longer matches the previous block. Re-mining this block fixes the link.' },
   'built-on-broken': { title: 'Built on a broken block', text: 'This block itself checks out, but it sits on top of a broken block. A chain is only valid if every earlier block is valid too.' },
   'signature-invalid': { title: 'Signature invalid', text: 'A payment in this block was changed, so its digital signature no longer fits. Re-mining cannot fix that: only the sender’s private key could sign the new version. Undo the edit instead.' },
   'transaction-invalid': { title: 'Transaction invalid', text: 'A payment in this block breaks a rule, for example it spends coins that do not exist. Re-mining cannot fix that. Undo the edit instead.' }
@@ -164,9 +164,9 @@ export function statusLabel(status) {
 export function issueText(reason, index) {
   switch (reason) {
     case 'signature': return `A transfer in block #${index} no longer matches its signature.`;
-    case 'missing-input': return `Block #${index} spends an output of the edited transaction. Its txid changed, so that output no longer exists.`;
+    case 'missing-input': return `Block #${index} spends an output of the edited transaction. Its transaction ID changed, so that output can no longer be found under the old ID.`;
     case 'double-spend': return `Block #${index} spends a coin that was already spent.`;
-    case 'overspend': return `Block #${index} pays out more than its inputs hold.`;
+    case 'overspend': return `Block #${index} pays out more than the total value of its inputs.`;
     case 'coinbase-overclaim': return `The coinbase of block #${index} claims more than the reward plus fees.`;
     default: return `Block #${index} breaks a transaction rule.`;
   }

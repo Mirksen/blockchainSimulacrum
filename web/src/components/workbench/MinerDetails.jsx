@@ -44,7 +44,7 @@ export function ShareSlider({ miner, miners, onShare, compact = false, note = tr
         </div>
       )}
       {note && <p className="miner-note">{alone ? 'The only miner racing: it has all the hashpower.'
-        : <>Takes from the others in proportion: {others.map(m => `${m.name} ${shareOf(m, miners)} %`).join(' · ')}</>}</p>}
+        : <>Adjusts the other miners’ shares proportionally: {others.map(m => `${m.name} ${shareOf(m, miners)} %`).join(' · ')}</>}</p>}
     </div>
   );
 }
@@ -109,7 +109,7 @@ export function ZeroHistogram({ counts = [], difficulty }) {
           </div>
         ))}
       </div>
-      <figcaption className="miner-note">Leading zeros of every attempt this round; the dashed line is what chance predicts. Each extra zero is 16 times rarer.</figcaption>
+      <figcaption className="miner-note">Leading zeros in this round’s attempts. The dashed line shows the expected counts. Each extra zero is 16 times rarer.</figcaption>
     </figure>
   );
 }
@@ -136,7 +136,7 @@ export function MinerHeader({ header, nonce, difficulty }) {
 function Luck({ luck, miner }) {
   const races = luck?.races ?? 0;
   const own = luck?.perMiner?.[miner.publicKey];
-  if (races < 5 || !own) return <p className="miner-note">Luck shows after 5 races this session ({races} so far): blocks won against the share.</p>;
+  if (races < 5 || !own) return <p className="miner-note">After 5 races, compare blocks won with the number expected from this miner’s share ({races} races so far).</p>;
   const max = Math.max(own.won, own.expected, 1) * 1.25;
   return (
     <div className="miner-luck" style={{ '--miner-color': minerColor(miner) }}>
@@ -203,13 +203,13 @@ export function MinerDrawer({ miner, miners, progress, difficulty, isMining, win
             : <p className="miner-note">{miner.name} is switched off and does not race. Switch it on in its wallet details.</p>}
           <dl className="miner-kpis">
             <div><dt>Attempts per second</dt><dd>{rate ? count(rate) : '–'}</dd></div>
-            <div><dt>Chance for the next block</dt><dd>{racing ? `${share} %` : '–'}</dd></div>
-            <div><dt>Alone, a block takes about</dt><dd>{rate ? duration(attempts / rate) : '–'}</dd></div>
+            <div><dt>Chance to find the next block</dt><dd>{racing ? `${share} %` : '–'}</dd></div>
+            <div><dt>Expected time to find a block</dt><dd>{rate ? duration(attempts / rate) : '–'}</dd></div>
             <div><dt>Attempts this round</dt><dd>{count(progress?.iterations)}</dd></div>
           </dl>
         </section>
         <section className="miner-sec" aria-labelledby="miner-sec-stream">
-          <div className="miner-sec-head"><h3 id="miner-sec-stream">{isMining ? 'Live attempts' : 'Attempts of the last round'}</h3>
+          <div className="miner-sec-head"><h3 id="miner-sec-stream">{isMining ? 'Live attempts' : 'Last round’s attempts'}</h3>
             <span className="miner-tools">
               <button type="button" className="card-kit-btn is-sm" aria-pressed={Boolean(frozen)} onClick={() => setFrozen(f => (f ? null : stream))}>{frozen ? 'Resume' : 'Freeze'}</button>
               <button type="button" className="card-kit-btn is-sm" aria-pressed={slowMotion} onClick={() => onSlowMotion?.(!slowMotion)}
@@ -220,7 +220,7 @@ export function MinerDrawer({ miner, miners, progress, difficulty, isMining, win
           <AttemptStream miner={miner} stream={frozen ?? stream} difficulty={difficulty} rows={20} winnerNonce={winnerNonce} />
           <p className="miner-note">{slowMotion
             ? `Slow motion: every attempt, one at a time. At ${Math.round(1000 / SLOW_MS)} tries per second a block takes about ${duration(attempts / (1000 / SLOW_MS))}. It speeds up again when you close this view or the block is found.`
-            : rate ? `About ${count(rate)} attempts per second; the list shows the newest ${stream.length} of each update.` : 'The newest attempts appear here while it mines.'}</p>
+            : rate ? `About ${count(rate)} attempts per second; the list shows up to ${stream.length} recent attempts.` : 'The newest attempts appear here while it mines.'}</p>
           {slowMotion && isMining && <SlowStep attempt={stream.at(-1)} difficulty={difficulty} />}
         </section>
         <section className="miner-sec" aria-labelledby="miner-sec-best">

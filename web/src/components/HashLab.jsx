@@ -53,8 +53,8 @@ function SearchComparison({ comparison }) {
         </tr>;
       })}</tbody>
     </table>
-    <p className="hash-lab-help">Each extra hex zero makes a match about 16 times less likely per attempt. A single pair of searches does not guarantee a particular time or attempt ratio.</p>
-    <p className="hash-lab-help">Results stay in this page until Reset lab or a reload. Free-play searches do not change this comparison.</p>
+    <p className="hash-lab-help">Each extra hex zero makes a match about 16 times less likely per attempt. Individual searches can take more or fewer attempts than the average.</p>
+    <p className="hash-lab-help">These results remain until you reset or reload the lab. Free-play searches leave them unchanged.</p>
   </section>;
 }
 
@@ -118,9 +118,9 @@ export function BlockHeaderLab({ onClose, lesson, onLessonEvent, coach = null, w
   let feedback = 'Change one letter. See how much of the fingerprint changes.';
   if (status === 'searching') feedback = `Searching… ${attempts.toLocaleString()} candidates checked.`;
   if (status === 'stopping') feedback = 'Stopping search…';
-  if (status === 'found') feedback = `Target found after ${attempts.toLocaleString()} ${attempts === 1 ? 'attempt' : 'attempts'} in this search.`;
+  if (status === 'found') feedback = `Valid hash found after ${attempts.toLocaleString()} ${attempts === 1 ? 'attempt' : 'attempts'} in this search.`;
   if (status === 'stopped') feedback = `Stopped after ${attempts.toLocaleString()} attempts. You can keep experimenting.`;
-  if (status === 'exhausted') feedback = `No match in ${attempts.toLocaleString()} attempts. Try another message or a lower target.`;
+  if (status === 'exhausted') feedback = `No match in ${attempts.toLocaleString()} attempts. Try another message or require fewer zeros.`;
 
   return <section className="hash-lab" aria-labelledby="hash-lab-title">
     <header className="hash-lab-header">
@@ -145,7 +145,7 @@ export function BlockHeaderLab({ onClose, lesson, onLessonEvent, coach = null, w
           {lesson !== 'work' && <span className="hint-wrap is-fixed" {...hint('lab.hash.next-nonce')}><button className="btn btn-default" disabled={!!error || Number(nonce) >= Number.MAX_SAFE_INTEGER}
             onClick={() => edit({ nonce: String(parseNonce(nonce) + 1) })}>Next nonce</button></span>}
         </div>
-        <p id="hash-lab-nonce-help" className="hash-lab-help">Same message + same nonce = same hash.</p>
+        <p id="hash-lab-nonce-help" className="hash-lab-help">Same message, target and nonce = same hash.</p>
         {error && <p id="hash-lab-error" className="hash-lab-error" role="alert">{error} The hash below keeps the last valid input.</p>}
       </div>
 
@@ -183,7 +183,7 @@ export function BlockHeaderLab({ onClose, lesson, onLessonEvent, coach = null, w
     <SearchComparison comparison={state.comparison} />
 
     <details className="hash-lab-preimage"><summary {...hint('lab.hash.preimage')}>What exactly are we hashing?</summary>
-      <p>These 80 bytes are a Bitcoin block header. Your message stands in for the transactions: its double SHA-256 is the merkle root, so punctuation and spaces count too. The target fills the bits field, which is why choosing another target changes the hash.</p>
+      <p>These 80 bytes use Bitcoin’s block header format. Your message represents the transactions; its double SHA-256 becomes the Merkle root. Spaces and punctuation count. The bits field encodes the target, so changing the target changes the hash.</p>
       <HeaderBytes header={trial.header} hash={trial.hash} />
       <p>Blocks in the simulator use the same 80 bytes with a real merkle root and the previous block’s hash. Your lab experiments never change the chain.</p>
     </details>

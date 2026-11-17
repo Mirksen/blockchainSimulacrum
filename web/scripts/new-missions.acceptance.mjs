@@ -111,7 +111,7 @@ export async function verifyMerkleMission(browser, baseURL, output, screenshots 
     assert.equal((await progress(page)).completed.includes('prove-a-payment'), false, 'An invalid proof without a preceding valid proof cannot complete');
     await page.getByRole('button', { name: /^Tx 5 / }).click();
     await sibling.fill(changed);
-    await page.getByRole('status').filter({ hasText: /Payment not proven.*fails at level 1/ }).waitFor();
+    await page.getByRole('status').filter({ hasText: /Inclusion not proven.*fails at level 1/ }).waitFor();
     await page.waitForFunction(() => JSON.parse(localStorage.getItem('proofofwork-missions')).completed.includes('prove-a-payment'));
     assert.equal(await page.locator('.merkle-proof-level.is-failed').count(), 1);
     assert.equal(await page.locator('.coach-mark.is-active').count(), 0, 'The observed result stays visible without stale coaching');

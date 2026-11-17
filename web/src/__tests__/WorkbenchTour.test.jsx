@@ -45,7 +45,7 @@ describe('WorkbenchTour', () => {
     expect(screen.getByRole('dialog', { name: 'The notebook' })).toBe(card());
     const described = card().getAttribute('aria-describedby').split(' ').map(id => document.getElementById(id).textContent);
     expect(described[0]).toBe('Stop 1 of 5');
-    expect(described[1]).toMatch(/^Every tile is a page/);
+    expect(described[1]).toMatch(/^Each tile is a page/);
     expect(ring().getAttribute('aria-hidden')).toBe('true');
   });
 

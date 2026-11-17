@@ -28,7 +28,7 @@ export function HeaderBytes({ header, hash }) {
         ))}
       </dl>
       <p className="header-bytes-note">
-        Double SHA-256 of these 80 bytes, with its bytes reversed for display, is the hash{hash ? <>: <code>{hash}</code></> : '.'}
+        Hash these 80 bytes twice with SHA-256, then reverse the result’s bytes to get the displayed block hash{hash ? <>: <code>{hash}</code></> : '.'}
       </p>
       <CopyButton text={header} label="Copy 80 bytes" />
     </div>

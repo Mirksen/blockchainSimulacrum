@@ -79,7 +79,7 @@ export function TextHashLab({ onHeaders, onClose }) {
   return <section className="hash-lab text-hash-lab" aria-labelledby="text-hash-title">
     <header className="hash-lab-header">
       <div><h2 id="text-hash-title">Mine by hand</h2>
-        <p>A hash is a fingerprint of some data. Type your name and see its fingerprint.</p></div>
+        <p>Type some text to see its SHA-256 fingerprint.</p></div>
       <button className="btn btn-transparent" {...hint('lab.back')} onClick={() => { cancel(); onClose?.(); }}>Back to simulator</button>
     </header>
     <div className="hash-lab-workbench">
@@ -98,17 +98,17 @@ export function TextHashLab({ onHeaders, onClose }) {
           {[...hash].map((character, index) => <span key={index} aria-hidden="true"
             className={[changed[index] ? 'hash-lab-changed' : '', index < zeros && hash.slice(0, index + 1) === '0'.repeat(index + 1) ? 'text-hash-zero' : ''].join(' ')}>{character}</span>)}
         </div>
-        <p className="hash-lab-comparison">Always 64 characters, however long the text. The same text always gives the same hash.</p>
+        <p className="hash-lab-comparison">Always 64 hex characters. The same text always gives the same hash.</p>
         <p className="hash-lab-help">Exactly the text above, hashed once with SHA-256. You can check it in any SHA-256 text tool.</p>
       </div>
     </div>
     <p className="hash-lab-feedback" role="status">{feedback}</p>
     {proof && <section className="text-hash-proof" aria-label="Your first proof of work">
       <h3>You mined by hand</h3>
-      <p>You found text whose hash starts with <strong>0</strong>. Finding it took trying; checking it needs just one hash.</p>
+      <p>You found text whose hash starts with <strong>0</strong>. Finding it takes trial and error; checking it takes one hash.</p>
       <p>Found on try {proof.tries.toLocaleString()}.{proof.tries <= LUCKY_TRIES && ` That was a lucky roll: on average it takes ${AVERAGE_TRIES} tries.`}</p>
       <details><summary {...hint('lab.text.proof')}>Your first proof</summary><pre>{proof.text}</pre><code>{proof.hash}</code></details>
-      <p>The changing number is called a <span {...term('lab.text.nonce')}>nonce</span>. A miner automates these attempts.
+      <p>A number changed for each attempt is called a <span {...term('lab.text.nonce')}>nonce</span>. A miner automates these attempts.
         The required zeros set the <span {...term('lab.text.difficulty')}>difficulty</span>.</p>
       <div className="text-hash-actions">
         <button className="btn btn-emphasized" disabled={!text.length}

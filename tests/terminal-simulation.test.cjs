@@ -49,10 +49,10 @@ scenario('CLI false disables mining logs and invalid difficulty fails immediatel
 scenario('zero-difficulty terminal demo mines three valid blocks without leaked globals', () => {
   const result = cli(['0', 'false']);
   assert.equal(result.status, 0, result.stderr);
-  assert.match(result.stdout, /Are all transactions valid\?: true/);
-  assert.match(result.stdout, /Are all block valid\?: true/);
+  assert.match(result.stdout, /All transactions valid: true/);
+  assert.match(result.stdout, /All blocks valid: true/);
   assert.doesNotMatch(result.stdout, /MINING LOG/);
-  assert.equal((result.stdout.match(/Block sucessfully mined/g) || []).length, 3);
+  assert.equal((result.stdout.match(/Block mined/g) || []).length, 3);
   const globals = spawnSync(process.execPath, ['-e', "process.argv=['node','main.js','0','false'];console.log=()=>{};require('./main');if(['kryptoCurrency','miners','transactionArray','transaction','block','transactions'].some(k=>Object.hasOwn(globalThis,k)))process.exit(1)"], { cwd: root, encoding: 'utf8', timeout: 10000 });
   assert.equal(globals.status, 0, globals.stderr);
 });

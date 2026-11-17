@@ -97,7 +97,7 @@ export function WhyGuessScene({ coach, onEvent, done = false }) {
   const shownDraw = running ?? state.last;
   const current = lanes(shownDraw, running ? state.shown : shownDraw?.sequence.length ?? 0);
   const last = state.last;
-  const status = running ? `Drawing page ${running.page}…`
+  const status = running ? `Choosing a writer for page ${running.page}…`
     : last ? `${WRITERS[last.winner].name} wins page ${last.page} after ${last.sequence.length} rolls in total and writes it. Reward: 1 coin.`
     : 'Nobody has written the next page yet.';
 
@@ -128,7 +128,7 @@ export function WhyGuessScene({ coach, onEvent, done = false }) {
       </div>
       <p className={`basics-status${last && !running ? ' is-positive' : ''}`} role="status">{status}</p>
       <p className="basics-count"><span {...term('basics.draw.postage')}>Postage paid</span>: {state.postage} rolls in total</p>
-      <p className="basics-quiet">Anyone can check the winner with one look at the fingerprint.</p>
+      <p className="basics-quiet">Hash the winning text once and check for the two leading zeros.</p>
     </div>
   );
 }

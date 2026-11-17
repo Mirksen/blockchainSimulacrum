@@ -57,8 +57,8 @@ describe('TransactionDetailsModal', () => {
   it('shows a coinbase as new coins without inputs', () => {
     const coinbase = chain.describer()(chain.blockArray[1].transactions[0]);
     render(<TransactionDetailsModal transaction={coinbase} blockIndex={1} onClose={() => {}} />);
-    expect(screen.getByText('Coinbase: new coins, no input spent')).toBeTruthy();
-    expect(screen.getByText('No signature: a coinbase creates coins')).toBeTruthy();
+    expect(screen.getByText('Coinbase: subsidy and fees, no earlier output spent')).toBeTruthy();
+    expect(screen.getByText('No signature required for a coinbase')).toBeTruthy();
     expect(screen.queryByRole('group', { name: 'Fee' })).toBeNull();
   });
 

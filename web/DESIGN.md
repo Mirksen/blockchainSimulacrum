@@ -260,7 +260,7 @@ decision, 2026-10-27):
   mempool for #2.
 - **Stop mining** is the Pause action of the running race; Auto-mine is the Repeat toggle joined to Play/Pause in the Next block card.
   **Auto-mine is a setting, not a start** (Mirko, 2026-11-02): it starts off and never
-  starts or stops a search by itself. Play ("Mining", or "Start demo" on a fresh chain)
+  starts or stops a search by itself. Play ("Mine block", or "Start demo" on a fresh chain)
   starts a run; with Auto-mine on, each found block starts the next one after a short
   pause, and Pause stays the primary between blocks. Turning it off lets the active
   block finish and schedules no further block; turning it on during a block lets the
@@ -270,10 +270,10 @@ decision, 2026-10-27):
   **Repeat toggle form** (Mirko, 2026-11-03, workshop round 1, variant 1): a slim add-on
   joined to the right of its action, an icon and the visible label "Auto" (the accessible
   name stays "Auto-mine" or "Auto-transact"). On takes the look of the action it joins
-  (Mirko, 2026-11-03): beside Mining it lights up filled blue like Mining, and the joined
+  (Mirko, 2026-11-03): beside Mine block it lights up filled blue like Mine block, and the joined
   pair glows; beside the tinted New transaction it is tinted. An inset seam separates the two.
 - **Auto-transact** starts off. Its Repeat toggle is joined to the right of "New
-  transaction" in the Mempool header, in the same form as Auto-mine beside Mining, and
+  transaction" in the Mempool header, in the same form as Auto-mine beside Mine block, and
   explains its behavior on hover. It fills only an empty mempool with eight sample
   transfers, waits while a candidate is being mined, and keeps existing transfers
   when switched off.
@@ -390,12 +390,12 @@ decision, 2026-10-27):
   part of the lesson. Under them the card lists the block's **transactions**,
   one line each. A click opens one in place: inputs, outputs and the whole TXID;
   scripts, signature and raw bytes stay one click further in the dialog.
-- **Next block:** the one primary action "Mining" with Play, an adjacent Repeat toggle for Auto-mine,
+- **Next block:** the one primary action "Mine block" with Play, an adjacent Repeat toggle for Auto-mine,
   difficulty stepper, and the last round as one lane per miner (Hal, Dorian, Laszlo by default)
   with "Back Hal / Back Dorian / Back Laszlo". While mining it becomes the **live race** in
   place. The header names no predecessor and the stepper no `bits` (Mirko, 2026-11-03).
 - **Key M** (Mirko, 2026-11-03) presses the button that announces it (`aria-keyshortcuts="M"`):
-  "Mining" between races, "Re-mine block #K" during a repair. Nothing else: not "Start demo",
+  "Mine block" between races, "Re-mine block #K" during a repair. Nothing else: not "Start demo",
   not during a race or a repeating run, not while typing, with Cmd/Ctrl/Alt, on key repeat or
   under an open dialog.
   Settings lets the learner disable this single-letter shortcut, including its
@@ -600,7 +600,7 @@ Every flow covers its states, not only the success path.
 
 | State | Pattern |
 |---|---|
-| Idle | Mining is the primary action; New transaction glows as the second invitation. |
+| Idle | Mine block is the primary action; New transaction glows as the second invitation. |
 | Mining | The Next block card becomes the live race: per miner the current nonce and hash, leading characters checked against the target, attempts and elapsed time against the target time. The Play primary becomes Pause in the same place; the header says "Mining block #N…". The adjacent Repeat toggle stays available as a setting, and Pause also stays available between the blocks of a run that Auto-mine continues. The candidate tile says "mining". Mempool rows read "being mined into #N". New transaction stays available without glow. |
 | Block found | The new tile appears on the right with a short calm highlight; the race line becomes "Last round". No confetti. |
 | Tampered | The changed block turns red with "Hash mismatch" and its new hash (the stored one struck through). Descendants turn amber with "Built on a broken block"; their own links are intact and say so. The chain pill says "Chain invalid", the checks open, Mine pauses with "Paused while the chain is invalid", and the single primary becomes "Re-mine block #2". When the edit breaks a ledger rule (a signature, a spent coin, a coinbase claiming too much) re-mining cannot help, so the primary is "Undo edit in block #2" with the reason beside it. Red only for the broken block and its direct status. |
@@ -669,7 +669,7 @@ and validity states are semantic tokens.
 | Chain health | One line, collapsible strip of per-block checks on the tile column grid |
 | Card | Panel surface, 1 px line, no shadow; header with title, status pill and at most one action |
 | Next block card | Miner name, primary action, Auto-mine, difficulty stepper, race lanes; live race state; repair state |
-| Repeat toggle | "Auto" with the repeat icon, joined right of its action; pressed takes the look of that action (filled beside Mining, tinted beside New transaction); the card gives height, border and outer corners |
+| Repeat toggle | "Auto" with the repeat icon, joined right of its action; pressed takes the look of that action (filled beside Mine block, tinted beside New transaction); the card gives height, border and outer corners |
 | Race lane | Miner (opens its popover), nonce, current hash with checked leading characters, progress, Back action, result |
 | Miner popover / drawer | Share slider, attempts per second, newest attempts; the drawer adds Freeze, Slow motion, best hash, zero histogram, luck and the header with its ticking nonce |
 | Coach ring | Ring plus small label on the element a mission step needs |

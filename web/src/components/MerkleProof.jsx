@@ -79,9 +79,9 @@ export function MerkleProof({ onLessonEvent, coach = null, source = null, onUseE
     return level === top ? `Level ${level} · root` : `Level ${level}`;
   }
   let verdict;
-  if (result.valid) verdict = `The computed root matches the header’s merkle root with ${hashes(top)}.`;
+  if (result.valid) verdict = `The computed root matches the header’s Merkle root using ${hashes(top)} from the proof.`;
   else if (result.malformed) {
-    verdict = result.malformed.what === 'txid' ? 'The payment has no valid txid.'
+    verdict = result.malformed.what === 'txid' ? 'The transaction ID must contain 64 hexadecimal characters.'
       : `The sibling at level ${result.malformed.level} is not a 64-character hash, so level ${result.failedAt} cannot be computed.`;
   } else if (source && result.computedRoot === source.treeRoot && source.treeRoot !== source.root) {
     verdict = 'The copied transactions produce a different root from the mined header. Reset proof cannot undo an edit made in the workbench.';
@@ -111,7 +111,7 @@ export function MerkleProof({ onLessonEvent, coach = null, source = null, onUseE
         </label>)}
       </fieldset>}
       <p className="merkle-proof-saving"><strong {...term('lab.merkle.saving')}>{hashes(top)} instead of {count(size, 'transaction')}</strong>
-        <span>plus the 80-byte header: a light client can check inclusion without the other transactions.</span></p>
+        <span>plus this transaction and the 80-byte header. The other transactions are not needed.</span></p>
     </div>
 
     <CoachMark target="chain-lab.merkle-payment" coach={coach} className="merkle-proof-coach">
@@ -179,10 +179,10 @@ export function MerkleProof({ onLessonEvent, coach = null, source = null, onUseE
 
     <dl className="merkle-proof-kv merkle-proof-compare">
       <dt {...term('lab.merkle.computed')}>Computed root</dt><dd><code>{result.computedRoot ?? 'Cannot compute'}</code></dd>
-      <dt {...term('lab.merkle.root')}>Header’s merkle root</dt><dd><code>{block.root}</code></dd>
+      <dt {...term('lab.merkle.root')}>Header’s Merkle root</dt><dd><code>{block.root}</code></dd>
     </dl>
     <p className={`merkle-proof-verdict ${result.valid ? 'merkle-proof-positive' : 'merkle-proof-negative'}`} role="status">
-      <strong>{result.valid ? 'Payment proven' : 'Payment not proven'}</strong> · {verdict}</p>
+      <strong>{result.valid ? 'Inclusion proven' : 'Inclusion not proven'}</strong> · {verdict}</p>
     {edited && <p className="merkle-proof-hint">An edit changes one hash; every level above it changes too. {source ? 'Reset proof restores the copied transaction and siblings.' : 'Reset example restores the block’s own proof.'}</p>}
 
     <p className="merkle-proof-note">Hashes are shown byte-reversed, like block explorers; each level is the double SHA-256 of its two children in internal byte order. An odd level pairs its last hash with itself. {source ? 'These are your simulated transactions. A matching proof demonstrates inclusion only; it does not check signatures, balances or network consensus. Nothing here changes your workbench, wallets or mining pool.' : 'The payment texts are toy records, not signed transactions; this experiment never changes your simulator, wallets or mining pool.'}</p>
