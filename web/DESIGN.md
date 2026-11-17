@@ -534,8 +534,8 @@ action.
 - **Honest about the model, here too.** The copy scene is a picture of the
   idea, not a ledger; the last screen names the pillar this site does not
   simulate: the network.
-- Every scene can be opened at any time and reset on its own. Only the
-  active mission earns progress.
+- Every scene can be opened at any time and reset on its own. Continue
+  passes over skipped scenes. Only the active mission earns progress.
 - The course itself speaks plainly to everyone except a visitor who said
   they know hashes; a scene about pages and seals never opens with "each
   block commits to the hash of its predecessor" for someone who just came

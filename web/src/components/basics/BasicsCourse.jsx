@@ -13,7 +13,7 @@ import './Basics.css';
 // The Basics course: six one-screen scenes (the missions with view 'basics', in track
 // order) and a closing Bridge. The learner opens any scene at any time from the stepper;
 // the course never switches scenes on its own when progress changes. A done scene shows
-// "What you learned" with the one filled Continue, which opens the next scene, then the
+// "What you learned" with the one filled Continue, which passes over skipped scenes, then opens the
 // Bridge, whose Continue leaves the course (onContinue).
 //
 // Props: progress (mission progress), tone ('plain' | 'technical'), coach (for CoachMark),
@@ -99,8 +99,8 @@ export function BasicsCourse({ progress, tone = 'plain', coach = null, onLessonE
     setShown(id);
   }
   function next() {
-    const index = SCENES.findIndex(mission => mission.id === shown);
-    open(index + 1 < SCENES.length ? SCENES[index + 1].id : BRIDGE);
+    const scene = SCENES.slice(index + 1).find(candidate => missionStatus(current, candidate.id) !== 'skipped');
+    open(scene?.id ?? BRIDGE);
   }
   function reset() {
     setGeneration(count => count + 1);
