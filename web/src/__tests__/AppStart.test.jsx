@@ -1,14 +1,21 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { StrictMode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import App from '../App';
 import { initialProgress, MISSIONS, STORAGE_KEY } from '../lib/missions';
 import { START_KEY } from '../lib/startChoice';
+import { telemetry } from '../lib/telemetry';
 
 // The first-visit question and the Basics view in the real App, with the real top bar,
 // mission rail and start question. The simulator runs on a test session (as in
 // AppMissions.test.jsx); the workbench, the labs, the pool and the course host are stand-ins.
 vi.mock('../hooks/useMinerIdentity', () => ({ useMinerIdentity: () => ({ name: 'Not-Satoshi-4', setName: () => {}, signer: null }) }));
+// The real client without a token, with track recorded: the counting events of App.
+vi.mock('../lib/telemetry', async importOriginal => {
+  const actual = await importOriginal();
+  return { ...actual, telemetry: { ...actual.telemetry, track: vi.fn(async () => false) } };
+});
 const fixtureKeys = vi.hoisted(() => ({ wallet: 0 }));
 vi.mock('../lib/wallet', async importOriginal => ({ ...await importOriginal(), deriveWallet: () => {
   const privateKey = new Uint8Array(32);
@@ -46,8 +53,10 @@ const collapsed = () => document.querySelector('.app-shell').classList.contains(
 const stored = () => JSON.parse(localStorage.getItem(STORAGE_KEY));
 const findCourse = () => screen.findByRole('region', { name: 'Basics course' }, LOAD);
 const choose = title => fireEvent.click(screen.getByRole('button', { name: new RegExp(`^${title}`) }));
+const counted = event => telemetry.track.mock.calls.filter(([name]) => name === event).map(([, properties]) => properties);
 
 beforeEach(() => {
+  telemetry.track.mockClear();
   localStorage.clear();
   history.replaceState(null, '', '/');
   course.props = null;
@@ -282,5 +291,70 @@ describe('opening the missions', () => {
     expect(collapsed()).toBe(false);
     expect(location.hash).toBe('');
     expect(screen.getByTestId('workbench')).toBeTruthy();
+  });
+});
+
+// The two counting events (lib/telemetry.js): one per answer, one per mission completed in
+// this visit, nothing for stored, migrated or skipped progress.
+describe('counting the start and the missions', () => {
+  it.each(['new', 'hash', 'play'])('counts the first answer %s once and no mission for its skips', async choice => {
+    render(<StrictMode><App /></StrictMode>);
+    expect(counted('start_chosen')).toEqual([]);
+    choose({ new: 'Hashes are new to me', hash: 'I know what a hash is', play: 'Just let me play' }[choice]);
+    expect(counted('start_chosen')).toEqual([{ choice }]);
+    if (choice !== 'play') await findCourse();
+    expect(counted('start_chosen')).toEqual([{ choice }]);
+    expect(counted('mission_completed')).toEqual([]);
+  });
+
+  it('counts an answer changed through the menu, and nothing for the stored one', async () => {
+    localStorage.setItem(START_KEY, 'play');
+    render(<App />);
+    expect(counted('start_chosen')).toEqual([]);
+    fireEvent.click(screen.getByRole('button', { name: 'More' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Starting point' }));
+    choose('I know what a hash is');
+    expect(counted('start_chosen')).toEqual([{ choice: 'hash' }]);
+    await findCourse();
+    expect(stored().skipped).toEqual(['see-a-fingerprint', 'change-one-letter']);
+    expect(counted('mission_completed')).toEqual([]);
+  });
+
+  it('counts a mission completed in the course once, also under StrictMode', async () => {
+    localStorage.setItem(START_KEY, 'new');
+    localStorage.setItem(RAIL, '0');
+    history.replaceState(null, '', '/#/basics');
+    render(<StrictMode><App /></StrictMode>);
+    await findCourse();
+    // A lesson reset before the end completes nothing.
+    act(() => course.props.onLessonEvent({ type: 'copy_tried', kind: 'photo' }));
+    act(() => course.props.onLessonEvent({ type: 'lesson_reset' }));
+    expect(counted('mission_completed')).toEqual([]);
+    act(() => ['photo', 'double-spend', 'rejected'].forEach(kind => course.props.onLessonEvent({ type: 'copy_tried', kind })));
+    expect(stored().completed).toEqual(['copy-problem']);
+    expect(counted('mission_completed')).toEqual([{ mission: 'copy-problem' }]);
+    // Further evidence and a reload of the same progress count nothing more.
+    act(() => ['photo', 'double-spend', 'rejected'].forEach(kind => course.props.onLessonEvent({ type: 'copy_tried', kind })));
+    cleanup();
+    render(<StrictMode><App /></StrictMode>);
+    await findCourse();
+    expect(counted('mission_completed')).toEqual([{ mission: 'copy-problem' }]);
+    expect(counted('start_chosen')).toEqual([]);
+  });
+
+  it.each([
+    ['loaded progress', { ...initialProgress(), completed: BASICS }],
+    ['migrated version 1 progress', { version: 1, completed: ['change-fingerprint', 'earn-proof-of-work'] }]
+  ])('sends nothing for %s, a simulator reset or a reload', (name, progress) => {
+    localStorage.setItem(START_KEY, 'play');
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(progress));
+    render(<StrictMode><App /></StrictMode>);
+    expect(stored().completed.length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole('button', { name: 'More' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Reset' }));
+    cleanup();
+    render(<StrictMode><App /></StrictMode>);
+    expect(counted('mission_completed')).toEqual([]);
+    expect(counted('start_chosen')).toEqual([]);
   });
 });

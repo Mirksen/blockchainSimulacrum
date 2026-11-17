@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { CONSENT_KEY, INGEST_URL, createTelemetry, installErrorTracking } from '../lib/telemetry';
+import { MISSIONS } from '../lib/missions';
 
 function fixture(extra = {}) {
     let sequence = 0;
@@ -70,6 +71,30 @@ describe('explicit PostHog event transport', () => {
         expect(payloads()[1].properties.value).toBeUndefined();
         expect(JSON.stringify(payloads())).not.toContain('synthetic memo');
         expect(JSON.stringify(payloads())).not.toContain('synthetic entered label');
+    });
+    it('counts the starting point and completed missions with fixed values only', async () => {
+        const { client, request, payloads } = fixture(); client.setEnabled(true);
+        for (const choice of ['new', 'hash', 'play']) await client.track('start_chosen', { choice });
+        for (const mission of MISSIONS.map(item => item.id)) await client.track('mission_completed', { mission });
+        expect(payloads().slice(0, 3).map(payload => payload.properties.choice)).toEqual(['new', 'hash', 'play']);
+        expect(payloads().slice(3).map(payload => payload.properties.mission)).toEqual(MISSIONS.map(item => item.id));
+        const sent = request.mock.calls.length;
+        await client.track('start_chosen', { choice: 'synthetic answer', step: 2, elapsed_ms: 10 });
+        await client.track('mission_completed', { mission: 'synthetic-mission', step: 2, data: { hash: 'synthetic' }, elapsed_ms: 10 });
+        await client.track('mission_completed', { mission: MISSIONS[0].id.toUpperCase() });
+        const dropped = payloads().slice(sent).map(payload => payload.properties);
+        expect(dropped.map(properties => Object.keys(properties))).toEqual(Array(3).fill(['event_id','app','schema_version','$process_person_profile','$geoip_disable']));
+        expect(JSON.stringify(dropped)).not.toContain('synthetic');
+    });
+    it.each([
+        ['a saved opt-out', { storage: { getItem: () => 'false', setItem() {} } }],
+        ['a browser privacy signal', { privacySignal: () => true, storage: { getItem: () => 'true', setItem() {} } }]
+    ])('sends no start or mission count with %s', async (name, extra) => {
+        const { client, request } = fixture(extra);
+        client.start();
+        await client.track('start_chosen', { choice: 'new' });
+        await client.track('mission_completed', { mission: MISSIONS[0].id });
+        expect(request).not.toHaveBeenCalled();
     });
     it('respects an existing saved choice without duplicate start events', () => {
         const request=vi.fn(async()=>({ok:true}));
