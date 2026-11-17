@@ -4,11 +4,17 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import App from '../App';
 import { initialProgress, MISSIONS, STORAGE_KEY } from '../lib/missions';
 import { START_KEY } from '../lib/startChoice';
+import { telemetry } from '../lib/telemetry';
 
 // Keep real App, rail, start question, progress storage and Workbench with a test session. Lab
 // internals are covered separately; their evidence callbacks exercise the real App wiring here.
 // No signer: the simulator's blocks are signed for nobody's leaderboard entry.
 vi.mock('../hooks/useMinerIdentity', () => ({ useMinerIdentity: () => ({ name: 'Not-Satoshi-4', setName: () => {}, signer: null }) }));
+// The real client without a token, with track recorded: the counting events of App.
+vi.mock('../lib/telemetry', async importOriginal => {
+  const actual = await importOriginal();
+  return { ...actual, telemetry: { ...actual.telemetry, track: vi.fn(async () => false) } };
+});
 // A test session: an in-memory store and a clock only the test moves (lib/workbenchSession.js),
 // over synthetic fixture keys instead of BIP39 derivation (covered in wallet.test.js).
 // The clock of the mounted session is the test's, so a test can let a race finish.
@@ -60,8 +66,10 @@ const mobile = () => within(document.querySelector('.wb-mbar'));
 const collapsed = () => document.querySelector('.app-shell').classList.contains('is-rail-collapsed');
 const reload = () => { cleanup(); render(<App />); };
 const course = () => screen.findByRole('region', { name: 'Basics course' }, LOAD);
+const completedCounts = () => telemetry.track.mock.calls.filter(([name]) => name === 'mission_completed').map(([, properties]) => properties);
 
 beforeEach(() => {
+  telemetry.track.mockClear();
   localStorage.clear();
   // A returning visitor who answered the start question with "Just let me play"
   // (the first visit itself: AppStart.test.jsx).
@@ -130,13 +138,17 @@ describe('optional missions in App', () => {
     expect(location.hash).toBe('#/basics');
     expect(screen.getByText('basics.copy-photo')).toBeTruthy();
     expect(screen.getByText('Guided basics')).toBeTruthy();
+    expect(completedCounts()).toEqual([]);
     fireEvent.click(screen.getByRole('button', { name: 'Complete the copy problem' }));
     expect(document.querySelector('.wb-rail .mission-rail-xp').textContent).toBe('10 XP0 badges1 of 17 done');
+    expect(completedCounts()).toEqual([{ mission: 'copy-problem' }]);
     fireEvent.click(rail().getByRole('button', { name: 'Collapse mission rail' }));
     reload();
     expect(collapsed()).toBe(true);
     expect(startQuestion()).toBeNull();
     expect(JSON.parse(localStorage.getItem(STORAGE_KEY)).completed).toEqual(['copy-problem']);
+    // Hiding the missions and the reload count nothing more.
+    expect(completedCounts()).toEqual([{ mission: 'copy-problem' }]);
   });
 
   it('enables lessons from mobile access, then hides tasks and coaches using Hide missions', async () => {
@@ -184,6 +196,8 @@ describe('optional missions in App', () => {
     await race('Start demo');
     await race('Mining');
     expect(JSON.parse(localStorage.getItem(STORAGE_KEY)).completed).toHaveLength(before);
+    // The missions loaded as completed are not counted.
+    expect(completedCounts()).toEqual([]);
     fireEvent.click(screen.getByRole('button', { name: 'New transaction' }));
     const form = screen.getByRole('form', { name: 'New transaction' });
     fireEvent.change(within(form).getByLabelText('From'), { target: { value: 'Alice' } });
@@ -192,6 +206,7 @@ describe('optional missions in App', () => {
     fireEvent.click(within(form).getByRole('button', { name: 'Add to mempool' }));
     expect(screen.queryByRole('form', { name: 'New transaction' })).toBeNull();
     expect(JSON.parse(localStorage.getItem(STORAGE_KEY)).completed).toEqual(MISSIONS.slice(0, before + 1).map(mission => mission.id));
+    expect(completedCounts()).toEqual([{ mission: 'send-first-coin' }]);
   });
 
   it('keeps controls usable for this visit when storage is blocked', async () => {

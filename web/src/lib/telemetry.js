@@ -1,4 +1,5 @@
 import { MIN_DIFFICULTY, MAX_DIFFICULTY } from './difficulty';
+import { MISSIONS } from './missions';
 
 // PostHog's public Capture API: no autocapture, replay, remote scripts or retry queue.
 // https://posthog.com/docs/api/capture
@@ -28,7 +29,9 @@ const SCHEMAS = {
         value: value => typeof value === 'boolean' || (count(value) && value <= 100) || value === 'light' || value === 'dark'
     },
     tamper_applied: { block_height: count },
-    chain_reset: { previous_block_count: count }
+    chain_reset: { previous_block_count: count },
+    start_chosen: { choice: oneOf('new', 'hash', 'play') },
+    mission_completed: { mission: oneOf(...MISSIONS.map(mission => mission.id)) }
 };
 const ERROR_TYPES = ['Error', 'TypeError', 'RangeError', 'ReferenceError', 'SyntaxError', 'URIError', 'EvalError', 'AggregateError'];
 const ERROR_SOURCES = ['window', 'promise', 'react', 'mining', 'demo'];
