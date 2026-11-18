@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { meetsTarget } from '../../../../shared/bitcoin-block.mjs';
 import { CoachMark } from './CoachMark';
 import { formatAmount, formatInterval, isBrokenStatus, issueText, statusKind, statusLabel, zerosOf } from './blockView';
 import { Avatar, CheckIcon, CopyButton } from './blockParts';
@@ -11,7 +12,7 @@ import './SelectedBlockCard.css';
 // already resolved, its check from `inspectBlocks()` and the stored hash of its
 // predecessor. Its transactions come in as children.
 //
-// block:  { index, hash, previousHash, nonce, difficulty, isNewest?, miner?,
+// block:  { index, hash, previousHash, nonce, bits, difficulty, isNewest?, miner?,
 //           seconds?, tries?, reward?, txRoot?, transactions: [{ from, to, amount, reference?, spentIn? }] }
 //         (`from: null` is the coinbase; `spentIn` is the block that spends its first output)
 // status: inspectBlocks() entry { status, storedHash?, computedHash?, linkIntact? }
@@ -132,6 +133,7 @@ export function SelectedBlockCard({ block, status, prevHash, edit, onOpenDetails
     : (prevHash != null ? block.previousHash === prevHash : check.linkIntact !== false);
   const storedHash = check.storedHash ?? block.hash;
   const computedHash = check.computedHash ?? block.hash;
+  const currentHashMeetsTarget = kind === 'hash-mismatch' && meetsTarget(computedHash, block.bits);
   const minerName = block.miner ?? null;
   const editorOpen = editorFor === block.index;
 
@@ -149,8 +151,11 @@ export function SelectedBlockCard({ block, status, prevHash, edit, onOpenDetails
     <>
       <div className="card-kit-kv is-wrap"><dt {...term('block.hash-now')}>Hash now</dt><dd>
         <FullHash hash={computedHash} /><CopyButton key={`${block.index}:${computedHash}`} text={computedHash} {...COPY_HASH} />
-        <span className="card-kit-bad">{Math.min(zerosOf(computedHash), difficulty)}/{difficulty} zeros</span>
-        <span className="card-kit-t3">· does not start with {target}</span>
+        <span className="card-kit-t3">{Math.min(zerosOf(computedHash), difficulty)}/{difficulty} zeros</span>
+        <span className={currentHashMeetsTarget ? 'card-kit-ok' : 'card-kit-bad'}>
+          {currentHashMeetsTarget ? 'Meets mining target' : 'Misses mining target'}
+        </span>
+        {computedHash !== storedHash && <span className="card-kit-t3">Differs from the stored hash.</span>}
       </dd></div>
       <div className="card-kit-kv is-wrap"><dt {...term('block.as-mined')}>As mined</dt><dd>
         <FullHash hash={storedHash} struck />
