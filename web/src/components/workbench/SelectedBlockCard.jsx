@@ -19,8 +19,7 @@ import './SelectedBlockCard.css';
 //         or just the status string; missing means 'valid'
 // edit:   tamperedEdits entry { txIndex, from, to } for this block (or a list), null when unchanged
 
-// All 64 characters, always: their length is part of what the card teaches. Where a
-// line is too short for them they break once, in the middle.
+// Prefer breaking the hash in the middle, with extra wrap points on narrow screens.
 function FullHash({ hash, struck = false }) {
   if (!hash) return <span className="card-kit-mono card-kit-t3">none</span>;
   // A struck (no longer valid) hash shows no highlighted zeros.
@@ -30,7 +29,7 @@ function FullHash({ hash, struck = false }) {
     const lead = Math.max(0, Math.min(zeros, to) - from);
     return <span>{lead > 0 && <span className="card-kit-zero">{hash.slice(from, from + lead)}</span>}{hash.slice(from + lead, to)}</span>;
   };
-  const body = <>{part(0, half)}{part(half, hash.length)}</>;
+  const body = <>{part(0, half)}<wbr />{part(half, hash.length)}</>;
   return <span className="selected-block-hash">{struck ? <s>{body}</s> : body}</span>;
 }
 
