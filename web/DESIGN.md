@@ -386,8 +386,11 @@ decision, 2026-10-27):
   Copy, the whole previous hash, nonce, miner with time, tries and reward, the
   whole Merkle root; "Open in Chain lab", "Tamper with this block". Details show
   the block's 80 header bytes, field by field. All hashes keep their 64
-  characters, on two lines of 32 where one line is too short: their length is
-  part of the lesson. Under them the card lists the block's **transactions**,
+  characters. The line can break in the middle and wrap further on narrow screens.
+  Their length is part of the lesson. After an edit, the card compares **Hash now** with
+  **As mined**. It reports whether the new hash meets the mining target and
+  whether it differs from the stored hash.
+  Under them the card lists the block's **transactions**,
   one line each. A click opens one in place: inputs, outputs and the whole TXID;
   scripts, signature and raw bytes stay one click further in the dialog.
 - **Next block:** the one primary action "Mine block" with Play, an adjacent Repeat toggle for Auto-mine,

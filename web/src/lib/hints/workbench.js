@@ -55,7 +55,7 @@ export const WORKBENCH_HINTS = {
   // A block status by its name, explained (components/workbench/blockView.js).
   'block.status': kind => statusSentence(kind),
   'block.hash': { title: 'Hash', text: 'The block’s fingerprint: a double SHA-256 of its 80-byte header. Changing a transaction or a header field changes the hash. The highlighted leading zeros are the proof of work.' },
-  'block.hash-now': { title: 'Hash now', text: 'The hash of the block’s current contents, after your edit. It no longer starts with enough zeros, so the block fails.' },
+  'block.hash-now': { title: 'Hash now', text: 'The hash calculated from the block’s current contents. To pass, it must meet the mining target and match the stored hash.' },
   'block.as-mined': { title: 'As mined', text: 'The hash the block had when it was mined. The next block still stores this one as its link.' },
   'block.previous': isGenesis => (isGenesis
     ? { title: 'Previous', text: 'The genesis block has no block before it. Here it stores the hash of a real Bitcoin block instead, which proves this chain was started after that block existed.' }

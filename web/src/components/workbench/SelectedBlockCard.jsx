@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { meetsTarget } from '../../../../shared/bitcoin-block.mjs';
 import { CoachMark } from './CoachMark';
 import { formatAmount, formatInterval, isBrokenStatus, issueText, statusKind, statusLabel, zerosOf } from './blockView';
 import { Avatar, CheckIcon, CopyButton } from './blockParts';
@@ -11,15 +12,14 @@ import './SelectedBlockCard.css';
 // already resolved, its check from `inspectBlocks()` and the stored hash of its
 // predecessor. Its transactions come in as children.
 //
-// block:  { index, hash, previousHash, nonce, difficulty, isNewest?, miner?,
+// block:  { index, hash, previousHash, nonce, bits, difficulty, isNewest?, miner?,
 //           seconds?, tries?, reward?, txRoot?, transactions: [{ from, to, amount, reference?, spentIn? }] }
 //         (`from: null` is the coinbase; `spentIn` is the block that spends its first output)
 // status: inspectBlocks() entry { status, storedHash?, computedHash?, linkIntact? }
 //         or just the status string; missing means 'valid'
 // edit:   tamperedEdits entry { txIndex, from, to } for this block (or a list), null when unchanged
 
-// All 64 characters, always: their length is part of what the card teaches. Where a
-// line is too short for them they break once, in the middle.
+// Prefer breaking the hash in the middle, with extra wrap points on narrow screens.
 function FullHash({ hash, struck = false }) {
   if (!hash) return <span className="card-kit-mono card-kit-t3">none</span>;
   // A struck (no longer valid) hash shows no highlighted zeros.
@@ -29,7 +29,7 @@ function FullHash({ hash, struck = false }) {
     const lead = Math.max(0, Math.min(zeros, to) - from);
     return <span>{lead > 0 && <span className="card-kit-zero">{hash.slice(from, from + lead)}</span>}{hash.slice(from + lead, to)}</span>;
   };
-  const body = <>{part(0, half)}{part(half, hash.length)}</>;
+  const body = <>{part(0, half)}<wbr />{part(half, hash.length)}</>;
   return <span className="selected-block-hash">{struck ? <s>{body}</s> : body}</span>;
 }
 
@@ -132,6 +132,7 @@ export function SelectedBlockCard({ block, status, prevHash, edit, onOpenDetails
     : (prevHash != null ? block.previousHash === prevHash : check.linkIntact !== false);
   const storedHash = check.storedHash ?? block.hash;
   const computedHash = check.computedHash ?? block.hash;
+  const currentHashMeetsTarget = kind === 'hash-mismatch' && meetsTarget(computedHash, block.bits);
   const minerName = block.miner ?? null;
   const editorOpen = editorFor === block.index;
 
@@ -149,8 +150,11 @@ export function SelectedBlockCard({ block, status, prevHash, edit, onOpenDetails
     <>
       <div className="card-kit-kv is-wrap"><dt {...term('block.hash-now')}>Hash now</dt><dd>
         <FullHash hash={computedHash} /><CopyButton key={`${block.index}:${computedHash}`} text={computedHash} {...COPY_HASH} />
-        <span className="card-kit-bad">{Math.min(zerosOf(computedHash), difficulty)}/{difficulty} zeros</span>
-        <span className="card-kit-t3">· does not start with {target}</span>
+        <span className="card-kit-t3">{Math.min(zerosOf(computedHash), difficulty)}/{difficulty} zeros</span>
+        <span className={currentHashMeetsTarget ? 'card-kit-ok' : 'card-kit-bad'}>
+          {currentHashMeetsTarget ? 'Meets mining target' : 'Misses mining target'}
+        </span>
+        {computedHash !== storedHash && <span className="card-kit-t3">Differs from the stored hash.</span>}
       </dd></div>
       <div className="card-kit-kv is-wrap"><dt {...term('block.as-mined')}>As mined</dt><dd>
         <FullHash hash={storedHash} struck />

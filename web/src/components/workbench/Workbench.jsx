@@ -176,7 +176,7 @@ export function Workbench({ session, coinName, identity, boardRows, coach, onOpe
   const block = blocks[selected];
   const selectedView = views[selected];
   const selectedBlock = block ? {
-    index: selected, hash: block.hash, previousHash: block.previousHash, txRoot: block.txRoot, anchor: selectedView?.anchor ?? null, nonce: block.nonce, difficulty: block.difficulty,
+    index: selected, hash: block.hash, previousHash: block.previousHash, txRoot: block.txRoot, anchor: selectedView?.anchor ?? null, nonce: block.nonce, bits: block.bits, difficulty: block.difficulty,
     isNewest: selected === height && selected > 0, miner: selectedView?.isGenesis ? null : selectedView?.minerName, minerKey: selectedView?.minerKey,
     seconds: selectedView?.seconds, tries: lastRound?.index === selected ? lastRound.attempts : undefined,
     reward: describeTx(block.transactions[0]).amount, signedBy: signerOf(describeTx(block.transactions[0])),
