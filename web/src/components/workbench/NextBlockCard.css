@@ -53,6 +53,8 @@
 .next-block-body { margin-top: 14px; padding-top: var(--s-3); border-top: 1px solid var(--line); min-height: 0; }
 .next-block-summary { font-size: 12px; line-height: 16px; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .next-block-summary b { color: var(--text); font-weight: 600; }
+.next-block-payment { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0 var(--s-2); margin-top: var(--s-2); overflow-wrap: anywhere; }
+.next-block-payment .card-kit-link { color: var(--blue); min-height: 32px; }
 .next-block-winner { font-weight: 600; }
 .next-block-tgt { font-family: var(--mono); color: var(--green); font-weight: 700; }
 

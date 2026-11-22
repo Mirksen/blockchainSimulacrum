@@ -203,6 +203,18 @@ export function Workbench({ session, coinName, identity, boardRows, coach, onOpe
       change: view.change, fee: view.fee, size: view.size, rate: entry?.rate ?? null, waits: template.reasons[index] ?? null };
   });
   const space = { bytes: template.bytes, capacity: template.space, included: template.included.length, total: memPool.length };
+  let payment = null;
+  if (lastRound?.manualTxid) {
+    const blockIndex = lastRound.index;
+    const included = blocks[blockIndex]?.transactions.find(tx => tx.createHash() === lastRound.manualTxid);
+    if (included) {
+      const view = describeTx(included);
+      payment = { to: view.to, blockIndex, open: () => onOpen?.({ kind: 'transaction', view, blockIndex }) };
+    } else {
+      const waiting = pending.find(row => row.id === lastRound.manualTxid);
+      if (waiting) payment = { to: waiting.to, blockIndex: null };
+    }
+  }
   const pendingFees = template.fees / 1e8;
   const confirmed = useMemo(() => {
     const recent = [];
@@ -277,7 +289,7 @@ export function Workbench({ session, coinName, identity, boardRows, coach, onOpe
         <NextBlockCard mode={mode} index={repairIndex ?? nextIndex} txCount={nextCardCount}
           reward={nextBlock.subsidy / 1e8} difficulty={difficulty} onDifficulty={actions.setDifficulty} loweringStartsNewChain={loweringStartsNewChain} autoMine={settings.autoMine} onAutoMine={actions.setAutoMine} repeating={repeating}
           onStartDemo={startDemo} onMine={actions.mine} onPause={actions.pause} onRemine={actions.remine}
-          repair={repair ? { ...repair, onUndo: actions.undo, signatureTest } : null} miners={miners} race={race} lastRound={lastRound}
+          repair={repair ? { ...repair, onUndo: actions.undo, signatureTest } : null} miners={miners} race={race} lastRound={lastRound} payment={payment}
           backedMiner={backedMiner} onBack={actions.backMiner} coach={workbenchCoach}
           onCreateMiner={actions.createMiner} onRenameMiner={actions.renameMiner} onShare={actions.setMinerShare} onOpenMiner={openMiner} perMiner={progress.perMiner} slowMotion={busy && settings.slowMotion} onSlowMotion={actions.setSlowMotion} minersFull={!canAddMiner}
           signature={<MinerName identity={identity} rows={boardRows} locked={busy} />} />
