@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { STORAGE_KEY } from '../src/lib/missions.js';
 import { START_KEY } from '../src/lib/startChoice.js';
 import { stopsFor, TOUR_KEY } from '../src/lib/tour.js';
-import { menu, progressBefore } from './workbench.helpers.mjs';
+import { menu, progressBefore, workbench } from './workbench.helpers.mjs';
 
 // The arrival tour of the workbench (src/components/workbench/WorkbenchTour.jsx): a guided
 // visitor who finished the course and both lab missions arrives at the workbench, walks the
@@ -116,12 +116,39 @@ export async function verifyTour(browser, baseURL, output) {
       assert.equal(await recap.count(), 0);
       await payment.click();
       const form = page.getByRole('form', { name: 'New transaction' });
-      await form.getByRole('combobox', { name: 'From' }).selectOption('Alice');
+      // On the phone spend the last demo distribution. Its ancestors fill block #2.
+      const pool = page.getByRole('list', { name: 'Pending transactions' });
+      const lastDistribution = pool.locator('.mempool-card-tx').filter({ hasText: 'Demo distribution' }).last();
+      const from = label === 'phone' ? (await lastDistribution.locator('b').innerText()).split(' → ')[1] : 'Alice';
+      await form.getByRole('combobox', { name: 'From' }).selectOption(from);
       await form.getByRole('combobox', { name: 'To' }).selectOption('Bob');
       await form.getByLabel(/^Amount/).fill('0.25');
       await form.getByText(/Spends .*0.25 to Bob/).waitFor();
       await form.getByRole('button', { name: 'Add to mempool' }).click();
       await page.waitForFunction(key => JSON.parse(localStorage.getItem(key)).completed.includes('send-first-coin'), STORAGE_KEY);
+      const details = page.getByRole('dialog', { name: 'Transaction details' });
+      await pool.getByRole('button', { name: `Details of ${from} to Bob, 0.25` }).click();
+      const txid = await details.getByText(/^[a-f0-9]{64}$/).first().innerText();
+      await details.getByRole('button', { name: 'Close details' }).click();
+      const wb = workbench(page);
+      await wb.mine(2).click();
+      let block = 2;
+      if (label === 'phone') {
+        const waiting = page.getByText('Your payment to Bob is still waiting in the mempool.');
+        await waiting.waitFor({ timeout: 30000 });
+        assert.equal(await page.getByRole('button', { name: 'View transaction', exact: true }).count(), 0);
+        await waiting.scrollIntoViewIfNeeded();
+        await page.screenshot({ path: join(output, 'payment-waiting-phone.png') });
+        block = 3;
+        await wb.mine(block).click();
+      }
+      const receipt = page.getByText(`Your payment to Bob is in block #${block}.`, { exact: true });
+      await receipt.waitFor({ timeout: 30000 });
+      await receipt.scrollIntoViewIfNeeded();
+      await page.screenshot({ path: join(output, `payment-in-block-${label}.png`) });
+      await page.getByRole('button', { name: 'View transaction', exact: true }).click();
+      await details.getByText(txid, { exact: true }).waitFor();
+      await details.getByText(`#${block}`, { exact: true }).waitFor();
     };
 
     // A guided visitor ("Hashes are new to me") walks all five stops in plain words.

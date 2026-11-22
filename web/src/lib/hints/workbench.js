@@ -135,6 +135,7 @@ export const WORKBENCH_HINTS = {
     parent: 'It spends an output from another pending payment, so that payment must be included first.',
     invalid: 'An edit changed an output this payment spends. Undo the edit to restore its input.'
   }[reason] }),
+  'next.payment': { title: 'View transaction', text: 'Open the payment recorded in this block to see the recipient, amount and transaction ID.' },
   'mempool.tx': { title: 'Pending payment', text: 'Click for its details: which coins it spends, the change back to the sender and the fee.' },
   'mempool.coinbase': { title: 'Coinbase → winner', text: 'When the next block is found, its coinbase pays the winning miner the new block reward plus fees from included payments.' },
 

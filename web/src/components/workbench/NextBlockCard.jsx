@@ -129,7 +129,7 @@ function zeroStatus(zeros, difficulty, isWinner) {
 
 export function NextBlockCard({
   mode = 'idle', index, txCount = 0, reward, difficulty = 2, onDifficulty, autoMine = false, onAutoMine, repeating = false,
-  onStartDemo, onMine, onPause, onRemine, repair = null, miners = [], race = null, lastRound = null,
+  onStartDemo, onMine, onPause, onRemine, repair = null, miners = [], race = null, lastRound = null, payment = null,
   backedMiner = null, onBack, coach = null, signature = null, onCreateMiner, minersFull = false, onRenameMiner, onShare, onOpenMiner, perMiner = {},
   slowMotion = false, onSlowMotion, loweringStartsNewChain = false
 }) {
@@ -216,7 +216,7 @@ export function NextBlockCard({
         : isMining
           ? <LiveRace miners={miners} race={race} index={index} difficulty={difficulty} target={target} backedMiner={backedMiner} coach={coach}
             onShare={onShare} onOpenMiner={onOpenMiner} open={liveOpen} setOpen={setLiveOpen} wall={wall} setWall={setWall} />
-          : <LastRound miners={miners} lastRound={lastRound} race={isPaused ? race : null} difficulty={difficulty}
+          : <LastRound payment={payment} miners={miners} lastRound={lastRound} race={isPaused ? race : null} difficulty={difficulty}
             backedMiner={backedMiner} onBack={onBack} coach={coach} isFresh={isFresh}
             onCreateMiner={onCreateMiner} minersFull={minersFull} onRenameMiner={onRenameMiner} onShare={onShare} onOpenMiner={onOpenMiner} perMiner={perMiner} />}
     </section>
@@ -248,7 +248,7 @@ function MinerNameField({ miner, onRename, onDone }) {
   );
 }
 
-function LastRound({ miners, lastRound, race, difficulty, backedMiner, onBack, coach, isFresh, onCreateMiner, minersFull, onRenameMiner, onShare, onOpenMiner, perMiner }) {
+function LastRound({ payment, miners, lastRound, race, difficulty, backedMiner, onBack, coach, isFresh, onCreateMiner, minersFull, onRenameMiner, onShare, onOpenMiner, perMiner }) {
   const [creating, setCreating] = useState(false);
   // The miner whose editor is open, by its position: a rename keeps the editor on it.
   const [editing, setEditing] = useState(null);
@@ -268,6 +268,10 @@ function LastRound({ miners, lastRound, race, difficulty, backedMiner, onBack, c
   return (
     <div className="next-block-body" data-round="last">
       <div className="next-block-summary">{summary}</div>
+      {payment && !race && <div className="next-block-payment" role="status">
+        <span>Your payment to {payment.to} {payment.blockIndex === null ? 'is still waiting in the mempool.' : `is in block #${payment.blockIndex}.`}</span>
+        {payment.open && <button type="button" className="card-kit-link" {...hint('next.payment')} onClick={payment.open}>View transaction</button>}
+      </div>}
       <CoachMark target="workbench.back-miner" coach={coach} className="next-block-coach-block">
         <div className={lanesClass(miners)}>
           {miners.map((miner, index) => {
