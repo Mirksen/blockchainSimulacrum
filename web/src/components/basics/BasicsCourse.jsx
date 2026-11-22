@@ -147,6 +147,8 @@ export function BasicsCourse({ progress, tone = 'plain', coach = null, onLessonE
 
       <SceneView key={`${shown}-${generation}`} id={shown} tone={tone} coach={coach} onEvent={onLessonEvent} done={done} />
 
+      {mission?.id === 'sealed-pages' && <p><a className="btn btn-transparent" href="#/page-challenge">Try a fresh chain: predict which seals need replacing</a></p>}
+
       {mission && done && <section className="basics-result" aria-labelledby={`${headingId}-result`}>
         <h3 id={`${headingId}-result`}>What you learned</h3>
         <p>{textOf(mission.result, tone)}</p>

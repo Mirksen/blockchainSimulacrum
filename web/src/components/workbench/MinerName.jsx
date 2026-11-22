@@ -26,7 +26,7 @@ function statusOf({ generated, valid, pool, entry }, rank) {
   if (entry?.state === 'accepted') {
     return { text: `Block #${entry.height} is on the leaderboard: ${zeros(entry.zeros)}${rank ? ` · rank #${rank}` : ''}.`, done: true };
   }
-  if (generated) return { text: 'Every block you mine lands on the leaderboard under this name. Make it yours.' };
+  if (generated) return { text: 'Your chain and wallets stay in this browser. Your miner name and verified work appear on the public leaderboard.' };
   return { text: `Every block you mine now carries this name${rank ? ` · rank #${rank}` : ''}.`, done: true };
 }
 

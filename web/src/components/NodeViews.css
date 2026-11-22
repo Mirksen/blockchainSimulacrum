@@ -1,0 +1,17 @@
+.node-views { min-width: 0; color: var(--text); font-size: 13px; line-height: 1.5; }
+.node-views > p { margin: 8px 0 0; color: var(--text-2); }
+.node-views-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; }
+.node-views .btn { white-space: normal; }
+.node-views .node-views-observation { margin: 16px 0; color: var(--text); font-weight: 600; }
+.node-views-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.node-views-card { min-width: 0; padding: 12px; border: 1px solid var(--line-3); border-radius: var(--r-md); background: var(--panel-2); }
+.node-views-card h3 { margin: 0; font-size: 14px; }
+.node-views-card p { margin: 6px 0 0; color: var(--text-2); }
+.node-views-card strong { color: var(--text); }
+.node-views-work { margin: 12px 0 0; }
+.node-views-work > div { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; padding: 6px 0; border-top: 1px solid var(--line-3); }
+.node-views-work dd { margin: 0; font-variant-numeric: tabular-nums; }
+.node-views :focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
+@media (max-width: 700px) {
+  .node-views-cards { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+}

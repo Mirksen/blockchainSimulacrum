@@ -103,6 +103,26 @@ export async function verifyBasics(browser, baseURL, output) {
       });
       assert.ok(fits.page <= fits.viewport && fits.course <= fits.room, `${SCENES[index].title} fits 320px: ${JSON.stringify(fits)}`);
     }
+    // A class link opens the same transfer problem independently of mission state.
+    await page.getByRole('link', { name: /Try a fresh chain/ }).click();
+    await page.waitForURL(/#\/page-challenge$/);
+    const challenge = page.getByRole('region', { name: 'Which seals need replacing?' });
+    await challenge.getByLabel('Page 2', { exact: true }).check();
+    await challenge.getByLabel('Page 3', { exact: true }).check();
+    await challenge.getByRole('textbox').fill('The third page depends on the second.');
+    await challenge.getByRole('button', { name: 'Change page 2 and check' }).click();
+    await challenge.getByText('Your prediction matches the checks.').waitFor();
+    await challenge.getByText('The original seal still fits.').waitFor();
+    await challenge.getByText(/Its own seal still fits the stored link/).waitFor();
+    await page.reload();
+    await challenge.getByText('Pack three boxes', { exact: true }).waitFor();
+    assert.equal(await challenge.getByRole('textbox').inputValue(), '');
+    await challenge.getByLabel('Page 1', { exact: true }).check();
+    await challenge.getByRole('button', { name: 'Change page 2 and check' }).click();
+    await challenge.getByText('Compare your selection with the checks above.').waitFor();
+    await challenge.getByRole('button', { name: 'Try again' }).click();
+    assert.equal(await challenge.getByLabel('Page 1', { exact: true }).isChecked(), false);
+    await challenge.getByRole('link', { name: 'Back to Basics' }).click();
     // Free play in the course leaves the missions untouched.
     assert.deepEqual(await page.evaluate(() => JSON.parse(localStorage.getItem('proofofwork-missions')).completed), []);
 

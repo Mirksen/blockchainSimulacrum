@@ -39,6 +39,7 @@ try {
     page.on('pageerror', error => errors.push(error.message));
     await page.goto(`${base}/`);
     const question = page.getByRole('region', { name: 'Where do you want to start?', exact: true });
+    const notice = page.getByRole('region', { name: 'This site counts usage', exact: true });
     await question.waitFor();
     assert.equal(await page.getByRole('main').getAttribute('aria-label'), 'Start');
     await page.getByRole('link', { name: 'Skip to content', exact: true }).focus();
@@ -47,9 +48,7 @@ try {
     for (const [label, ready] of [['Start question', question],
       ['Basics scene 1', page.locator('[data-coach-target="basics.copy-photo"].is-active')]]) {
       if (label !== 'Start question') {
-        // Answer the usage notice (audited above) so it covers no answer.
-        const notice = page.locator('.usage-consent');
-        if (await notice.count()) await notice.getByRole('button', { name: 'Opt out', exact: true }).click();
+        if (width > 600 && await notice.count()) await notice.getByRole('button', { name: 'Opt out', exact: true }).click();
         await question.getByRole('button', { name: /^I know what a hash is/ }).click();
       }
       await ready.waitFor();
@@ -60,6 +59,20 @@ try {
       }
     }
     assert.match(page.url(), /#\/basics$/);
+    if (width <= 600 && await notice.count()) {
+      const main = await page.getByRole('main').boundingBox();
+      const card = await notice.boundingBox();
+      assert.ok(card.y + card.height <= main.y, 'The mobile notice sits above the first Basics controls and hint');
+      const optOut = await notice.getByRole('button', { name: 'Opt out', exact: true }).boundingBox();
+      const ok = await notice.getByRole('button', { name: 'OK', exact: true }).boundingBox();
+      assert.equal(optOut.y, ok.y, 'Both choices are available in the same row');
+      assert.equal(optOut.width, ok.width, 'Both choices have the same width');
+      assert.ok(optOut.height === ok.height && ok.height >= 44, 'Both choices have the same touch target height');
+      assert.equal(await notice.getByRole('link', { name: 'Privacy policy', exact: true }).getAttribute('href'), '/privacy.html');
+      await page.getByRole('button', { name: 'Send photo to Bob', exact: true }).click();
+      assert.equal(await page.getByText('Bob got a copy. Alice still has hers.', { exact: true }).isVisible(), true);
+      assert.equal(await notice.isVisible(), true, 'Basics works while the notice awaits an answer');
+    }
     assert.deepEqual(errors, []);
     await context.close();
   }
@@ -85,6 +98,9 @@ try {
           return a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
         }), false, 'Usage notice must not cover the focused lab action');
       }
+      // The mobile notice scrolls with the page. Bring its choices back into
+      // view after tabbing through the lab, then check the whole row fits.
+      if (width <= 600) await page.getByRole('button', { name: 'Opt out', exact: true }).scrollIntoViewIfNeeded();
       for (const name of ['Opt out', 'OK']) {
         assert.ok(await page.getByRole('button', { name, exact: true }).evaluate(button => {
           const a = button.getBoundingClientRect(), b = button.closest('.usage-consent').getBoundingClientRect();

@@ -104,7 +104,14 @@ export async function verifyMissions(page, output) {
   await activeCoach('basics.repair').waitFor();
   await button('Repair').click();
   await status.filter({ hasText: /^Repaired: .* All seals fit\.$/ }).waitFor();
-  await page.getByLabel('Guessing', { exact: true }).selectOption({ label: '3 zeros' });
+  const guessing = page.getByLabel('Guessing', { exact: true });
+  await guessing.selectOption({ label: '3 zeros' });
+  await page1.fill('Alice pays Bob 2000');
+  await guessing.selectOption({ label: '2 zeros' });
+  await guessing.selectOption({ label: '3 zeros' });
+  await button('Repair').click();
+  await status.filter({ hasText: /^Repaired: .* All seals fit\.$/ }).waitFor();
+  assert.deepEqual(await completed(), firstIds(5), 'A guessing reset discards the page edit');
   await page1.fill('Alice pays Bob 2000');
   await button('Repair').click();
   // Shown once both repairs ran: without guessing and with 3 zeros.

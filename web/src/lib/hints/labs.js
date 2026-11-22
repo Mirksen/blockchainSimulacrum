@@ -50,6 +50,7 @@ export const LAB_HINTS = {
 
   // ---------- chain lab: tabs ----------
   'lab.chain.repair': { title: 'Repair a chain', text: 'Three linked toy blocks. Change old data, watch the checks fail, then re-mine block after block until the chain is consistent again.' },
+  'lab.chain.nodes': { title: 'Two nodes', text: 'Deliver blocks to two simulated computers. Each chooses a tip using only the blocks it has received.' },
   'lab.chain.fork': { title: 'Competing branches', text: 'Two valid histories compete for new blocks. See which one is followed: only a branch with strictly more proof of work replaces the current one. Also try rewriting history.' },
   'lab.chain.merkle': { title: 'Prove a payment', text: 'Check that one payment is inside a block with only the block header and a few hashes, the way a light wallet does, without downloading the other payments.' },
 

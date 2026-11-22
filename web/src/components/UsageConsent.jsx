@@ -22,9 +22,11 @@ export function UsageConsent({ client = telemetry }) {
             frame = requestAnimationFrame(() => {
                 const target = document.activeElement, card = notice.current;
                 if (!card || !target?.matches('button, input, textarea, select, a[href], [tabindex]:not([tabindex="-1"])') || card.contains(target)) return;
+                const style = getComputedStyle(card);
+                if (style.position !== 'fixed') return;
                 const focus = target.getBoundingClientRect(), overlay = card.getBoundingClientRect();
                 if (focus.left < overlay.right && focus.right > overlay.left && focus.top < overlay.bottom && focus.bottom > overlay.top) {
-                    const gap = parseFloat(getComputedStyle(card).left);
+                    const gap = parseFloat(style.left);
                     const overlapAt = top => Math.max(0, Math.min(focus.bottom, top + overlay.height) - Math.max(focus.top, top));
                     // Pick the clearer edge; blindly toggling can hide more of
                     // the target on a short screen or when tabbing backwards.

@@ -110,7 +110,7 @@ describe('Chain lab experiment switch', () => {
   it('offers Prove a payment as the third experiment', () => {
     render(<ChainLab onClose={() => {}} />);
     const nav = within(screen.getByRole('navigation', { name: 'Chain lab experiment' }));
-    expect(nav.getAllByRole('button').map(button => button.textContent)).toEqual(['Repair a chain', 'Competing branches', 'Prove a payment']);
+    expect(nav.getAllByRole('button').map(button => button.textContent)).toEqual(['Repair a chain', 'Competing branches', 'Prove a payment', 'Two nodes']);
     fireEvent.click(nav.getByRole('button', { name: 'Prove a payment' }));
     expect(nav.getByRole('button', { name: 'Prove a payment' }).getAttribute('aria-pressed')).toBe('true');
     expect(screen.getByRole('heading', { level: 2, name: 'Prove a payment' })).toBeTruthy();

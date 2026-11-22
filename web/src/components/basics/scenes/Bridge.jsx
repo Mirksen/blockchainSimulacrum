@@ -21,7 +21,7 @@ export function Bridge() {
         </tbody>
       </table>
       <p>You explored fingerprints (cryptography), linked blocks, and proof of work.
-        Bitcoin also relies on a network of computers that check and share the chain. This site does not simulate that network.</p>
+        Bitcoin also relies on a network of computers that check and share the chain. In Chain lab, choose Two nodes to see why their copies can briefly disagree.</p>
     </div>
   );
 }
