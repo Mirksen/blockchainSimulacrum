@@ -52,6 +52,11 @@ export function createPages(zeros) {
   return fresh.get(zeros).map(page => ({ ...page }));
 }
 
+// Both inspection and repair use the same three checks on the stored seal.
+function sealFits(page, previous, current, zeros) {
+  return page.previous === previous && page.seal === current && textTargetMet(current, zeros);
+}
+
 /**
  * Checks every page against the stored values:
  * - 'fits': its stored seal is the hash of its stored previous seal, text and number,
@@ -67,7 +72,7 @@ export function inspectPages(pages, zeros) {
   const checked = pages.map((page, index) => {
     const current = sealOf(page.previous, page.text, page.number);
     const link = index === 0 ? START_SEAL : pages[index - 1].seal;
-    const fits = current === page.seal && textTargetMet(page.seal, zeros) && page.previous === link;
+    const fits = sealFits(page, link, current, zeros);
     const status = !fits ? 'broken' : brokenBefore ? 'built-on-broken' : 'fits';
     if (!fits) brokenBefore = true;
     return { status, fits, current };
@@ -76,8 +81,8 @@ export function inspectPages(pages, zeros) {
 }
 
 /**
- * Re-seals every page in order, each on top of the new seal before it.
- * Returns { pages, hashes: number[] (per page), total }; with zeros 0 exactly one hash per page.
+ * Keeps seals that still fit, re-sealing in order against the repaired predecessor.
+ * Returns { pages, hashes: number[] (per page), total }; counts only attempts to find replacement seals, excluding validity checks.
  */
 export function repairPages(pages, zeros) {
   checkZeros(zeros);
@@ -85,6 +90,11 @@ export function repairPages(pages, zeros) {
   const hashes = [];
   for (const page of pages) {
     const previous = repaired.length ? repaired.at(-1).seal : START_SEAL;
+    if (page.seal && sealFits(page, previous, sealOf(page.previous, page.text, page.number), zeros)) {
+      repaired.push(page);
+      hashes.push(0);
+      continue;
+    }
     const result = seal(page.text, previous, page.number, zeros);
     repaired.push(result.page);
     hashes.push(result.hashes);

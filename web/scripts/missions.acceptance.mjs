@@ -98,6 +98,11 @@ export async function verifyMissions(page, output) {
   // Scene 6: a change breaks every later seal; repair is cheap without guessing and costly with it.
   await scene('Sealed pages').waitFor();
   await activeCoach('basics.page-1').waitFor();
+  const page2 = page.getByLabel('Page 2 text', { exact: true });
+  await page2.fill('A changed middle entry');
+  await button('Repair').click();
+  await status.filter({ hasText: 'Repaired: 2 hashes in total (0 + 1 + 1). All seals fit.' }).waitFor();
+  await page.getByText('Original seal kept.', { exact: true }).waitFor();
   const page1 = page.getByLabel('Page 1 text', { exact: true });
   await page1.fill('Alice pays Bob 1000');
   await status.filter({ hasText: 'Page 1 no longer fits its seal' }).waitFor();
@@ -110,7 +115,7 @@ export async function verifyMissions(page, output) {
   await guessing.selectOption({ label: '2 zeros' });
   await guessing.selectOption({ label: '3 zeros' });
   await button('Repair').click();
-  await status.filter({ hasText: /^Repaired: .* All seals fit\.$/ }).waitFor();
+  await status.filter({ hasText: /^All seals already fit. No new seals needed\.$/ }).waitFor();
   assert.deepEqual(await completed(), firstIds(5), 'A guessing reset discards the page edit');
   await page1.fill('Alice pays Bob 2000');
   await button('Repair').click();

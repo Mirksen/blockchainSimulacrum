@@ -70,8 +70,10 @@ export function SealedPagesScene({ coach, onEvent, done = false }) {
     const result = repairPages(pages, zeros);
     setPages(result.pages);
     setRepair({ zeros, hashes: result.hashes, total: result.total });
-    if (zeros === 0) setFree(result.total);
-    else setWork({ zeros, total: result.total });
+    if (result.total > 0) {
+      if (zeros === 0) setFree(result.total);
+      else setWork({ zeros, total: result.total });
+    }
     onEvent?.({ type: 'seals_repaired', zeros, hashes: result.total, valid: inspectPages(result.pages, zeros).valid,
       pageOneWasBroken: !check.pages[0].fits });
   }
@@ -81,7 +83,8 @@ export function SealedPagesScene({ coach, onEvent, done = false }) {
     setRepair(null);
   }
 
-  const status = repair ? `Repaired: ${plural(repair.total, 'hash', 'hashes')} in total (${repair.hashes.join(' + ')}). All seals fit.`
+  const status = repair?.total === 0 ? 'All seals already fit. No new seals needed.'
+    : repair ? `Repaired: ${plural(repair.total, 'hash', 'hashes')} in total (${repair.hashes.join(' + ')}). All seals fit.`
     : check.valid ? 'All three seals fit.'
     : `Page ${firstBroken + 1} no longer fits its seal, and every page after it builds on it.`;
 
@@ -125,7 +128,7 @@ export function SealedPagesScene({ coach, onEvent, done = false }) {
                     <Seal label="Seal of the edited page" termKey="basics.seal" value={current} />}
                 </dl>
                 <p className="basics-page-status">{STATUS_TEXT[pageStatus]}</p>
-                {repair && <p className="basics-quiet">Re-sealed in {plural(repair.hashes[index], 'hash', 'hashes')}.</p>}
+                {repair && <p className="basics-quiet">{repair.hashes[index] === 0 ? 'Original seal kept.' : `Re-sealed in ${plural(repair.hashes[index], 'hash', 'hashes')}.`}</p>}
               </div>
             </li>
           );

@@ -65,6 +65,18 @@ describe('sealedPages', () => {
     }
   });
 
+  it.each([0, 2, 3])('keeps intact seals and counts only new search attempts at %i zeros', zeros => {
+    const pages = createPages(zeros);
+    for (const index of [0, 1, 2]) {
+      const edited = editText(pages, index, 'Changed entry');
+      const result = repairPages(edited, zeros);
+      expect(result.pages.slice(0, index)).toEqual(pages.slice(0, index));
+      expect(result.hashes).toEqual(result.pages.map((page, at) => at < index ? 0 : zeros ? page.number + 1 : 1));
+      expect(inspectPages(result.pages, zeros).valid).toBe(true);
+      expect(repairPages(result.pages, zeros)).toEqual({ pages: result.pages, hashes: [0, 0, 0], total: 0 });
+    }
+  });
+
   it('checks the guessing rule and rejects unknown settings', () => {
     const free = createPages(0);
     expect(inspectPages(free, 0).valid).toBe(true);
