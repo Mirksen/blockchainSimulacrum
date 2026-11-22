@@ -45,7 +45,7 @@ export const BASICS_HINTS = {
   'basics.seal.number': { title: 'Lucky number', text: 'A number hashed with the page. With Guessing off, any number works. Otherwise, Repair tries 0, 1, 2… until the seal has the required leading zeros.' },
   'basics.seal.text': number => ({ title: `Page ${number} text`, text: `What page ${number} records. Editing leaves the stored seal unchanged. Choose Repair to calculate a new seal.` }),
   'basics.seal.guessing': { title: 'Guessing', text: 'The number of leading zeros required in each seal. Off accepts any hash. Each extra zero makes a match 16 times less likely. Changing this setting creates a fresh, valid notebook.' },
-  'basics.seal.repair': { title: 'Repair', text: 'Calculate new seals for every page in order, each using the previous page’s new seal. The result shows how many hashes this takes.' }
+  'basics.seal.repair': { title: 'Repair', text: 'Keep the seals that still fit. Starting at the changed page, find each new seal in order. The count shows the tries spent finding replacement seals.' }
 };
 
 export const { hint, term } = createHints(BASICS_HINTS);

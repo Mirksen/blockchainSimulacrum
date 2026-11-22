@@ -156,7 +156,7 @@ Terms used in code, tests and docs of proofofwork.fyi. Decisions that shape them
   so two hashes look different at a glance. A picture of the hash, never a second identifier.
 - **Sealed pages** — `web/src/lib/sealedPages.js`: the course's three-page chain. A seal is the
   SHA-256 of the previous seal, the page text and a number; **Guessing** is the number of leading
-  zeros a seal must have (off, 2 or 3). Repairing without guessing takes one hash per page.
+  zeros a seal must have (off, 2 or 3). Repair keeps seals that still fit their text and predecessor. With guessing off, each replacement takes one hash. The displayed cost counts attempts to find replacement seals.
 - **Text hashing** — the first Hash lab experiment hashes exactly the visible UTF-8 text once with SHA-256. A manual edit finding a leading zero earns a first proof and says on which try it came. Automatic tries reuse the text search, with a visible space and number appended. It is free play and separate from Bitcoin block-header hashing; its guided form is the Basics scene "Guess a fingerprint".
 
 - **Mission evidence** — `web/src/lib/missions.js` advances only the active step. Workbench
