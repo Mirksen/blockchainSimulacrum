@@ -1,5 +1,5 @@
-/* Non-modal: it neither blocks the simulator nor moves the layout. Above the
-   page and its toasts (z 40), below menus (60) and dialogs (1000). */
+/* On wide screens, float above the page and its toasts (z 40), below menus (60)
+   and dialogs (1000). On narrow screens, leave the full page width usable. */
 .usage-consent {
   --usage-gap: var(--s-4);
   position: fixed; left: var(--usage-gap); bottom: var(--usage-gap); z-index: 50;
@@ -16,9 +16,15 @@
 .usage-consent .usage-consent-later { color: var(--text-3); font-size: 12px; }
 .usage-consent-actions { display: flex; gap: var(--s-2); }
 .usage-consent-actions .card-kit-btn, .usage-consent-actions .btn-primary { flex: 1; justify-content: center; }
-@media (max-width: 600px) {
-  .usage-consent { --usage-gap: var(--s-2); right: var(--usage-gap); width: auto; }
-}
 .usage-consent a { color: var(--blue); }
 /* Move the notice, not keyboard focus or page content, when they overlap. */
 .usage-consent.is-top { top: calc(52px + var(--usage-gap)); bottom: auto; }
+@media (max-width: 600px) {
+  .usage-consent {
+    position: static; z-index: auto; flex: none; width: auto; max-height: none;
+    margin: var(--s-2) var(--page-x); box-shadow: none;
+  }
+  .usage-consent-copy { overflow: visible; }
+  .usage-consent-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .usage-consent-actions .card-kit-btn, .usage-consent-actions .btn-primary { height: 44px; }
+}

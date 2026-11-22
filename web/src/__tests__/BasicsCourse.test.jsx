@@ -102,7 +102,7 @@ describe('BasicsCourse host', () => {
     const rows = screen.getAllByRole('row').slice(1).map(row => [...row.querySelectorAll('td')].map(cell => cell.textContent));
     expect(rows).toEqual([['Page', 'Block'], ['Seal', 'Hash'], ['Lucky number', 'Nonce'], ['Notebook', 'Blockchain'],
       ['The draw', 'Mining'], ['Postage', 'Proof of work'], ['Guessing: 3 zeros', 'Difficulty'], ['Writer', 'Miner']]);
-    expect(screen.getByText(/You explored fingerprints \(cryptography\), linked blocks, and proof of work\. Bitcoin also relies on a network of computers that check and share the chain\. This site does not simulate that network\./)).toBeTruthy();
+    expect(screen.getByText(/You explored fingerprints \(cryptography\), linked blocks, and proof of work\. Bitcoin also relies on a network of computers that check and share the chain\. In Chain lab, choose Two nodes to see why their copies can briefly disagree\./)).toBeTruthy();
     expect(onContinue).not.toHaveBeenCalled();
     click('Continue');
     expect(onContinue).toHaveBeenCalledTimes(1);
@@ -311,18 +311,23 @@ describe('Basics scenes complete their missions', () => {
     // Page 2 still stores page 1's stored seal; it is page 1's text that no longer fits.
     expect(ties()).toEqual(['Matches the seal of page 1', 'Matches the seal of page 2']);
     expect(screen.getAllByText('Broken: built on a broken page')).toHaveLength(2);
-    expect(events.at(-1)).toEqual({ type: 'seals_checked', valid: false, edited: true });
+    expect(events.at(-1)).toEqual({
+      type: 'seals_checked', valid: false, edited: true, page: 1, zeros: 0, pageOneBroken: true
+    });
     click('Repair');
-    expect(events.at(-1)).toEqual({ type: 'seals_repaired', zeros: 0, hashes: 3, valid: true });
+    expect(events.at(-1)).toEqual({
+      type: 'seals_repaired', zeros: 0, hashes: 3, valid: true, pageOneWasBroken: true
+    });
     expect(screen.getAllByText('Seal fits')).toHaveLength(3);
     expect(screen.getByText('Repaired: 3 hashes in total (1 + 1 + 1). All seals fit.')).toBeTruthy();
     fireEvent.change(screen.getByLabelText('Guessing'), { target: { value: '3' } });
     expect(screen.getAllByText('Seal fits')).toHaveLength(3);
     expect(screen.getByLabelText('Page 1 text').value).toBe(ORIGINAL);
     fireEvent.change(screen.getByLabelText('Page 1 text'), { target: { value: 'Alice pays Bob 100' } });
+    expect(events.at(-1)).toMatchObject({ type: 'seals_checked', page: 1, zeros: 3, pageOneBroken: true });
     click('Repair');
     const repaired = events.at(-1);
-    expect(repaired).toMatchObject({ type: 'seals_repaired', zeros: 3, valid: true });
+    expect(repaired).toMatchObject({ type: 'seals_repaired', zeros: 3, valid: true, pageOneWasBroken: true });
     expect(repaired.hashes).toBeGreaterThan(3);
     expect(screen.getByText(`Chain alone: repaired in 3 hashes. With work: ${repaired.hashes.toLocaleString('en-US')} tries.`)).toBeTruthy();
     const seals = [...document.querySelectorAll('.basics-seal')].filter(row => row.querySelector('dt').textContent === 'Seal');

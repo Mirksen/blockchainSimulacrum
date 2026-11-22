@@ -34,18 +34,20 @@ const ChainLab = lazy(() => import('./components/ChainLab').then(module => ({ de
 const PoolPanel = lazy(() => import('./components/PoolPanel').then(module => ({ default: module.PoolPanel })));
 const BasicsCourse = lazy(() => import('./components/basics/BasicsCourse').then(module => ({ default: module.BasicsCourse })));
 
+const PageChallenge = lazy(() => import('./components/basics/PageChallenge').then(module => ({ default: module.PageChallenge })));
+
 const INITIAL_CONFIG = {
   name: 'powfyicoin', miningDifficulty: 4, blockReward: 3.125, halvingEvent: 21,
   participants: ['Alice', 'Bob', 'Chris', 'Hal', 'Dorian', 'Laszlo'], miners: ['Hal', 'Dorian', 'Laszlo']
 };
-const VIEWS = { '': 'workbench', start: 'start', basics: 'basics', 'hash-lab': 'hash-lab', 'chain-lab': 'chain-lab', pool: 'pool' };
+const VIEWS = { '': 'workbench', start: 'start', basics: 'basics', 'page-challenge': 'page-challenge', 'hash-lab': 'hash-lab', 'chain-lab': 'chain-lab', pool: 'pool' };
 const RAIL_KEY = 'proofofwork-rail-collapsed';
 // Set by the first-visit invitation before the start question replaced it; read only to
 // keep earlier visitors away from the start question.
 const INTRO_KEY = 'proofofwork-missions-intro-seen';
-const VIEW_LABELS = { start: 'Start', basics: 'Basics', workbench: 'Workbench', 'hash-lab': 'Hash lab', 'chain-lab': 'Chain lab', pool: 'Leaderboard' };
+const VIEW_LABELS = { start: 'Start', basics: 'Basics', 'page-challenge': 'Page challenge', workbench: 'Workbench', 'hash-lab': 'Hash lab', 'chain-lab': 'Chain lab', pool: 'Leaderboard' };
 // Views without the leaderboard ticker: the start question and the beginner course.
-const QUIET_VIEWS = ['start', 'basics'];
+const QUIET_VIEWS = ['start', 'basics', 'page-challenge'];
 
 const pathOfHash = () => (globalThis.location?.hash ?? '').replace(/^#\/?/, '');
 // `#/pool/<name>` is the Leaderboard tab showing that miner's profile.
@@ -361,6 +363,7 @@ function App() {
             <BasicsCourse progress={progress} tone={startChoice.courseToneOf(choice)} coach={coach} onLessonEvent={railCollapsed ? undefined : report}
               onContinue={continueFromBasics} onClose={() => navigate('workbench')} />
           </div>}
+          {view === 'page-challenge' && <div className="wb-view"><PageChallenge /></div>}
           {view === 'hash-lab' && <div className="wb-view">
             <HashLab key={hashLesson ?? 'free'} lesson={hashLesson} onLessonEvent={hashLesson ? report : undefined}
               coach={hashLesson ? coach : null} onClose={() => navigate('workbench')}

@@ -235,18 +235,17 @@ decision, 2026-10-27):
   block time) move into a "Settings" dialog in the overflow menu; difficulty
   also stays in the Next block card.
 - **Usage sharing** is on by default and can be turned off (Mirko, 2026-11-03:
-  opt-out, not opt-in). A first visit shows a small notice at the bottom left, full
-  width on phones: "This site counts usage", what is and is not sent, a link to the
+  opt-out, not opt-in). A first visit shows a small notice at the bottom left on desktop and in the page flow on narrow screens: "This site counts usage", what is and is not sent, a link to the
   privacy policy (`/privacy.html`), a filled "OK" and a plain "Opt out" beside it
   (Mirko, 2026-11-04: OK is the suggested answer, opting out stays one click and
-  needs no extra menu). Both answers are saved and the notice does not return. It is not a modal and moves no
-  layout. If it covers an outside keyboard target, it switches to the opposite
+  needs no extra menu). Both answers are saved and the notice does not return. It is nonmodal. On desktop, if it covers an outside keyboard target, it switches to the opposite
   vertical edge, below the header; focus and page position stay put. Its height is
   bounded with internally scrolling copy on short viewports; both answers stay
   visible. Without a token or with a browser privacy signal (GPC, Do Not Track)
   nothing is shared and no notice appears. The overflow menu keeps the same switch
   for later changes. A pre-ticked consent would not be consent; the policy names
   legitimate interest and the right to object instead.
+- **Classroom exercise:** Sealed pages links to `#/page-challenge`, a fixed three-page notebook. Predictions and optional reasons live only in component state. Learners see the model explanation after applying the edit. In Chain lab, **Two nodes** steps through opposite arrival orders, equal work and eventual agreement. Both experiments run independently of the workbench.
 - **Saved chain:** the simulator chain is kept in this browser and restored on
   reload. The overflow menu says so in a quiet line under the coin, "Chain saved
   in this browser · Reset starts over" (or that it is too long to save, or that

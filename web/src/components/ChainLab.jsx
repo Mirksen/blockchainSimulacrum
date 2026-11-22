@@ -3,14 +3,16 @@ import { inspectChain, remineBlock, sampleChain } from '../lib/chainLab';
 import { SEARCH_LIMIT } from '../lib/hashLab';
 import { CoachMark } from './workbench/CoachMark';
 import { ForkExperiment } from './ForkExperiment';
+import { NodeViews } from './NodeViews';
 import { HeaderBytes } from './HeaderBytes';
 import { MerkleProof } from './MerkleProof';
 import { hint, term } from '../lib/hints/labs';
 import { experimentOf } from '../lib/missions';
 import './ChainLab.css';
 
-const TITLES = { repair: 'Change the past. Follow the links.', fork: 'Competing branches', merkle: 'Prove a payment' };
+const TITLES = { repair: 'Change the past. Follow the links.', fork: 'Competing branches', nodes: 'Two nodes', merkle: 'Prove a payment' };
 const INTROS = {
+  nodes: 'Deliver the same valid blocks in a different order and compare the two local histories.',
   repair: 'Each block stores the previous block’s hash. Change a block, re-mine it, then follow the broken links.',
   fork: 'Explore which valid history this local network model follows, and why.',
   merkle: 'Use a block header and a few sibling hashes to check that a payment is in the block.'
@@ -92,8 +94,10 @@ export function ChainLab({ onClose, embedded = false, onLessonEvent, coach = nul
         onClick={() => switchExperiment('fork')}>Competing branches</button>
       <button type="button" className="btn btn-default" aria-pressed={shownExperiment === 'merkle'} {...hint('lab.chain.merkle')}
         onClick={() => switchExperiment('merkle')}>Prove a payment</button>
+      <button type="button" className="btn btn-default" aria-pressed={shownExperiment === 'nodes'} {...hint('lab.chain.nodes')}
+        onClick={() => switchExperiment('nodes')}>Two nodes</button>
     </nav>
-    {shownExperiment === 'fork' ? <ForkExperiment onLessonEvent={onLessonEvent} coach={coach} />
+    {shownExperiment === 'nodes' ? <NodeViews /> : shownExperiment === 'fork' ? <ForkExperiment onLessonEvent={onLessonEvent} coach={coach} />
       : shownExperiment === 'merkle' ? <MerkleProof key={proofSource ? `${proofSource.hash}:${proofSource.initialIndex}:${proofSource.txids.join(':')}` : 'example'}
         source={proofSource} onUseExample={onUseExample} onBack={onClose}
         onLessonEvent={!proofSource && coach?.target?.startsWith('chain-lab.merkle-') ? onLessonEvent : undefined} coach={proofSource ? null : coach} /> : <>

@@ -17,8 +17,12 @@ const COMPLETE = {
     { type: 'fingerprints_compared', changed: 33, right: hex('d') }],
   'why-guess': [{ type: 'draw_finished', winner: 'Writer A', rolls: 12 }, { type: 'draw_finished', winner: 'Writer B', rolls: 3 },
     { type: 'draw_finished', winner: 'Writer A', rolls: 40 }],
-  'sealed-pages': [{ type: 'seals_checked', valid: false, edited: true },
-    { type: 'seals_repaired', zeros: 0, hashes: 3, valid: true }, { type: 'seals_repaired', zeros: 3, hashes: 4096, valid: true }],
+  'sealed-pages': [
+    { type: 'seals_checked', valid: false, edited: true, page: 1, zeros: 0, pageOneBroken: true },
+    { type: 'seals_repaired', zeros: 0, hashes: 3, valid: true, pageOneWasBroken: true },
+    { type: 'seals_checked', valid: false, edited: true, page: 1, zeros: 3, pageOneBroken: true },
+    { type: 'seals_repaired', zeros: 3, hashes: 4096, valid: true, pageOneWasBroken: true }
+  ],
   'get-payment-in': [
     { type: 'fee_market_checked', chainValid: true, waiting: [{ txid: 'a'.repeat(64), reason: 'full', rate: 1 }] },
     { type: 'fee_market_checked', chainValid: true, packages: [{ parent: 'a'.repeat(64), child: 'b'.repeat(64), higherFee: true, selected: true }] },
@@ -489,23 +493,36 @@ describe('Basics missions', () => {
     expect(missionStatus(reduce(two, COMPLETE['why-guess'][2]), 'why-guess')).toBe('done');
   });
 
-  it('breaks the seals, repairs them for free and then with work', () => {
+  it('requires a broken first seal for the off repair and a new edit at three zeros before completion', () => {
+    const [editOff, repairOff, editWork, repairWork] = COMPLETE['sealed-pages'];
     const start = reach('sealed-pages');
     expect(activeStep(start).target).toBe('basics.page-1');
-    expect(apply(start, [{ type: 'seals_checked', valid: false, edited: false }, { type: 'seals_checked', valid: true, edited: true },
-      { type: 'seals_checked', valid: 'no', edited: true }, COMPLETE['sealed-pages'][1], COMPLETE['sealed-pages'][2]])).toBe(start);
-    const broken = reduce(start, COMPLETE['sealed-pages'][0]);
+    expect(apply(start, [
+      editWork, { ...editOff, zeros: 2 }, { ...editOff, edited: false }, { ...editOff, page: 2 }, { ...editOff, pageOneBroken: false },
+      { ...editOff, valid: true }, { ...editOff, valid: 'no' }, repairOff, repairWork
+    ])).toBe(start);
+    const broken = reduce(start, editOff);
     expect(activeStep(broken)).toMatchObject({ step: { id: 'repair-free' }, target: 'basics.repair' });
-    expect(apply(broken, [{ type: 'seals_repaired', zeros: 2, hashes: 300, valid: true },
-      { type: 'seals_repaired', zeros: 0, hashes: 3, valid: false }, { type: 'seals_repaired', zeros: 0, hashes: 0, valid: true },
-      COMPLETE['sealed-pages'][0]])).toBe(broken);
-    const free = reduce(broken, COMPLETE['sealed-pages'][1]);
+    expect(apply(broken, [
+      editWork, repairWork, { ...repairOff, valid: false }, { ...repairOff, hashes: 0 },
+      { ...repairOff, pageOneWasBroken: false }, editOff
+    ])).toBe(broken);
+    const free = reduce(broken, repairOff);
     expect(activeStep(free).step.id).toBe('repair-work');
-    expect(apply(free, [{ type: 'seals_repaired', zeros: 0, hashes: 3, valid: true },
-      { type: 'seals_repaired', zeros: 1, hashes: 50, valid: true }, { type: 'seals_repaired', zeros: 2, hashes: 3, valid: true },
-      { type: 'seals_repaired', zeros: 4, hashes: 90000, valid: true }, { type: 'seals_repaired', zeros: 3, hashes: 4096, valid: false }]))
-      .toBe(free);
-    const done = reduce(free, { type: 'seals_repaired', zeros: 2, hashes: 4, valid: true });
+    expect(apply(free, [
+      repairWork, { ...editWork, page: 2, pageOneBroken: false }, repairWork,
+      { ...editWork, zeros: 2 }, repairWork, editOff, repairWork
+    ])).toBe(free);
+    const edited = reduce(free, editWork);
+    expect(edited.step).toBe(free.step);
+    expect(apply(edited, [
+      { ...repairWork, valid: false }, { ...repairWork, hashes: 0 },
+      { ...repairWork, zeros: 1 }, { ...repairWork, zeros: 4 }
+    ])).toBe(edited);
+    expect(apply(edited, [{ ...repairWork, pageOneWasBroken: false }, repairWork])).toEqual(free);
+    expect(apply(edited, [{ ...repairWork, zeros: 2 }, repairWork])).toEqual(free);
+    expect(apply(edited, [{ ...editWork, pageOneBroken: false }, repairWork])).toEqual(free);
+    const done = reduce(edited, repairWork);
     expect(missionStatus(done, 'sealed-pages')).toBe('done');
     expect(earnedBadges(done)).toEqual(['Basics']);
     expect(totalXp(done)).toBe(100);

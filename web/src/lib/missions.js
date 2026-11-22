@@ -12,8 +12,8 @@
 // Events (all plain objects with a `type`):
 //   Basics:    copy_tried {kind: 'photo'|'double-spend'|'rejected'}, fingerprint_made {hash},
 //              fingerprints_compared {changed, right}, manual_hash_found {hash},
-//              draw_finished {winner, rolls}, seals_checked {valid, edited},
-//              seals_repaired {zeros, hashes, valid}, lesson_reset
+//              draw_finished {winner, rolls}, seals_checked {valid, edited, page, zeros, pageOneBroken},
+//              seals_repaired {zeros, hashes, valid, pageOneWasBroken}, lesson_reset
 //   Labs:      work_found {difficulty, attempts}, chain_checked {consistent, changedFirstBlock},
 //              fork_round {scenario, rounds, originalWork, alternativeWork, selected, reorganized},
 //              fork_reset, merkle_checked {root, txid, valid, malformed, editedSibling, failedAt},
@@ -121,8 +121,8 @@ export const MISSIONS = freeze([
   {
     id: 'sealed-pages', title: 'Sealed pages', chapter: 'basics', view: 'basics',
     steps: [
-      { id: 'break-seal', text: 'Change the text on page 1. Watch the seals break.', target: 'basics.page-1' },
-      { id: 'repair-free', text: 'Set Guessing to off and repair. Count the hashes.', target: 'basics.repair' },
+      { id: 'break-seal', text: 'With Guessing off, change the text on page 1. Watch the seals break.', target: 'basics.page-1' },
+      { id: 'repair-free', text: 'Repair with Guessing still off. Count the hashes.', target: 'basics.repair' },
       { id: 'repair-work', text: 'Set Guessing to 3 zeros, change page 1, then choose Repair.', target: 'basics.repair' }
     ],
     hint: 'Every seal includes the seal of the page before it, so a change travels forward.',
@@ -396,14 +396,23 @@ const RULES = {
   },
   'sealed-pages': {
     advance(step, data, event) {
+      if (![0, 2, 3].includes(event.zeros)) return null;
       if (event.type === 'seals_checked') {
-        if (typeof event.valid !== 'boolean' || typeof event.edited !== 'boolean') return null;
-        return step === 0 && event.edited && !event.valid ? { step: 1, data } : null;
+        if (event.edited !== true || event.page !== 1 || typeof event.valid !== 'boolean' ||
+          typeof event.pageOneBroken !== 'boolean' || (event.valid && event.pageOneBroken)) return null;
+        if (step === 0 && event.zeros === 0 && event.pageOneBroken) return { step: 1, data };
+        if (step !== 2) return null;
+        const editedAtThreeZeros = event.zeros === 3 && event.pageOneBroken;
+        if (Boolean(data.editedAtThreeZeros) === editedAtThreeZeros) return null;
+        return { step, data: editedAtThreeZeros ? { editedAtThreeZeros: true } : {} };
       }
-      if (event.type !== 'seals_repaired' || !Number.isInteger(event.zeros) || event.zeros < 0 || event.zeros > 3 ||
-        !isCount(event.hashes) || event.valid !== true) return null;
-      if (step === 1 && event.zeros === 0) return { step: 2, data };
-      if (step === 2 && event.zeros >= 2 && event.hashes > 3) return { step: 3, data };
+      if (event.type !== 'seals_repaired' || !isCount(event.hashes) || event.valid !== true ||
+        typeof event.pageOneWasBroken !== 'boolean') return null;
+      if (step === 1 && event.zeros === 0 && event.pageOneWasBroken) return { step: 2, data: {} };
+      if (step === 2 && data.editedAtThreeZeros) {
+        if (event.zeros === 3 && event.pageOneWasBroken) return { step: 3, data };
+        return { step, data: {} };
+      }
       return null;
     }
   },

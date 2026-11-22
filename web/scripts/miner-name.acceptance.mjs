@@ -59,7 +59,7 @@ export async function verifyMinerName(browser, baseURL, output) {
     const generated = await input.inputValue();
     assert.ok(isGeneratedName(generated), generated);
     assert.equal(await page.getByLabel('Enter your name', { exact: true }).inputValue(), generated, 'The strip invites a name while the generated one is shown');
-    await status.filter({ hasText: 'Every block you mine lands on the leaderboard under this name.' }).waitFor();
+    await status.filter({ hasText: 'Your miner name and verified work appear on the public leaderboard.' }).waitFor();
     assert.equal(await page.locator('.miner-name.is-generated').count(), 1, 'The field glows until the name is chosen');
     await page.getByTestId('leaderboard-ticker').filter({ hasText: 'No blocks yet.' }).waitFor();
     await page.screenshot({ path: join(output, 'miner-name-generated.png') });
