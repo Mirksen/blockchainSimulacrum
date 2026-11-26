@@ -58,23 +58,6 @@ const LEDES = {
 
 const STATUS_WORD = { done: 'done', skipped: 'skipped', active: 'now', locked: 'later' };
 
-// The status as a small icon on the numbered circle, shown only in the compact stepper
-// below 768 px (Basics.css). The button's accessible name states the status in words.
-const STATUS_ICON = {
-  done: <path d="M3.5 8.3l3 3 6-6.6" />,
-  skipped: <path d="M4 8h8" />,
-  now: <circle cx="8" cy="8" r="4" />
-};
-
-function StepIcon({ word }) {
-  if (!STATUS_ICON[word]) return null;
-  return (
-    <svg className="basics-step-icon" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false">
-      {STATUS_ICON[word]}
-    </svg>
-  );
-}
-
 function firstShown(progress) {
   const active = activeMission(progress);
   return active?.view === 'basics' ? active.id : SCENES[0].id;
@@ -83,6 +66,9 @@ function firstShown(progress) {
 export function BasicsCourse({ progress, tone = 'plain', coach = null, onLessonEvent, onContinue, onClose }) {
   const current = progress ?? initialProgress();
   const headingId = useId();
+  const outlineId = useId();
+  const outlineButton = useRef(null);
+  const [outlineOpen, setOutlineOpen] = useState(false);
   const [shown, setShown] = useState(() => firstShown(current));
   const [generation, setGeneration] = useState(0);
   const heading = useRef(null);
@@ -95,9 +81,18 @@ export function BasicsCourse({ progress, tone = 'plain', coach = null, onLessonE
   }, [shown]);
 
   function open(id) {
+    setOutlineOpen(false);
+    if (id === shown) heading.current?.focus();
     navigated.current = true;
     setShown(id);
   }
+  function dismissOutline(event) {
+    if (event.key === 'Escape' && outlineOpen && outlineButton.current?.offsetWidth) {
+      setOutlineOpen(false);
+      outlineButton.current.focus();
+    }
+  }
+
   function next() {
     const scene = SCENES.slice(index + 1).find(candidate => missionStatus(current, candidate.id) !== 'skipped');
     open(scene?.id ?? BRIDGE);
@@ -113,8 +108,13 @@ export function BasicsCourse({ progress, tone = 'plain', coach = null, onLessonE
 
   return (
     <section className="basics" aria-labelledby={headingId}>
-      <nav className="basics-stepper" aria-label="Basics scenes">
-        <ol>
+      <nav className="basics-stepper" aria-label="Basics scenes" onKeyDown={dismissOutline}>
+        <button type="button" ref={outlineButton} className="basics-outline-toggle"
+          aria-expanded={outlineOpen} aria-controls={outlineId} {...hint('basics.outline')}
+          onClick={() => setOutlineOpen(value => !value)}>
+          Course outline <span aria-hidden="true">{outlineOpen ? '−' : '+'}</span>
+        </button>
+        <ol id={outlineId}>
           {SCENES.map((scene, at) => {
             const word = STATUS_WORD[missionStatus(current, scene.id)];
             return (
@@ -122,7 +122,7 @@ export function BasicsCourse({ progress, tone = 'plain', coach = null, onLessonE
                 <button type="button" className={`basics-step is-${word}`} aria-current={scene.id === shown ? 'step' : undefined}
                   aria-label={`Scene ${at + 1}: ${textOf(scene.title, tone)}, ${word}`}
                   {...hint('basics.scene', at + 1, textOf(scene.title, tone), word)} onClick={() => open(scene.id)}>
-                  <span className="basics-step-number" aria-hidden="true">{at + 1}<StepIcon word={word} /></span>
+                  <span className="basics-step-number" aria-hidden="true">{at + 1}</span>
                   <span className="basics-visually-hidden">Scene {at + 1}: </span>
                   <span className="basics-step-title">{textOf(scene.title, tone)}</span>
                   <span className="basics-step-status">{word}</span>

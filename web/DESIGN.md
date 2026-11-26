@@ -536,6 +536,10 @@ action.
 - **Honest about the model, here too.** The copy scene is a picture of the
   idea, not a ledger; the last screen names the pillar this site does not
   simulate: the network.
+- Below 768 px, Course outline starts collapsed. It shows the same six titles
+  and status words as the desktop navigation. Selecting a scene closes the list
+  and focuses its heading. Escape closes the list and returns focus to the toggle
+  (`BasicsCourse.jsx`, `Basics.css`, checked in `scripts/basics.acceptance.mjs`).
 - Every scene can be opened at any time and reset on its own. Continue
   passes over skipped scenes. Only the active mission earns progress.
 - The course itself speaks plainly to everyone except a visitor who said
