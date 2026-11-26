@@ -37,7 +37,7 @@ function Dialog({ onClose, coinName, onCoinName, difficulty, onDifficulty, halvi
             <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M3.5 3.5l7 7M10.5 3.5l-7 7" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg>
           </button>
         </div>
-        <p className="settings-dialog-intro">Experiment settings: how the simulation names its coin and mines new blocks.</p>
+        <p className="settings-dialog-intro">Choose a coin name and the rules for mining new blocks.</p>
 
         <div className="settings-dialog-fields">
           <label className="settings-dialog-field">
@@ -81,8 +81,8 @@ function Dialog({ onClose, coinName, onCoinName, difficulty, onDifficulty, halvi
           Enable M to mine or re-mine a block
         </label>
         <p className="settings-dialog-intro">Turn this off if single-letter shortcuts interfere with speech input or assistive technology.</p>
-        {busy && <p className="settings-dialog-busy" id={busyId} role="status">Mining is running. Difficulty, halving interval and target block time unlock when it stops.</p>}
-        <p className="settings-dialog-help" id={helpId}>Each extra leading zero takes about 16× more attempts on average. High settings may take longer than you can wait; Pause stops mining. Lowering the difficulty by hand starts a new chain, so a longer chain always took more work. Difficulty adapts every 10 mined blocks. Halving reduces the reward for future blocks; it does not rewrite earlier rewards.</p>
+        {busy && <p className="settings-dialog-busy" id={busyId} role="status">Mining is running. You can change difficulty, halving interval and target block time when it stops.</p>}
+        <p className="settings-dialog-help" id={helpId}>Each extra leading zero takes about 16× more attempts on average. High settings can take a long time. Select Pause to stop mining. Lowering the difficulty by hand starts a new chain, so a longer chain always took more work. Difficulty adapts every 10 mined blocks. Halving reduces the reward for future blocks; it does not rewrite earlier rewards.</p>
 
         <div className="settings-dialog-foot">
           <button type="button" className="settings-dialog-done" onClick={() => onClose?.()}>Done</button>

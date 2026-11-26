@@ -8,7 +8,7 @@ const OUTPUT_KIND_TEXT = {
   payment: { title: 'Payment', text: 'The coins the recipient gets. They stay locked to the recipient’s address until a later payment of theirs spends them.' },
   change: { title: 'Change', text: 'Inputs are always spent whole. What the payment does not use comes back to the sender as a new coin, like change for a banknote.' },
   memo: { title: 'Memo', text: 'The payment’s reference text, stored in an OP_RETURN output. It holds no coins, can never be spent, and anyone can read it.' },
-  reward: { title: 'Reward', text: 'The miner’s pay for finding the block: the block reward (new coins) plus the fees of all payments in the block.' },
+  reward: { title: 'Reward', text: 'The miner’s pay for finding the block: the block subsidy (new coins) plus transaction fees.' },
   commitment: { title: 'Leaderboard', text: 'A 0-coin output holding a fingerprint of the genesis, the round (a recent Bitcoin block) and the miner’s name. It ties this block’s work to that name on the leaderboard. It can never be spent.' }
 };
 
@@ -26,29 +26,29 @@ export const DETAILS_HINTS = {
   // ---------- details dialogs ----------
   'details.close': { title: 'Close', text: 'Close this window. Nothing changes.' },
   'details.validity': invalid => (invalid
-    ? { title: 'Invalid block', text: 'Something changed after mining: its contents no longer produce its stored hash, or it no longer stores the current hash of the block before it. See the tamper analysis below.' }
-    : { title: 'Valid block', text: 'Its contents still produce the hash it was mined with, and it stores the correct hash of the block before it.' }),
-  'details.block-hash': { title: 'Block hash', text: 'The block’s fingerprint: the double SHA-256 of its 80-byte header below. Change anything in the block and it changes completely. The highlighted leading zeros are the proof of work.' },
+    ? { title: 'Hash or link mismatch', text: 'The current contents produce a different hash, or the previous-block link no longer matches. See the details below.' }
+    : { title: 'Hash and link match', text: 'The contents match the stored hash, and the previous-block link matches. These checks alone do not validate transactions or the whole chain.' }),
+  'details.block-hash': { title: 'Block hash', text: 'The block’s fingerprint: double SHA-256 of its 80-byte header, displayed byte-reversed. A valid proof of work must meet the target; the highlighted zeros help you spot it.' },
   'details.previous-hash': isGenesis => (isGenesis
     ? { title: 'Previous hash', text: 'The genesis block has no block before it. It stores the hash of a real Bitcoin block instead, which proves this chain was started after that block existed.' }
     : { title: 'Previous hash', text: 'The hash of the block before this one. Storing it chains the blocks together: change an earlier block and this link no longer fits.' }),
   'details.merkle-root': { title: 'Merkle root', text: 'One hash that sums up all transactions in the block, built by hashing their IDs in pairs (a Merkle tree). It is part of the header, so changing any transaction changes the block’s hash.' },
-  'details.nonce': { title: 'Nonce', text: '“Number used once”. The miner tried nonce after nonce until the block’s hash started with enough zeros. Finding it is the work; checking it takes one hash.' },
-  'details.tx-count': { title: 'Transactions', text: 'How many transactions this block confirms. The first one is always the coinbase: the new coins for the miner.' },
+  'details.nonce': { title: 'Nonce', text: 'A 32-bit counter in the header. Miners change it to try new hashes until one meets the target. Verification requires hashing the header twice with SHA-256.' },
+  'details.tx-count': { title: 'Transactions', text: 'How many transactions this block confirms. The first is the coinbase, which pays the miner the subsidy and fees.' },
   'details.volume': { title: 'Volume', text: 'The main amount of every transaction added up: each payment plus the miner’s reward, which includes the fees. Change going back to senders is not counted.' },
   'details.mined-at': { title: 'Mined at', text: 'The time the miner wrote into the block header, in your local time. It is part of the hashed header, so changing it would break the hash.' },
-  'details.header': { title: '80-byte header', text: 'The block’s summary as raw bytes: version, previous hash, Merkle root, time, bits (the target the hash must stay below) and nonce. Its double SHA-256 is the block hash. Numbers are stored back to front (little-endian), as in Bitcoin.' },
+  'details.header': { title: '80-byte header', text: 'The block’s summary as raw bytes: version, previous hash, Merkle root, time, bits (the compact target the hash must not exceed) and nonce. Its double SHA-256 is the block hash. Numbers are stored back to front (little-endian), as in Bitcoin.' },
   'details.tamper': { title: 'Tamper analysis', text: 'What broke and where: a hash mismatch means the block’s contents changed after mining; a broken link means the block before it changed and got a new hash.' },
   'details.transactions': { title: 'Transactions', text: 'The transactions this block confirms, the coinbase first. Select one to see the coins it spends, what it pays, the change and the fee.' },
   'details.tx-row': coinbase => (coinbase
-    ? { title: 'Mining reward', text: 'The coinbase: it spends no earlier coins but creates new ones, the block reward plus all fees, for the miner. Click for its details.' }
+    ? { title: 'Mining reward', text: 'The coinbase spends no earlier outputs. It pays the miner the block subsidy plus fees. Select it for details.' }
     : { title: 'Payment', text: 'Click to see which coins it spends, who receives what, the change back to the sender and the fee.' }),
 
   'details.balance': { title: 'Balance', text: 'The sum of this wallet’s unspent coins listed below, from confirmed blocks only. Payments still waiting in the mempool do not count yet.' },
   'details.received': { title: 'Total received', text: 'Everything paid to this wallet in confirmed blocks, mining rewards included. Change coming back from its own payments is not counted.' },
   'details.sent': { title: 'Total sent', text: 'What this wallet paid to others in confirmed blocks. Fees and change are not included.' },
-  'details.rewards': { title: 'Mining rewards', text: 'What this miner earned for the blocks it found: each time the block reward (new coins) plus the fees of the payments in that block.' },
-  'details.tx-total': { title: 'Total TXs', text: 'How many confirmed transactions this wallet paid or received in, mining rewards included.' },
+  'details.rewards': { title: 'Mining rewards', text: 'This miner’s earnings from accepted blocks: the subsidy plus transaction fees.' },
+  'details.tx-total': { title: 'Transactions', text: 'Confirmed transactions involving this wallet, including mining rewards.' },
   'details.miner-enabled': enabled => (enabled
     ? { title: 'Miner enabled', text: 'This miner takes part in the race for the next block. Click to switch it off; it keeps its coins. Locked while a block is being mined.' }
     : { title: 'Miner disabled', text: 'This miner sits out the race for the next block. Click to let it mine again. Locked while a block is being mined.' }),
@@ -68,7 +68,7 @@ export const DETAILS_HINTS = {
   'details.inputs': { title: 'Inputs', text: 'The coins this transaction spends. Each input points at an output of an earlier transaction (its txid and position) and spends it whole. A coinbase has none: it creates new coins.' },
   'details.outputs': { title: 'Outputs', text: 'The new coins this transaction creates, each locked to a recipient. Unspent outputs are what wallets own; a later payment spends them as its inputs.' },
   'details.output-kind': kind => OUTPUT_KIND_TEXT[kind] ?? OUTPUT_KIND_TEXT.payment,
-  'details.fee': { title: 'Fee', text: 'The fee is written nowhere: it is what the inputs leave over after the outputs. The miner of the block collects it. When blocks are full, the highest fee per byte goes first.' },
+  'details.fee': { title: 'Fee', text: 'The fee is the input total minus the output total. The miner collects it in the coinbase. When space is limited, this simulator prioritizes transaction packages by fee per byte.' },
   'details.txid': { title: 'Transaction ID (TXID)', text: 'The transaction’s name: a double SHA-256 hash of its raw bytes. Later inputs refer to its coins by this ID. Change one byte and the ID changes, so those references point at nothing.' },
   'details.signature': { title: 'Signature', text: 'Proof that the owners of the coins agreed. Each input carries one, made with its owner’s private key over this transaction, outputs included, so changing an amount breaks it. Anyone can check it with the public key.' },
   'details.scripts': { title: 'Scripts', text: 'Show the small programs that lock and unlock coins: each output’s script says who may spend it, each input’s script provides the signature and public key that unlock the coin it spends.' },

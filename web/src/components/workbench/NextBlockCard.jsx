@@ -129,7 +129,7 @@ function zeroStatus(zeros, difficulty, isWinner) {
 
 export function NextBlockCard({
   mode = 'idle', index, txCount = 0, reward, difficulty = 2, onDifficulty, autoMine = false, onAutoMine, repeating = false,
-  onStartDemo, onMine, onPause, onRemine, repair = null, miners = [], race = null, lastRound = null,
+  onStartDemo, onMine, onPause, onRemine, repair = null, miners = [], race = null, lastRound = null, payment = null,
   backedMiner = null, onBack, coach = null, signature = null, onCreateMiner, minersFull = false, onRenameMiner, onShare, onOpenMiner, perMiner = {},
   slowMotion = false, onSlowMotion, loweringStartsNewChain = false
 }) {
@@ -181,14 +181,15 @@ export function NextBlockCard({
     ? (repair && !repair.undoOnly && repairNext !== undefined ? () => onRemine?.(repairNext) : null)
     : (!running && !startsDemo ? () => onMine?.() : null));
   // Keep the same button mounted so keyboard focus follows Play → Pause → Play.
+  const actionTarget = running || isRepair ? undefined : startsDemo ? 'workbench.start-demo' : 'workbench.mine';
   const action = (
-    <CoachMark target={running || isRepair || startsDemo ? undefined : "workbench.mine"} coach={running || isRepair || startsDemo ? null : coach} className="next-block-coach-inline">
+    <CoachMark target={actionTarget} coach={actionTarget ? coach : null} className="next-block-coach-inline">
       <button type="button" className={isRepair ? 'card-kit-btn is-lg' : 'btn-primary'}
         disabled={isRepair} {...hint(isRepair ? 'next.mine-locked' : running ? 'next.pause' : startsDemo ? 'next.start-demo' : 'next.mine', shortcut)}
         aria-keyshortcuts={shortcut && !running && !startsDemo && !isRepair ? 'M' : undefined}
-        onClick={() => running ? onPause?.() : startsDemo ? onStartDemo?.() : onMine?.()}>
+        onClick={event => running ? onPause?.() : startsDemo ? onStartDemo?.(event.currentTarget) : onMine?.()}>
         {running ? <PauseIcon /> : <PlayIcon />}
-        {running ? 'Pause' : startsDemo ? 'Start demo' : 'Mining'}
+        {running ? 'Pause' : startsDemo ? 'Start demo' : 'Mine block'}
       </button>
     </CoachMark>
   );
@@ -215,7 +216,7 @@ export function NextBlockCard({
         : isMining
           ? <LiveRace miners={miners} race={race} index={index} difficulty={difficulty} target={target} backedMiner={backedMiner} coach={coach}
             onShare={onShare} onOpenMiner={onOpenMiner} open={liveOpen} setOpen={setLiveOpen} wall={wall} setWall={setWall} />
-          : <LastRound miners={miners} lastRound={lastRound} race={isPaused ? race : null} difficulty={difficulty}
+          : <LastRound payment={payment} miners={miners} lastRound={lastRound} race={isPaused ? race : null} difficulty={difficulty}
             backedMiner={backedMiner} onBack={onBack} coach={coach} isFresh={isFresh}
             onCreateMiner={onCreateMiner} minersFull={minersFull} onRenameMiner={onRenameMiner} onShare={onShare} onOpenMiner={onOpenMiner} perMiner={perMiner} />}
     </section>
@@ -247,7 +248,7 @@ function MinerNameField({ miner, onRename, onDone }) {
   );
 }
 
-function LastRound({ miners, lastRound, race, difficulty, backedMiner, onBack, coach, isFresh, onCreateMiner, minersFull, onRenameMiner, onShare, onOpenMiner, perMiner }) {
+function LastRound({ payment, miners, lastRound, race, difficulty, backedMiner, onBack, coach, isFresh, onCreateMiner, minersFull, onRenameMiner, onShare, onOpenMiner, perMiner }) {
   const [creating, setCreating] = useState(false);
   // The miner whose editor is open, by its position: a rename keeps the editor on it.
   const [editing, setEditing] = useState(null);
@@ -256,7 +257,7 @@ function LastRound({ miners, lastRound, race, difficulty, backedMiner, onBack, c
   const coached = coach?.target === 'workbench.back-miner';
   let summary;
   if (race) {
-    summary = <>Paused after <b>{count(race.attempts)}</b> attempts · <b>{seconds(race.elapsedMs)}</b>. Mining again starts a new search.</>;
+    summary = <>Paused after <b>{count(race.attempts)}</b> attempts · <b>{seconds(race.elapsedMs)}</b>. Mining again starts a fresh search.</>;
   } else if (lastRound) {
     summary = <>Last round #{lastRound.index}: <span className="next-block-winner" style={{ color: minerColor(miners.find(m => m.name === lastRound.winner) ?? { name: lastRound.winner }) }}>{lastRound.winner}</span> won at nonce <b>{count(lastRound.nonce)}</b> · <b>{count(lastRound.attempts)}</b> tries · <b>{seconds(lastRound.elapsedMs)}</b></>;
   } else {
@@ -267,6 +268,10 @@ function LastRound({ miners, lastRound, race, difficulty, backedMiner, onBack, c
   return (
     <div className="next-block-body" data-round="last">
       <div className="next-block-summary">{summary}</div>
+      {payment && !race && <div className="next-block-payment" role="status">
+        <span>Your payment to {payment.to} {payment.blockIndex === null ? 'is still waiting in the mempool.' : `is in block #${payment.blockIndex}.`}</span>
+        {payment.open && <button type="button" className="card-kit-link" {...hint('next.payment')} onClick={payment.open}>View transaction</button>}
+      </div>}
       <CoachMark target="workbench.back-miner" coach={coach} className="next-block-coach-block">
         <div className={lanesClass(miners)}>
           {miners.map((miner, index) => {
@@ -309,7 +314,7 @@ function LastRound({ miners, lastRound, race, difficulty, backedMiner, onBack, c
       {creating && !minersFull && (
         <div className="next-block-create">
           <CreateNameForm noun="miner" label="New miner name" placeholder="New miner, e.g. Hal"
-            hint="A simulated miner: races from the next block with an equal share of the hashpower, starts at 0."
+            hint="Joins the next race with an equal share of the hashpower and no coins. Use 2–16 letters or digits."
             onCreate={onCreateMiner} onCancel={() => setCreating(false)} />
         </div>
       )}
@@ -413,7 +418,7 @@ function RepairBody({ repair, difficulty, target, onRemine, coach }) {
         // A broken transaction rule survives every re-mine; only undoing the edit repairs it.
         ? <div className="next-block-repair-row">
           <button type="button" className="btn-primary" {...hint('next.undo-edit')} onClick={() => repair.onUndo?.(next)}><UndoIcon />Undo edit in block #{next}</button>
-          <small>{issueText(repair.reason ?? 'signature', repair.stuck ?? next)} Re-mining changes no transaction, so it cannot fix this.</small>
+          <small>{issueText(repair.reason ?? 'signature', repair.stuck ?? next)} Re-mining leaves transactions unchanged, so it cannot fix this.</small>
           {repair.signatureTest != null && <CoachMark target="workbench.signature-test" coach={coach}>
             <button type="button" className="card-kit-btn is-ghost" {...hint('next.signature-test')} onClick={() => onRemine?.(repair.signatureTest)}>Test proof of work anyway</button>
           </CoachMark>}
@@ -421,7 +426,7 @@ function RepairBody({ repair, difficulty, target, onRemine, coach }) {
         : <CoachMark target="workbench.remine" coach={coach} className="next-block-coach-block">
           <div className="next-block-repair-row">
             <button type="button" className="btn-primary" aria-keyshortcuts={shortcut ? 'M' : undefined} {...hint('next.remine', next, target, shortcut)} onClick={() => onRemine?.(next)}><BoltIcon />Re-mine block #{next}</button>
-            <small>Finds a new nonce so #{next} starts with {target} again.{then}</small>
+            <small>Finds a new nonce so the hash of #{next} starts with {target} again.{then}</small>
           </div>
         </CoachMark>}
       <div className="next-block-foot">

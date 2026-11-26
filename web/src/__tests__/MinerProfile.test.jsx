@@ -111,11 +111,11 @@ describe('MinerProfile', () => {
     const check = document.querySelector('.miner-profile-verify');
     expect(check.textContent).toContain(NEW.header);
     expect(check.textContent).toContain(NEW.bestHash);
-    expect(within(check).getByText(`Matches the listed hash: ${NEW.bestZeros} ${NEW.bestZeros === 1 ? 'zero' : 'zeros'}, signed by ${NAME} in round 900200.`)
+    expect(within(check).getByText(`Matches the listed hash: ${NEW.bestZeros} ${NEW.bestZeros === 1 ? 'zero' : 'zeros'}, recorded for ${NAME} in round 900200.`)
       .className).toBe('miner-profile-verify-ok');
     fireEvent.click(screen.getByRole('button', { name: 'Verify the block of round 900010' }));
     expect(verify.getAttribute('aria-expanded')).toBe('false');
-    expect(screen.getByText('Does not match the listed hash and name.').className).toBe('miner-profile-verify-bad');
+    expect(screen.getByText('Verification failed. The hash or miner commitment does not match.').className).toBe('miner-profile-verify-bad');
   });
 
   it('shows a dash for a rank the name does not hold, and marks the visitor\'s own name', async () => {
@@ -145,7 +145,7 @@ describe('MinerProfile', () => {
       expect(writeText).toHaveBeenCalledWith(`${location.origin}${location.pathname}${location.search}#/pool/test-miner`);
       writeText.mockRejectedValue(new Error('denied'));
       fireEvent.click(screen.getByRole('button', { name: 'Copy link' }));
-      await screen.findByText('Could not copy. The address bar holds the link.');
+      await screen.findByText('Copy the profile link from your address bar.');
     } finally {
       delete navigator.clipboard;
     }

@@ -38,13 +38,13 @@ function SceneView({ id, ...props }) {
 const LEDES = {
   'copy-problem': {
     plain: 'You can send a photo and still keep it. Great for photos, a disaster for money.',
-    technical: 'Data is copied, never moved. A digital coin is data.'
+    technical: 'Sending digital data creates a copy. How can a digital coin change hands without being spent twice?'
   },
   'see-a-fingerprint': 'A hash is a fingerprint of data. Type anything and watch.',
   'change-one-letter': 'Two almost identical texts. How similar are their fingerprints?',
   'change-fingerprint': {
-    plain: 'Can you find a text whose fingerprint starts with 0? Nobody can calculate it. You have to roll.',
-    technical: 'Find a text whose SHA-256 hash starts with 0. Trying inputs is the only known way.'
+    plain: 'Can you find a text whose fingerprint starts with 0? Try different texts, like rolling a die.',
+    technical: 'Find a text whose SHA-256 hash starts with 0. Try different inputs until you find a match.'
   },
   'why-guess': {
     plain: 'A notebook everyone may copy. Who writes the next page when nobody is in charge?',
@@ -146,6 +146,8 @@ export function BasicsCourse({ progress, tone = 'plain', coach = null, onLessonE
       </header>
 
       <SceneView key={`${shown}-${generation}`} id={shown} tone={tone} coach={coach} onEvent={onLessonEvent} done={done} />
+
+      {mission?.id === 'sealed-pages' && <p><a className="btn btn-transparent" href="#/page-challenge">Try a fresh chain: predict which seals need replacing</a></p>}
 
       {mission && done && <section className="basics-result" aria-labelledby={`${headingId}-result`}>
         <h3 id={`${headingId}-result`}>What you learned</h3>

@@ -14,6 +14,7 @@ const ROOT = '74ade267607c108e6483968317be4e63830d9c66961a6120e870593f555e39db';
 const PREV = '00e6130b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f708192a3b4c5d6e7f80912f8';
 const block = (overrides = {}) => ({
   index: 4, hash: HASH, previousHash: PREV, txRoot: ROOT, nonce: 5775, difficulty: 2, isNewest: true,
+  bits: 0x2000ffff,
   miner: 'Lars', seconds: 7.1, tries: 332, reward: 1.5625,
   transactions: [{ from: 'Alice', to: 'Bob', amount: 0.25 }, { from: null, to: 'Lars', amount: 1.5625 }],
   ...overrides
@@ -234,7 +235,7 @@ describe('SelectedBlockCard', () => {
     expect(text).toContain('Hash now');
     expect(text).toContain(computed);
     expect(text).toContain('0/2 zeros');
-    expect(text).toContain('does not start with 00');
+    expect(text).toContain('Misses mining target');
     expect(text).toContain('As mined');
     expect(text).toContain('what #3 still stores as its previous hash');
     expect(text).toContain('Your edit');
@@ -243,6 +244,26 @@ describe('SelectedBlockCard', () => {
     expect(screen.queryByRole('button', { name: 'Tamper with this block' })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Undo edit' }));
     expect(onUndo).toHaveBeenCalledWith(2);
+  });
+
+  it('reports a mismatching hash that still meets the mining target', () => {
+    render(<SelectedBlockCard block={block()} status={{
+      status: 'hash-mismatch', storedHash: HASH, computedHash: PREV, meetsTarget: true
+    }} />);
+    expect(within(card()).getByText('2/2 zeros')).toBeTruthy();
+    expect(within(card()).getByText('Meets mining target')).toBeTruthy();
+    expect(within(card()).getByText('Differs from the stored hash.')).toBeTruthy();
+    expect(within(card()).getByText('Hash mismatch')).toBeTruthy();
+  });
+
+  it('uses the compact target even when the visible zero count agrees', () => {
+    // 00ffff00… is the target. This value is exactly one above it.
+    const aboveTarget = `00ffff${'0'.repeat(57)}1`;
+    render(<SelectedBlockCard block={block()} status={{
+      status: 'hash-mismatch', storedHash: HASH, computedHash: aboveTarget, meetsTarget: true
+    }} />);
+    expect(within(card()).getByText('2/2 zeros')).toBeTruthy();
+    expect(within(card()).getByText('Misses mining target')).toBeTruthy();
   });
 
   it('names the other invalid statuses with their cause', () => {

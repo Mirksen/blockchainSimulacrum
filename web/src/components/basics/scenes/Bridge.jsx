@@ -20,8 +20,8 @@ export function Bridge() {
           {WORDS.map(([ours, bitcoin]) => <tr key={ours}><td>{ours}</td><td>{bitcoin}</td></tr>)}
         </tbody>
       </table>
-      <p>You touched three of the four pillars: fingerprints (cryptography), the chain, and the work.
-        The fourth, a network of thousands of copies, is not simulated on this site.</p>
+      <p>You explored fingerprints (cryptography), linked blocks, and proof of work.
+        Bitcoin also relies on a network of computers that check and share the chain. In Chain lab, choose Two nodes to see why their copies can briefly disagree.</p>
     </div>
   );
 }

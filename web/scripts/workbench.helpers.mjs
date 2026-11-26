@@ -36,7 +36,7 @@ export function workbench(page) {
       if (await tile.getAttribute('aria-pressed') !== 'true') await tile.click();
     },
     shown: () => page.locator('section.selected-block .card-kit-title').first(),
-    mine: index => page.getByRole('region', { name: new RegExp(`^Next block ${index}(,|$)`) }).getByRole('button', { name: 'Mining', exact: true }),
+    mine: index => page.getByRole('region', { name: new RegExp(`^Next block ${index}(,|$)`) }).getByRole('button', { name: 'Mine block', exact: true }),
     // The one chain status: the pill on the chain band (compact below 1024 px).
     chainPill: () => page.locator('button.chain-band-health-sum:visible'),
     // The sideways-scrolling row of the chain band.

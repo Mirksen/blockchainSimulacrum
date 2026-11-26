@@ -5,9 +5,9 @@ import './StartChoice.css';
 // `start` view, not as a dialog: it takes no focus and traps nothing, so the top bar
 // and the missions stay usable. The menu item Starting point opens it again.
 const CHOICES = [
-  { id: 'new', title: 'Hashes are new to me', text: 'Six short scenes, no knowledge needed. About five minutes.' },
-  { id: 'hash', title: 'I know what a hash is', text: 'Skip the two fingerprint scenes and go straight to why anyone would guess hashes.' },
-  { id: 'play', title: 'Just let me play', text: 'Open the simulator. The course and the missions stay one click away.' }
+  { id: 'new', title: 'Hashes are new to me', text: 'Start with a coin Alice can copy. In six short scenes, discover how a blockchain keeps track of who spent it. About five minutes.' },
+  { id: 'hash', title: 'I know what a hash is', text: 'Skip the two fingerprint exercises and try finding a hash that starts with zero.' },
+  { id: 'play', title: 'Just let me play', text: 'Go straight to the workbench to mine blocks and send coins.' }
 ];
 
 export function StartChoice({ current = null, onChoose }) {
@@ -30,7 +30,7 @@ export function StartChoice({ current = null, onChoose }) {
           </li>
         ))}
       </ul>
-      <p className="start-choice-foot">You can change this any time in the menu under Starting point.</p>
+      <p className="start-choice-foot">To choose again, open Starting point in the menu.</p>
     </section>
   );
 }

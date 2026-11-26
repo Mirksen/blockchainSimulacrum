@@ -72,7 +72,7 @@ function Panel({ initial = '', ...props }) {
 }
 const join = (name = NAME) => {
   fireEvent.change(screen.getByLabelText('Name on the leaderboard'), { target: { value: name } });
-  fireEvent.click(screen.getByRole('button', { name: 'Join' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Start mining' }));
 };
 
 beforeEach(async () => {
@@ -107,7 +107,7 @@ describe('PoolPanel', () => {
     vi.mocked(getLeaderboard).mockResolvedValueOnce(EMPTY).mockResolvedValueOnce({ recent: recentOf(round), allTime: [leader] })
       .mockResolvedValue({ recent: recentOf(round, [mine]), allTime: [leader, mine] });
     render(<Panel onClose={() => {}} />);
-    await screen.findByText('No blocks in the last day. Mine one to lead the board.');
+    await screen.findByText('No entries in this window yet. Mine a block to take first place.');
     expect(screen.getByText('No blocks yet.')).toBeTruthy();
     join();
     await waitFor(() => expect(submitProof).toHaveBeenCalledTimes(1));
@@ -214,7 +214,7 @@ describe('PoolPanel', () => {
     expect(searches).toHaveLength(1);
     expect(searches[0].bits).toBe(bitsOfZeros(6));
     expect(searches[0].entrants[0]).toMatchObject({ header: candidateOf(challenge, 6).header, startNonce: START_NONCE });
-    expect(status()).toBe('Searching nonces for a hash that beats your best in round 900300.');
+    expect(status()).toBe('Trying new nonces in round 900300.');
 
     await advance(ROUND_CHECK_MS - 1);
     expect(searches[0].signal.aborted).toBe(false);
@@ -252,7 +252,7 @@ describe('PoolPanel', () => {
     expect(runSearch).toHaveBeenCalledTimes(1);
     expect(getChallenge).toHaveBeenCalledTimes(2);
     expect(stat('Accepted blocks')).toBe('1');
-    expect(screen.getByRole('button', { name: 'Join' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Start mining' })).toBeTruthy();
     expect(status()).toBe('Stopped. Accepted blocks stay on the leaderboard.');
   });
 
@@ -270,7 +270,7 @@ describe('PoolPanel', () => {
     expect(submitted()).toEqual([[first.round.height, firstProof.header], [second.round.height, secondProof.header]]);
     await waitFor(() => expect(stat('Accepted blocks')).toBe('1'));
     await waitFor(() => expect(getChallenge).toHaveBeenCalledTimes(3));
-    expect(status()).toBe('Asking the leaderboard for a round…');
+    expect(status()).toBe('Loading the current mining round…');
   });
 
   it('shows the unavailable state when the server is down and stops mining on 5xx or 429', async () => {
@@ -283,7 +283,7 @@ describe('PoolPanel', () => {
       vi.mocked(getChallenge).mockRejectedValueOnce(httpError(code));
       join();
       await waitFor(() => expect(status()).toBe(UNAVAILABLE));
-      expect(screen.getByRole('button', { name: 'Join' })).toBeTruthy();
+      expect(screen.getByRole('button', { name: 'Start mining' })).toBeTruthy();
     }
     expect(getChallenge).toHaveBeenCalledTimes(2);
     expect(submitProof).not.toHaveBeenCalled();
@@ -299,7 +299,7 @@ describe('PoolPanel', () => {
     render(<Panel onClose={() => {}} />);
     join();
     await waitFor(() => expect(status()).toBe(UNAVAILABLE));
-    expect(screen.getByRole('button', { name: 'Join' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Start mining' })).toBeTruthy();
     await settle(50);
     expect(submitProof).toHaveBeenCalledTimes(1);
     expect(getChallenge).toHaveBeenCalledTimes(1);
@@ -330,7 +330,7 @@ describe('PoolPanel', () => {
     expect(within(check).getByText(proof.header)).toBeTruthy();
     expect(within(check).getByText(proof.hash)).toBeTruthy();
     expect(within(check).getByText(
-      `Matches the listed hash: ${real.bestZeros} zeros, signed by honest-miner in round 900700.`)).toBeTruthy();
+      `Matches the listed hash: ${real.bestZeros} zeros, recorded for honest-miner in round 900700.`)).toBeTruthy();
     expect(within(region(recentTitle(round))).queryByRole('status')).toBeNull();
 
     fireEvent.click(within(allTime).getByRole('button', { name: 'Verify the proof of forged-miner' }));
@@ -338,11 +338,11 @@ describe('PoolPanel', () => {
     check = within(allTime).getByRole('status');
     expect(within(check).getByText(header)).toBeTruthy();
     expect(within(check).getByText(recomputed)).toBeTruthy();
-    expect(within(check).getByText('Does not match the listed hash and name.')).toBeTruthy();
+    expect(within(check).getByText('Verification failed. The hash or miner commitment does not match.')).toBeTruthy();
     expect(within(check).queryByText(/^Matches/)).toBeNull();
 
     fireEvent.click(within(allTime).getByRole('button', { name: 'Verify the proof of stolen-name' }));
-    expect(within(within(allTime).getByRole('status')).getByText('Does not match the listed hash and name.')).toBeTruthy();
+    expect(within(within(allTime).getByRole('status')).getByText('Verification failed. The hash or miner commitment does not match.')).toBeTruthy();
   });
 
   it('opens a miner profile from a name on the board; the profile replaces both lists', async () => {
@@ -366,7 +366,7 @@ describe('PoolPanel', () => {
     expect(getMiner).toHaveBeenCalledWith('other-miner', expect.anything());
     expect(screen.queryByRole('region', { name: 'All time · top 20' })).toBeNull();
     expect(screen.queryByRole('region', { name: recentTitle(round) })).toBeNull();
-    expect(screen.getByRole('button', { name: 'Join' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Start mining' })).toBeTruthy();
     fireEvent.click(screen.getByRole('link', { name: 'Leaderboard' }));
     expect(onCloseProfile).toHaveBeenCalledTimes(1);
   });
@@ -391,7 +391,7 @@ describe('PoolPanel', () => {
 
   it('blocks Join for an invalid name and explains the rule', async () => {
     render(<Panel onClose={() => {}} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Join' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Start mining' }));
     expect(screen.getByRole('alert').textContent).toBe('Use 3–20 characters: letters, digits or hyphens.');
     for (const name of ['ab', 'bad name!', 'under_score']) {
       join(name);
@@ -415,16 +415,16 @@ describe('PoolPanel', () => {
     const input = screen.getByLabelText('Name on the leaderboard');
     expect(input.getAttribute('aria-invalid')).toBe('true');
     expect(input.getAttribute('aria-describedby')).toBe('pool-panel-name-error');
-    expect(status()).toBe('Choose a name, then join to mine for a better hash.');
-    expect(screen.getByRole('button', { name: 'Join' })).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Join' }));
+    expect(status()).toBe('Choose the public name for your blocks, then start mining.');
+    expect(screen.getByRole('button', { name: 'Start mining' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Start mining' }));
     await settle(50);
     expect(getChallenge).toHaveBeenCalledTimes(1);
     expect(runSearch).not.toHaveBeenCalled();
     expect(submitProof).not.toHaveBeenCalled();
     fireEvent.change(input, { target: { value: 'other-name' } });
     expect(screen.queryByRole('alert')).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'Join' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Start mining' }));
     await waitFor(() => expect(getChallenge).toHaveBeenCalledTimes(2));
     expect(vi.mocked(getChallenge).mock.calls[1][0]).toBe('other-name');
   });
@@ -436,7 +436,7 @@ describe('PoolPanel', () => {
 
   it('explains Join and the round through hints', () => {
     render(<Panel onClose={() => {}} />);
-    expect(screen.getByRole('button', { name: 'Join' }).getAttribute('data-hint')).toBe(POOL_HINTS['pool.join'].text);
+    expect(screen.getByRole('button', { name: 'Start mining' }).getAttribute('data-hint')).toBe(POOL_HINTS['pool.join'].text);
     expect(screen.getByText('Round').getAttribute('data-hint')).toBe(POOL_HINTS['pool.round'].text);
     expect(screen.getByText('Round').hasAttribute('data-hint-term')).toBe(true);
   });

@@ -135,7 +135,7 @@ export function ParticipantDetailsModal({
                         )}
                         <div className="details-modal-stat">
                             <div className="details-modal-stat-value">{txHistory.length}</div>
-                            <div className="details-modal-stat-label" {...term('details.tx-total')}>Total TXs</div>
+                            <div className="details-modal-stat-label" {...term('details.tx-total')}>Transactions</div>
                         </div>
                     </div>
 
@@ -164,14 +164,14 @@ export function ParticipantDetailsModal({
                                 )}
                             </div>
                             <p className="details-modal-note">
-                                Its share of the racing miners' hashpower is its chance to find the next block. Change it and watch its attempts in the miner details.
+                                This miner’s share of active hash power sets its chance of finding the next block. Open Miner details to adjust it and watch its attempts.
                             </p>
                         </div>
                     )}
 
                     <div className="details-modal-section">
                         <div className="details-modal-label" {...term('details.coins')}>Coins ({coins.length} unspent {coins.length === 1 ? 'output' : 'outputs'})</div>
-                        <p className="details-modal-note">The balance is the sum of these coins. A wallet stores no total.</p>
+                        <p className="details-modal-note">The balance is calculated by adding these unspent outputs.</p>
                         {coins.length > 0 ? (
                             <ul className="details-modal-coins" aria-label="Unspent outputs">
                                 {coins.map(coin => (

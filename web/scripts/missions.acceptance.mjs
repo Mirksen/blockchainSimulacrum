@@ -40,7 +40,7 @@ export async function verifyMissions(page, output) {
   await activeCoach('basics.copy-coin').waitFor();
   await button('Send coin to Bob').click();
   await button('Send same coin to Carol').click();
-  await status.filter({ hasText: 'One coin became three.' }).waitFor();
+  await status.filter({ hasText: 'The same coin was spent twice.' }).waitFor();
   await activeCoach('basics.copy-list').waitFor();
   await page.getByRole('switch', { name: 'Shared list' }).click();
   await button('Send coin to Bob').click();
@@ -77,7 +77,7 @@ export async function verifyMissions(page, output) {
   await status.filter({ hasText: 'Lucky roll: 1 in 16 texts starts with 0.' }).waitFor();
   assert.equal(await done(3).count(), 1, 'A lucky first roll does not count');
   for (let roll = 1; roll <= 8; roll++) await button('Roll').click();
-  await status.filter({ hasText: 'Found after 9 rolls. Checking takes one look.' }).waitFor();
+  await status.filter({ hasText: 'Found after 9 rolls. Hash the text once and check the leading zero.' }).waitFor();
   assert.equal(await page.getByLabel('Your text', { exact: true }).inputValue(), 'Learner 8');
   assert.equal(await page.locator('.basics-proof pre').textContent(), 'Learner 8');
   assert.equal(await page.locator('.basics-proof code').textContent(), createHash('sha256').update('Learner 8').digest('hex'));
@@ -98,13 +98,25 @@ export async function verifyMissions(page, output) {
   // Scene 6: a change breaks every later seal; repair is cheap without guessing and costly with it.
   await scene('Sealed pages').waitFor();
   await activeCoach('basics.page-1').waitFor();
+  const page2 = page.getByLabel('Page 2 text', { exact: true });
+  await page2.fill('A changed middle entry');
+  await button('Repair').click();
+  await status.filter({ hasText: 'Repaired: 2 hashes in total (0 + 1 + 1). All seals fit.' }).waitFor();
+  await page.getByText('Original seal kept.', { exact: true }).waitFor();
   const page1 = page.getByLabel('Page 1 text', { exact: true });
   await page1.fill('Alice pays Bob 1000');
   await status.filter({ hasText: 'Page 1 no longer fits its seal' }).waitFor();
   await activeCoach('basics.repair').waitFor();
   await button('Repair').click();
   await status.filter({ hasText: /^Repaired: .* All seals fit\.$/ }).waitFor();
-  await page.getByLabel('Guessing', { exact: true }).selectOption({ label: '3 zeros' });
+  const guessing = page.getByLabel('Guessing', { exact: true });
+  await guessing.selectOption({ label: '3 zeros' });
+  await page1.fill('Alice pays Bob 2000');
+  await guessing.selectOption({ label: '2 zeros' });
+  await guessing.selectOption({ label: '3 zeros' });
+  await button('Repair').click();
+  await status.filter({ hasText: /^All seals already fit. No new seals needed\.$/ }).waitFor();
+  assert.deepEqual(await completed(), firstIds(5), 'A guessing reset discards the page edit');
   await page1.fill('Alice pays Bob 2000');
   await button('Repair').click();
   // Shown once both repairs ran: without guessing and with 3 zeros.
@@ -127,7 +139,7 @@ export async function verifyMissions(page, output) {
   await activeCoach('hash-lab.search').waitFor();
   const lab = page.locator('section.hash-lab');
   await lab.getByRole('button', { name: 'Find a nonce', exact: true }).click();
-  await lab.getByRole('status').filter({ hasText: 'Target found' }).waitFor({ timeout: 30000 });
+  await lab.getByRole('status').filter({ hasText: 'Valid hash found' }).waitFor({ timeout: 30000 });
   assert.equal(await done(6).count(), 1, 'One zero alone does not finish the proof-of-work mission');
   const comparison = page.getByRole('region', { name: 'Proof-of-work search comparison' });
   const row = target => comparison.getByRole('row', { name: new RegExp(`^${target} `) });
@@ -141,7 +153,7 @@ export async function verifyMissions(page, output) {
   await lab.getByRole('button', { name: 'Back to simulator' }).waitFor();
   assert.equal(await row('One zero').innerText(), first, 'Mission completion retains the first result');
   assert.equal(await row('Two zeros').getByRole('cell').first().innerText(), '188');
-  assert.match(await comparison.innerText(), /does not guarantee/);
+  assert.match(await comparison.innerText(), /more or fewer attempts than the average/);
   // Inspect the actual full hashes and comparison at each responsive breakpoint.
   for (const details of await comparison.locator('details').all()) await details.locator('summary').click();
   for (const theme of ['dark', 'light']) {

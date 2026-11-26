@@ -80,7 +80,7 @@ describe('MempoolCard', () => {
     const submit = within(form).getByRole('button', { name: 'Add to mempool' });
 
     fireEvent.click(submit);
-    expect(screen.getByRole('alert').textContent).toBe('Choose who sends and who receives.');
+    expect(screen.getByRole('alert').textContent).toBe('Choose a sender and a recipient.');
     fireEvent.change(within(form).getByLabelText('From'), { target: { value: 'Alice' } });
     fireEvent.change(within(form).getByLabelText('To'), { target: { value: 'Alice' } });
     fireEvent.click(submit);

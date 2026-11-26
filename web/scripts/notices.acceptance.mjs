@@ -28,7 +28,7 @@ export async function verifyNoticeLifetime(browser, baseURL, output) {
     await wb.mine(2).waitFor();
     await wb.mine(2).click();
     await wb.mine(3).waitFor();
-    const note = page.locator('.kf-note.is-halving').filter({ hasText: 'The reward halved with #2' });
+    const note = page.locator('.kf-note.is-halving').filter({ hasText: 'The reward halved at block #2' });
     await note.hover();
     await page.clock.fastForward(31_000);
     assert.equal(await note.count(), 1, 'Hover retains a notice beyond 30 seconds');

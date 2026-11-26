@@ -3,17 +3,18 @@ import { join } from 'node:path';
 import { STORAGE_KEY } from '../src/lib/missions.js';
 import { START_KEY } from '../src/lib/startChoice.js';
 import { stopsFor, TOUR_KEY } from '../src/lib/tour.js';
-import { menu, progressBefore } from './workbench.helpers.mjs';
+import { menu, progressBefore, workbench } from './workbench.helpers.mjs';
 
 // The arrival tour of the workbench (src/components/workbench/WorkbenchTour.jsx): a guided
 // visitor who finished the course and both lab missions arrives at the workbench, walks the
 // five stops (ring on the right region, card inside the viewport, no sideways scrolling) and
 // ends with Done; the coach mark returns and a reload does not show the tour again. Skip tour
 // marks it seen too; a free player never gets it by itself but can start it from the menu.
-// One screenshot per stop at 1440 px dark, stops 1 and 3 at 390 px light. No mining; remote
-// endpoints refused.
+// The first workbench mission explains the demo and leads to a payment at desktop and phone
+// widths. Mining stays in the browser: remote endpoints are refused.
 const RAIL = 'proofofwork-rail-collapsed';
-const COACH = '[data-coach-target="workbench.new-transaction"].coach-mark.is-active';
+const DEMO_COACH = '[data-coach-target="workbench.start-demo"].coach-mark.is-active';
+const PAYMENT_COACH = '[data-coach-target="workbench.new-transaction"].coach-mark.is-active';
 const PLAIN = stopsFor('plain');
 const TECHNICAL = stopsFor('technical');
 
@@ -24,7 +25,9 @@ export async function verifyTour(browser, baseURL, output) {
   // A visitor stored as `choice` with the missions open and every mission before the first
   // workbench mission completed. Seeded once, so a reload keeps what the visit stored.
   const visit = async ({ width = 1440, choice = 'new' } = {}) => {
-    const context = await browser.newContext({ viewport: { width, height: width < 1024 ? 844 : 900 }, reducedMotion: 'reduce' });
+    const phone = width < 1024;
+    const context = await browser.newContext({ viewport: { width, height: phone ? 664 : 900 },
+      isMobile: phone, hasTouch: phone, reducedMotion: 'reduce' });
     contexts.push(context);
     await context.route(/^https:\/\/(eu\.i\.posthog\.com|api\.proofofwork\.fyi)\//, route => route.abort('connectionrefused'));
     await context.addInitScript(seed => {
@@ -84,11 +87,75 @@ export async function verifyTour(browser, baseURL, output) {
   };
 
   try {
+    // The guided learner follows the next available action, even before any wallet is funded.
+    const firstPayment = async (page, label) => {
+      const demo = page.locator(DEMO_COACH).getByRole('button', { name: 'Start demo', exact: true });
+      await demo.waitFor();
+      assert.equal(await page.getByRole('button', { name: 'New transaction', exact: true }).isEnabled(), true);
+      assert.equal(await page.locator(PAYMENT_COACH).count(), 0);
+      if (label === 'phone') await demo.tap();
+      else await demo.click();
+      const payment = page.locator(PAYMENT_COACH).getByRole('button', { name: 'New transaction', exact: true });
+      await payment.waitFor();
+      await page.waitForFunction(selector => document.querySelector(selector)?.contains(document.activeElement), PAYMENT_COACH);
+      const recap = page.locator('.mempool-card-demo-recap');
+      assert.match(await recap.innerText(), /Block #1 is on the chain.*waiting for the next block/s);
+      assert.ok(await recap.evaluate(node => {
+        const { top, bottom } = node.getBoundingClientRect();
+        return top >= 0 && bottom <= innerHeight;
+      }), `${label}: the demo recap is visible beside the focused payment action`);
+      assert.ok((await payment.getAttribute('aria-describedby')).split(' ').includes(await recap.getAttribute('id')));
+      const completed = () => page.evaluate(key => JSON.parse(localStorage.getItem(key)).completed, STORAGE_KEY);
+      assert.ok(!(await completed()).includes('send-first-coin'), 'Mining does not complete the payment mission');
+      await page.screenshot({ path: join(output, `first-payment-${label}.png`) });
+
+      // Restoring a funded chain goes straight to the payment, without replaying the demo.
+      await page.reload();
+      await payment.waitFor();
+      assert.equal(await page.locator(DEMO_COACH).count(), 0);
+      assert.equal(await recap.count(), 0);
+      await payment.click();
+      const form = page.getByRole('form', { name: 'New transaction' });
+      // On the phone spend the last demo distribution. Its ancestors fill block #2.
+      const pool = page.getByRole('list', { name: 'Pending transactions' });
+      const lastDistribution = pool.locator('.mempool-card-tx').filter({ hasText: 'Demo distribution' }).last();
+      const from = label === 'phone' ? (await lastDistribution.locator('b').innerText()).split(' → ')[1] : 'Alice';
+      await form.getByRole('combobox', { name: 'From' }).selectOption(from);
+      await form.getByRole('combobox', { name: 'To' }).selectOption('Bob');
+      await form.getByLabel(/^Amount/).fill('0.25');
+      await form.getByText(/Spends .*0.25 to Bob/).waitFor();
+      await form.getByRole('button', { name: 'Add to mempool' }).click();
+      await page.waitForFunction(key => JSON.parse(localStorage.getItem(key)).completed.includes('send-first-coin'), STORAGE_KEY);
+      const details = page.getByRole('dialog', { name: 'Transaction details' });
+      await pool.getByRole('button', { name: `Details of ${from} to Bob, 0.25` }).click();
+      const txid = await details.getByText(/^[a-f0-9]{64}$/).first().innerText();
+      await details.getByRole('button', { name: 'Close details' }).click();
+      const wb = workbench(page);
+      await wb.mine(2).click();
+      let block = 2;
+      if (label === 'phone') {
+        const waiting = page.getByText('Your payment to Bob is still waiting in the mempool.');
+        await waiting.waitFor({ timeout: 30000 });
+        assert.equal(await page.getByRole('button', { name: 'View transaction', exact: true }).count(), 0);
+        await waiting.scrollIntoViewIfNeeded();
+        await page.screenshot({ path: join(output, 'payment-waiting-phone.png') });
+        block = 3;
+        await wb.mine(block).click();
+      }
+      const receipt = page.getByText(`Your payment to Bob is in block #${block}.`, { exact: true });
+      await receipt.waitFor({ timeout: 30000 });
+      await receipt.scrollIntoViewIfNeeded();
+      await page.screenshot({ path: join(output, `payment-in-block-${label}.png`) });
+      await page.getByRole('button', { name: 'View transaction', exact: true }).click();
+      await details.getByText(txid, { exact: true }).waitFor();
+      await details.getByText(`#${block}`, { exact: true }).waitFor();
+    };
+
     // A guided visitor ("Hashes are new to me") walks all five stops in plain words.
     {
       const page = await visit();
       await page.getByRole('dialog', { name: PLAIN[0].title, exact: true }).waitFor();
-      assert.equal(await page.locator(COACH).count(), 0, 'No coach mark while the tour runs');
+      assert.equal(await page.locator(DEMO_COACH).count(), 0, 'No coach mark while the tour runs');
       for (let number = 1; number <= 5; number++) {
         await expectStop(page, PLAIN, number, `Stop ${number} at 1440 px`);
         if (number === 3) {
@@ -104,23 +171,35 @@ export async function verifyTour(browser, baseURL, output) {
         await press(page, number < 5 ? 'Next' : 'Done');
       }
       await card(page).waitFor({ state: 'detached' });
-      await page.locator(COACH).waitFor();
+      await page.locator(DEMO_COACH).waitFor();
       // The app moves the focus in the frame after the tour closes.
-      await page.waitForFunction(selector => document.querySelector(selector)?.contains(document.activeElement), COACH, { timeout: 5000 })
+      await page.waitForFunction(selector => document.querySelector(selector)?.contains(document.activeElement), DEMO_COACH, { timeout: 5000 })
         .catch(() => assert.fail('After the tour focus goes to the control the active step needs'));
       assert.equal(await seen(page), '1');
       await page.reload();
-      await page.locator(COACH).waitFor();
+      await page.locator(DEMO_COACH).waitFor();
       assert.equal(await page.locator('[data-tour-stop]').count(), 0, 'The tour opens only once');
+      const guide = page.getByText('Press Start demo to mine the first block and give the wallets coins to spend.', { exact: true });
+      await guide.waitFor();
+      const step = page.locator('.mission-rail-step.is-current').filter({ has: guide });
+      await step.getByRole('button', { name: 'Show me' }).click();
+      await page.waitForFunction(selector => document.querySelector(selector)?.contains(document.activeElement), DEMO_COACH);
+      await firstPayment(page, 'desktop');
       await page.context().close();
     }
-    results.push('Tour: a guided visitor arriving at the workbench walks five stops in plain words (count, focus, ring on each region, card inside the viewport, Start demo usable); Done brings the coach mark back with focus on New transaction; a reload shows no tour');
+    results.push('Tour: a guided visitor arriving at the workbench walks five stops in plain words (count, focus, ring on each region, card inside the viewport, Start demo usable); Done brings the coach mark back with focus on Start demo; a reload shows no tour; the demo hands off to New transaction and an actual payment finishes the mission');
 
     // The phone: the card docks to the bottom edge; stops 1 and 3 in the light theme.
     for (const width of [390, 320]) {
       const page = await visit({ width, choice: 'hash' });
       await page.getByRole('dialog', { name: TECHNICAL[0].title, exact: true }).waitFor();
-      if (width === 390) await menu(page, 'Light theme');
+      if (width === 390) {
+        // Close via the menu button. Escape may belong to the tour when WebKit leaves focus there.
+        const toggle = page.getByRole('button', { name: 'Menu', exact: true });
+        await toggle.click();
+        await page.locator('.top-bar-menu').getByRole('button', { name: /^Light theme/ }).click();
+        await toggle.click();
+      }
       for (let number = 1; number <= 5; number++) {
         // At 390 px the theme switch above went through the menu, which hands the focus back to its
         // button: the first stop's focus is checked at 320 px, where nothing was clicked before it.
@@ -133,9 +212,10 @@ export async function verifyTour(browser, baseURL, output) {
         await press(page, number < 5 ? 'Next' : 'Done');
       }
       await card(page).waitFor({ state: 'detached' });
+      if (width === 390) await firstPayment(page, 'phone');
       await page.context().close();
     }
-    results.push('Tour: at 390 px (light) and 320 px the card docks to the bottom edge at every stop, in technical words for "I know what a hash is", without sideways scrolling');
+    results.push('Tour: at 390 px (light) and 320 px the card docks to the bottom edge at every stop, in technical words for "I know what a hash is", without sideways scrolling; at 390 px the mining recap is visible and the first payment completes');
 
     // Skip tour on a fresh visit marks it seen as well.
     {
@@ -143,10 +223,10 @@ export async function verifyTour(browser, baseURL, output) {
       await page.getByRole('dialog', { name: PLAIN[0].title, exact: true }).waitFor();
       await press(page, 'Skip tour');
       await card(page).waitFor({ state: 'detached' });
-      await page.locator(COACH).waitFor();
+      await page.locator(DEMO_COACH).waitFor();
       assert.equal(await seen(page), '1');
       await page.reload();
-      await page.locator(COACH).waitFor();
+      await page.locator(DEMO_COACH).waitFor();
       assert.equal(await page.locator('[data-tour-stop]').count(), 0, 'A skipped tour does not return');
       await page.context().close();
     }
@@ -155,13 +235,13 @@ export async function verifyTour(browser, baseURL, output) {
     // A free player never gets it by itself, but can start it from the menu; Escape skips it.
     {
       const page = await visit({ choice: 'play' });
-      await page.locator(COACH).waitFor();
+      await page.locator(DEMO_COACH).waitFor();
       assert.equal(await page.locator('[data-tour-stop]').count(), 0, 'No tour for "Just let me play"');
       await menu(page, 'Tour of the simulator');
       await expectStop(page, TECHNICAL, 1, 'Stop 1 from the menu');
       await page.keyboard.press('Escape');
       await card(page).waitFor({ state: 'detached' });
-      await page.locator(COACH).waitFor();
+      await page.locator(DEMO_COACH).waitFor();
       assert.equal(await seen(page), '1');
       await page.context().close();
     }

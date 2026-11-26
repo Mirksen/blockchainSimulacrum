@@ -14,11 +14,9 @@ describe('privacy policy page', () => {
         expect(page).toContain('Usage sharing');
         expect(page).toContain('PostHog');
     });
-    it('names the counted starting point and completed missions (17 November 2026)', () => {
-        expect(page).toContain('last updated 17 November 2026');
-        expect(page).toContain('One exception is counted in the usage statistics below: which starting point you chose and that a mission was completed.');
-        expect(page).toContain('the chain reset, the starting point chosen, a mission completed)');
-        expect(page).toContain('your mission progress');
-        expect(page).not.toContain('completed missions');
+    it('names the counted starting point and completed missions (26 November 2026)', () => {
+        expect(page).toContain('last updated 26 November 2026');
+        expect(page).toContain('The usage statistics described below count which starting point you chose and each mission you complete.');
+        expect(page).toContain('such as opening a page, choosing a starting point, completing a mission, mining a block or creating a transaction.');
     });
 });

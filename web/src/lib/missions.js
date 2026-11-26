@@ -12,8 +12,8 @@
 // Events (all plain objects with a `type`):
 //   Basics:    copy_tried {kind: 'photo'|'double-spend'|'rejected'}, fingerprint_made {hash},
 //              fingerprints_compared {changed, right}, manual_hash_found {hash},
-//              draw_finished {winner, rolls}, seals_checked {valid, edited},
-//              seals_repaired {zeros, hashes, valid}, lesson_reset
+//              draw_finished {winner, rolls}, seals_checked {valid, edited, page, zeros, pageOneBroken},
+//              seals_repaired {zeros, hashes, valid, pageOneWasBroken}, lesson_reset
 //   Labs:      work_found {difficulty, attempts}, chain_checked {consistent, changedFirstBlock},
 //              fork_round {scenario, rounds, originalWork, alternativeWork, selected, reorganized},
 //              fork_reset, merkle_checked {root, txid, valid, malformed, editedSibling, failedAt},
@@ -55,10 +55,10 @@ export const MISSIONS = freeze([
     ],
     hint: {
       plain: 'A file never leaves your device when you send it. You send a copy.',
-      technical: 'Sending data copies it. That is the double-spending problem.'
+      technical: 'Sending data creates a copy. Without rules for ownership, a digital coin could be spent twice.'
     },
     result: {
-      plain: 'Digital things copy for free. Money must not. So everyone has to agree on one list of who paid whom. The rest of this course is about who may write that list.',
+      plain: 'Digital files are easy to copy. Money needs rules that prevent the same coin being spent twice. Everyone must agree on who paid whom. Next, explore who gets to write that shared list.',
       technical: 'Without a shared, ordered ledger the same coin can be spent twice. The remaining question is who may append to that ledger when nobody is in charge.'
     },
     reward: { xp: 10 }
@@ -70,7 +70,7 @@ export const MISSIONS = freeze([
       { id: 'repeat-text', text: 'Change it, then type your first text again. The same fingerprint returns.', target: 'basics.text' }
     ],
     hint: 'A hash is a fingerprint of data: a short code calculated from every character.',
-    result: 'The same text always gives the same fingerprint, on every computer. A fingerprint is always 64 characters, however long the text.',
+    result: 'The same text always gives the same fingerprint, on every computer. A SHA-256 fingerprint has 64 hexadecimal characters, whatever the length of the text.',
     reward: { xp: 10 }
   },
   {
@@ -80,7 +80,7 @@ export const MISSIONS = freeze([
       { id: 'keep-small', text: 'Try three more small changes. Can you keep the fingerprint almost the same?', target: 'basics.compare' }
     ],
     hint: 'Add a zero, swap a letter, add a space. Watch the counter.',
-    result: 'Every change, however small, gives a completely different fingerprint: about half of its bits flip. Nobody can sneak in a small change, and nobody can work back from a fingerprint to the text.',
+    result: 'Even a tiny edit typically changes about half the fingerprint’s bits. Small edits become visible. You cannot reverse a fingerprint to recover the text, though you can test guesses.',
     reward: { xp: 10 }
   },
   {
@@ -97,8 +97,8 @@ export const MISSIONS = freeze([
     ],
     hint: 'Each new text is a fresh roll of a 16-sided die. The same text always lands the same way.',
     result: {
-      plain: 'Finding it took many rolls. Checking it takes one look. So the fingerprint itself proves that somebody rolled.',
-      technical: 'No shortcut is known: the only way is trying inputs. Verifying costs one hash. The hash itself is the proof of the work.'
+      plain: 'Finding a match takes trial and error. Checking it takes one hash of the text. A valid result shows that the text meets the rule; it does not reveal how many tries it took.',
+      technical: 'Finding a matching input takes trial and error; verifying it costs one hash. A valid result does not reveal the exact number of attempts.'
     },
     reward: { xp: 20 }
   },
@@ -113,7 +113,7 @@ export const MISSIONS = freeze([
       technical: 'Leader election without a leader: every hash is a lottery ticket, so influence follows work, not the number of identities.'
     },
     result: {
-      plain: 'The roll is the postage for writing a page: whoever hits first writes it and earns the reward. Nobody can fake a win, and everyone can check it at a glance.',
+      plain: 'The work is like postage for writing a page: the first writer to find a match writes it and earns the reward. Everyone can verify the result by hashing the winning text.',
       technical: 'Proof of work picks the next writer by lottery and prices every page: writing costs work, verifying costs one hash. The same idea was first proposed as postage against e-mail spam.'
     },
     reward: { xp: 20 }
@@ -121,13 +121,13 @@ export const MISSIONS = freeze([
   {
     id: 'sealed-pages', title: 'Sealed pages', chapter: 'basics', view: 'basics',
     steps: [
-      { id: 'break-seal', text: 'Change the text on page 1. Watch the seals break.', target: 'basics.page-1' },
-      { id: 'repair-free', text: 'Set Guessing to off and repair. Count the hashes.', target: 'basics.repair' },
-      { id: 'repair-work', text: 'Break page 1 again, set Guessing to 3 zeros and repair.', target: 'basics.repair' }
+      { id: 'break-seal', text: 'With Guessing off, change the text on page 1. Watch the seals break.', target: 'basics.page-1' },
+      { id: 'repair-free', text: 'Repair with Guessing still off. Count the hashes.', target: 'basics.repair' },
+      { id: 'repair-work', text: 'Set Guessing to 3 zeros, change page 1, then choose Repair.', target: 'basics.repair' }
     ],
     hint: 'Every seal includes the seal of the page before it, so a change travels forward.',
     result: {
-      plain: 'The chain makes tampering visible. The work makes it expensive. Only both together protect the past.',
+      plain: 'The chain makes edits visible. Proof of work makes rewriting it expensive, because the changed page and all later pages need new valid seals.',
       technical: 'A hash chain alone is tamper-evident but cheap to recompute. Proof of work makes rewriting cost the work of every later block again.'
     },
     reward: { xp: 30, badge: 'Basics' }
@@ -154,8 +154,8 @@ export const MISSIONS = freeze([
       technical: 'Both searches use the same message and start at nonce 0.'
     },
     result: {
-      plain: 'The computer did in a blink what took you many rolls by hand. One more zero made a hit about 16 times rarer: that is how difficulty is set.',
-      technical: 'Both searches used the same message and started at nonce 0. Each extra hex zero makes a match about 16 times less likely per attempt. A single run does not guarantee a particular time or attempt ratio.'
+      plain: 'The computer tried numbers for you. Each extra leading zero makes a match 16 times less likely, though the attempts needed vary from run to run.',
+      technical: 'Both searches used the same message and started at nonce 0. Each extra hex zero makes a match about 16 times less likely per attempt. A single run more or fewer attempts than the average a particular time or attempt ratio.'
     },
     reward: { xp: 40, badge: 'First proof' }
   },
@@ -164,14 +164,14 @@ export const MISSIONS = freeze([
     steps: [
       {
         id: 'edit-block',
-        text: { plain: 'Change the data of Block 1 (a block is a page).', technical: 'Edit Block 1’s data.' },
+        text: { plain: 'Change Block 1’s data. A block is the page from the course.', technical: 'Edit Block 1’s data.' },
         target: 'chain-lab.block-1'
       },
       {
         id: 'repair-chain',
         text: {
           plain: 'Keep the change, then re-mine Blocks 1, 2 and 3 in order: each needs a new lucky number.',
-          technical: 'Keep that edit, then re-mine Blocks 1, 2 and 3 in order.'
+          technical: 'Keep your edit, then re-mine Blocks 1, 2 and 3 in order.'
         },
         target: 'chain-lab.remine'
       }
@@ -192,8 +192,8 @@ export const MISSIONS = freeze([
       {
         id: 'new-transaction',
         text: {
-          plain: 'Send coins from one wallet to another with New transaction. If nobody has coins yet, press Start demo first.',
-          technical: 'Create a transaction from one wallet to another.'
+          plain: 'Use New transaction to send coins from one wallet to another.',
+          technical: 'Use New transaction to queue a payment.'
         },
         target: 'workbench.new-transaction'
       }
@@ -252,8 +252,8 @@ export const MISSIONS = freeze([
       { id: 'remine-later', text: 'Re-mine every later block in order until the chain is valid.', target: 'workbench.remine' }
     ],
     hint: {
-      plain: 'Like Sealed pages, in the real simulator. A signed payment cannot be forged, a spent coin drags its spender down with it, and a miner may never claim more than reward plus fees. Undo starts over.',
-      technical: 'A signed transfer cannot be forged, a spent coin takes its spender down with it, and a coinbase may never claim more than reward plus fees. Undo starts over.'
+      plain: 'Like Sealed pages, in the real simulator. Editing a signed payment invalidates its signature. Editing a spent coin also invalidates the payment that spends it. The miner’s payout cannot exceed the reward plus fees. Undo starts over.',
+      technical: 'Editing a signed transfer invalidates its signature. Editing a spent output also invalidates the transaction that spends it. A coinbase cannot claim more than the reward plus fees. Undo starts over.'
     },
     result: 'The chain is valid again, but only because you redid the work for the changed block and every block after it, and only because a coinbase has no signature and nobody had spent it. On a real network, other miners would have kept adding blocks meanwhile. This simulation has no network.',
     reward: { xp: 80, badge: 'Forger' }
@@ -269,8 +269,8 @@ export const MISSIONS = freeze([
       technical: 'The reward halves after a fixed number of blocks. A shorter halving interval in Settings gets you there sooner.'
     },
     result: {
-      plain: 'The reward halved. A block still costs the same work but creates fewer new coins. That is why the total number of coins has a limit.',
-      technical: 'The block reward halved. A block still needs the same work, but it now creates fewer new powfyicoin.'
+      plain: 'The reward halved. Halving reduces the new coins per block without changing the difficulty. That is why the total number of coins has a limit.',
+      technical: 'The block reward halved. Halving leaves difficulty unchanged but reduces the new powfyicoin created per block.'
     },
     reward: { xp: 60, badge: 'Halving survivor' }
   },
@@ -291,8 +291,8 @@ export const MISSIONS = freeze([
       technical: 'Lower difficulty mines faster, higher difficulty slower. The target block time is in Settings.'
     },
     result: {
-      plain: 'The chain changed its own difficulty to get back to its pace. Nobody decided that: the rule is part of the chain. Real networks adjust the same way, over many more blocks.',
-      technical: 'The difficulty adjusted to pull block times back toward the target. Real networks adjust the same way, over many more blocks.'
+      plain: 'The simulator adjusted difficulty to bring block times toward the target. Real mining networks can use different rules and much longer intervals.',
+      technical: 'The difficulty adjusted to bring block times toward the target. Real mining networks can use different adjustment rules and much longer intervals.'
     },
     reward: { xp: 100, badge: 'Pace setter' }
   },
@@ -303,7 +303,7 @@ export const MISSIONS = freeze([
       { id: 'overtake-history', text: 'Let the rewritten branch overtake the original.', target: 'chain-lab.fork-mine' }
     ],
     hint: {
-      plain: 'Two versions of the notebook compete, and everyone follows the one with more work in it. Give the alternative branch more hash power; equal work keeps the current branch.',
+      plain: 'Two versions of the notebook compete, and everyone follows the one with more work in it. Give the alternative branch more hash power. Equal work keeps the current branch.',
       technical: 'Change the alternative branch’s hash power. Equal work keeps the current branch; only strictly more work switches it.'
     },
     result: 'The rewritten branch became the selected history because its valid blocks accumulated more work. This local text model does not forge signatures or move money, and more hash power never guarantees a win within twelve blocks.',
@@ -330,7 +330,7 @@ export const MISSIONS = freeze([
       { id: 'change-sibling', text: 'Change one character of one sibling hash. Find the first diverging level.', target: 'chain-lab.merkle-sibling' }
     ],
     hint: {
-      plain: 'A block’s fingerprint covers all its payments through a small tree of hashes, so a few of them prove one payment. Choose a transaction, then change one hex character (0–9 or a–f) in a sibling, keeping all 64 characters. Reset example starts over.',
+      plain: 'A block’s fingerprint covers its payments through a tree of hashes. A short path through that tree can prove that one payment is included. Choose a transaction, then change one hex character (0–9 or a–f) in a sibling, keeping all 64 characters. Reset example starts over.',
       technical: 'Choose a transaction to check its real proof. Then replace one hex character (0–9 or a–f) in a sibling, keeping all 64 characters. Reset example starts over.'
     },
     result: 'The original path matched the header’s Merkle root. Changing one sibling changed the computed root, with the first diverging level marked. These toy payment texts prove inclusion only; they are not signed transfers.',
@@ -396,14 +396,23 @@ const RULES = {
   },
   'sealed-pages': {
     advance(step, data, event) {
+      if (![0, 2, 3].includes(event.zeros)) return null;
       if (event.type === 'seals_checked') {
-        if (typeof event.valid !== 'boolean' || typeof event.edited !== 'boolean') return null;
-        return step === 0 && event.edited && !event.valid ? { step: 1, data } : null;
+        if (event.edited !== true || event.page !== 1 || typeof event.valid !== 'boolean' ||
+          typeof event.pageOneBroken !== 'boolean' || (event.valid && event.pageOneBroken)) return null;
+        if (step === 0 && event.zeros === 0 && event.pageOneBroken) return { step: 1, data };
+        if (step !== 2) return null;
+        const editedAtThreeZeros = event.zeros === 3 && event.pageOneBroken;
+        if (Boolean(data.editedAtThreeZeros) === editedAtThreeZeros) return null;
+        return { step, data: editedAtThreeZeros ? { editedAtThreeZeros: true } : {} };
       }
-      if (event.type !== 'seals_repaired' || !Number.isInteger(event.zeros) || event.zeros < 0 || event.zeros > 3 ||
-        !isCount(event.hashes) || event.valid !== true) return null;
-      if (step === 1 && event.zeros === 0) return { step: 2, data };
-      if (step === 2 && event.zeros >= 2 && event.hashes > 3) return { step: 3, data };
+      if (event.type !== 'seals_repaired' || !isCount(event.hashes) || event.valid !== true ||
+        typeof event.pageOneWasBroken !== 'boolean') return null;
+      if (step === 1 && event.zeros === 0 && event.pageOneWasBroken) return { step: 2, data: {} };
+      if (step === 2 && data.editedAtThreeZeros) {
+        if (event.zeros === 3 && event.pageOneWasBroken) return { step: 3, data };
+        return { step, data: {} };
+      }
       return null;
     }
   },
@@ -567,6 +576,14 @@ export function activeStep(progress) {
   if (!mission) return null;
   const step = mission.steps[progress.step];
   return { mission, step, view: mission.view, target: step.target };
+}
+
+// Funding is a prerequisite for the first payment, not a saved mission step.
+export function guideFirstPayment(active, needsFunds, canStartDemo) {
+  if (!needsFunds) return active;
+  return canStartDemo
+    ? { ...active, target: 'workbench.start-demo', instruction: 'Press Start demo to mine the first block and give the wallets coins to spend.' }
+    : { ...active, target: 'workbench.mine', instruction: 'Press Mine block to earn coins that a wallet can spend.' };
 }
 
 // The Chain lab experiment each mission runs in; every other mission opens the repair.

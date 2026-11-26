@@ -83,7 +83,7 @@ describe('BasicsCourse host', () => {
 
   it('uses the tone for ledes and results', () => {
     renderCourse({ progress: allBasicsDone(), tone: 'technical' });
-    expect(screen.getByText('Data is copied, never moved. A digital coin is data.')).toBeTruthy();
+    expect(screen.getByText('Sending digital data creates a copy. How can a digital coin change hands without being spent twice?')).toBeTruthy();
     expect(screen.getByText(/Without a shared, ordered ledger the same coin can be spent twice/)).toBeTruthy();
   });
 
@@ -102,7 +102,7 @@ describe('BasicsCourse host', () => {
     const rows = screen.getAllByRole('row').slice(1).map(row => [...row.querySelectorAll('td')].map(cell => cell.textContent));
     expect(rows).toEqual([['Page', 'Block'], ['Seal', 'Hash'], ['Lucky number', 'Nonce'], ['Notebook', 'Blockchain'],
       ['The draw', 'Mining'], ['Postage', 'Proof of work'], ['Guessing: 3 zeros', 'Difficulty'], ['Writer', 'Miner']]);
-    expect(screen.getByText(/You touched three of the four pillars: fingerprints \(cryptography\), the chain, and the work\. The fourth, a network of thousands of copies, is not simulated on this site\./)).toBeTruthy();
+    expect(screen.getByText(/You explored fingerprints \(cryptography\), linked blocks, and proof of work\. Bitcoin also relies on a network of computers that check and share the chain\. In Chain lab, choose Two nodes to see why their copies can briefly disagree\./)).toBeTruthy();
     expect(onContinue).not.toHaveBeenCalled();
     click('Continue');
     expect(onContinue).toHaveBeenCalledTimes(1);
@@ -149,7 +149,7 @@ describe('Basics scenes complete their missions', () => {
     click('Send coin to Bob');
     expect(filled().map(button => button.textContent)).toEqual(['Send same coin to Carol']);
     click('Send same coin to Carol');
-    expect(screen.getByText('Both got the coin, and Alice still has it. One coin became three.')).toBeTruthy();
+    expect(screen.getByText('Bob and Carol both got a copy, and Alice still has hers. The same coin was spent twice.')).toBeTruthy();
     expect(screen.getAllByText('Holds: Photo, Coin')).toHaveLength(2);
     // The holdings are drawn as chips: one coin became three.
     const chips = kind => document.querySelectorAll(`.basics-person .basics-chip.is-${kind}`);
@@ -165,7 +165,7 @@ describe('Basics scenes complete their missions', () => {
     expect(chips('coin')).toHaveLength(1);
     click('Send same coin to Carol');
     expect(screen.getByText('Rejected: the list says Alice already paid this coin to Bob.')).toBeTruthy();
-    expect(screen.getByText('A picture of the idea, not a real ledger.')).toBeTruthy();
+    expect(screen.getByText('A simplified example of how a ledger prevents double spending.')).toBeTruthy();
     expect(events).toEqual([
       { type: 'copy_tried', kind: 'photo' }, { type: 'copy_tried', kind: 'double-spend' }, { type: 'copy_tried', kind: 'rejected' }
     ]);
@@ -219,9 +219,9 @@ describe('Basics scenes complete their missions', () => {
     expect(input.value).toBe('Learner A 3');
     expect(digest('Learner A 3').startsWith('0')).toBe(true);
     expect(screen.getByText('Rolls: 4 · 16 on average')).toBeTruthy();
-    expect(screen.getByText('Found after 4 rolls. Checking takes one look.')).toBeTruthy();
+    expect(screen.getByText('Found after 4 rolls. Hash the text once and check the leading zero.')).toBeTruthy();
     expect(screen.getByText('Your first proof')).toBeTruthy();
-    expect(document.querySelector('.basics-proof').textContent).toContain('The changing number is called a nonce. Machines that roll for a living are called miners.');
+    expect(document.querySelector('.basics-proof').textContent).toContain('The changing number is called a nonce. Computers that search for valid block hashes are called miners.');
     expect(events).toEqual([{ type: 'manual_hash_found', hash: digest('Learner A 3') }]);
     expect(missionStatus(state.progress, 'change-fingerprint')).toBe('done');
     // Further rolls never report a second find.
@@ -242,7 +242,7 @@ describe('Basics scenes complete their missions', () => {
     let text = 'Learner';
     do { click('Roll'); rolls++; text = input.value; } while (!digest(text).startsWith('0'));
     expect(text).toBe(`Learner ${rolls - 1}`);
-    expect(screen.getByText(`Found after ${rolls} rolls. Checking takes one look.`)).toBeTruthy();
+    expect(screen.getByText(`Found after ${rolls} rolls. Hash the text once and check the leading zero.`)).toBeTruthy();
     expect(events).toEqual([{ type: 'manual_hash_found', hash: digest(text) }]);
     expect(missionStatus(state.progress, 'change-fingerprint')).toBe('done');
   });
@@ -291,7 +291,7 @@ describe('Basics scenes complete their missions', () => {
     vi.useFakeTimers({ toFake: ['requestAnimationFrame', 'cancelAnimationFrame'] });
     const { events } = renderCourse({ progress: progressAt('why-guess') });
     click('Run the draw');
-    expect(screen.getByText('Drawing page 1…')).toBeTruthy();
+    expect(screen.getByText('Choosing a writer for page 1…')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Run the draw' }).disabled).toBe(true);
     expect(events).toEqual([]);
     act(() => { vi.advanceTimersByTime(3500); });
@@ -311,18 +311,23 @@ describe('Basics scenes complete their missions', () => {
     // Page 2 still stores page 1's stored seal; it is page 1's text that no longer fits.
     expect(ties()).toEqual(['Matches the seal of page 1', 'Matches the seal of page 2']);
     expect(screen.getAllByText('Broken: built on a broken page')).toHaveLength(2);
-    expect(events.at(-1)).toEqual({ type: 'seals_checked', valid: false, edited: true });
+    expect(events.at(-1)).toEqual({
+      type: 'seals_checked', valid: false, edited: true, page: 1, zeros: 0, pageOneBroken: true
+    });
     click('Repair');
-    expect(events.at(-1)).toEqual({ type: 'seals_repaired', zeros: 0, hashes: 3, valid: true });
+    expect(events.at(-1)).toEqual({
+      type: 'seals_repaired', zeros: 0, hashes: 3, valid: true, pageOneWasBroken: true
+    });
     expect(screen.getAllByText('Seal fits')).toHaveLength(3);
     expect(screen.getByText('Repaired: 3 hashes in total (1 + 1 + 1). All seals fit.')).toBeTruthy();
     fireEvent.change(screen.getByLabelText('Guessing'), { target: { value: '3' } });
     expect(screen.getAllByText('Seal fits')).toHaveLength(3);
     expect(screen.getByLabelText('Page 1 text').value).toBe(ORIGINAL);
     fireEvent.change(screen.getByLabelText('Page 1 text'), { target: { value: 'Alice pays Bob 100' } });
+    expect(events.at(-1)).toMatchObject({ type: 'seals_checked', page: 1, zeros: 3, pageOneBroken: true });
     click('Repair');
     const repaired = events.at(-1);
-    expect(repaired).toMatchObject({ type: 'seals_repaired', zeros: 3, valid: true });
+    expect(repaired).toMatchObject({ type: 'seals_repaired', zeros: 3, valid: true, pageOneWasBroken: true });
     expect(repaired.hashes).toBeGreaterThan(3);
     expect(screen.getByText(`Chain alone: repaired in 3 hashes. With work: ${repaired.hashes.toLocaleString('en-US')} tries.`)).toBeTruthy();
     const seals = [...document.querySelectorAll('.basics-seal')].filter(row => row.querySelector('dt').textContent === 'Seal');

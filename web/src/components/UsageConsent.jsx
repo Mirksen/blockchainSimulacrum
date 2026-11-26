@@ -22,9 +22,11 @@ export function UsageConsent({ client = telemetry }) {
             frame = requestAnimationFrame(() => {
                 const target = document.activeElement, card = notice.current;
                 if (!card || !target?.matches('button, input, textarea, select, a[href], [tabindex]:not([tabindex="-1"])') || card.contains(target)) return;
+                const style = getComputedStyle(card);
+                if (style.position !== 'fixed') return;
                 const focus = target.getBoundingClientRect(), overlay = card.getBoundingClientRect();
                 if (focus.left < overlay.right && focus.right > overlay.left && focus.top < overlay.bottom && focus.bottom > overlay.top) {
-                    const gap = parseFloat(getComputedStyle(card).left);
+                    const gap = parseFloat(style.left);
                     const overlapAt = top => Math.max(0, Math.min(focus.bottom, top + overlay.height) - Math.max(focus.top, top));
                     // Pick the clearer edge; blindly toggling can hide more of
                     // the target on a short screen or when tabbing backwards.
@@ -44,8 +46,8 @@ export function UsageConsent({ client = telemetry }) {
     return <section ref={notice} className={`usage-consent${atTop ? ' is-top' : ''}`} aria-labelledby="usage-consent-title">
         <h2 id="usage-consent-title">This site counts usage</h2>
         <div className="usage-consent-copy">
-        <p>To improve this experiment, it sends usage counts, mining timings and sanitized technical errors to PostHog EU. No cookies, no profile, no session replay. Wallet keys, seed words, names and transaction text stay in your browser.</p>
-        <p className="usage-consent-later">Opt out here or any time in the menu under Usage sharing. <a href="/privacy.html">Privacy policy</a></p>
+        <p>We send usage counts, mining times and technical error reports to PostHog EU. These reports exclude wallet keys, seed words, names and transaction text. We use no cookies, profiles or session replay.</p>
+        <p className="usage-consent-later">You can opt out now or turn off Usage sharing in the menu later. <a href="/privacy.html">Privacy policy</a></p>
         </div>
         <div className="usage-consent-actions">
             <button type="button" className="card-kit-btn is-lg" onClick={() => client.setEnabled(false)}>Opt out</button>

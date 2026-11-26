@@ -41,7 +41,7 @@ describe('HashLab independent interaction', () => {
     expect(screen.getByRole('status').textContent).toContain('Stopped after 0 attempts');
     fireEvent.click(screen.getByRole('button', { name: 'Find a nonce' }));
     await act(async () => { await vi.runAllTimersAsync(); });
-    expect(screen.getByRole('status').textContent).toContain('Target found');
+    expect(screen.getByRole('status').textContent).toContain('Valid hash found');
   });
   it.each(['edit', 'reset', 'next nonce', 'difficulty'])('invalidates a pending search on %s', async action => {
     vi.useFakeTimers();

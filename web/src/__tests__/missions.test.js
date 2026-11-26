@@ -17,8 +17,12 @@ const COMPLETE = {
     { type: 'fingerprints_compared', changed: 33, right: hex('d') }],
   'why-guess': [{ type: 'draw_finished', winner: 'Writer A', rolls: 12 }, { type: 'draw_finished', winner: 'Writer B', rolls: 3 },
     { type: 'draw_finished', winner: 'Writer A', rolls: 40 }],
-  'sealed-pages': [{ type: 'seals_checked', valid: false, edited: true },
-    { type: 'seals_repaired', zeros: 0, hashes: 3, valid: true }, { type: 'seals_repaired', zeros: 3, hashes: 4096, valid: true }],
+  'sealed-pages': [
+    { type: 'seals_checked', valid: false, edited: true, page: 1, zeros: 0, pageOneBroken: true },
+    { type: 'seals_repaired', zeros: 0, hashes: 3, valid: true, pageOneWasBroken: true },
+    { type: 'seals_checked', valid: false, edited: true, page: 1, zeros: 3, pageOneBroken: true },
+    { type: 'seals_repaired', zeros: 3, hashes: 4096, valid: true, pageOneWasBroken: true }
+  ],
   'get-payment-in': [
     { type: 'fee_market_checked', chainValid: true, waiting: [{ txid: 'a'.repeat(64), reason: 'full', rate: 1 }] },
     { type: 'fee_market_checked', chainValid: true, packages: [{ parent: 'a'.repeat(64), child: 'b'.repeat(64), higherFee: true, selected: true }] },
@@ -146,18 +150,18 @@ describe('mission track', () => {
         'two-zeros': 'Ask for two zeros and roll again.'
       },
       hint: 'Both searches use the same message and start at lucky number 0, so only the difficulty differs.',
-      result: 'The computer did in a blink what took you many rolls by hand. One more zero made a hit about 16 times rarer: that is how difficulty is set.'
+      result: 'The computer tried numbers for you. Each extra leading zero makes a match 16 times less likely, though the attempts needed vary from run to run.'
     },
     'change-the-past': {
       steps: {
-        'edit-block': 'Change the data of Block 1 (a block is a page).',
+        'edit-block': 'Change Block 1’s data. A block is the page from the course.',
         'repair-chain': 'Keep the change, then re-mine Blocks 1, 2 and 3 in order: each needs a new lucky number.'
       },
       hint: 'This is Sealed pages with real blocks: re-mining a block changes its hash (its seal), so the next block’s link breaks until you re-mine that one too.',
       result: 'The same lesson as Sealed pages, now with real block headers: a change breaks the chain, and the repair has to be paid block by block. This toy chain shows links and work, not signatures or a network.'
     },
     'send-first-coin': {
-      steps: { 'new-transaction': 'Send coins from one wallet to another with New transaction. If nobody has coins yet, press Start demo first.' },
+      steps: { 'new-transaction': 'Use New transaction to send coins from one wallet to another.' },
       hint: 'A wallet holds coins. The form shows which coins the payment spends; what it does not use comes back as change, and a small fee goes to the miner (the writer of the page).',
       result: 'Your payment now waits in the mempool, the waiting room for the next block. It becomes part of the chain when a miner wins the draw for that block. powfyicoin is virtual: no real money moves.'
     },
@@ -172,25 +176,25 @@ describe('mission track', () => {
     },
     'forge-a-block': {
       steps: { tamper: 'Open a mined block and lower the reward its miner received (the coinbase), in a block whose coin nobody has spent.' },
-      hint: 'Like Sealed pages, in the real simulator. A signed payment cannot be forged, a spent coin drags its spender down with it, and a miner may never claim more than reward plus fees. Undo starts over.'
+      hint: 'Like Sealed pages, in the real simulator. Editing a signed payment invalidates its signature. Editing a spent coin also invalidates the payment that spends it. The miner’s payout cannot exceed the reward plus fees. Undo starts over.'
     },
     'survive-halving': {
       hint: 'Every block creates new coins as the miner’s reward. After a fixed number of blocks that reward halves, so new coins become scarcer. A shorter halving interval in Settings gets you there sooner.',
-      result: 'The reward halved. A block still costs the same work but creates fewer new coins. That is why the total number of coins has a limit.'
+      result: 'The reward halved. Halving reduces the new coins per block without changing the difficulty. That is why the total number of coins has a limit.'
     },
     'beat-difficulty-adjustment': {
       steps: { 'change-pace': 'Mine 10 blocks clearly faster or slower than the target block time.' },
       hint: 'The chain wants a steady pace. If blocks come too fast, it asks for one more zero; too slow, one less. Lower difficulty mines faster. The target block time is in Settings.',
-      result: 'The chain changed its own difficulty to get back to its pace. Nobody decided that: the rule is part of the chain. Real networks adjust the same way, over many more blocks.'
+      result: 'The simulator adjusted difficulty to bring block times toward the target. Real mining networks can use different rules and much longer intervals.'
     },
     'follow-stronger-chain': {
-      hint: 'Two versions of the notebook compete, and everyone follows the one with more work in it. Give the alternative branch more hash power; equal work keeps the current branch.'
+      hint: 'Two versions of the notebook compete, and everyone follows the one with more work in it. Give the alternative branch more hash power. Equal work keeps the current branch.'
     },
     'get-payment-in': {
       hint: 'A block has limited room, so miners take the payments that pay the most per byte. Send a low-fee payment to a new wallet, add high-fee transfers until it waits, then spend it from that wallet at 20 sat/B: the new payment pulls the waiting one along.'
     },
     'prove-a-payment': {
-      hint: 'A block’s fingerprint covers all its payments through a small tree of hashes, so a few of them prove one payment. Choose a transaction, then change one hex character (0–9 or a–f) in a sibling, keeping all 64 characters. Reset example starts over.'
+      hint: 'A block’s fingerprint covers its payments through a tree of hashes. A short path through that tree can prove that one payment is included. Choose a transaction, then change one hex character (0–9 or a–f) in a sibling, keeping all 64 characters. Reset example starts over.'
     },
     'test-a-signature': {
       hint: 'Work protects the order of the pages; a signature protects each payment. Use the newest block and a transfer, not the coinbase. Re-mining repairs the hash, but only the sender’s key can sign the changed payment. Undo starts over.'
@@ -489,23 +493,36 @@ describe('Basics missions', () => {
     expect(missionStatus(reduce(two, COMPLETE['why-guess'][2]), 'why-guess')).toBe('done');
   });
 
-  it('breaks the seals, repairs them for free and then with work', () => {
+  it('requires a broken first seal for the off repair and a new edit at three zeros before completion', () => {
+    const [editOff, repairOff, editWork, repairWork] = COMPLETE['sealed-pages'];
     const start = reach('sealed-pages');
     expect(activeStep(start).target).toBe('basics.page-1');
-    expect(apply(start, [{ type: 'seals_checked', valid: false, edited: false }, { type: 'seals_checked', valid: true, edited: true },
-      { type: 'seals_checked', valid: 'no', edited: true }, COMPLETE['sealed-pages'][1], COMPLETE['sealed-pages'][2]])).toBe(start);
-    const broken = reduce(start, COMPLETE['sealed-pages'][0]);
+    expect(apply(start, [
+      editWork, { ...editOff, zeros: 2 }, { ...editOff, edited: false }, { ...editOff, page: 2 }, { ...editOff, pageOneBroken: false },
+      { ...editOff, valid: true }, { ...editOff, valid: 'no' }, repairOff, repairWork
+    ])).toBe(start);
+    const broken = reduce(start, editOff);
     expect(activeStep(broken)).toMatchObject({ step: { id: 'repair-free' }, target: 'basics.repair' });
-    expect(apply(broken, [{ type: 'seals_repaired', zeros: 2, hashes: 300, valid: true },
-      { type: 'seals_repaired', zeros: 0, hashes: 3, valid: false }, { type: 'seals_repaired', zeros: 0, hashes: 0, valid: true },
-      COMPLETE['sealed-pages'][0]])).toBe(broken);
-    const free = reduce(broken, COMPLETE['sealed-pages'][1]);
+    expect(apply(broken, [
+      editWork, repairWork, { ...repairOff, valid: false }, { ...repairOff, hashes: 0 },
+      { ...repairOff, pageOneWasBroken: false }, editOff
+    ])).toBe(broken);
+    const free = reduce(broken, repairOff);
     expect(activeStep(free).step.id).toBe('repair-work');
-    expect(apply(free, [{ type: 'seals_repaired', zeros: 0, hashes: 3, valid: true },
-      { type: 'seals_repaired', zeros: 1, hashes: 50, valid: true }, { type: 'seals_repaired', zeros: 2, hashes: 3, valid: true },
-      { type: 'seals_repaired', zeros: 4, hashes: 90000, valid: true }, { type: 'seals_repaired', zeros: 3, hashes: 4096, valid: false }]))
-      .toBe(free);
-    const done = reduce(free, { type: 'seals_repaired', zeros: 2, hashes: 4, valid: true });
+    expect(apply(free, [
+      repairWork, { ...editWork, page: 2, pageOneBroken: false }, repairWork,
+      { ...editWork, zeros: 2 }, repairWork, editOff, repairWork
+    ])).toBe(free);
+    const edited = reduce(free, editWork);
+    expect(edited.step).toBe(free.step);
+    expect(apply(edited, [
+      { ...repairWork, valid: false }, { ...repairWork, hashes: 0 },
+      { ...repairWork, zeros: 1 }, { ...repairWork, zeros: 4 }
+    ])).toBe(edited);
+    expect(apply(edited, [{ ...repairWork, pageOneWasBroken: false }, repairWork])).toEqual(free);
+    expect(apply(edited, [{ ...repairWork, zeros: 2 }, repairWork])).toEqual(free);
+    expect(apply(edited, [{ ...editWork, pageOneBroken: false }, repairWork])).toEqual(free);
+    const done = reduce(edited, repairWork);
     expect(missionStatus(done, 'sealed-pages')).toBe('done');
     expect(earnedBadges(done)).toEqual(['Basics']);
     expect(totalXp(done)).toBe(100);

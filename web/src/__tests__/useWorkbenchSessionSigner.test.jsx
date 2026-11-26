@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useWorkbenchSession } from '../hooks/useWorkbenchSession';
 import { merkleRoot, merkleBranch, reverseHex } from '../../../shared/bitcoin-block.mjs';
 import { sha256d } from '../lib/blockHeader';
+import { browserSearch } from '../lib/workbenchSession';
 import { GENESIS, proofOfBlock, proofPrefix, signatureOf, verifyRow } from '../lib/poolProof';
 
 const ROUND = { height: 900001, hash: `0000${'ab'.repeat(30)}` };
@@ -20,8 +21,8 @@ async function run(start) {
   return outcome;
 }
 const accepted = outcome => outcome.events.find(event => event.type === 'block-accepted');
-function signed(signature = SIGNATURE) {
-  const hook = renderHook(() => useWorkbenchSession(config));
+function signed(signature = SIGNATURE, search) {
+  const hook = renderHook(() => useWorkbenchSession(config, { search }));
   const signer = { current: vi.fn(() => signature), submit: vi.fn() };
   act(() => { hook.result.current.session.actions.setSigner(signer); });
   const actions = hook.result.current.session.actions;
@@ -30,13 +31,22 @@ function signed(signature = SIGNATURE) {
 
 describe('signing blocks with the visitor\'s name', () => {
   it('signs every block of a race, whichever miner wins, and hands each one over', async () => {
-    const { signer, actions, snap } = signed();
-    const winners = new Set();
+    let winnerIndex = 0;
+    const search = async options => {
+      expect(options.entrants.map(entrant => entrant.id)).toEqual(['Miner1', 'Miner2']);
+      const winner = options.entrants[winnerIndex++ % 2];
+      const others = options.entrants.filter(entrant => entrant !== winner);
+      // Give the chosen miner a real winning nonce as its first try. Both candidates
+      // still enter the race, and the chain checks the proof before accepting the winner.
+      const { nonce } = await browserSearch({ ...options, entrants: [winner], onProgress: undefined });
+      return browserSearch({ ...options, entrants: [{ ...winner, startNonce: nonce }, ...others] });
+    };
+    const { signer, actions, snap } = signed(SIGNATURE, search);
     for (let height = 1; height <= 12; height++) {
       const outcome = await run(() => actions.mine());
       expect(outcome.ok).toBe(true);
       const { winner, block } = accepted(outcome);
-      winners.add(winner);
+      expect(winner).toBe(height % 2 === 1 ? 'Miner1' : 'Miner2');
       const view = snap().describeTx(block.transactions[0]);
       expect(view.memo).toBe(NAME);
       expect(view.outputs.at(-1)).toMatchObject({ kind: 'commitment', value: 0, spent: false, memo: null });
@@ -44,7 +54,6 @@ describe('signing blocks with the visitor\'s name', () => {
       const [submitted, signature, at] = signer.submit.mock.lastCall;
       expect([submitted.hash, signature, at]).toEqual([block.hash, SIGNATURE, height]);
     }
-    expect([...winners].sort()).toEqual(['Miner1', 'Miner2']);
     expect(snap().chainValid).toBe(true);
   });
 

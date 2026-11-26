@@ -25,13 +25,13 @@ function FullHash({ hash }) {
 function Verification({ block }) {
   const check = verifyRow(block);
   return <div className="miner-profile-verify" role="status">
-    <p {...term('pool.header-check')}>Double SHA-256 of the 80-byte block header</p>
+    <p {...term('pool.header-check')}>80-byte block header</p>
     <code className="miner-profile-preimage">{check.header}</code>
-    <p>is <code className="miner-profile-preimage">{check.hash}</code></p>
-    <p {...term('pool.commitment')}>Its coinbase commits to <code className="miner-profile-preimage">{check.commitment}</code></p>
+    <p>Recomputed hash <code className="miner-profile-preimage">{check.hash}</code></p>
+    <p {...term('pool.commitment')}>Commitment in the coinbase transaction <code className="miner-profile-preimage">{check.commitment}</code></p>
     <p className={check.matches ? 'miner-profile-verify-ok' : 'miner-profile-verify-bad'}>
-      {check.matches ? `Matches the listed hash: ${zerosLabel(block.bestZeros)}, signed by ${block.name} in round ${block.round.height}.`
-        : 'Does not match the listed hash and name.'}</p>
+      {check.matches ? `Matches the listed hash: ${zerosLabel(block.bestZeros)}, recorded for ${block.name} in round ${block.round.height}.`
+        : 'Verification failed. The hash or miner commitment does not match.'}</p>
   </div>;
 }
 
@@ -95,7 +95,7 @@ export function MinerProfile({ name, ownName = '', refreshKey = 0, onBack }) {
       await globalThis.navigator.clipboard.writeText(`${origin}${pathname}${search}${minerProfileHash(name)}`);
       setCopied('Link copied.');
     } catch {
-      setCopied('Could not copy. The address bar holds the link.');
+      setCopied('Copy the profile link from your address bar.');
     }
   }
 
@@ -126,7 +126,7 @@ export function MinerProfile({ name, ownName = '', refreshKey = 0, onBack }) {
       }}>Share best find</button>}
       {best && <div className="miner-profile-best"><span className="miner-profile-label" {...term('pool.profile-best')}>Best hash</span><FullHash hash={best} /></div>}
       <h4 id="miner-profile-rounds-title" className="miner-profile-rounds-title" {...term('pool.rounds')}>Rounds</h4>
-      <p className="miner-profile-help">Newest {blocks.length} rounds shown. Totals cover retained blocks; weak entries may leave the board when storage fills.</p>
+      <p className="miner-profile-help">Showing the latest rounds ({blocks.length}). Totals count the blocks still on the board. When space runs low, the board drops weaker entries.</p>
       <Rounds blocks={blocks} />
     </>}
   </section>;

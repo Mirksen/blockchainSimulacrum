@@ -183,7 +183,7 @@ describe('backing a miner', () => {
     expect(snap(result).backedMiner).toBeNull();
     let rejected;
     act(() => { rejected = actionsOf(result).backMiner('Wallet3'); });
-    expect(rejected).toMatchObject({ ok: false, error: 'Only a miner can be backed.' });
+    expect(rejected).toMatchObject({ ok: false, error: 'Choose a miner to back.' });
     expect(snap(result).backedMiner).toBeNull();
     act(() => { actionsOf(result).toggleMiner('Miner2'); }); // Only Miner1 races, so the winner is known.
     act(() => { actionsOf(result).backMiner('Miner1'); });

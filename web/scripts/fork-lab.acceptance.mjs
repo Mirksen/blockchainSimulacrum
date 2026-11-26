@@ -28,7 +28,7 @@ export async function verifyForkLab(page, output, before) {
   await selected('Original').waitFor();
   await step(3);
   await selected('Alternative').waitFor();
-  await lab.getByText(/Rewrite observed:/).waitFor();
+  await lab.getByText(/The alternative gained more valid work/).waitFor();
   await power.focus();
   await power.press('Home');
   await step(4);
@@ -142,7 +142,7 @@ export async function verifyForkMission(browser, baseURL, output) {
       await lab.getByText(`${i} / 12 new blocks`, { exact: true }).waitFor();
     }
     await rail.getByText(counted(earlier + 1), { exact: false }).waitFor();
-    await lab.getByText(/Rewrite observed:/).waitFor();
+    await lab.getByText(/The alternative gained more valid work/).waitFor();
     assert.equal(await page.locator('.coach-mark.is-active').count(), 0);
     const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('proofofwork-missions')));
     assert.equal(stored.completed.at(-1), 'follow-stronger-chain');

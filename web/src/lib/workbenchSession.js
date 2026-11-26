@@ -175,6 +175,8 @@ export function createWorkbenchSession({ chain: startChain = null, search = brow
     // Play starts a run; Auto-mine only decides whether the run continues after a block.
     running: false, autoMine: false, autoTransact: false, slow: false,
     backed: null, signer: null, progress: NO_PROGRESS, raceWinner: null, luck: NO_LUCK, lastRound: null, error: '',
+    // Follow the most recently queued manual transfer through normal mining rounds.
+    manualTxid: null,
     // A refill that found no funded sender waits for the next block of this chain.
     dry: null
   };
@@ -344,7 +346,7 @@ export function createWorkbenchSession({ chain: startChain = null, search = brow
     if (setup?.aborted) return aborted();
     if (!miners.length) return reject('no_miners', 'Enable at least one miner in Participants.');
     // A new block would only extend an invalid chain; repair or undo first.
-    if (!chain.canExtend()) return reject('chain_invalid', 'Paused while the chain is invalid. Re-mine or undo the changed block first.', 'invalid_state');
+    if (!chain.canExtend()) return reject('chain_invalid', 'Mining is paused because the chain is invalid. Re-mine or undo the changed block first.', 'invalid_state');
     const race = lockRace(chain, miners, true);
     const height = chain.blockArray.length;
     const run = setup ? state.run : Object.freeze({ kind: 'mining', index: height });
@@ -371,8 +373,8 @@ export function createWorkbenchSession({ chain: startChain = null, search = brow
   }
 
   // The last round: who won at which nonce, after how many tries, each miner's final progress.
-  function roundOf(index, result) {
-    return Object.freeze({ index, winner: result.winner, nonce: result.block.nonce, attempts: state.progress.total?.iterations,
+  function roundOf(index, result, manualTxid = null) {
+    return Object.freeze({ index, manualTxid, winner: result.winner, nonce: result.block.nonce, attempts: state.progress.total?.iterations,
       elapsedMs: result.miningTime ? result.miningTime * 1000 : undefined, difficulty: state.chain.miningDifficulty,
       perMiner: { ...state.progress.perMiner } });
   }
@@ -405,7 +407,8 @@ export function createWorkbenchSession({ chain: startChain = null, search = brow
   async function mineNext() {
     const result = await raceNewBlock();
     if (result.success) {
-      state.lastRound = roundOf(result.height, result);
+      state.lastRound = roundOf(result.height, result, state.manualTxid);
+      if (state.manualTxid && result.block.transactions.some(tx => tx.createHash() === state.manualTxid)) state.manualTxid = null;
       chainChanged();
     }
     endRun(result);
@@ -421,7 +424,7 @@ export function createWorkbenchSession({ chain: startChain = null, search = brow
     }
     if (chain.blockArray.length !== 1 || chain.memPool.length) {
       void telemetry.track('demo_failed', { reason: 'invalid_state' });
-      return { success: false, error: 'Reset to start a fresh demo.', code: 'invalid_state' };
+      return { success: false, error: 'Reset the chain to start a new demo.', code: 'invalid_state' };
     }
     const setup = { aborted: false };
     const run = Object.freeze({ kind: 'setup', index: 1 });
@@ -442,7 +445,7 @@ export function createWorkbenchSession({ chain: startChain = null, search = brow
       const balance = chain.calculateBalance(chain.getParticipantByName(first.winner).publicKey);
       // Each transfer keeps room for its fee at the lowest rate (a little over 250 bytes).
       const amount = Math.min(0.6, Math.floor((balance / Math.max(1, others.length) - 0.000003) * 1e8) / 1e8);
-      if (amount <= 0) return finish({ success: false, error: 'Reward is too small to distribute. Reset the demo.', code: 'reward_too_small' });
+      if (amount <= 0) return finish({ success: false, error: 'The reward is too small to share. Reset the demo.', code: 'reward_too_small' });
       // One click mines one block: the transfers wait in the mempool for the next one.
       for (const recipient of others) chain.createTransactionAtRate(first.winner, recipient.name, amount, FEE_RATES[0], 'Demo distribution');
       if (others.length) void telemetry.track('transaction_created', { source: 'demo', count: others.length, pending_count: chain.memPool.length });
@@ -532,7 +535,7 @@ export function createWorkbenchSession({ chain: startChain = null, search = brow
       state.running = true;
       const result = await demo();
       if (result.success) {
-        state.lastRound = roundOf(1, result);
+        state.lastRound = Object.freeze({ ...roundOf(1, result), demo: true });
         chainChanged();
       }
       endRun(result);
@@ -581,6 +584,7 @@ export function createWorkbenchSession({ chain: startChain = null, search = brow
       }
       try {
         const tx = state.chain.createTransactionAtRate(sender, recipient, Number(amount), Number(feeRate), reference);
+        state.manualTxid = tx.createHash();
         void telemetry.track('transaction_created', { source: 'manual', count: 1, pending_count: state.chain.memPool.length });
         return changed({ tx }, [{ type: 'transaction-created', source: 'manual', tx }]);
       } catch (error) {
@@ -659,7 +663,7 @@ export function createWorkbenchSession({ chain: startChain = null, search = brow
     },
     // The backing that counts for a race is the one in place when it starts.
     backMiner(name) {
-      if (name !== null && !state.chain.getParticipantByName(name)?.isMiner) return refused('not-a-miner', 'Only a miner can be backed.');
+      if (name !== null && !state.chain.getParticipantByName(name)?.isMiner) return refused('not-a-miner', 'Choose a miner to back.');
       state.backed = name;
       return done({ error: null }, name === null ? [] : [{ type: 'miner-backed', name }]);
     },
@@ -718,6 +722,7 @@ export function createWorkbenchSession({ chain: startChain = null, search = brow
       state.backed = null;
       state.luck = NO_LUCK;
       state.lastRound = null;
+      state.manualTxid = null;
       state.error = '';
       state.dry = null;
       return changed({}, [{ type: 'reset' }]);

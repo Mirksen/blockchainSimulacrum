@@ -23,11 +23,11 @@ describe('MinerDrawer', () => {
     drawer();
     const aside = screen.getByRole('complementary', { name: 'Hal' });
     expect(within(aside).getByRole('slider', { name: "Hal's share of the hashpower" }).value).toBe('60');
-    expect(aside.textContent).toContain('Takes from the others in proportion: Dorian 20 % · Laszlo 20 %');
+    expect(aside.textContent).toContain('Adjusts the other miners’ shares proportionally: Dorian 20 % · Laszlo 20 %');
     // 3,000 attempts in 1.5 s; difficulty 3 needs 4,096 attempts on average.
     expect(aside.textContent).toContain('Attempts per second2,000');
-    expect(aside.textContent).toContain('Chance for the next block60 %');
-    expect(aside.textContent).toContain('Alone, a block takes about2.0 s');
+    expect(aside.textContent).toContain('Chance to find the next block60 %');
+    expect(aside.textContent).toContain('Expected time to find a block2.0 s');
     expect(document.activeElement).toBe(within(aside).getByRole('button', { name: 'Close miner details' }));
   });
 
@@ -70,7 +70,7 @@ describe('MinerDrawer', () => {
 
   it('shows luck only after five races of this session', () => {
     drawer({ luck: { races: 4, perMiner: { 'synthetic-key-hal': { won: 3, expected: 2.4 } } } });
-    expect(screen.getByText(/Luck shows after 5 races this session \(4 so far\)/)).toBeTruthy();
+    expect(screen.getByText(/After 5 races, compare blocks won with the number expected from this miner’s share \(4 races so far\)/)).toBeTruthy();
     cleanup();
     drawer({ luck: { races: 5, perMiner: { 'synthetic-key-hal': { won: 4, expected: 3 } } } });
     expect(screen.getByRole('img', { name: '4 blocks won, 3.0 expected' })).toBeTruthy();

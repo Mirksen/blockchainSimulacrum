@@ -27,7 +27,7 @@ export function WalletsCard({ wallets = [], coinName = 'powfyicoin', onOpenWalle
         <button type="button" className="wallets-card-new" aria-expanded={creating} {...hint('wallets.create')} onClick={() => setCreating(open => !open)}><PlusIcon />Create wallet</button>
       </div>
       <ul className="wallets-card-list" aria-label="Wallets">
-        {wallets.length === 0 && <li className="card-kit-empty">No wallets yet.<small>Create one below.</small></li>}
+        {wallets.length === 0 && <li className="card-kit-empty">No wallets yet.<small>Select Create wallet to add one.</small></li>}
         {wallets.map(wallet => (
           <li key={wallet.name}>
             <button type="button" className="wallets-card-row" onClick={() => onOpenWallet?.(wallet.name)} {...hint('wallets.row', wallet.name, wallet.isMiner)}
@@ -42,7 +42,7 @@ export function WalletsCard({ wallets = [], coinName = 'powfyicoin', onOpenWalle
         ))}
       </ul>
       {creating && <div className="wallets-card-create">
-        <CreateNameForm noun="wallet" label="Wallet name" placeholder="Wallet name, e.g. Dana" hint="Starts at 0. 2–16 letters or digits."
+        <CreateNameForm noun="wallet" label="Wallet name" placeholder="Wallet name, e.g. Dana" hint="Starts with no coins. Use 2–16 letters or digits."
           onCreate={onCreateWallet} onCancel={() => setCreating(false)} />
       </div>}
     </section>

@@ -1,4 +1,5 @@
 import { verifyMerkleMission } from './new-missions.acceptance.mjs';
+import { verifyTour } from './tour.acceptance.mjs';
 // Layout checks in WebKit, the engine of Safari on iPhone: the Chrome acceptance
 // (scripts/acceptance.mjs) does not see engine-specific layout. Today: the blocks of the
 // chain band stand apart, with the link between them, on a phone and on a desktop.
@@ -6,6 +7,9 @@ import { verifyMerkleMission } from './new-missions.acceptance.mjs';
 import { asReturningVisitor, workbench } from './workbench.helpers.mjs';
 import { webkit, devices } from 'playwright';
 import { spawn } from 'node:child_process';
+import { mkdir, mkdtemp } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { stripVTControlCharacters } from 'node:util';
 import { fileURLToPath } from 'node:url';
 import assert from 'node:assert/strict';
@@ -34,6 +38,30 @@ const tileEdges = async (context, band) => {
       return [Math.round(tile.left), Math.round(tile.right)];
     });
   }, band);
+  if (band.endsWith('.is-compact')) {
+    const card = page.getByRole('region', { name: 'Block 3', exact: true });
+    await card.getByRole('button', { name: 'Tamper with this block', exact: true }).click();
+    const form = card.getByRole('form');
+    await form.getByLabel('New amount').fill('0.1');
+    await form.getByRole('button', { name: 'Change amount', exact: true }).click();
+    await card.getByText('Hash mismatch', { exact: true }).waitFor();
+    for (const width of [390, 320]) {
+      await page.setViewportSize({ width, height: 844 });
+      const hashes = await card.locator('.selected-block-hash').evaluateAll(nodes => nodes.map(node => {
+        const row = node.closest('dd').getBoundingClientRect();
+        const walker = document.createTreeWalker(node, NodeFilter.SHOW_TEXT);
+        const range = document.createRange();
+        let fits = true;
+        while (walker.nextNode()) {
+          range.selectNodeContents(walker.currentNode);
+          fits &&= [...range.getClientRects()].every(rect => rect.left >= row.left - 0.5 && rect.right <= row.right + 0.5);
+        }
+        return { length: node.textContent.length, fits };
+      }));
+      assert.equal(hashes.length, 3, 'Current, stored and previous hashes are shown');
+      assert.deepEqual(hashes, Array(3).fill({ length: 64, fits: true }), `All hash characters fit at ${width}px`);
+    }
+  }
   assert.deepEqual(errors, []);
   await page.close();
   return edges;
@@ -116,7 +144,12 @@ try {
   // full band: 32 px link
   assertApart('desktop', await tileEdges(desktop, '.chain-band:not(.is-compact)'), 32);
   await verifyMerkleMission(browser, baseURL, process.env.SCREENSHOT_DIR || '/tmp', false);
-  console.log('WebKit layout: start question and Basics scenes fit; chain band blocks stand apart on phone and desktop');
+  const screenshots = process.env.SCREENSHOT_DIR
+    ? join(process.env.SCREENSHOT_DIR, 'webkit')
+    : await mkdtemp(join(tmpdir(), 'proofofwork-webkit-'));
+  await mkdir(screenshots, { recursive: true });
+  for (const result of await verifyTour(browser, baseURL, screenshots)) console.log(`WebKit: ${result}`);
+  console.log('WebKit layout: start question and Basics scenes fit; chain band blocks stand apart; edited block hashes fit at 390 px and 320 px');
 } finally {
   await browser?.close();
   server?.kill();

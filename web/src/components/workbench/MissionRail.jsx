@@ -32,8 +32,7 @@ function rewardText(reward) {
 }
 
 // Everything the open form, the icon form and the bar need, derived once from progress.
-function summarize(progress) {
-  const current = activeStep(progress);
+function summarize(progress, current) {
   const index = current ? MISSIONS.indexOf(current.mission) : -1;
   const stepsDone = current ? progress.step : 0;
   const stepCount = current ? current.mission.steps.length : 0;
@@ -78,7 +77,7 @@ function ActiveBody({ info, tone, onShowMe }) {
             <li key={step.id} className={`mission-rail-step is-${state}`} aria-current={state === 'current' ? 'step' : undefined}>
               <span className="mission-rail-step-ck">{state === 'done' && Icon.check(10)}</span>
               <span className="mission-rail-step-txt">
-                <span id={state === 'current' ? stepTextId : undefined}>{textOf(step.text, tone)}</span>
+                <span id={state === 'current' ? stepTextId : undefined}>{state === 'current' && current.instruction ? current.instruction : textOf(step.text, tone)}</span>
                 {state === 'done' && <span className="mission-rail-sr"> (done)</span>}
                 {state === 'current' && (
                   <button type="button" className="mission-rail-show" aria-describedby={stepTextId} {...hint('mission.show-me')} onClick={() => onShowMe?.(current)}>
@@ -184,7 +183,7 @@ function MissionSheet({ progress, info, tone, onClose, onShowMe, onSelectMission
             onShowMe={step => { onClose(); onShowMe?.(step); }} />
           {!info.current && <Complete info={info} />}
         </div>
-        <div className="mission-rail-foot">Free play never needs a mission. Your progress stays in this browser.</div>
+        <div className="mission-rail-foot">You can explore freely at any time. Your mission progress stays in this browser.</div>
       </div>
     </dialog>
   );
@@ -221,8 +220,8 @@ function Bar({ progress, info, tone, onShowMe, onSelectMission, collapsed, onTog
   );
 }
 
-export function MissionRail({ progress, tone = 'technical', collapsed = false, onToggle, onShowMe, onSelectMission, variant = 'rail' }) {
-  const info = summarize(progress);
+export function MissionRail({ progress, guide = activeStep(progress), tone = 'technical', collapsed = false, onToggle, onShowMe, onSelectMission, variant = 'rail' }) {
+  const info = summarize(progress, guide);
   if (variant === 'bar') return <Bar progress={progress} info={info} tone={tone} onShowMe={onShowMe} onSelectMission={onSelectMission}
     collapsed={collapsed} onToggle={onToggle} />;
   return (
@@ -242,7 +241,7 @@ export function MissionRail({ progress, tone = 'technical', collapsed = false, o
             <MissionList progress={progress} info={info} tone={tone} onShowMe={onShowMe} onSelectMission={onSelectMission} />
             {!info.current && <Complete info={info} />}
           </div>
-          <div className="mission-rail-foot">Collapse the rail for free play. Your progress stays in this browser.</div>
+          <div className="mission-rail-foot">Hide missions to make more room. Your progress stays in this browser.</div>
         </div>
       )}
     </aside>

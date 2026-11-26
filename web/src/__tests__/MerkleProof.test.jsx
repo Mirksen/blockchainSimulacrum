@@ -33,7 +33,7 @@ describe('MerkleProof', () => {
     expect(screen.getByText('4 hashes instead of 16 transactions')).toBeTruthy();
     expect(screen.getAllByRole('button', { name: /^Tx \d+/ })).toHaveLength(16);
     expect(screen.getByRole('button', { name: /^Tx 5 / }).getAttribute('aria-pressed')).toBe('true');
-    expect(verdict().textContent).toMatch(/^Payment proven/);
+    expect(verdict().textContent).toMatch(/^Inclusion proven/);
     expect(screen.getAllByText(block.root).length).toBeGreaterThanOrEqual(2);
     const path = within(screen.getByRole('list', { name: 'Proof path' }));
     expect(path.getAllByRole('listitem')).toHaveLength(5);
@@ -43,13 +43,13 @@ describe('MerkleProof', () => {
     fireEvent.click(screen.getByRole('button', { name: /^Tx 12 / }));
     expect(screen.getByLabelText('Payment text of transaction 12').value).toBe(block.texts[12]);
     expect(within(level('Level 0 · transaction')).getByText(block.txids[12])).toBeTruthy();
-    expect(verdict().textContent).toMatch(/^Payment proven/);
+    expect(verdict().textContent).toMatch(/^Inclusion proven/);
   });
 
   it('fails at level 0 when the payment text changes, and only there', () => {
     render(<MerkleProof />);
     fireEvent.change(screen.getByLabelText('Payment text of transaction 5'), { target: { value: 'Payment 5: demo wallet F pays shop 36 600 virtual coins.' } });
-    expect(verdict().textContent).toMatch(/^Payment not proven.*fails at level 0/);
+    expect(verdict().textContent).toMatch(/^Inclusion not proven.*fails at level 0/);
     expect(within(level('Level 0 · transaction')).getByText('Differs from the block’s tree here')).toBeTruthy();
     expect(screen.getAllByText('Differs from the block’s tree here')).toHaveLength(1);
     expect(level('Level 0 · transaction').className).toContain('is-failed');
@@ -74,7 +74,7 @@ describe('MerkleProof', () => {
     fireEvent.click(screen.getByLabelText('4 transactions'));
     expect(screen.getByText('2 hashes instead of 4 transactions')).toBeTruthy();
     expect(screen.getAllByRole('button', { name: /^Tx \d+/ })).toHaveLength(4);
-    expect(verdict().textContent).toMatch(/^Payment proven/);
+    expect(verdict().textContent).toMatch(/^Inclusion proven/);
 
     fireEvent.click(screen.getByLabelText('4,096 transactions'));
     expect(screen.getByText('12 hashes instead of 4,096 transactions')).toBeTruthy();
@@ -83,7 +83,7 @@ describe('MerkleProof', () => {
     fireEvent.change(pick, { target: { value: '4000' } });
     expect(screen.getByLabelText('Payment text of transaction 4000').value).toBe(sampleBlock(4096).texts[4000]);
     expect(within(screen.getByRole('list', { name: 'Proof path' })).getAllByRole('listitem')).toHaveLength(13);
-    expect(verdict().textContent).toMatch(/^Payment proven/);
+    expect(verdict().textContent).toMatch(/^Inclusion proven/);
     fireEvent.change(pick, { target: { value: '5000' } });
     expect(screen.getByText(/Enter a whole number from 0 to 4,095/)).toBeTruthy();
     expect(screen.getByLabelText('Payment text of transaction 4000')).toBeTruthy();
@@ -93,11 +93,11 @@ describe('MerkleProof', () => {
     render(<MerkleProof />);
     fireEvent.click(screen.getByLabelText('256 transactions'));
     fireEvent.change(screen.getByLabelText('Payment text of transaction 5'), { target: { value: 'An altered toy payment.' } });
-    expect(verdict().textContent).toMatch(/^Payment not proven/);
+    expect(verdict().textContent).toMatch(/^Inclusion not proven/);
     fireEvent.click(screen.getByRole('button', { name: 'Reset example' }));
     expect(screen.getByLabelText('16 transactions').checked).toBe(true);
     expect(screen.getByLabelText('Payment text of transaction 5').value).toBe(sampleBlock(16).texts[5]);
-    expect(verdict().textContent).toMatch(/^Payment proven/);
+    expect(verdict().textContent).toMatch(/^Inclusion proven/);
   });
   it('explains a sibling hash and its side in a hint bubble', () => {
     render(<MerkleProof />);
@@ -110,7 +110,7 @@ describe('Chain lab experiment switch', () => {
   it('offers Prove a payment as the third experiment', () => {
     render(<ChainLab onClose={() => {}} />);
     const nav = within(screen.getByRole('navigation', { name: 'Chain lab experiment' }));
-    expect(nav.getAllByRole('button').map(button => button.textContent)).toEqual(['Repair a chain', 'Competing branches', 'Prove a payment']);
+    expect(nav.getAllByRole('button').map(button => button.textContent)).toEqual(['Repair a chain', 'Competing branches', 'Prove a payment', 'Two nodes']);
     fireEvent.click(nav.getByRole('button', { name: 'Prove a payment' }));
     expect(nav.getByRole('button', { name: 'Prove a payment' }).getAttribute('aria-pressed')).toBe('true');
     expect(screen.getByRole('heading', { level: 2, name: 'Prove a payment' })).toBeTruthy();

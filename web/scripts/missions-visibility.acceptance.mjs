@@ -140,7 +140,7 @@ export async function verifyMissionVisibility(browser, baseURL, output) {
       assert.deepEqual((await storedProgress(page)).skipped, id === 'hash' ? HASH_SKIPS : []);
       // The tone of the texts follows the answer: plain words for newcomers.
       const lede = id === 'new' ? 'You can send a photo and still keep it. Great for photos, a disaster for money.'
-        : 'Data is copied, never moved. A digital coin is data.';
+        : 'Sending digital data creates a copy. How can a digital coin change hands without being spent twice?';
       await page.getByText(lede, { exact: true }).waitFor();
       await page.reload();
       await expectCourseStart(page, id === 'hash');

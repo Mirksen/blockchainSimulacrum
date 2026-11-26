@@ -38,7 +38,7 @@ describe('ForkExperiment', () => {
     render(<ForkExperiment onLessonEvent={onLessonEvent} coach={{ target: 'chain-lab.fork-scenario', label: 'Choose the scenario' }} />);
     expect(screen.getByText('Shared ancestor')).toBeTruthy();
     expect(screen.getByText(/Work is tied/)).toBeTruthy();
-    expect(screen.getByText(/observed attempts are luck/)).toBeTruthy();
+    expect(screen.getByText(/Actual attempts vary with luck/)).toBeTruthy();
     expect(screen.getByText(/simulator, wallets and mining pool stay untouched/)).toBeTruthy();
     expect(screen.getByRole('note').textContent).toBe('Choose the scenario');
     expect(screen.getByText('Original 50%')).toBeTruthy();
@@ -100,7 +100,7 @@ describe('ForkExperiment', () => {
     expect(screen.getByText(/Rewrite not observed yet/)).toBeTruthy();
     await step();
     expect(screen.getByText('Alternative is selected.')).toBeTruthy();
-    expect(screen.getByText(/Rewrite observed:/)).toBeTruthy();
+    expect(screen.getByText(/The alternative gained more valid work/)).toBeTruthy();
     expect(onLessonEvent.mock.calls.map(([event]) => event.reorganized)).toEqual([false, false, true]);
     expect(onLessonEvent.mock.calls[2][0]).toMatchObject({ scenario: 'rewrite', originalWork: 48, alternativeWork: 64 });
   });
@@ -203,7 +203,7 @@ describe('ForkExperiment', () => {
     const onLessonEvent = vi.fn();
     render(<ForkExperiment onLessonEvent={onLessonEvent} />);
     await act(async () => click('Run experiment'));
-    expect(screen.getByRole('status').textContent).toContain('proof search could not finish');
+    expect(screen.getByRole('status').textContent).toContain('search could not finish');
     expect(screen.getByRole('button', { name: 'Retry experiment' }).disabled).toBe(false);
     await act(async () => click('Retry experiment'));
     expect(screen.getByRole('status').textContent).toContain('No proof found within this search limit');
@@ -247,6 +247,6 @@ describe('ForkExperiment', () => {
   it('explains hash power in a hint bubble', () => {
     render(<ForkExperiment />);
     expect(screen.getByRole('slider', { name: 'Alternative hash power' }).getAttribute('data-hint'))
-      .toContain('The share is each branch’s chance to find the next block.');
+      .toContain('This sets the odds of finding the next block');
   });
 });

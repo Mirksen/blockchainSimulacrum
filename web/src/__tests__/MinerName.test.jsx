@@ -13,7 +13,7 @@ describe('MinerName', () => {
   it('invites a name while it is generated and says what it does', () => {
     const { container } = show({ name: 'Not-Satoshi-4', generated: true });
     expect(screen.getByLabelText('Enter your name').value).toBe('Not-Satoshi-4');
-    expect(status().textContent).toBe('Every block you mine lands on the leaderboard under this name. Make it yours.');
+    expect(status().textContent).toBe('Your chain and wallets stay in this browser. Your miner name and verified work appear on the public leaderboard.');
     expect(container.querySelector('.miner-name.is-generated')).toBeTruthy();
     expect(container.querySelector('.miner-name.is-chosen')).toBeNull();
     cleanup();
