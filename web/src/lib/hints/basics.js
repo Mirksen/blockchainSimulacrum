@@ -7,6 +7,7 @@ export const BASICS_HINTS = {
   // ---------- course host ----------
   'basics.back': { title: 'Back to simulator', text: 'Return to the simulator. Completed scenes stay complete, and your chain and wallets are unchanged.' },
   'basics.reset': { title: 'Reset scene', text: 'Restore this scene’s starting values and stop any running search or draw. Completed scenes stay complete.' },
+  'basics.outline': { title: 'Course outline', text: 'Show or hide the list of lessons. Choose any lesson by its title.' },
   'basics.scene': (number, title, status) => ({ title: `Scene ${number}: ${title}`, text: `Open this scene (${status}). Every scene can be opened at any time, in any order.` }),
   'basics.continue': { title: 'Continue', text: 'Open the next scene of the Basics course.' },
   'basics.bridge.continue': { title: 'Continue', text: 'Leave the Basics course and go on to the next part of the mission track.' },

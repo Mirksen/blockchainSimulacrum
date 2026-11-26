@@ -57,8 +57,7 @@
 .basics-step-title { font-weight: 600; line-height: 1.3; }
 .basics-step-status { font-size: 12px; color: var(--text-2); }
 .basics-step.is-done .basics-step-status { color: var(--green); }
-/* The status icon belongs to the compact stepper below 768 px (see "screen sizes"). */
-.basics-step-icon { display: none; }
+.basics-outline-toggle { display: none; }
 
 /* ---------- header ---------- */
 .basics-header { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--s-6); }
@@ -253,23 +252,20 @@
   .basics-connector { flex-direction: column; align-self: center; width: 72px; padding: 0 var(--s-1); text-align: center; line-height: 1.3; }
   .basics-connector-arrow { transform: none; }
 }
-/* Phones: one compact row of six numbered circles; the status is an icon on the circle and
-   in the button's accessible name, the titles are left out. */
 @media (max-width: 767px) {
-  .basics-stepper ol { position: relative; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: var(--s-1); margin-bottom: var(--s-5); }
-  .basics-stepper ol::before {
-    content: ""; position: absolute; top: 50%; left: 8%; right: 8%; border-top: 1px solid var(--line-3);
+  .basics-stepper { margin-bottom: var(--s-5); }
+  .basics-outline-toggle {
+    display: flex; align-items: center; justify-content: space-between; width: 100%; min-height: 44px;
+    padding: var(--s-2) var(--s-3); color: var(--text); background: var(--panel-2);
+    border: 1px solid var(--line-3); border-radius: var(--r-sm); font: inherit; font-weight: 600; cursor: pointer;
   }
-  .basics-stepper li { position: relative; }
-  .basics-step { display: grid; place-items: center; height: 44px; padding: 0; background: transparent; border-color: transparent; }
-  .basics-step-title, .basics-step-status { display: none; }
-  .basics-step-number { position: relative; grid-row: auto; width: 32px; height: 32px; background: var(--panel); font-size: 13px; }
-  .basics-step-icon {
-    display: block; position: absolute; right: -7px; bottom: -7px; width: 18px; height: 18px; padding: 2px;
-    border-radius: 50%; background: var(--panel); fill: none; stroke: currentColor; stroke-width: 2.4;
-    stroke-linecap: round; stroke-linejoin: round;
+  .basics-outline-toggle[aria-expanded="false"] + ol { display: none; }
+  .basics-stepper ol { grid-template-columns: 1fr; gap: 0; margin: var(--s-1) 0 0; }
+  .basics-step {
+    grid-template-columns: 32px minmax(0, 1fr) auto; grid-template-rows: auto; align-items: center;
+    min-height: 44px; padding: 6px 10px; background: transparent; border-color: transparent;
   }
-  .basics-step.is-skipped .basics-step-number { color: var(--text-2); }
+  .basics-step-number { grid-row: auto; width: 26px; height: 26px; }
   .basics-fingerprint-main { width: 150px; }
   .basics-print-row { flex-direction: column; align-items: center; }
   .basics-print-row > .basics-hash { flex: none; width: 100%; }

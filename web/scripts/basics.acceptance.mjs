@@ -30,11 +30,22 @@ export async function verifyBasics(browser, baseURL, output) {
     const status = page.locator('.basics-scene-body > .basics-status');
     const button = name => page.getByRole('button', { name, exact: true });
 
+    const outline = button('Course outline');
     // Opens scene `index` from the stepper, then gives it something to show.
     const open = async index => {
+      if (page.viewportSize().width < 768) {
+        assert.equal(await outline.getAttribute('aria-expanded'), 'false');
+        assert.equal(await page.locator('.basics-step:visible').count(), 0);
+        await outline.click();
+        assert.equal(await page.locator('.basics-step-title:visible').count(), SCENES.length);
+        assert.equal(await page.locator('.basics-step-status:visible').count(), SCENES.length);
+      } else {
+        assert.equal(await outline.isVisible(), false);
+      }
       await page.getByRole('button', { name: new RegExp(`^Scene ${index + 1}: `) }).click();
       await page.getByRole('heading', { level: 2, name: SCENES[index].title, exact: true }).waitFor();
       assert.equal(await page.locator('.basics-kicker').innerText(), `Basics · Scene ${index + 1} of ${SCENES.length}`);
+      await page.waitForFunction(() => document.activeElement?.matches('.basics-header h2'));
       switch (SCENES[index].id) {
         case 'copy-problem':
           await button('Send photo to Bob').click();
@@ -140,6 +151,7 @@ export async function verifyBasics(browser, baseURL, output) {
     assert.deepEqual([progress.completed, progress.skipped], [[], HASH_SKIPS]);
     assert.equal(await page.evaluate(() => localStorage.getItem('proofofwork-start')), 'hash');
     await page.evaluate(() => scrollTo(0, 0));
+    await outline.click();
     await page.screenshot({ path: join(output, 'basics-skipped-light-390.png'), fullPage: true });
     await button('Send photo to Bob').click();
     await button('Send coin to Bob').click();
@@ -155,7 +167,21 @@ export async function verifyBasics(browser, baseURL, output) {
     await page.waitForFunction(() => document.activeElement?.matches('.basics-header h2'));
     await page.screenshot({ path: join(output, 'basics-continue-after-skip-390.png'), fullPage: true });
 
+    // Selecting the displayed lesson by keyboard returns focus even when its id stays the same.
+    await outline.press('Enter');
+    await page.getByRole('button', { name: /^Scene 4: / }).press('Enter');
+    assert.equal(await outline.getAttribute('aria-expanded'), 'false');
+    assert.ok(await next.evaluate(element => element === document.activeElement));
+
+    // Escape dismisses the list without changing the scene.
+    await outline.click();
+    await page.getByRole('button', { name: /^Scene 2: / }).press('Escape');
+    assert.equal(await outline.getAttribute('aria-expanded'), 'false');
+    assert.ok(await outline.evaluate(element => element === document.activeElement));
+    assert.ok(await next.isVisible());
+
     // A skipped scene stays open to do later.
+    await outline.click();
     await page.getByRole('button', { name: /^Scene 2: / }).click();
     await page.getByRole('heading', { level: 2, name: SCENES[1].title, exact: true }).waitFor();
     assert.deepEqual(errors, []);

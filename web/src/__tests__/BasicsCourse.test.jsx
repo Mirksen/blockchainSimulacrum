@@ -38,18 +38,15 @@ describe('BasicsCourse host', () => {
   it('lists the six scenes with status words and opens the active Basics scene', () => {
     renderCourse({ progress: progressAt('see-a-fingerprint') });
     const nav = screen.getByRole('navigation', { name: 'Basics scenes' });
-    const steps = within(nav).getAllByRole('button');
+    const steps = within(nav).getAllByRole('button', { name: /^Scene / });
     expect(steps).toHaveLength(6);
     expect(steps.map(step => step.textContent)).toEqual([
       '1Scene 1: The copy problemdone', '2Scene 2: Take a fingerprintnow', '3Scene 3: One letter, everything changeslater',
       '4Scene 4: Guess a fingerprintlater', '5Scene 5: Why would anyone guess?later', '6Scene 6: Sealed pageslater'
     ]);
-    // The accessible names state number, title and status in words, also where the narrow
-    // stepper shows only the numbered circles with a status icon.
     const names = ['Scene 1: The copy problem, done', 'Scene 2: Take a fingerprint, now', 'Scene 3: One letter, everything changes, later',
       'Scene 4: Guess a fingerprint, later', 'Scene 5: Why would anyone guess?, later', 'Scene 6: Sealed pages, later'];
     names.forEach((name, at) => expect(within(nav).getByRole('button', { name })).toBe(steps[at]));
-    expect(steps.map(step => Boolean(step.querySelector('.basics-step-icon[aria-hidden="true"]')))).toEqual([true, true, false, false, false, false]);
     expect(heading()).toBe('Take a fingerprint');
     expect(steps[1].getAttribute('aria-current')).toBe('step');
     expect(screen.getByText('A hash is a fingerprint of data. Type anything and watch.')).toBeTruthy();
@@ -59,7 +56,7 @@ describe('BasicsCourse host', () => {
     renderCourse({ progress: { ...initialProgress(), skipped: [...BASICS] } });
     expect(heading()).toBe('The copy problem');
     const nav = screen.getByRole('navigation', { name: 'Basics scenes' });
-    expect(within(nav).getAllByRole('button').every(step => step.textContent.endsWith('skipped'))).toBe(true);
+    expect(within(nav).getAllByRole('button', { name: /^Scene / }).every(step => step.textContent.endsWith('skipped'))).toBe(true);
     expect(within(nav).getByRole('button', { name: 'Scene 3: One letter, everything changes, skipped' })).toBeTruthy();
   });
 

@@ -100,6 +100,10 @@ const firstVisit = async (context, label) => {
   await question.getByRole('button', { name: /^I know what a hash is/ }).click();
   await page.getByRole('heading', { level: 2, name: 'The copy problem', exact: true }).waitFor();
   await fits('Basics scene 1');
+  if (width < 768) {
+    await page.getByRole('button', { name: 'Course outline' }).click();
+    await fits('expanded Basics outline');
+  }
   await page.getByRole('button', { name: /^Scene 6: / }).click();
   await page.getByRole('heading', { level: 2, name: 'Sealed pages', exact: true }).waitFor();
   await fits('Basics scene 6');
