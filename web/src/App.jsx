@@ -189,6 +189,16 @@ function App() {
     };
   }, []);
   useEffect(() => { missions.save(browserStorage(), progress); }, [progress]);
+  // Counts each mission completed during this visit once. Progress loaded or migrated at start
+  // and skipped missions are already in the first list and send nothing.
+  const countedCompleted = useRef(progress.completed);
+  useEffect(() => {
+    const previous = countedCompleted.current;
+    countedCompleted.current = progress.completed;
+    for (const id of progress.completed) {
+      if (!previous.includes(id)) void telemetry.track('mission_completed', { mission: id });
+    }
+  }, [progress.completed]);
   useEffect(() => { if (tourSeen) tour.markSeen(browserStorage()); }, [tourSeen]);
   useEffect(() => {
     if (!winner) return;
@@ -287,6 +297,7 @@ function App() {
   const chooseStart = next => {
     startChoice.save(browserStorage(), next);
     setChoice(next);
+    void telemetry.track('start_chosen', { choice: next });
     const skipped = missions.skip(progress, startChoice.skipsOf(next));
     setProgress(skipped);
     if (next === 'play') { navigate('workbench'); return; }
